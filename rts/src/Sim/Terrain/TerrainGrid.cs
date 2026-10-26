@@ -62,7 +62,7 @@ namespace Rts.Sim.Terrain
             _tiles = new TerrainTile[Width * Height];
             for (int index = 0; index < _tiles.Length; index++)
             {
-                _tiles[index] = new TerrainTile(map.HeightAt(index), map.IsRampAt(index), Fix64.Zero, SurfaceState.Dry, TileBlockers.None);
+                _tiles[index] = new TerrainTile(map.HeightAt(index), map.IsRampAt(index), Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None);
             }
             Version = 0;
         }
@@ -199,17 +199,32 @@ namespace Rts.Sim.Terrain
         }
 
         /// <summary>
-        /// Speed multiplier a unit on <paramref name="layer"/> gets on the tile, from terrain and flood tuning. Unit:
-        /// multiplier of base speed. Range: 0.1 to 2. Air is always 1.
+        /// Speed multiplier a unit on <paramref name="layer"/> gets on the tile, from terrain and flood tuning, ignoring who
+        /// owns the water (every ground unit counts as an enemy of it). Used for flow-field costs, which are shared by all
+        /// teams (ADR-007 amendment). Unit: multiplier of base speed. Range: 0.1 to 2. Air is always 1.
         /// </summary>
         public Fix64 SpeedMultiplier(int index, MovementLayer layer)
+        {
+            return SpeedMultiplier(index, layer, TeamId.None);
+        }
+
+        /// <summary>
+        /// Speed multiplier for a unit of <paramref name="unitTeam"/> on <paramref name="layer"/>: ground units on water
+        /// owned by their own team are not slowed (the design slows enemy ground units); water-layer units get the
+        /// water-unit multipliers on any water. Unit: multiplier of base speed. Range: 0.1 to 2. Air is always 1.
+        /// </summary>
+        public Fix64 SpeedMultiplier(int index, MovementLayer layer, TeamId unitTeam)
         {
             if (layer == MovementLayer.Air)
             {
                 return Fix64.One;
             }
-            // 0 dry, 1 shallow, 2 deep.
+            // 0 dry, 1 shallow, 2 deep; own-team water counts as dry for ground units.
             int depthClass = DepthClass(index);
+            if (layer == MovementLayer.Ground && unitTeam.IsValid && _tiles[index].WaterTeam == unitTeam)
+            {
+                depthClass = 0;
+            }
             if (layer == MovementLayer.Water)
             {
                 if (depthClass == 2)
@@ -237,16 +252,27 @@ namespace Rts.Sim.Terrain
             }
         }
 
-        /// <summary>Sets a tile's water depth, clamped to [0, max_water_depth]. Internal: flood systems call it inside a step. Returns true when the depth changed.</summary>
+        /// <summary>Sets a tile's water depth keeping its current owner (or None when it dries). Internal: flood systems call it inside a step. Returns true when the depth changed.</summary>
         internal bool SetWaterDepth(Simulation sim, int index, Fix64 depth)
         {
+            return SetWater(sim, index, depth, _tiles[index].WaterTeam);
+        }
+
+        /// <summary>
+        /// Sets a tile's water depth and owning team, clamped to [0, max_water_depth]. Internal: flood systems call it
+        /// inside a step. Returns true when depth or owner changed. Water of another team on the tile is replaced, never mixed.
+        /// </summary>
+        internal bool SetWater(Simulation sim, int index, Fix64 depth, TeamId team)
+        {
             Fix64 clamped = Fix64.Clamp(depth, Fix64.Zero, _tuning.MaxWaterDepth);
+            // Owner after the change: None once the tile is dry.
+            TeamId owner = clamped > Fix64.Zero ? team : TeamId.None;
             TerrainTile tile = _tiles[index];
-            if (tile.WaterDepth == clamped)
+            if (tile.WaterDepth == clamped && tile.WaterTeam == owner)
             {
                 return false;
             }
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, clamped, tile.Surface, tile.Blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, clamped, owner, tile.Surface, tile.Blockers));
             return true;
         }
 
@@ -258,28 +284,28 @@ namespace Rts.Sim.Terrain
                 throw new ArgumentOutOfRangeException(nameof(height));
             }
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(height, tile.IsRamp, tile.WaterDepth, tile.Surface, tile.Blockers));
+            Replace(sim, index, new TerrainTile(height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers));
         }
 
         /// <summary>Changes a tile's surface state. Internal; inside a step only.</summary>
         internal void SetSurface(Simulation sim, int index, SurfaceState surface)
         {
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, surface, tile.Blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, surface, tile.Blockers));
         }
 
         /// <summary>Adds blockers to a tile (walls, footprints). Internal; inside a step only.</summary>
         internal void AddBlockers(Simulation sim, int index, TileBlockers blockers)
         {
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.Surface, tile.Blockers | blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers | blockers));
         }
 
         /// <summary>Removes blockers from a tile. Internal; inside a step only.</summary>
         internal void RemoveBlockers(Simulation sim, int index, TileBlockers blockers)
         {
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.Surface, tile.Blockers & ~blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers & ~blockers));
         }
 
         /// <summary>Stores a new tile value, bumps the version and reports the change. Requires an active step.</summary>

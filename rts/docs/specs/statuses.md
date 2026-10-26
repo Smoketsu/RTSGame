@@ -1,5 +1,5 @@
 <!-- rts/docs/specs/statuses.md -->
-<!-- Implementation spec for the shared statuses Grounded and Slowed, the Spoutling drench counter, the per-unit status container, the effective movement layer and the movement speed chain (terrain x status x mechanics). Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by sim-reviewer. -->
+<!-- Implementation spec for the shared statuses Grounded and Slowed, the Spoutling drench counter, the per-unit status container, and how it drives the existing Unit.EffectiveLayer and Unit.StatusSpeedMultiplier read by movement, combat and vision. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by sim-reviewer. -->
 # Spec: Shared statuses (Grounded, Slowed, drench)
 
 ## 1. Purpose and design-doc source
@@ -23,13 +23,13 @@ New keys in `tuning/statuses.json` (add to `StatusTuning`; all **placeholders**)
 | `grounded_landing_search_radius_tiles` | tiles | 0 to 8 | 3 | How far a flyer grounded over a blocked tile searches for a landing tile. |
 | `max_slow_sources_per_unit` | entries | 1 to 8 | 4 | Distinct slow sources a unit tracks at once. |
 
-Unit data: the Spoutling's weapon carries `applies_drench: true` (bool, default false). The combat spec owns the weapon schema; if combat has no on-hit list yet, the field sits on the unit and combat reads it there.
+Unit data: the `weapon` object (`UnitSchema`, `WeaponDefinition`) gains optional `applies_drench` (bool, default false; true only for the Spoutling). `CombatSystem` calls `StatusSystem.ApplyDrenchHit` after each landed hit of such a weapon.
 
 Tick conversions at match start (`SecondsToTicks`, round to nearest): Grounded 80, drench reset 100, drench slow 40 ticks at 20 tps. A conversion giving 0 is a load error ("must be at least one tick").
 
 ## 3. State
 
-New `UnitStatusSet` (`rts/src/Sim/Statuses/UnitStatusSet.cs`), one per unit as `Unit.Statuses`, created with the unit and dropped with it:
+New `UnitStatusSet` (`rts/src/Sim/Statuses/UnitStatusSet.cs`), one per unit as `Unit.Statuses`, created with the unit and dropped with it. It is the source of truth; after every change it pushes two derived values into the fields the coordinator already added to `Unit` (and already hashes): `SetLayerOverride(Ground)` / `ClearLayerOverride()` and `SetStatusSpeedMultiplier(SpeedMultiplier)`.
 
 | Field | Type | Unit | Range |
 | --- | --- | --- | --- |
@@ -43,37 +43,26 @@ New `UnitStatusSet` (`rts/src/Sim/Statuses/UnitStatusSet.cs`), one per unit as `
 | `DrenchHits` | int | hits | 0 to hits_to_ground - 1 |
 | `LastDrenchTick` | int | ticks | -1 = none |
 
-A status is **active** on tick `k` when `k < UntilTick`. Hash order, appended at the end of `Unit.WriteHash` (after `SpawnTick` and momentum.md's `LastSelfMoveTick`): `GroundedUntilTick`, `GroundedSourceKey`, slow count, then per entry `SourceKey`, `Multiplier`, `UntilTick`, `SourcePlayer`; then `DrenchHits`, `LastDrenchTick`.
+A status is **active** on tick `k` when `k < UntilTick`. Hash order, appended at the end of `Unit.WriteHash` (after the existing last field `AttackMoveGoal`, then momentum.md's `LastSelfMoveTick`): `GroundedUntilTick`, `GroundedSourceKey`, slow count, then per entry `SourceKey`, `Multiplier`, `UntilTick`, `SourcePlayer`; then `DrenchHits`, `LastDrenchTick`.
 
-Queries (pure, any time): `IsGrounded => GroundedUntilTick != 0`; `IsSlowed => Slows.Count > 0`; `SpeedMultiplier` = minimum `Multiplier` over entries, `One` when empty (the strongest slow wins; slows never multiply together); `StatusRules.EffectiveLayer(unit)` = `Ground` when `Definition.Layer == Air` and `IsGrounded`, otherwise `Definition.Layer`.
+Queries (pure, any time): `IsGrounded => GroundedUntilTick != 0`; `IsSlowed => Slows.Count > 0`; `SpeedMultiplier` = minimum `Multiplier` over entries, `One` when empty (the strongest slow wins; slows never multiply together). The effective layer is the existing `Unit.EffectiveLayer` (`LayerOverride` when set, else the definition layer); only this system sets or clears the override.
 
 ## 4. Per-tick algorithm
 
 New step **3, statuses**, between commands and movement (Simulation header updated; see README): `StatusSystem.BeginTick(sim)` visits units in ascending ID and, per unit, in this fixed order:
-1. Grounded: if `GroundedUntilTick != 0 && tick >= GroundedUntilTick`: clear it, emit `StatusExpiredEvent(Grounded)` then `UnitLayerChangedEvent(Ground -> Air)`.
-2. Slows, ascending key: remove each entry with `tick >= UntilTick`, emitting `StatusExpiredEvent(Slowed, key)`.
+1. Grounded: if `GroundedUntilTick != 0 && tick >= GroundedUntilTick`: clear it and the key, `ClearLayerOverride()`, emit `StatusExpiredEvent(Grounded)` then `UnitLayerChangedEvent(Ground -> Air)`.
+2. Slows, ascending key: remove each entry with `tick >= UntilTick`, emitting `StatusExpiredEvent(Slowed, key)`; then `SetStatusSpeedMultiplier(SpeedMultiplier)`.
 3. Drench: if `LastDrenchTick >= 0 && tick - LastDrenchTick >= resetTicks`: `DrenchHits = 0`, `LastDrenchTick = -1` (no event).
 
 Apply methods (`StatusSystem`, internal, throw outside a step; `now = sim.Clock.Tick`):
-- `ApplyGrounded(sim, target, durationTicks, sourceKey, sourcePlayer) -> bool`: false (nothing happens) unless `target.Definition.Layer == Air`. `until = now + durationTicks`. Already Grounded: **refresh**, `GroundedUntilTick = max(old, until)`, keep the old key, `refreshed = true`. Otherwise set both, run **landing**, emit `UnitLayerChangedEvent(Air -> Ground)`. Always: `DrenchHits = 0`, `LastDrenchTick = -1`, emit `StatusAppliedEvent`. Refresh, never extend: re-applying cannot add durations together.
-- Landing: if the unit's tile is off-map or has a `Wall` or `Footprint` blocker, scan Chebyshev rings `r = 1 .. grounded_landing_search_radius_tiles`, tiles in ascending index within a ring; the first in-map tile without those blockers becomes the position `(x + 1/2, y + 1/2)`. None found: position unchanged. The move order is kept; movement now follows ground fields (ADR-007 layer switching).
-- `ApplySlow(sim, target, sourceKey, multiplier, durationTicks, sourcePlayer)`: throws `ArgumentOutOfRangeException` unless `0 < multiplier <= 1` and `durationTicks >= 1`. Any layer. Same key present: replace `Multiplier`, `UntilTick = max(old, now + durationTicks)`, `refreshed = true`. Else if below the cap: insert in key order. Else: replace the entry with the smallest `UntilTick` (ties: smallest key). Emit `StatusAppliedEvent`.
-- `ApplyDrenchHit(sim, attacker, target)`: called by combat once per landed hit of an `applies_drench` weapon. Nothing happens unless `EffectiveLayer(target) == Air`. Then: `DrenchHits += 1`, `LastDrenchTick = now`; `ApplySlow(target, "drench", drench_slow_multiplier, drenchSlowTicks, attacker.Owner)`; if `DrenchHits >= spoutling_drench_hits_to_ground`, `ApplyGrounded(target, groundedTicks, "drench", attacker.Owner)` (which resets the counter). Emit `DrenchHitEvent` with the count reached and whether it grounded.
+- `ApplyGrounded(sim, target, durationTicks, sourceKey, sourcePlayer) -> bool`: false (nothing happens) unless `target.Definition.Layer == Air`. `until = now + durationTicks`. Already Grounded: **refresh**, `GroundedUntilTick = max(old, until)`, keep the old key, `refreshed = true`. Otherwise set both, `SetLayerOverride(Ground)`, run **landing**, emit `UnitLayerChangedEvent(Air -> Ground)`. Always: `DrenchHits = 0`, `LastDrenchTick = -1`, emit `StatusAppliedEvent`. Refresh, never extend: re-applying cannot add durations together.
+- Landing: if `!sim.Terrain.IsStandable(TileOf(position), Ground)` (a `Wall` or `Footprint` blocker), scan Chebyshev rings `r = 1 .. grounded_landing_search_radius_tiles`, tiles in ascending index within a ring; the first in-map standable tile's `CentreOf` becomes the position. None found: position unchanged. The move order is kept; movement now follows ground fields (ADR-007 layer switching).
+- `ApplySlow(sim, target, sourceKey, multiplier, durationTicks, sourcePlayer)`: throws `ArgumentOutOfRangeException` unless `0 < multiplier <= 1` and `durationTicks >= 1`. Any layer. Same key present: replace `Multiplier`, `UntilTick = max(old, now + durationTicks)`, `refreshed = true`. Else if below the cap: insert in key order. Else: replace the entry with the smallest `UntilTick` (ties: smallest key). `SetStatusSpeedMultiplier(SpeedMultiplier)`; emit `StatusAppliedEvent`.
+- `ApplyDrenchHit(sim, attacker, target)`: called by combat once per landed hit of an `applies_drench` weapon. Nothing happens unless `target.EffectiveLayer == Air`. Then: `DrenchHits += 1`, `LastDrenchTick = now`; `ApplySlow(target, "drench", drench_slow_multiplier, drenchSlowTicks, attacker.Owner)`; if `DrenchHits >= spoutling_drench_hits_to_ground`, `ApplyGrounded(target, groundedTicks, "drench", attacker.Owner)` (which resets the counter). Emit `DrenchHitEvent` with the count reached and whether it grounded.
 
-### Speed chain (owned here, wired into movement by the coordinator)
+### Speed chain (already built; this spec only feeds it)
 
-`rts/src/Sim/Units/SpeedChain.cs`, the only place a unit's speed is computed. Evaluate exactly in this order, each `*` a Fix64 multiply (truncating, so order matters):
-```
-s = unit.Definition.SpeedTilesPerSecond
-s = s * TerrainSpeedTable.Multiplier(sim, unit, tileIndex)   // ADR-006: water table (flooding.md 4) then surface table
-s = s * unit.Statuses.SpeedMultiplier                         // this spec
-m = One
-foreach mechanic in sim.Mechanics.Values (ascending ordinal ID)
-    if mechanic is IUnitModifierProvider p: m = m * p.SpeedMultiplier(sim, unit)   // momentum.md
-s = s * m
-return Fix64.Max(s, Zero)        // tiles per second; the movement step is Clock.PerSecondToPerTick(s)
-```
-`TerrainSpeedTable` uses `EffectiveLayer`, so a Grounded flyer is slowed by enemy water. Flow-field cost fields (ADR-007) use only the terrain factor.
+`MovementSystem.StepLength` (coordinator) computes `((base * Terrain.SpeedMultiplier(tile, EffectiveLayer)) * unit.StatusSpeedMultiplier) * modifier_1 * ... * modifier_n` left to right in Fix64 (truncating multiplication is not associative, so the order is part of the contract), with the registered `ISpeedModifier`s in ascending ordinal `Id` (Momentum), then `Clock.PerSecondToPerTick`. Statuses own only the middle factor; flooding owns the water rows of the terrain factor; Momentum owns its modifier. Flow-field costs (ADR-007) use the terrain factor only.
 
 ## 5. Commands and events
 
@@ -83,20 +72,20 @@ return Fix64.Max(s, Zero)        // tiles per second; the movement step is Clock
 
 ## 6. Interfaces
 
-- `Unit` gains `Statuses` (constructed in the `Unit` constructor) and the hash fields above; targeted edit only.
+- `Unit` gains `Statuses` (constructed in the `Unit` constructor) and the hash fields above; targeted edit only. `SetLayerOverride`, `ClearLayerOverride` and `SetStatusSpeedMultiplier` are called by `StatusSystem` and nothing else.
 - `Simulation.Step` calls `StatusSystem.BeginTick` after `ApplyCommands` and before `MovementSystem.Step`.
-- `IUnitModifierProvider` (`rts/src/Sim/Units/IUnitModifierProvider.cs`): `Fix64 SpeedMultiplier(Simulation, Unit)` and `Fix64 DamageMultiplier(Simulation, Unit)`, both `One` for units the provider does not affect. The statuses builder creates the interface and `SpeedChain`; the coordinator (Fable, owner of `MovementSystem`) switches movement to `SpeedChain` and to `EffectiveLayer` for field selection.
-- Consumers: movement (layer and speed), combat (`EffectiveLayer` decides whether melee and ground-only weapons may target a flyer), vision (airborne sight only while the effective layer is Air), Momentum (`IsGrounded`, `IsSlowed`), flooding (speed table).
+- Movement already reads `Unit.EffectiveLayer` and `Unit.StatusSpeedMultiplier`; combat already checks `weapon.CanTarget(target.EffectiveLayer)`, so a Grounded flyer is hit by ground-only and melee weapons with no combat change beyond the drench call.
+- Consumers: movement (layer and speed), combat (targeting by layer, drench), vision (airborne sight only while `EffectiveLayer` is Air), Momentum (`IsGrounded`, `IsSlowed`), flooding (speed table by layer).
 - Must NOT: name a faction or unit ID in code (the `"drench"` key is a source label, set in `StatusTuning` as a constant documented there), draw RNG, or stack slows multiplicatively.
 
 ## 7. Acceptance tests (`rts/tests/Sim.Tests/Statuses/`)
 
-1. **Grounded lifecycle.** Air unit at tick 0; `apply_status grounded` at tick 10: after step 10 `EffectiveLayer == Ground`, `GroundedUntilTick == 90`; still Ground after step 89; step 90's events contain `status_expired` then `unit_layer_changed` (Ground to Air), and the layer is Air.
+1. **Grounded lifecycle.** Air unit at tick 0; `apply_status grounded` at tick 10: after step 10 `EffectiveLayer == Ground`, `HasLayerOverride`, `GroundedUntilTick == 90`; still Ground after step 89; step 90's events contain `status_expired` then `unit_layer_changed` (Ground to Air), and the layer is Air.
 2. **Refresh, not extend.** Grounded at tick 10 and again at tick 11: `GroundedUntilTick == 91`; the second `StatusAppliedEvent.Refreshed` is true.
 3. **Only flyers.** Grounded on a ground unit is rejected `not_a_flyer`; `ApplyGrounded` returns false; no status, no event.
 4. **Slow speed.** Ground unit speed 2, flat open ground heading east, slowed 0.5 for 2 s at tick 0: X advances 0.05 per tick on ticks 0 to 39 and 0.1 from tick 40; `status_expired` at tick 40.
 5. **Strongest wins.** At tick 0, key `a` 0.75 for 100 ticks and key `b` 0.5 for 20 ticks: `SpeedMultiplier` is 0.5 on ticks 0 to 19, 0.75 on 20 to 99, `One` from 100.
-6. **Same key refreshes.** Key `a` 0.5 for 40 ticks at tick 0, then key `a` 0.75 for 10 ticks at tick 10: one entry, multiplier 0.75, `UntilTick == 40`.
+6. **Same key refreshes.** Key `a` 0.5 for 40 ticks at tick 0, then key `a` 0.75 for 10 ticks at tick 10: one entry, multiplier 0.75, `UntilTick == 40`, `Unit.StatusSpeedMultiplier == 0.75`.
 7. **Cap.** Cap 4; keys `a` to `d` with `UntilTick` 10, 20, 30, 40, then `e` until 50: keys are `b, c, d, e`.
 8. **Drench grounds on the third hit.** Spoutling hits an air unit at ticks 0, 1, 2: after tick 2 `GroundedUntilTick == 82`, `DrenchHits == 0`, slow `drench` 0.75 with `UntilTick == 42`, last `DrenchHitEvent` has hits 3 and grounded true.
 9. **Drench timeout.** Hits at ticks 0, 50 and 160: `DrenchHits == 1` after tick 160 (reset at the start of tick 150), no Grounded.

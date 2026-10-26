@@ -30,3 +30,8 @@ Armies of up to 200 supply must path across terrain that changes every few secon
 - Many units sharing a goal (a move order on a selected group) share one field; the cost is per goal, not per unit.
 - Every terrain change invalidates all fields, which is correct but means a flood that ticks every second rebuilds fields every second. That is acceptable at Phase 1 map sizes; if profiling disagrees, fields can be invalidated by region.
 - Flow fields are not hashed: they are a pure function of terrain and goal, rebuilt on demand. Unit positions and goals are hashed, so a wrong field would still surface as a hash mismatch.
+
+## Amendment, 26 October 2026 (same branch, before acceptance review)
+
+- Flow-field costs are team-agnostic: fields stay keyed by `(layer, goal)` and use the team-less terrain speed query, which prices every water tile as enemy water for ground units. A team's own water therefore looks slower to the pathfinder than it is, which only makes ground units prefer dry routes through their own floods. Keying fields by team as well would multiply the cache size by the team count; revisit if playtests show bad routing.
+- Movement itself uses the team-aware speed query, so actual speed on own-team water is correct.

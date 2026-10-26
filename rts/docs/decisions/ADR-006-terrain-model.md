@@ -34,3 +34,9 @@ The design makes the map a weapon: Skai fly over it, water floods it, earth rais
 - Fog of war (Phase 1) gets its "low ground cannot see high ground" rule from `Height` directly.
 - Memory is small: a 256 × 256 map is 65 536 tiles of a few bytes each; hashing it every second is cheap.
 - Unit positions stay continuous, so rendering is smooth; only passability and speed are per tile.
+
+## Amendment, 26 October 2026 (same branch, before acceptance review)
+
+- Each tile also records `WaterTeam`: the team whose flooding owns its water, `None` when dry (hashed after `WaterDepth`). Water of different teams never mixes on a tile; a later flood replaces it. Allies share water as they share vision.
+- The speed query takes the unit's team: ground units on water owned by their own team are not slowed (the design slows *enemy* ground units); water-layer units get the water-unit multipliers on any water. The team-less overload treats every ground unit as an enemy of the water and is used for flow-field costs.
+- Mutator: `SetWater(sim, index, depth, team)`; `SetWaterDepth` keeps the current owner.

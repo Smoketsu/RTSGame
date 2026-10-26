@@ -11,12 +11,12 @@
 
 ## 2. Data
 
-No tuning keys in Phase 1. New unit-data fields (`UnitDefinition`, loader-validated; add them to all six unit files in the same change):
+No tuning keys in Phase 1. Unit-data fields (`UnitDefinition`, read by `UnitSchema`; both are in the content digest):
 
 | Field | Type | Unit | Range | Default / placeholder |
 | --- | --- | --- | --- | --- |
-| `sight_range_tiles` | Fix64 | tiles | 0 to 20 | Required. Placeholders: workers 7, Windrunner 10, Grasper 8, Spoutling 9, Roc Rider 9 (used while Grounded). |
-| `airborne_sight_range_tiles` | Fix64 | tiles | 0 to 20 | Required when `layer` is `air`, rejected otherwise. Placeholder: Roc Rider 6 ("short sight range when airborne"). |
+| `sight_range_tiles` | Fix64 | tiles | 1 to 64 | **Exists** (optional, schema default 8). Ground and water sight, and a Grounded flyer's. Placeholders to write into the unit files: workers 7, Windrunner 10, Grasper 8, Spoutling 9, Roc Rider 9. |
+| `airborne_sight_range_tiles` | Fix64 | tiles | 1 to 64 | **New.** Required when `layer` is `air`, rejected otherwise (`UnitDefinition.AirborneSightRangeTiles`, equal to `SightRangeTiles` for non-air units). Placeholder: Roc Rider 6 ("short sight range when airborne"). |
 
 Buildings use `sight_range_tiles` the same way (placeholder 9 when building data lands).
 
@@ -30,7 +30,7 @@ Buildings use `sight_range_tiles` the same way (placeholder 9 when building data
 | `Visible` | `ulong[]` bit grid | 1 bit per tile, bit `i % 64` of word `i / 64`, `i = y * Width + x` | 1 = seen this tick |
 | `Explored` | `ulong[]` bit grid | same layout | 1 = seen on any tick so far; never cleared |
 
-Both grids affect future ticks (combat target acquisition and Phase 2 command checks read them), so both are hashed. Hash position: after `Units.WriteHash`, before the mechanics (README hash order). Order: team count, then per team ascending: `Team`, word count, every `Visible` word ascending, every `Explored` word ascending. Unused bits of the last word are always 0.
+Both grids affect future ticks (combat target acquisition and Phase 2 command checks read them), so both are hashed. Hash position: after `Terrain.WriteHash`, before the mechanics (README hash order). Order: team count, then per team ascending: `Team`, word count, every `Visible` word ascending, every `Explored` word ascending. Unused bits of the last word are always 0.
 
 Cached and **not** hashed (pure functions of data): a `SortedDictionary<long, int[]>` from a radius's `Fix64.Raw` to its stamp offsets.
 
@@ -39,14 +39,14 @@ Cached and **not** hashed (pure functions of data): a `SortedDictionary<long, in
 New step **7, vision**, after faction mechanics and before the state hash, so the hash, the next tick's combat and the AI (which runs between steps) all read end-of-tick vision. `Start` also runs one recompute after `OnMatchStart`, so tick 0 has vision.
 
 1. For each team ascending: clear `Visible` (all words 0).
-2. For each unit in ascending ID whose `Owner` is a player (neutral units give no vision): `team = TeamOf(owner)`; `(cx, cy) = (Position.X.FloorToInt(), Position.Y.FloorToInt())`; skip if off-map.
-   - `layer = StatusRules.EffectiveLayer(unit)` (statuses.md).
+2. For each unit in ascending ID whose `Owner` is a player (neutral units give no vision): `team = TeamOf(owner)`; `(cx, cy) = (Position.X.FloorToInt(), Position.Y.FloorToInt())` (the tile `TerrainGrid.TileOf` returns); skip if off-map.
+   - `layer = unit.EffectiveLayer` (driven by statuses.md).
    - Air: `R = airborne_sight_range_tiles`, `eye = int.MaxValue` (sees every height).
-   - Ground or Water: `R = sight_range_tiles`, `eye = Height(cx, cy) + (IsRamp(cx, cy) ? 1 : 0)`.
+   - Ground or Water: `R = sight_range_tiles`, `eye = At(cx, cy).Height + (At(cx, cy).IsRamp ? 1 : 0)`.
    - For each offset `(dx, dy)` of radius `R` (below), tile `(cx + dx, cy + dy)`: skip off-map; set its `Visible` bit when `Height(tile) <= eye`.
 3. For each team ascending: `Explored[w] |= Visible[w]` for every word.
 
-**Stamp offsets for radius R** (computed once per distinct `R.Raw`, no floats, no square roots): `r = R.CeilingToInt()`, `R2 = R * R` (Fix64). For `dy = -r .. r`, then `dx = -r .. r` (this order), include `(dx, dy)` when `Fix64.FromInt(dx * dx + dy * dy) <= R2`. Distances are tile-centre to tile-centre; the viewer's own tile `(0, 0)` is always included (R may be 0). Radius 3 gives 29 tiles; radius 2.5 gives 21.
+**Stamp offsets for radius R** (`VisionStamp.Offsets(R)`, computed once per distinct `R.Raw`, no floats, no square roots): `r = R.CeilingToInt()`, `R2 = R * R` (Fix64). For `dy = -r .. r`, then `dx = -r .. r` (this order), include `(dx, dy)` when `Fix64.FromInt(dx * dx + dy * dy) <= R2`. Distances are tile-centre to tile-centre; the viewer's own tile `(0, 0)` is always included (R may be 0). Radius 3 gives 29 tiles; radius 2.5 gives 21.
 
 **High-ground rule.** A Ground or Water viewer never marks a tile higher than its eye height. A spotter standing on the higher layer marks those tiles with its own sight, and because the grid is per team, every ally (including ranged units below) then sees them. No line-of-sight raycasting across tiles at the same height in Phase 1. A Grounded flyer loses airborne sight and is bound by the rule, a deliberate counter-play.
 
@@ -67,7 +67,7 @@ Query API on `VisionSystem` (read-only, safe between steps, no allocation except
 - `void CollectVisibleEnemies(TeamId team, List<EntityId> into)`: clears `into`, then adds, ascending ID, every unit owned by an enemy of the team (`AreEnemies`) or neutral, that `IsUnitVisibleTo` the team.
 - `TeamId TeamOfPlayer(PlayerId)` passes through to `PlayerRegistry.TeamOf`.
 
-Touches: `Simulation` (field, `Start`, step 7, hash), `UnitDefinition` and `DataLoader` (two fields, targeted edits), reads `TerrainGrid` (`Width`, `Height`, tile `Height`, `IsRamp`) and `StatusRules.EffectiveLayer`. Combat uses `IsUnitVisibleTo` for target acquisition (combat spec). The HQ system's FFA reveal (`ffa_uprooted_reveal_seconds`) will call a Phase 1 follow-up `VisionSystem.SetRevealedToAll(EntityId, bool)` (a hashed sorted set stamped as visible for every team at step 7.2); not part of this build unless the HQ builder needs it.
+Touches: `Simulation` (field, `Start`, step 7, hash), `UnitDefinition`, `UnitSchema` and `ContentCatalog` digest (one new field, targeted edits), reads `TerrainGrid` (`Width`, `Height`, `At(x, y).Height`, `.IsRamp`) and `Unit.EffectiveLayer`. Request to the coordinator: `CombatSystem`'s automatic target acquisition (not forced `attack_unit` orders) should skip enemies for which `IsUnitVisibleTo(attackerTeam, target)` is false; it reads the previous tick's vision, a one-tick delay that is deterministic. That edit is a combat change and gets its own sim-reviewer pass. The HQ system's FFA reveal (`ffa_uprooted_reveal_seconds`) will call a Phase 1 follow-up `VisionSystem.SetRevealedToAll(EntityId, bool)` (a hashed sorted set stamped as visible for every team at step 7.2); not part of this build unless the HQ builder needs it.
 
 Must NOT: use floats, `Math.Sqrt` or `Fix64.Sqrt`; iterate a `Dictionary`/`HashSet`; let neutral units grant vision; read anything from the renderer; mutate units or terrain.
 
@@ -75,7 +75,7 @@ Must NOT: use floats, `Math.Sqrt` or `Fix64.Sqrt`; iterate a `Dictionary`/`HashS
 
 Setup unless stated: 16x16 map, all heights 0, no ramps; two players on teams 0 and 1; test definitions with the given sight.
 
-1. **Stamp counts.** Offsets for R = 3 are 29 tiles, R = 2.5 are 21, R = 0 is 1, R = 1 is 5.
+1. **Stamp counts.** `VisionStamp.Offsets` for R = 3 gives 29 tiles, R = 2.5 gives 21, R = 1 gives 5, R = 0 gives 1 (the pure function accepts 0 even though unit data starts at 1).
 2. **Circle edge.** Team 0 unit at (4.5, 4.5), R = 3: tiles (7,4), (6,6), (4,1) visible; (8,4), (7,5), (7,7) not visible.
 3. **Explored persists.** The unit moves from (4.5, 4.5) to (12.5, 4.5): after arrival (4,4) is not visible but explored; (12,4) is both; team 1 has explored nothing.
 4. **Allies share.** Players 0 and 2 on team 0, player 1 on team 1; a unit of player 2 at (10.5, 10.5) R 2: `IsTileVisible(team 0, 10, 12)` true, `IsTileVisible(team 1, 10, 12)` false.

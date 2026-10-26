@@ -81,6 +81,7 @@ namespace Rts.Sim.Units
                     }
                 }
                 unit.SetPosition(terrain.ClampToMap(next));
+                unit.MarkSelfMoved(sim.Clock.Tick);
                 // Squared distance left to the goal, for the arrival test.
                 Fix64 remainingSquared = (goal - unit.Position).LengthSquared();
                 if (remainingSquared <= arrivalRadiusSquared)
@@ -98,8 +99,10 @@ namespace Rts.Sim.Units
         /// <param name="layer">Its effective layer.</param>
         public static Fix64 StepLength(Simulation sim, Unit unit, int tileIndex, MovementLayer layer)
         {
-            // Speed in tiles per second after every multiplier.
-            Fix64 speed = unit.Definition.SpeedTilesPerSecond * sim.Terrain.SpeedMultiplier(tileIndex, layer) * unit.StatusSpeedMultiplier;
+            // Team of the owner (None for neutral units), so own-team water does not slow the unit.
+            TeamId team = sim.Players.TryGet(unit.Owner, out Teams.Player? owner) ? owner.Team : TeamId.None;
+            // Speed in tiles per second after every multiplier, left to right (truncating multiplication is not associative).
+            Fix64 speed = unit.Definition.SpeedTilesPerSecond * sim.Terrain.SpeedMultiplier(tileIndex, layer, team) * unit.StatusSpeedMultiplier;
             foreach (ISpeedModifier modifier in sim.SpeedModifiers)
             {
                 speed = speed * modifier.SpeedMultiplier(sim, unit);

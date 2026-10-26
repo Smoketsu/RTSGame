@@ -1,5 +1,5 @@
 <!-- rts/docs/specs/momentum.md -->
-<!-- Implementation spec for the Skai Riders mechanic "momentum": integer stacks per unit gained while moving, drained after standing still, lost when Grounded or Slowed, feeding the speed chain and combat through IUnitModifierProvider. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by sim-reviewer. -->
+<!-- Implementation spec for the Skai Riders mechanic "momentum": integer stacks per unit gained while moving, drained after standing still, lost when Grounded or Slowed, feeding movement and combat through the existing ISpeedModifier and IDamageModifier hooks. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by sim-reviewer. -->
 # Spec: Momentum (mechanic ID `momentum`)
 
 ## 1. Purpose and design-doc source
@@ -26,7 +26,7 @@ Existing keys, all in `tuning/momentum.json`, none new:
 
 ## 3. State
 
-**Moving** is defined by the movement system, not by comparing positions: `Unit.LastSelfMoveTick` (new, int, ticks, -1 = never; hashed in `Unit.WriteHash` right after `SpawnTick`) is set to the current tick by `MovementSystem` when it advances the unit along the unit's own order (move, attack-move, or a combat chase that movement performs) by a non-zero distance. A unit **moved this tick** when `LastSelfMoveTick == tick`. Wave pushes, landing relocation, teleports and scripts never set it.
+**Moving** is defined by the movement system, not by comparing positions: `Unit.LastSelfMoveTick` (new, int, ticks, -1 = never; appended to `Unit.WriteHash` after the existing last field `AttackMoveGoal`) is set to the current tick by `MovementSystem` when it moves the unit toward its `MoveTarget` (set by a move order, by attack-move, or by `CombatSystem` chasing a target) and the new position differs from the old one. A unit **moved this tick** when `LastSelfMoveTick == tick`. Wave pushes, landing relocation, teleports and scripts never set it.
 
 Per eligible unit, a `MomentumState` in `SortedDictionary<EntityId, MomentumState>` owned by `MomentumMechanic` (integer stacks plus integer tick accumulators, so no fractional stacks exist):
 
@@ -66,12 +66,12 @@ else:                                                            // still
 ```
 Timeline at the defaults: a unit that moves from tick m holds 1 stack at the end of tick m+19 and 5 at the end of m+99. A unit last moving on tick a waits ticks a+1 to a+30 (1.5 s), drains from a+31, and drops to 4 stacks at the end of tick a+50, then one stack every 20 ticks (0 at the end of a+130).
 
-3. **Modifiers** (`MomentumMechanic : IFactionMechanic, IUnitModifierProvider`; see statuses.md 6 for the chain):
-   - `SpeedMultiplier(sim, unit)` = `One + speed_bonus_per_stack * Stacks` (Fix64 times int), `One` without an entry.
-   - `DamageMultiplier(sim, unit)` = `One + damage_bonus_per_stack * Stacks`, `One` without an entry.
+3. **Modifiers.** `MomentumMechanic : IFactionMechanic, ISpeedModifier, IDamageModifier` (both `Id` = `"momentum"`), registered in `OnMatchStart` with `sim.RegisterSpeedModifier(this)` and `sim.RegisterDamageModifier(this)`:
+   - `SpeedMultiplier(sim, unit)` = `One + speed_bonus_per_stack * Stacks` (Fix64 times int), `One` without an entry. `MovementSystem.StepLength` applies it last (statuses.md 4).
+   - `OutgoingDamageMultiplier(sim, attacker)` = `One + damage_bonus_per_stack * Stacks`, `One` without an entry.
    Stacks gained on tick t affect movement and combat from tick t+1 (mechanics run after both).
 
-**Combat contract.** Combat computes a hit as `damage = ((baseDamage * typeVsArmourMultiplier) * UnitModifiers.DamageMultiplier(sim, attacker))`, left to right, where `UnitModifiers.DamageMultiplier` folds every `IUnitModifierProvider` in ascending mechanic ID starting from `One`, the same way `SpeedChain` folds speed. Stacks are read when the hit lands, not when the shot starts.
+**Combat contract** (already built by the coordinator): `CombatSystem` computes `damage = weapon.Damage * rules.GetMultiplier(damageType, armourType)`, then multiplies by each registered `IDamageModifier` in ascending `Id`, each factor clamped at 0 or more. Stacks are read when the hit resolves.
 
 ## 5. Commands and events
 
@@ -81,7 +81,7 @@ No commands. Events (`rts/src/Sim/Factions/Skai/MomentumEvents.cs`):
 
 ## 6. Interfaces
 
-- Touches: `Factions/Skai/MomentumMechanic.cs` (exists as a shell); `Unit.LastSelfMoveTick` (targeted edit to `Unit.cs`; the setter is internal and called only by `MovementSystem`, which the coordinator edits); `IUnitModifierProvider` and `SpeedChain` from statuses.md.
+- Touches: `Factions/Skai/MomentumMechanic.cs` (exists as a shell); `Unit.LastSelfMoveTick` (targeted edit to `Unit.cs`; internal setter called only by `MovementSystem`, which the coordinator edits); the existing `ISpeedModifier` (`Units/`) and `IDamageModifier` (`Combat/`) hooks.
 - Reads: `UnitStatusSet.IsGrounded`, `IsSlowed` (statuses.md); `sim.Players.TryGet(owner)` and `sim.Content.Factions[faction].MechanicId`.
 - Must NOT: change unit speed or damage directly (only through the provider), compare positions to detect movement, read terrain speed (water slowing is not "slowed"), name a faction, use floats or `sim.Rng`, or keep entries for ineligible units.
 
@@ -93,12 +93,12 @@ Test setup: flat open 64x64 map, one Skai player and one water player, a test gr
 2. **Gain.** Stacks are 0 after 19 steps, 1 after 20, 4 after 80, 5 after 100 and still 5 after 200; exactly five `momentum_changed` events, all with increasing stacks.
 3. **Speed bonus.** The X advance on tick 20 (first tick with 1 stack) equals `Clock.PerSecondToPerTick(FromInt(2) * (One + Fix64.Parse("0.04") * 1))` (about 0.104); at 5 stacks it equals the same with `* 5` (about 0.12).
 4. **Drain.** Unit at 5 stacks arrives on tick a (`unit_arrived`): stacks are 5 at the end of tick a+49, 4 at a+50, 3 at a+70, 0 at a+130.
-5. **Short stops keep progress.** Move 10 ticks, stand 5 ticks (re-order to its own position), move again: the first stack arrives on the 20th moving tick, not the 20th tick after the stop.
+5. **Short stops keep progress.** Move 10 ticks, `stop` (StopCommand) for 5 ticks, move again: the first stack arrives on the 20th moving tick, not the 20th tick after the stop.
 6. **Lost on Grounded.** An air test unit at 5 stacks is grounded by `apply_status` at tick t: after step t stacks are 0 with one `momentum_lost` (5, `"grounded"`); while still moving, stacks stay 0 through tick t+79; after the status expires at tick t+80, the unit holds 1 stack at the end of tick t+99.
 7. **Lost on Slowed, switch respected.** Slowed 0.75 at 5 stacks: stacks 0, reason `"slowed"`. With `lost_on_slowed` false, stacks stay 5 and the unit keeps gaining logic as normal.
-8. **Eligibility.** A water player's unit gets no entry; `SpeedMultiplier` and `DamageMultiplier` for it are `One`. A Skai unit with speed 0 gets no entry.
+8. **Eligibility.** A water player's unit gets no entry; `SpeedMultiplier` and `OutgoingDamageMultiplier` for it are `One`. A Skai unit with speed 0 gets no entry.
 9. **Pushes are not moving.** A Skai unit standing still and pushed by a wave (flooding.md) keeps `StillTicks` counting and gains nothing.
-10. **Damage multiplier.** At 3 stacks `DamageMultiplier == One + Fix64.Parse("0.04") * 3`.
+10. **Damage multiplier.** At 3 stacks `OutgoingDamageMultiplier == One + Fix64.Parse("0.04") * 3`; a hit from a weapon of damage 10 against a 1.0 armour multiplier removes exactly `FromInt(10) * (One + Fix64.Parse("0.04") * 3)` health (about 11.2).
 11. **Determinism and hash.** Two identical runs give equal state hashes at every hash tick; a run where one unit stops 1 tick earlier differs at the next hash tick.
 
 ## 8. Open questions and Phase 2+ follow-ups

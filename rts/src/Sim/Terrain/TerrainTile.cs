@@ -46,6 +46,9 @@ namespace Rts.Sim.Terrain
         /// <summary>Water on the tile. Unit: depth units (1.0 = one tile of water height). Range: 0 (dry) to tuning max_water_depth.</summary>
         public readonly Fix64 WaterDepth;
 
+        /// <summary>Team whose flooding owns the water, or <see cref="TeamId.None"/> when dry. Water of different teams never mixes; allies share it.</summary>
+        public readonly TeamId WaterTeam;
+
         /// <summary>Dry, raised or scorched.</summary>
         public readonly SurfaceState Surface;
 
@@ -56,11 +59,12 @@ namespace Rts.Sim.Terrain
         public const byte MaxHeight = 7;
 
         /// <summary>Builds a tile; callers validate ranges (the loader and the grid mutators do).</summary>
-        public TerrainTile(byte height, bool isRamp, Fix64 waterDepth, SurfaceState surface, TileBlockers blockers)
+        public TerrainTile(byte height, bool isRamp, Fix64 waterDepth, TeamId waterTeam, SurfaceState surface, TileBlockers blockers)
         {
             Height = height;
             IsRamp = isRamp;
             WaterDepth = waterDepth;
+            WaterTeam = waterDepth > Fix64.Zero ? waterTeam : TeamId.None;
             Surface = surface;
             Blockers = blockers;
         }
@@ -77,6 +81,7 @@ namespace Rts.Sim.Terrain
             hasher.Write(Height);
             hasher.Write(IsRamp);
             hasher.Write(WaterDepth);
+            hasher.Write(WaterTeam);
             hasher.Write((byte)Surface);
             hasher.Write((byte)Blockers);
         }
