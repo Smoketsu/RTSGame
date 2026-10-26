@@ -29,3 +29,19 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Command scripts are shared: `CommandScript` (`rts/src/Sim/Data/CommandScript.cs`) parses them inside the simulation assembly, and both the Unity `SimulationHost` and the headless harness play `rts/data/scripts/smoke.json`, so the Unity-versus-headless hash comparison in `docs/UNITY_SETUP.md` is meaningful. `DataLoader` skips the `scripts/` folder; other unknown folders are still rejected.
 - `SimulationHost` takes players, seed and commands from the script (Inspector fields `scriptRelativePath` and `matchSeed`, -1 meaning the script's seed), submits every command before the first tick and stops at the script's tick count with a final-hash log line.
 - The harness `--script` option defaults to `<data dir>/scripts/smoke.json`; 8 new `CommandScriptTests` (129 tests in total).
+
+### Changed (after the Opus simulation review)
+
+- Commands that share an (issuer, sequence) key on one tick are now all rejected as `duplicate_sequence`, so the outcome never depends on arrival order (the old tie-break was not a total order).
+- The simulation RNG is locked outside `Simulation.Step` (`DeterministicRandom.IsLocked`); `MatchClock.Advance`, `EntityIdAllocator.Allocate`, `CommandQueue.Enqueue`/`TakeForTick`, `MovementSystem.Step` and the RNG reseed/restore methods are internal, and `ContentCatalog` freezes at `Start`, so nothing can mutate state outside a step.
+- Move and spawn positions must lie within ±16384 tiles (`Simulation.WorldBoundTiles`, rejected as `out_of_bounds`), and `FixVec2.MoveTowards` pre-scales far offsets so squared distances can never saturate.
+- `SpawnUnitCommand` is accepted only from the script issuer (`PlayerId.None`); a player issuer is rejected as `spawn_requires_script_issuer`. Its constructor rejects an empty definition ID.
+- The state hash now also covers a digest of every unit and faction definition (`Simulation.ContentDigest`) and the hand-over policy (`IHandOverPolicy.Id` and `WriteHash`), so peers with different data or policies diverge at tick 0.
+- `DeterministicRandom.NextIntInclusive` is unbiased for every span; tick-rate and hash-interval bounds are shared constants on `MatchSettings`; the neutral faction ID is `FactionDefinition.NeutralId`; `DataSet` copies maps and cycles into ordinal-ordered dictionaries; maps may list 2 to 16 spawns.
+- ADR-001 wording corrected to match the code (multiply and divide truncate toward zero; digit-by-digit square root).
+- New tests: pinned golden final hash for the determinism script, duplicate rejection independent of submission order, RNG lock, content freeze, per-field hash coverage, far-target movement, bounds rejection (135 tests).
+
+### Known follow-ups
+
+- Faction-specific tuning classes (Momentum, Flood, Earth, Spoutling, harness matchup limits) live in the shared `Tuning` type. Before Phase 1 mechanics read tuning, each mechanic plug-in should declare and parse its own tuning file so adding a faction never edits the core loader.
+- The pending command queue is input, not state, and is not hashed; replay snapshots (Phase 2) must serialise it.

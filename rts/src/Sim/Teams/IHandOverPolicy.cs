@@ -4,6 +4,8 @@
 // beyond the state change and PlayerStateChangedEvent that PlayerTransitions has already done. The real
 // rules arrive later (see the TODOs). Design source: Game Design Proposal, "Surrender and disconnects".
 
+using Rts.Sim.Core;
+
 namespace Rts.Sim.Teams
 {
     /// <summary>
@@ -15,6 +17,12 @@ namespace Rts.Sim.Teams
     /// </summary>
     public interface IHandOverPolicy
     {
+        /// <summary>Stable policy ID such as "state_only"; written into the state hash so peers with different policies diverge at once.</summary>
+        string Id { get; }
+
+        /// <summary>Feeds any policy state that affects future ticks into the state hash. A stateless policy writes nothing.</summary>
+        void WriteHash(StateHasher hasher);
+
         /// <summary>
         /// The player has just left the match: Surrendered, Defeated (HQ destroyed or did not return from a disconnect) or
         /// Eliminated. Design rules for later phases: in a team with another Active player (2v2) the leaver's units and
@@ -52,6 +60,14 @@ namespace Rts.Sim.Teams
     {
         /// <summary>The one shared instance; the policy has no state.</summary>
         public static readonly StateOnlyHandOverPolicy Instance = new StateOnlyHandOverPolicy();
+
+        /// <summary>Policy ID as written into the state hash.</summary>
+        public string Id => "state_only";
+
+        /// <summary>Writes nothing: the policy holds no state.</summary>
+        public void WriteHash(StateHasher hasher)
+        {
+        }
 
         /// <summary>Private so <see cref="Instance"/> is the only instance.</summary>
         private StateOnlyHandOverPolicy()

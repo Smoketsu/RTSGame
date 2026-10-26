@@ -19,9 +19,9 @@ Options considered:
 We write our own `Fix64` in `rts/src/Sim/Core/Fix64.cs`:
 
 - Storage: one `long` raw value; 32 integer bits (range about −2.1 billion to +2.1 billion) and 32 fraction bits (resolution about 2.3 × 10⁻¹⁰).
-- Operations: add, subtract, multiply (128-bit intermediate, truncating towards negative infinity), divide (long division, truncating), floor, ceiling, round, abs, min, max, clamp, sign, square root (integer Newton iteration), comparison.
+- Operations: add, subtract, multiply (128-bit intermediate on the magnitudes, truncating toward zero), divide (long division on the magnitudes, truncating toward zero), floor, ceiling, round, abs, min, max, clamp, sign, square root (digit-by-digit integer root, exact to the last fraction bit), comparison.
 - Overflow policy: add, subtract and multiply **saturate** at `MaxValue`/`MinValue` and never wrap. Division by zero throws (`DivideByZeroException`); a throw is still deterministic, and a silent "infinity" is not a value the design wants.
-- Parsing: `Fix64.Parse("1.5")` reads decimal text digit by digit so data files never pass through `double`.
+- Parsing: `Fix64.Parse("1.5")` reads decimal text digit by digit so data files never pass through `double`. The fraction is rounded to the nearest 2^-32 on the magnitude (halves away from zero).
 - No implicit conversion from `float`/`double`. Conversion to `float` exists only for the renderer and is marked for presentation use.
 
 ## Why our own and not FixedMath.Net

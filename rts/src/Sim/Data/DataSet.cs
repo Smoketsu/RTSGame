@@ -23,13 +23,32 @@ namespace Rts.Sim.Data
         /// <summary>Planetary Cycle definitions by ID. Iteration is in ordinal ID order.</summary>
         public IReadOnlyDictionary<string, CycleDefinition> Cycles { get; }
 
-        /// <summary>Bundles the loaded pieces. The loader is the normal caller; tests may build one by hand.</summary>
-        public DataSet(ContentCatalog content, Tuning tuning, SortedDictionary<string, MapDefinition> maps, SortedDictionary<string, CycleDefinition> cycles)
+        /// <summary>Bundles the loaded pieces. The loader is the normal caller; tests may build one by hand. The map and cycle dictionaries are copied into ordinal-ordered dictionaries so iteration order never depends on the caller's comparer.</summary>
+        public DataSet(ContentCatalog content, Tuning tuning, IReadOnlyDictionary<string, MapDefinition> maps, IReadOnlyDictionary<string, CycleDefinition> cycles)
         {
             Content = content ?? throw new ArgumentNullException(nameof(content));
             Tuning = tuning ?? throw new ArgumentNullException(nameof(tuning));
-            Maps = maps ?? throw new ArgumentNullException(nameof(maps));
-            Cycles = cycles ?? throw new ArgumentNullException(nameof(cycles));
+            if (maps == null)
+            {
+                throw new ArgumentNullException(nameof(maps));
+            }
+            if (cycles == null)
+            {
+                throw new ArgumentNullException(nameof(cycles));
+            }
+            // Ordinal copies: the only iteration order the simulation uses.
+            SortedDictionary<string, MapDefinition> orderedMaps = new SortedDictionary<string, MapDefinition>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, MapDefinition> pair in maps)
+            {
+                orderedMaps.Add(pair.Key, pair.Value);
+            }
+            SortedDictionary<string, CycleDefinition> orderedCycles = new SortedDictionary<string, CycleDefinition>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, CycleDefinition> pair in cycles)
+            {
+                orderedCycles.Add(pair.Key, pair.Value);
+            }
+            Maps = orderedMaps;
+            Cycles = orderedCycles;
         }
 
         /// <summary>Builds the core match settings from tuning/match.json (ticks_per_second and state_hash_interval_ticks).</summary>

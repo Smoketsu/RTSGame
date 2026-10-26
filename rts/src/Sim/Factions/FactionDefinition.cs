@@ -40,5 +40,8 @@ namespace Rts.Sim.Factions
 
         /// <summary>The mechanic ID meaning "this faction has no signature mechanic".</summary>
         public const string NoMechanic = "none";
+
+        /// <summary>The faction ID for units owned by nobody (critters, map objects). Data file: data/factions/neutral.json.</summary>
+        public const string NeutralId = "neutral";
     }
 }

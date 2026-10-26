@@ -48,7 +48,7 @@ namespace Rts.Sim.Tests.Data
             Fix64 speed = data.Content.Units["skai.windrunner"].SpeedTilesPerSecond;
             Assert.That(speed, Is.EqualTo(Fix64.Parse("3.5")));
 
-            sim.Submit(new SpawnUnitCommand(0, Skai, 0, "skai.windrunner", Skai, FixVec2.FromInts(4, 4)));
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.windrunner", Skai, FixVec2.FromInts(4, 4)));
             sim.Step();
             Unit? unit = null;
             foreach (Unit candidate in sim.Units.All)
@@ -75,7 +75,7 @@ namespace Rts.Sim.Tests.Data
         {
             DataSet data = TestData.LoadAll();
             Simulation sim = Build(data, 5UL);
-            sim.Submit(new SpawnUnitCommand(0, Skai, 0, "skai.windrunner", Skai, FixVec2.FromInts(4, 4)));
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.windrunner", Skai, FixVec2.FromInts(4, 4)));
             sim.Step();
             // 7 tiles at 3.5 tiles per second is 2 seconds, 40 ticks at 20 ticks per second.
             sim.Submit(new MoveUnitCommand(1, Skai, 1, new EntityId(1), FixVec2.FromInts(11, 4)));
@@ -103,8 +103,8 @@ namespace Rts.Sim.Tests.Data
             for (int run = 0; run < 2; run++)
             {
                 Simulation sim = Build(data, 99UL);
-                sim.Submit(new SpawnUnitCommand(0, Skai, 0, "skai.roc_rider", Skai, FixVec2.FromInts(8, 8)));
-                sim.Submit(new SpawnUnitCommand(0, Water, 0, "water.grasper", Water, FixVec2.FromInts(56, 56)));
+                sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.roc_rider", Skai, FixVec2.FromInts(8, 8)));
+                sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 1, "water.grasper", Water, FixVec2.FromInts(56, 56)));
                 sim.Step(40);
                 Assert.That(sim.Units.Count, Is.EqualTo(2));
                 hashes[run] = sim.ComputeStateHash();

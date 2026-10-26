@@ -141,6 +141,21 @@ namespace Rts.Sim.Tests
         }
 
         [Test]
+        public void FixVec2_MoveTowards_NeverOvershootsForFarTargets()
+        {
+            // Components beyond SafeComponentLimit would saturate LengthSquared; the pre-scaled path must still step by maxDistance.
+            FixVec2 start = FixVec2.Zero;
+            FixVec2 far = FixVec2.FromInts(2000000000, 2000000000);
+            FixVec2 step = start.MoveTowards(far, Fix64.One);
+            Assert.That(step.Length().Raw, Is.EqualTo(Fix64.One.Raw).Within(1 << 16));
+            Assert.That(step.X.Raw, Is.EqualTo(step.Y.Raw).Within(2));
+            FixVec2 farX = FixVec2.FromInts(100000, 0);
+            FixVec2 stepX = start.MoveTowards(farX, Fix64.Parse("0.1"));
+            Assert.That(stepX.X.Raw, Is.EqualTo(Fix64.Parse("0.1").Raw).Within(1 << 16));
+            Assert.That(stepX.Y, Is.EqualTo(Fix64.Zero));
+        }
+
+        [Test]
         public void FixVec2_MoveTowards_ReachesTargetExactly()
         {
             FixVec2 start = FixVec2.Zero;

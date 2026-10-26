@@ -52,13 +52,36 @@ namespace Rts.Sim.Tests
         public void DuplicateSequence_IsRejectedWithEvent()
         {
             Simulation sim = TestWorld.Started();
-            sim.Submit(new SpawnUnitCommand(0, new PlayerId(0), 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero));
-            sim.Submit(new SpawnUnitCommand(0, new PlayerId(0), 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.FromInts(1, 1)));
+            // Two different spawns with the same (issuer, sequence) key: both are rejected, whichever arrived first.
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero));
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.FromInts(1, 1)));
             sim.Step();
-            Assert.That(sim.Units.Count, Is.EqualTo(1));
-            Assert.That(CountEvents(sim, "command_rejected"), Is.EqualTo(1));
-            CommandRejectedEvent rejection = FindRejection(sim);
-            Assert.That(rejection.Reason, Is.EqualTo("duplicate_sequence"));
+            Assert.That(sim.Units.Count, Is.EqualTo(0));
+            Assert.That(CountEvents(sim, "command_rejected"), Is.EqualTo(2));
+            foreach (SimEvent evt in sim.Events.Current)
+            {
+                if (evt is CommandRejectedEvent rejection)
+                {
+                    Assert.That(rejection.Reason, Is.EqualTo("duplicate_sequence"));
+                }
+            }
+        }
+
+        [Test]
+        public void DuplicateSequence_OutcomeDoesNotDependOnSubmissionOrder()
+        {
+            Simulation forward = TestWorld.Started();
+            Simulation reversed = TestWorld.Started();
+            SpawnUnitCommand a = new SpawnUnitCommand(0, PlayerId.None, 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero);
+            SpawnUnitCommand b = new SpawnUnitCommand(0, PlayerId.None, 0, TestWorld.RunnerId, new PlayerId(1), FixVec2.FromInts(5, 5));
+            forward.Submit(a);
+            forward.Submit(b);
+            reversed.Submit(b);
+            reversed.Submit(a);
+            forward.Step();
+            reversed.Step();
+            Assert.That(forward.ComputeStateHash(), Is.EqualTo(reversed.ComputeStateHash()));
+            Assert.That(forward.Units.Count, Is.EqualTo(0));
         }
 
         [Test]
@@ -74,10 +97,19 @@ namespace Rts.Sim.Tests
             sim.Submit(new MoveUnitCommand(2, new PlayerId(0), 0, new EntityId(99), FixVec2.FromInts(5, 5)));
             sim.Step();
             Assert.That(FindRejection(sim).Reason, Is.EqualTo("unknown_unit"));
-            sim.Submit(new SpawnUnitCommand(3, new PlayerId(0), 1, "nope", new PlayerId(0), FixVec2.Zero));
+            sim.Submit(new SpawnUnitCommand(3, PlayerId.None, 1, "nope", new PlayerId(0), FixVec2.Zero));
             sim.Step();
             Assert.That(FindRejection(sim).Reason, Is.EqualTo("unknown_definition"));
-            sim.Submit(new NoOpCommand(4, new PlayerId(7), 0));
+            sim.Submit(new SpawnUnitCommand(4, new PlayerId(0), 1, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero));
+            sim.Step();
+            Assert.That(FindRejection(sim).Reason, Is.EqualTo("spawn_requires_script_issuer"));
+            sim.Submit(new MoveUnitCommand(5, new PlayerId(0), 2, unit, FixVec2.FromInts(20000, 0)));
+            sim.Step();
+            Assert.That(FindRejection(sim).Reason, Is.EqualTo("out_of_bounds"));
+            sim.Submit(new SpawnUnitCommand(6, PlayerId.None, 2, TestWorld.RunnerId, new PlayerId(0), FixVec2.FromInts(0, -20000)));
+            sim.Step();
+            Assert.That(FindRejection(sim).Reason, Is.EqualTo("out_of_bounds"));
+            sim.Submit(new NoOpCommand(7, new PlayerId(7), 0));
             sim.Step();
             Assert.That(FindRejection(sim).Reason, Is.EqualTo("unknown_issuer"));
         }

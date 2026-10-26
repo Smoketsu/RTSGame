@@ -310,7 +310,7 @@ namespace Rts.Sim.Tests.Data
             files = TestData.WithEdit("maps/greybox_1v1.json", "{ \"x\": 56, \"y\": 56 }", "{ \"x\": 156, \"y\": 56 }");
             AssertRejected(files, "maps/greybox_1v1.json", "spawns[1].x");
             files = TestData.WithEdit("maps/greybox_1v1.json", ",\n    { \"x\": 56, \"y\": 56 }", string.Empty);
-            AssertRejected(files, "maps/greybox_1v1.json", "spawns", "2 to 4");
+            AssertRejected(files, "maps/greybox_1v1.json", "spawns", "2 to 16");
         }
 
         /// <summary>Files outside the known folders, files that are not JSON and duplicate paths are refused.</summary>

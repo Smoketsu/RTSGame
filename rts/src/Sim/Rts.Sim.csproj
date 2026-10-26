@@ -8,7 +8,7 @@
     <RootNamespace>Rts.Sim</RootNamespace>
     <!-- No implicit usings: every file lists what it uses, same as inside Unity. -->
     <ImplicitUsings>disable</ImplicitUsings>
-    <!-- Keep the unit-test assembly able to see internal members. -->
+    <!-- XML doc generation is off; the documentation standard is enforced by review, not by CS1591. -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
@@ -17,7 +17,5 @@
     <None Remove="Rts.Sim.asmdef" />
     <!-- Unity writes .meta files next to every asset; they are not source. -->
     <Compile Remove="**/*.meta" />
-    <!-- The tests project is allowed to see internal types. -->
-    <InternalsVisibleTo Include="Rts.Sim.Tests" />
   </ItemGroup>
 </Project>

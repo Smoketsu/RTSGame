@@ -92,8 +92,8 @@ namespace Rts.Sim.Data
         public MatchTuning(JsonValue root)
         {
             root.RejectUnknownKeys("ticks_per_second", "state_hash_interval_ticks", "match_target_min_seconds", "match_target_max_seconds", "tide_cycle_seconds", "planetary_cycle_interval_seconds", "planetary_cycle_warning_seconds", "core_capture_seconds", "ffa_core_win_cumulative_seconds");
-            TicksPerSecond = root.RequireInt("ticks_per_second", 10, 60);
-            StateHashIntervalTicks = root.RequireInt("state_hash_interval_ticks", 1, 600);
+            TicksPerSecond = root.RequireInt("ticks_per_second", MatchSettings.MinTicksPerSecond, MatchSettings.MaxTicksPerSecond);
+            StateHashIntervalTicks = root.RequireInt("state_hash_interval_ticks", MatchSettings.MinStateHashIntervalTicks, MatchSettings.MaxStateHashIntervalTicks);
             MatchTargetMinSeconds = root.RequireFix64("match_target_min_seconds", "300", "3600");
             MatchTargetMaxSeconds = root.RequireFix64("match_target_max_seconds", "300", "3600");
             TideCycleSeconds = root.RequireFix64("tide_cycle_seconds", "60", "600");

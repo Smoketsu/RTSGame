@@ -115,8 +115,8 @@ namespace Rts.Sim.Core
         /// <summary>The value the next call to <see cref="Allocate"/> returns. Starts at 1; only ever increases.</summary>
         public uint Next { get; private set; } = 1;
 
-        /// <summary>Returns the next ID and advances. Throws once all 2^32 - 1 IDs are used, which no match reaches.</summary>
-        public EntityId Allocate()
+        /// <summary>Returns the next ID and advances. Internal: only the simulation's spawn path allocates. Throws once all 2^32 - 1 IDs are used, which no match reaches.</summary>
+        internal EntityId Allocate()
         {
             if (Next == uint.MaxValue)
             {
@@ -127,9 +127,9 @@ namespace Rts.Sim.Core
             return id;
         }
 
-        /// <summary>Restores the counter, for replays and tests.</summary>
+        /// <summary>Restores the counter, for replays and tests. Internal: only the simulation and tests restore.</summary>
         /// <param name="next">Value for <see cref="Next"/>; must be at least 1.</param>
-        public void Restore(uint next)
+        internal void Restore(uint next)
         {
             if (next == 0)
             {

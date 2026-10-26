@@ -17,24 +17,24 @@ namespace Rts.Sim.Tests
         /// <summary>Ticks to run in each scripted match. Range: enough to cover several hash intervals and arrivals.</summary>
         private const int MatchTicks = 400;
 
-        /// <summary>Builds the scripted command stream: spawns, moves, a removal and some random-driven spawns.</summary>
+        /// <summary>Builds the scripted command stream: script-issued spawns, player-issued moves and a removal.</summary>
         private static List<Command> Script()
         {
             List<Command> script = new List<Command>();
             PlayerId p0 = new PlayerId(0);
             PlayerId p1 = new PlayerId(1);
+            // Spawns come from the script issuer (None) with sequences 0 to 9: P0's units get IDs 1 to 5, P1's 6 to 10.
             for (int i = 0; i < 5; i++)
             {
-                script.Add(new SpawnUnitCommand(0, p0, (uint)i, TestWorld.RunnerId, p0, FixVec2.FromInts(i, 0)));
-                script.Add(new SpawnUnitCommand(0, p1, (uint)i, TestWorld.RunnerId, p1, FixVec2.FromInts(i, 20)));
+                script.Add(new SpawnUnitCommand(0, PlayerId.None, (uint)i, TestWorld.RunnerId, p0, FixVec2.FromInts(i, 0)));
+                script.Add(new SpawnUnitCommand(0, PlayerId.None, (uint)(5 + i), TestWorld.RunnerId, p1, FixVec2.FromInts(i, 20)));
             }
             for (int i = 0; i < 5; i++)
             {
-                // P0's units are IDs 1,3,5,7,9 (interleaved with P1's by sequence order), P1's are 2,4,6,8,10.
-                script.Add(new MoveUnitCommand(1, p0, (uint)i, new EntityId((uint)(2 * i + 1)), FixVec2.FromInts(10 + i, 10)));
-                script.Add(new MoveUnitCommand(1, p1, (uint)i, new EntityId((uint)(2 * i + 2)), FixVec2.FromInts(10 + i, 10)));
+                script.Add(new MoveUnitCommand(1, p0, (uint)i, new EntityId((uint)(i + 1)), FixVec2.FromInts(10 + i, 10)));
+                script.Add(new MoveUnitCommand(1, p1, (uint)i, new EntityId((uint)(i + 6)), FixVec2.FromInts(10 + i, 10)));
             }
-            script.Add(new RemoveUnitCommand(50, p1, 10, new EntityId(2)));
+            script.Add(new RemoveUnitCommand(50, p1, 10, new EntityId(7)));
             script.Add(new MoveUnitCommand(120, p0, 10, new EntityId(1), FixVec2.FromInts(0, 0)));
             return script;
         }
@@ -70,6 +70,22 @@ namespace Rts.Sim.Tests
             List<ulong> second = Run(777, Script());
             Assert.That(first.Count, Is.EqualTo(MatchTicks / TestWorld.HashInterval + 1));
             Assert.That(second, Is.EqualTo(first));
+        }
+
+        /// <summary>
+        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, pinned on 26 Oct 2026.
+        /// A change here means the simulation no longer produces the same match from the same inputs: either a
+        /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
+        /// update the value; replays recorded before the change will no longer re-simulate.
+        /// </summary>
+        private const ulong GoldenFinalHash = 0x0685a2bd1d3a4573UL;
+
+        [Test]
+        public void GoldenHash_IsPinned()
+        {
+            // Unlike SameScriptTwice, this catches drift between processes, machines and builds, not just within one run.
+            List<ulong> hashes = Run(777, Script());
+            Assert.That(hashes[hashes.Count - 1], Is.EqualTo(GoldenFinalHash));
         }
 
         [Test]

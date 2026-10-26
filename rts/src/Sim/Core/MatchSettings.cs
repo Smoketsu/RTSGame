@@ -9,6 +9,18 @@ namespace Rts.Sim.Core
     /// <summary>Immutable core settings for one match.</summary>
     public sealed class MatchSettings
     {
+        /// <summary>Lowest tick rate the simulation accepts. Unit: ticks/second. Schema bound shared with the clock and the tuning loader, not a tuning value.</summary>
+        public const int MinTicksPerSecond = 10;
+
+        /// <summary>Highest tick rate the simulation accepts. Unit: ticks/second. Schema bound, not a tuning value.</summary>
+        public const int MaxTicksPerSecond = 60;
+
+        /// <summary>Shortest allowed hash interval. Unit: ticks. Schema bound, not a tuning value.</summary>
+        public const int MinStateHashIntervalTicks = 1;
+
+        /// <summary>Longest allowed hash interval. Unit: ticks. Schema bound, not a tuning value.</summary>
+        public const int MaxStateHashIntervalTicks = 600;
+
         /// <summary>Seed for the one simulation RNG. Any ulong; the same seed and commands replay the same match.</summary>
         public ulong Seed { get; }
 
@@ -21,13 +33,13 @@ namespace Rts.Sim.Core
         /// <summary>Builds settings, validating ranges.</summary>
         public MatchSettings(ulong seed, int ticksPerSecond, int stateHashIntervalTicks)
         {
-            if (ticksPerSecond < 10 || ticksPerSecond > 60)
+            if (ticksPerSecond < MinTicksPerSecond || ticksPerSecond > MaxTicksPerSecond)
             {
-                throw new ArgumentOutOfRangeException(nameof(ticksPerSecond), "ticks_per_second must be 10 to 60.");
+                throw new ArgumentOutOfRangeException(nameof(ticksPerSecond), "ticks_per_second must be " + MinTicksPerSecond + " to " + MaxTicksPerSecond + ".");
             }
-            if (stateHashIntervalTicks < 1 || stateHashIntervalTicks > 600)
+            if (stateHashIntervalTicks < MinStateHashIntervalTicks || stateHashIntervalTicks > MaxStateHashIntervalTicks)
             {
-                throw new ArgumentOutOfRangeException(nameof(stateHashIntervalTicks), "state_hash_interval_ticks must be 1 to 600.");
+                throw new ArgumentOutOfRangeException(nameof(stateHashIntervalTicks), "state_hash_interval_ticks must be " + MinStateHashIntervalTicks + " to " + MaxStateHashIntervalTicks + ".");
             }
             Seed = seed;
             TicksPerSecond = ticksPerSecond;

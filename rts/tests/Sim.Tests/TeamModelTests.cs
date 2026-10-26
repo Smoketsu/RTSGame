@@ -472,6 +472,15 @@ namespace Rts.Sim.Tests
             /// <summary>One line per hook call, in call order.</summary>
             public List<string> Calls { get; } = new List<string>();
 
+            /// <summary>Policy ID for the state hash.</summary>
+            public string Id => "recording_test";
+
+            /// <summary>Writes the number of recorded calls so the hash reflects the policy's state.</summary>
+            public void WriteHash(StateHasher hasher)
+            {
+                hasher.Write(Calls.Count);
+            }
+
             /// <summary>Records the leave with the state, previous state and first active ally.</summary>
             /// <param name="sim">The stepping simulation.</param>
             /// <param name="player">The player who left.</param>
