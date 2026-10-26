@@ -21,6 +21,7 @@ namespace Rts.Sim.Factions
         /// <summary>Convenience: a new registry with everything built in registered.</summary>
         public static FactionMechanicRegistry CreateRegistry()
         {
+            // Registry that receives every built-in mechanic factory.
             FactionMechanicRegistry registry = new FactionMechanicRegistry();
             RegisterAll(registry);
             return registry;

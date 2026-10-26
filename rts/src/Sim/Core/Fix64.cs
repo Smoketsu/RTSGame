@@ -16,37 +16,37 @@ namespace Rts.Sim.Core
     /// </summary>
     public readonly struct Fix64 : IEquatable<Fix64>, IComparable<Fix64>
     {
-        /// <summary>Number of fraction bits. Raw value = real value × 2^FractionBits.</summary>
+        /// <summary>Number of fraction bits. Raw value = real value × 2^FractionBits. Unit: bits. Range: fixed at 32.</summary>
         public const int FractionBits = 32;
 
-        /// <summary>Raw representation of 1.0: 2^32.</summary>
+        /// <summary>Raw representation of 1.0: 2^32. Range: fixed at 2^32.</summary>
         private const long OneRaw = 1L << FractionBits;
 
-        /// <summary>Mask selecting the fraction bits of a raw value.</summary>
+        /// <summary>Mask selecting the fraction bits of a raw value. Range: 0 to 2^32 - 1 (raw units).</summary>
         private const long FractionMask = OneRaw - 1;
 
-        /// <summary>Most digits after the decimal point that <see cref="Parse"/> accepts. 9 digits keep the scaled numerator below 2^62.</summary>
+        /// <summary>Most digits after the decimal point that <see cref="Parse"/> accepts. 9 digits keep the scaled numerator below 2^62. Range: fixed at 9.</summary>
         private const int MaxParseFractionDigits = 9;
 
         /// <summary>The raw scaled value: real value × 2^32. Full <see cref="long"/> range.</summary>
         public readonly long Raw;
 
-        /// <summary>Zero (raw 0).</summary>
+        /// <summary>Zero (raw 0). Range: exactly 0.</summary>
         public static readonly Fix64 Zero = new Fix64(0L);
 
-        /// <summary>One (raw 2^32).</summary>
+        /// <summary>One (raw 2^32). Range: exactly 1.0.</summary>
         public static readonly Fix64 One = new Fix64(OneRaw);
 
-        /// <summary>One half (raw 2^31).</summary>
+        /// <summary>One half (raw 2^31). Range: exactly 0.5.</summary>
         public static readonly Fix64 Half = new Fix64(OneRaw >> 1);
 
-        /// <summary>Largest representable value, about +2 147 483 647.999 999 999 8.</summary>
+        /// <summary>Largest representable value, about +2 147 483 647.999 999 999 8. Range: raw long.MaxValue.</summary>
         public static readonly Fix64 MaxValue = new Fix64(long.MaxValue);
 
-        /// <summary>Smallest representable value, exactly -2 147 483 648.</summary>
+        /// <summary>Smallest representable value, exactly -2 147 483 648. Range: raw long.MinValue.</summary>
         public static readonly Fix64 MinValue = new Fix64(long.MinValue);
 
-        /// <summary>Smallest positive value, 2^-32 (raw 1).</summary>
+        /// <summary>Smallest positive value, 2^-32 (raw 1). Range: exactly 2^-32.</summary>
         public static readonly Fix64 Epsilon = new Fix64(1L);
 
         /// <summary>Builds a value from its raw scaled representation. Private: callers use <see cref="FromRaw"/> to make the intent visible.</summary>
@@ -91,6 +91,7 @@ namespace Rts.Sim.Core
         {
             // Floor of the value, plus one when any fraction bit is set.
             long floor = Raw >> FractionBits;
+            // Whole part rounded up. Unit: whole units. Range: any long before the int clamp.
             long result = (Raw & FractionMask) != 0 ? floor + 1 : floor;
             return result > int.MaxValue ? int.MaxValue : (int)result;
         }
@@ -100,6 +101,7 @@ namespace Rts.Sim.Core
         {
             // Add one half then floor; saturate instead of wrapping near the top of the range.
             long shifted = Raw > long.MaxValue - Half.Raw ? long.MaxValue : Raw + Half.Raw;
+            // Whole part of value plus one half. Unit: whole units. Range: any long before the int clamp.
             long result = shifted >> FractionBits;
             return result > int.MaxValue ? int.MaxValue : (int)result;
         }
@@ -169,6 +171,7 @@ namespace Rts.Sim.Core
         /// <summary>Saturating subtraction.</summary>
         public static Fix64 operator -(Fix64 a, Fix64 b)
         {
+            // Raw difference a.Raw - b.Raw. Unit: raw units (2^-32 each). Range: wraps on overflow; checked below.
             long diff = unchecked(a.Raw - b.Raw);
             // Overflow happened when the operands differ in sign and the result's sign differs from a's.
             bool overflow = ((a.Raw ^ b.Raw) & (a.Raw ^ diff)) < 0;
@@ -195,18 +198,25 @@ namespace Rts.Sim.Core
             bool negative = (a.Raw < 0) != (b.Raw < 0);
             // Magnitudes as unsigned 64-bit values; unchecked negation maps long.MinValue to 2^63 correctly.
             ulong am = a.Raw < 0 ? unchecked((ulong)(-a.Raw)) : (ulong)a.Raw;
+            // Magnitude of b as unsigned raw units. Unit: raw units (2^-32). Range: 0 to 2^63.
             ulong bm = b.Raw < 0 ? unchecked((ulong)(-b.Raw)) : (ulong)b.Raw;
 
             // Split each magnitude into 32-bit halves: m = m1 × 2^32 + m0.
             ulong a0 = am & 0xFFFFFFFFUL;
+            // High 32 bits of the a magnitude. Unit: 32-bit word. Range: 0 to 2^31.
             ulong a1 = am >> 32;
+            // Low 32 bits of the b magnitude. Unit: 32-bit word. Range: 0 to 2^32 - 1.
             ulong b0 = bm & 0xFFFFFFFFUL;
+            // High 32 bits of the b magnitude. Unit: 32-bit word. Range: 0 to 2^31.
             ulong b1 = bm >> 32;
 
             // Partial products; each fits in 64 bits because every half is below 2^32.
             ulong p00 = a0 * b0;
+            // Partial product a0 × b1 of two 32-bit halves. Unit: raw product. Range: below 2^64.
             ulong p01 = a0 * b1;
+            // Partial product a1 × b0 of two 32-bit halves. Unit: raw product. Range: below 2^64.
             ulong p10 = a1 * b0;
+            // Partial product a1 × b1 of the high halves. Unit: raw product. Range: below 2^62.
             ulong p11 = a1 * b1;
 
             // Middle column: carries from p00 plus the low halves of the cross products. Below 2^34, so no overflow.
@@ -222,11 +232,13 @@ namespace Rts.Sim.Core
                 // Bits above 95 are set: the magnitude does not fit in 63 bits.
                 return negative ? MinValue : MaxValue;
             }
+            // Product bits 32 to 95 as an unsigned raw magnitude. Unit: raw units. Range: 0 to 2^64 - 1, checked below.
             ulong magnitude = (hi << 32) | (lo >> 32);
             if (magnitude > (ulong)long.MaxValue)
             {
                 return negative ? MinValue : MaxValue;
             }
+            // Signed raw product before the sign is applied. Unit: raw units. Range: 0 to long.MaxValue.
             long raw = (long)magnitude;
             return new Fix64(negative ? -raw : raw);
         }
@@ -240,8 +252,11 @@ namespace Rts.Sim.Core
             {
                 throw new DivideByZeroException("Fix64 division by zero.");
             }
+            // True when exactly one operand is negative, so the quotient is negative.
             bool negative = (a.Raw < 0) != (b.Raw < 0);
+            // Magnitude of a as unsigned raw units. Unit: raw units (2^-32). Range: 0 to 2^63.
             ulong am = a.Raw < 0 ? unchecked((ulong)(-a.Raw)) : (ulong)a.Raw;
+            // Magnitude of b as unsigned raw units. Unit: raw units (2^-32). Range: 1 to 2^63 (b is not zero).
             ulong bm = b.Raw < 0 ? unchecked((ulong)(-b.Raw)) : (ulong)b.Raw;
 
             // Whole part of the quotient in raw units is (am / bm) << 32; it must fit in 31 bits.
@@ -254,6 +269,7 @@ namespace Rts.Sim.Core
             ulong remainder = am % bm;
             // Fraction bits produced one at a time by long division. 32 iterations give the 32 fraction bits.
             ulong fraction = 0;
+            // Index of the fraction bit being produced. Unit: bits. Range: 0 to 31.
             for (int bit = 0; bit < FractionBits; bit++)
             {
                 remainder <<= 1;
@@ -264,11 +280,13 @@ namespace Rts.Sim.Core
                     fraction |= 1;
                 }
             }
+            // Quotient as unsigned raw units. Unit: raw units (2^-32). Range: 0 to 2^64 - 1, checked below.
             ulong magnitude = (whole << FractionBits) | fraction;
             if (magnitude > (ulong)long.MaxValue)
             {
                 return negative ? MinValue : MaxValue;
             }
+            // Signed raw quotient before the sign is applied. Unit: raw units. Range: 0 to long.MaxValue.
             long raw = (long)magnitude;
             return new Fix64(negative ? -raw : raw);
         }
@@ -324,6 +342,7 @@ namespace Rts.Sim.Core
             {
                 radicand <<= 2;
                 root <<= 1;
+                // Trial value for the next square-root digit. Unit: raw square-root bits. Range: below 2^64.
                 ulong candidate = (root << 1) | 1UL;
                 if (radicand >= candidate)
                 {
@@ -401,6 +420,7 @@ namespace Rts.Sim.Core
             }
             // Denominator 10^fractionDigits, at most 10^9.
             ulong denominator = 1;
+            // Loop counter over the fraction digits. Unit: digits. Range: 0 to 8.
             for (int i = 0; i < fractionDigits; i++)
             {
                 denominator *= 10;
@@ -432,8 +452,11 @@ namespace Rts.Sim.Core
         {
             // Work on the magnitude so the sign is printed once.
             bool negative = Raw < 0;
+            // Magnitude of Raw as unsigned raw units. Unit: raw units (2^-32). Range: 0 to 2^63.
             ulong magnitude = negative ? unchecked((ulong)(-Raw)) : (ulong)Raw;
+            // Whole part of the magnitude. Unit: whole units. Range: 0 to 2^31.
             ulong whole = magnitude >> FractionBits;
+            // Fraction bits of the magnitude. Unit: raw units (2^-32). Range: 0 to 2^32 - 1.
             ulong fractionRaw = magnitude & (ulong)FractionMask;
             // Fraction scaled to 9 decimal digits, rounded half up: (fractionRaw × 10^9 + 2^31) / 2^32. Below 2^62.
             ulong fractionDecimal = ((fractionRaw * 1000000000UL) + (1UL << (FractionBits - 1))) >> FractionBits;
@@ -443,9 +466,11 @@ namespace Rts.Sim.Core
                 whole += 1;
                 fractionDecimal = 0;
             }
+            // Decimal text of the whole part, digits only. Range: 0 to 2^31 as text.
             string text = whole.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (fractionDecimal != 0)
             {
+                // Fraction as nine zero-padded digits with trailing zeros removed. Unit: decimal digits. Range: 1 to 9 characters.
                 string digits = fractionDecimal.ToString("D9", System.Globalization.CultureInfo.InvariantCulture).TrimEnd('0');
                 text = text + "." + digits;
             }
@@ -485,11 +510,17 @@ namespace Rts.Sim.Core
             return Raw.CompareTo(other.Raw);
         }
 
+        /// <summary>True when the raw values are equal.</summary>
         public static bool operator ==(Fix64 a, Fix64 b) => a.Raw == b.Raw;
+        /// <summary>True when the raw values differ.</summary>
         public static bool operator !=(Fix64 a, Fix64 b) => a.Raw != b.Raw;
+        /// <summary>True when a is below b; orders by real value.</summary>
         public static bool operator <(Fix64 a, Fix64 b) => a.Raw < b.Raw;
+        /// <summary>True when a is above b; orders by real value.</summary>
         public static bool operator >(Fix64 a, Fix64 b) => a.Raw > b.Raw;
+        /// <summary>True when a is at most b; orders by real value.</summary>
         public static bool operator <=(Fix64 a, Fix64 b) => a.Raw <= b.Raw;
+        /// <summary>True when a is at least b; orders by real value.</summary>
         public static bool operator >=(Fix64 a, Fix64 b) => a.Raw >= b.Raw;
     }
 }

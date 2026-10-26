@@ -22,7 +22,7 @@ namespace Rts.Sim.Data
         /// <summary>Map height. Unit: tiles. Range: 8 to 1024.</summary>
         public int HeightTiles { get; }
 
-        /// <summary>Fewest spawn points a map may have. Schema bound: a map needs two opponents.</summary>
+        /// <summary>Fewest spawn points a map may have. Schema bound: a map needs two opponents. Range: 2 (fixed).</summary>
         public const int MinSpawns = 2;
 
         /// <summary>Most spawn points a map may have. Schema bound, not a design limit: the design ships 2 to 4 player modes, and nothing in the simulation assumes fewer than this.</summary>

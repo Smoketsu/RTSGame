@@ -65,9 +65,13 @@ namespace Rts.Sim.Data
             SortedDictionary<string, JsonValue> tuningRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
             // Unit, faction, map and cycle results by ID, plus the file each came from for cross-reference errors.
             ContentCatalog content = new ContentCatalog();
+            // Map definitions by ID, in ordinal ID order.
             SortedDictionary<string, MapDefinition> maps = new SortedDictionary<string, MapDefinition>(StringComparer.Ordinal);
+            // Cycle definitions by ID, in ordinal ID order.
             SortedDictionary<string, CycleDefinition> cycles = new SortedDictionary<string, CycleDefinition>(StringComparer.Ordinal);
+            // Unit ID mapped to the data file that defined it, for cross-reference errors.
             SortedDictionary<string, string> unitFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            // Faction file roots by faction ID, kept for the unit-list reference check.
             SortedDictionary<string, JsonValue> factionRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
 
             foreach (KeyValuePair<string, DataSourceFile> pair in byPath)
@@ -96,6 +100,7 @@ namespace Rts.Sim.Data
                         break;
                     case "units":
                         {
+                            // Unit definition read from this file. Range: validated by ReadUnit.
                             UnitDefinition unit = ReadUnit(root, path, parts);
                             AddUnit(content, unit, path);
                             unitFiles.Add(unit.Id, path);
@@ -103,6 +108,7 @@ namespace Rts.Sim.Data
                         }
                     case "factions":
                         {
+                            // Faction definition read from this file. Range: validated by ReadFaction.
                             FactionDefinition faction = ReadFaction(root, path, parts);
                             content.AddFaction(faction);
                             factionRoots.Add(faction.Id, root);
@@ -110,12 +116,14 @@ namespace Rts.Sim.Data
                         }
                     case "maps":
                         {
+                            // Map definition read from this file. Range: validated by ReadMap.
                             MapDefinition map = ReadMap(root, path, parts);
                             maps.Add(map.Id, map);
                             break;
                         }
                     case "cycles":
                         {
+                            // Cycle definition read from this file. Range: validated by ReadCycle.
                             CycleDefinition cycle = ReadCycle(root, path, parts);
                             cycles.Add(cycle.Id, cycle);
                             break;
@@ -126,6 +134,7 @@ namespace Rts.Sim.Data
                 }
             }
 
+            // Typed tuning built from every tuning file together. Range: all nine tuning files present.
             Tuning tuning = BuildTuning(tuningRoots);
             CheckReferences(content, unitFiles, factionRoots);
             return new DataSet(content, tuning, maps, cycles);
@@ -161,6 +170,7 @@ namespace Rts.Sim.Data
         {
             // The id as written in the file.
             string id = root.RequireNonEmptyString("id");
+            // Index into the ID text. Unit: characters. Range: 0 to id length - 1.
             for (int i = 0; i < id.Length; i++)
             {
                 // Character being checked.
@@ -243,7 +253,9 @@ namespace Rts.Sim.Data
                 "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
+            // Display name text. Range: non-empty string.
             string displayName = root.RequireNonEmptyString("display_name");
+            // Owning faction ID; must equal the folder name checked below.
             string factionId = root.RequireNonEmptyString("faction_id");
             if (!string.Equals(factionId, parts[1], StringComparison.Ordinal))
             {
@@ -257,6 +269,7 @@ namespace Rts.Sim.Data
             }
             // Movement layer text and its enum value.
             string layerText = root.RequireString("layer");
+            // Movement layer enum set by the switch below. Range: Ground, Water or Air.
             MovementLayer layer;
             switch (layerText)
             {
@@ -268,10 +281,15 @@ namespace Rts.Sim.Data
             }
             // Smallest positive health and radius the loader accepts; the real ranges are in the unit schema comments.
             Fix64 maxHealth = root.RequireFix64("max_health", "1", MaxStatText);
+            // Top speed. Unit: tiles per second (fixed-point). Range: 0 to 100.
             Fix64 speed = root.RequireFix64("speed_tiles_per_second", "0", "100");
+            // Supply the unit uses. Unit: supply points. Range: 0 to 100.
             int supply = root.RequireInt("supply", 0, 100);
+            // Collision radius. Unit: tiles (fixed-point). Range: 0.05 to 10.
             Fix64 radius = root.RequireFix64("radius_tiles", "0.05", "10");
+            // Common-resource cost. Unit: resource points. Range: 0 to 100000.
             int costCommon = root.RequireInt("cost_common", 0, 100000);
+            // Rare-resource cost. Unit: resource points. Range: 0 to 100000.
             int costRare = root.RequireInt("cost_rare", 0, 100000);
             return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare);
         }
@@ -293,11 +311,15 @@ namespace Rts.Sim.Data
         {
             CheckDepth(path, parts, 2, "factions/<id>.json");
             root.RejectUnknownKeys("id", "display_name", "mechanic_id", "units");
+            // Faction ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
+            // Faction display name. Range: non-empty string.
             string displayName = root.RequireNonEmptyString("display_name");
+            // Mechanic ID as written in the file. Range: any non-empty string; checked at match start.
             string mechanicId = root.RequireNonEmptyString("mechanic_id");
             // Unit IDs in file order; duplicates are an error.
             List<string> unitIds = new List<string>();
+            // Unit IDs already listed by this faction, to reject duplicates.
             SortedSet<string> seen = new SortedSet<string>(StringComparer.Ordinal);
             foreach (JsonValue item in root.RequireArray("units"))
             {
@@ -327,6 +349,7 @@ namespace Rts.Sim.Data
             {
                 // The faction file's items, to point the error at the exact array element.
                 IReadOnlyList<JsonValue> items = factionRoots[pair.Key].RequireArray("units");
+                // Index into the faction's unit list. Unit: list position. Range: 0 to Count - 1.
                 for (int i = 0; i < items.Count; i++)
                 {
                     // Unit ID listed at this position.
@@ -350,10 +373,15 @@ namespace Rts.Sim.Data
         {
             CheckDepth(path, parts, 2, "maps/<id>.json");
             root.RejectUnknownKeys("id", "display_name", "width_tiles", "height_tiles", "spawns");
+            // Map ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
+            // Map display name. Range: non-empty string.
             string displayName = root.RequireNonEmptyString("display_name");
+            // Map width. Unit: tiles (int). Range: 8 to 1024.
             int width = root.RequireInt("width_tiles", 8, 1024);
+            // Map height. Unit: tiles (int). Range: 8 to 1024.
             int height = root.RequireInt("height_tiles", 8, 1024);
+            // Spawn point objects in file order. Range: MinSpawns to MaxSpawns entries (2 to 16).
             IReadOnlyList<JsonValue> spawnNodes = root.RequireArray("spawns");
             if (spawnNodes.Count < MapDefinition.MinSpawns || spawnNodes.Count > MapDefinition.MaxSpawns)
             {
@@ -364,8 +392,11 @@ namespace Rts.Sim.Data
             foreach (JsonValue node in spawnNodes)
             {
                 node.RejectUnknownKeys("x", "y");
+                // Spawn X position. Unit: tiles (fixed-point). Range: 0 to the map width.
                 Fix64 x = node.RequireFix64("x", "0", width.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                // Spawn Y position. Unit: tiles (fixed-point). Range: 0 to the map height.
                 Fix64 y = node.RequireFix64("y", "0", height.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                // Spawn position as a point in tiles. Range: inside the map bounds.
                 FixVec2 point = new FixVec2(x, y);
                 if (spawns.Contains(point))
                 {
@@ -383,9 +414,13 @@ namespace Rts.Sim.Data
         {
             CheckDepth(path, parts, 2, "cycles/<id>.json");
             root.RejectUnknownKeys("id", "display_name", "favours", "description");
+            // Cycle ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
+            // Cycle display name. Range: non-empty string.
             string displayName = root.RequireNonEmptyString("display_name");
+            // Raw text of the favours field, validated by the switch below.
             string favoursText = root.RequireString("favours");
+            // Parsed favour enum. Range: Air, Attackers or Position.
             CycleFavour favours;
             switch (favoursText)
             {
@@ -395,6 +430,7 @@ namespace Rts.Sim.Data
                 default:
                     throw root.Require("favours").Fail("must be \"air\", \"attackers\" or \"position\" (found \"" + favoursText + "\")");
             }
+            // Description text from the file. Range: non-empty string.
             string description = root.RequireNonEmptyString("description");
             return new CycleDefinition(id, displayName, favours, description);
         }

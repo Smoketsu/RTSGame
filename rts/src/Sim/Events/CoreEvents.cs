@@ -12,7 +12,7 @@ namespace Rts.Sim.Events
         /// <summary>Number of player slots in the match. Range: 1 to 255.</summary>
         public int PlayerCount { get; }
 
-        /// <summary>Match seed, echoed so logs can reproduce the match.</summary>
+        /// <summary>Match seed, echoed so logs can reproduce the match. Range: any ulong.</summary>
         public ulong Seed { get; }
 
         /// <summary>Builds the event from its fields.</summary>
@@ -22,6 +22,7 @@ namespace Rts.Sim.Events
             Seed = seed;
         }
 
+        /// <summary>Machine-readable kind name: "match_started".</summary>
         public override string Kind => "match_started";
 
         /// <summary>One-line description for logs.</summary>
@@ -40,7 +41,7 @@ namespace Rts.Sim.Events
         /// <summary>Definition ID from data, for example "skai.windrunner".</summary>
         public string DefinitionId { get; }
 
-        /// <summary>Spawn position in tiles.</summary>
+        /// <summary>Spawn position in tiles. Range: each component within ±<see cref="Simulation.WorldBoundTiles"/>.</summary>
         public FixVec2 Position { get; }
 
         /// <summary>Builds the event from its fields.</summary>
@@ -52,6 +53,7 @@ namespace Rts.Sim.Events
             Position = position;
         }
 
+        /// <summary>Machine-readable kind name: "unit_spawned".</summary>
         public override string Kind => "unit_spawned";
 
         /// <summary>One-line description for logs.</summary>
@@ -64,7 +66,7 @@ namespace Rts.Sim.Events
         /// <summary>The unit that arrived.</summary>
         public EntityId Unit { get; }
 
-        /// <summary>Where it stopped, in tiles.</summary>
+        /// <summary>Where it stopped, in tiles. Range: each component within ±<see cref="Simulation.WorldBoundTiles"/>.</summary>
         public FixVec2 Position { get; }
 
         /// <summary>Builds the event from its fields.</summary>
@@ -74,6 +76,7 @@ namespace Rts.Sim.Events
             Position = position;
         }
 
+        /// <summary>Machine-readable kind name: "unit_arrived".</summary>
         public override string Kind => "unit_arrived";
 
         /// <summary>One-line description for logs.</summary>
@@ -96,6 +99,7 @@ namespace Rts.Sim.Events
             Reason = reason;
         }
 
+        /// <summary>Machine-readable kind name: "unit_removed".</summary>
         public override string Kind => "unit_removed";
 
         /// <summary>One-line description for logs.</summary>
@@ -118,6 +122,7 @@ namespace Rts.Sim.Events
             Reason = reason;
         }
 
+        /// <summary>Machine-readable kind name: "command_rejected".</summary>
         public override string Kind => "command_rejected";
 
         /// <summary>One-line description for logs.</summary>
@@ -127,7 +132,7 @@ namespace Rts.Sim.Events
     /// <summary>The full state hash computed at the end of this tick (every state_hash_interval_ticks).</summary>
     public sealed class StateHashedEvent : SimEvent
     {
-        /// <summary>64-bit FNV-1a hash of the whole simulation state (ADR-005). Never 0.</summary>
+        /// <summary>64-bit FNV-1a hash of the whole simulation state (ADR-005). Never 0. Range: any ulong except 0.</summary>
         public ulong Hash { get; }
 
         /// <summary>Builds the event from its fields.</summary>
@@ -136,6 +141,7 @@ namespace Rts.Sim.Events
             Hash = hash;
         }
 
+        /// <summary>Machine-readable kind name: "state_hashed".</summary>
         public override string Kind => "state_hashed";
 
         /// <summary>One-line description for logs.</summary>

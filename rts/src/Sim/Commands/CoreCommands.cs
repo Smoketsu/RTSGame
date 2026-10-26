@@ -16,6 +16,7 @@ namespace Rts.Sim.Commands
         {
         }
 
+        /// <summary>Machine-readable kind name: "noop".</summary>
         public override string Kind => "noop";
 
         /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
@@ -60,6 +61,7 @@ namespace Rts.Sim.Commands
             Position = position;
         }
 
+        /// <summary>Machine-readable kind name: "spawn_unit".</summary>
         public override string Kind => "spawn_unit";
 
         /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
@@ -112,6 +114,7 @@ namespace Rts.Sim.Commands
             Target = target;
         }
 
+        /// <summary>Machine-readable kind name: "move_unit".</summary>
         public override string Kind => "move_unit";
 
         /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
@@ -154,6 +157,7 @@ namespace Rts.Sim.Commands
             Unit = unit;
         }
 
+        /// <summary>Machine-readable kind name: "remove_unit".</summary>
         public override string Kind => "remove_unit";
 
         /// <summary>Applies the command; see the class summary for the rules it checks.</summary>

@@ -219,6 +219,7 @@ namespace Rts.Sim.Data
             int start = text.Length > 0 && text[0] == '-' ? 1 : 0;
             // Accumulated magnitude; long is wide enough to detect int overflow before it wraps.
             long magnitude = 0;
+            // Index of the next digit in the number text. Unit: characters. Range: start to Length - 1.
             for (int i = start; i < text.Length; i++)
             {
                 // Current character.
@@ -361,6 +362,7 @@ namespace Rts.Sim.Data
                 }
                 // True when the key is one the caller listed.
                 bool known = false;
+                // Index into the allowed key list. Unit: positions. Range: 0 to allowed.Length - 1.
                 for (int i = 0; i < allowed.Length; i++)
                 {
                     if (string.Equals(allowed[i], pair.Key, StringComparison.Ordinal))

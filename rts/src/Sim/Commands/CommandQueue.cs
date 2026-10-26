@@ -91,11 +91,13 @@ namespace Rts.Sim.Commands
                 {
                     return 1;
                 }
+                // Sign of the issuer-slot comparison. Range: -1, 0 or 1.
                 int byIssuer = a.Issuer.CompareTo(b.Issuer);
                 if (byIssuer != 0)
                 {
                     return byIssuer;
                 }
+                // Sign of the sequence comparison. Range: -1, 0 or 1.
                 int bySequence = a.Sequence.CompareTo(b.Sequence);
                 if (bySequence != 0)
                 {

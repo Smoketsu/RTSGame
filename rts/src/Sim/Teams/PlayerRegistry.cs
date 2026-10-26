@@ -153,6 +153,7 @@ namespace Rts.Sim.Teams
             {
                 return NoPlayers;
             }
+            // Sorted member IDs of the player's team. Range: zero or more entries; never null.
             IReadOnlyList<PlayerId> members = _teamMembers[found.Team];
             // Team members other than the player, ascending because members is ascending.
             List<PlayerId> allies = new List<PlayerId>(members.Count);

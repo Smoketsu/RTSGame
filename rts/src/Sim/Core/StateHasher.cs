@@ -12,13 +12,13 @@ namespace Rts.Sim.Core
     /// </summary>
     public sealed class StateHasher
     {
-        /// <summary>FNV-1a 64-bit offset basis; the hash of an empty stream.</summary>
+        /// <summary>FNV-1a 64-bit offset basis; the hash of an empty stream. Range: fixed constant.</summary>
         public const ulong OffsetBasis = 0xcbf29ce484222325UL;
 
-        /// <summary>FNV-1a 64-bit prime.</summary>
+        /// <summary>FNV-1a 64-bit prime. Range: fixed constant.</summary>
         private const ulong Prime = 0x100000001b3UL;
 
-        /// <summary>Running hash value. Equals <see cref="OffsetBasis"/> before any write.</summary>
+        /// <summary>Running hash value. Equals <see cref="OffsetBasis"/> before any write. Range: any ulong.</summary>
         public ulong Hash { get; private set; } = OffsetBasis;
 
         /// <summary>Number of bytes mixed so far. Range: 0 upward. Lets tests confirm two writers fed the same amount.</summary>
@@ -115,6 +115,7 @@ namespace Rts.Sim.Core
                 return;
             }
             Write(value.Length);
+            // Index into the string's UTF-16 code units. Unit: characters. Range: 0 to Length - 1.
             for (int i = 0; i < value.Length; i++)
             {
                 // Each char as its 16-bit code unit, low byte first.

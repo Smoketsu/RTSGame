@@ -18,7 +18,7 @@ namespace Rts.Sim.Units
         /// <summary>The data definition this unit was built from.</summary>
         public UnitDefinition Definition { get; }
 
-        /// <summary>Current position in tiles.</summary>
+        /// <summary>Current position in tiles. Range: each component within ±<see cref="Simulation.WorldBoundTiles"/>.</summary>
         public FixVec2 Position { get; private set; }
 
         /// <summary>Current health. Unit: health points. Range: 0 to Definition.MaxHealth.</summary>
@@ -27,7 +27,7 @@ namespace Rts.Sim.Units
         /// <summary>True while a move order is active. The unit stops and clears this on arrival.</summary>
         public bool HasMoveTarget { get; private set; }
 
-        /// <summary>Destination of the active move order in tiles. Meaningless when <see cref="HasMoveTarget"/> is false (kept as zero).</summary>
+        /// <summary>Destination of the active move order in tiles. Range: each component within ±<see cref="Simulation.WorldBoundTiles"/>. Meaningless when <see cref="HasMoveTarget"/> is false (kept as zero).</summary>
         public FixVec2 MoveTarget { get; private set; }
 
         /// <summary>Tick the unit was spawned on. Range: 0 upward.</summary>

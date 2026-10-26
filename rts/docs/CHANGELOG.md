@@ -40,6 +40,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `DeterministicRandom.NextIntInclusive` is unbiased for every span; tick-rate and hash-interval bounds are shared constants on `MatchSettings`; the neutral faction ID is `FactionDefinition.NeutralId`; `DataSet` copies maps and cycles into ordinal-ordered dictionaries; maps may list 2 to 16 spawns.
 - ADR-001 wording corrected to match the code (multiply and divide truncate toward zero; digit-by-digit square root).
 - New tests: pinned golden final hash for the determinism script, duplicate rejection independent of submission order, RNG lock, content freeze, per-field hash coverage, far-target movement, bounds rejection (135 tests).
+- Documentation pass: summaries on every `Kind` override, mechanic `Id` and comparison operator, unit and range comments on 109 locals, "Range:" on 28 numeric field summaries; the JSON reader's byte-order-mark check uses the `\uFEFF` escape instead of an invisible literal.
 
 ### Known follow-ups
 
