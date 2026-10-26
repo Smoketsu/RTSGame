@@ -13,7 +13,7 @@ The files in this repository were written without Unity available, so the first 
 | `rts/src/Game/Packages/manifest.json` | Project dependencies; `"com.rtsgame.sim": "file:../../Sim"` points at the simulation folder (path is relative to the `Packages` folder: `Packages/../../Sim` = `rts/src/Sim`). |
 | `rts/src/Game/ProjectSettings/ProjectVersion.txt` | Pins the editor version (`6000.0.58f1`). Unity creates every other settings file itself. |
 | `rts/src/Game/Assets/Scripts/Rts.Game.asmdef` | Game-side assembly, references `Rts.Sim` by name. |
-| `rts/src/Game/Assets/Scripts/Bootstrap/SimulationHost.cs` | Builds the match from `rts/data`, steps it, draws cubes. |
+| `rts/src/Game/Assets/Scripts/Bootstrap/SimulationHost.cs` | Builds the match from `rts/data` and the command script `rts/data/scripts/smoke.json`, steps it, draws cubes. |
 | `rts/src/Game/Assets/Scripts/Bootstrap/AutoBootstrap.cs` | Adds the host, a camera, a light and a ground plane when you press Play in any scene. |
 | `rts/src/Game/Assets/Scripts/Editor/` | Editor-only assembly and the menu item `RTS > Create Bootstrap Scene`. |
 | `rts/src/Game/Directory.Build.props` | Empty on purpose: stops the project files Unity generates for your IDE from inheriting `rts/Directory.Build.props` (warnings as errors, redirected output). |
@@ -30,8 +30,8 @@ The files in this repository were written without Unity available, so the first 
 
 ## What you should see
 
-- **Game view:** a dark grey 64 by 64 ground plane seen from a three-quarter top-down angle. Four cubes appear at the corners within the first frame: blue (player 0, skai) at the bottom-left, red (player 1, water) at the top-right. A second after the start they begin to glide toward each other across the map. Air units (`skai.windrunner`) float higher (y = 2) than ground and water units (y = 0.5). Motion is smooth at any frame rate because the picture blends between the last two ticks.
-- **Console:** one info line at start (`[SimulationHost] Match started from <path>/rts/data: N data files, 20 ticks per second, seed 1234.`), then one line per second of match time:
+- **Game view:** a dark grey 64 by 64 ground plane seen from a three-quarter top-down angle. Four cubes appear at the corners within the first frame: blue (player 0, skai) at the bottom-left, red (player 1, water) at the top-right. A second after the start they begin to glide across the map (the script sends them to the opposite corner, the middle and back); after 30 seconds (600 ticks) the script ends, the cubes stop and the Console prints `script finished at tick 600, final hash ...`. Air units (`skai.windrunner`) float higher (y = 2) than ground and water units (y = 0.5). Motion is smooth at any frame rate because the picture blends between the last two ticks.
+- **Console:** one info line at start (`[SimulationHost] Match started from <path>/rts/data: N data files, script scripts/smoke.json (13 commands, 2 players, 600 ticks), 20 ticks per second, seed 1234.`), then one line per second of match time:
 
   ```
   tick=0 hash=<16 hex digits>
@@ -41,6 +41,8 @@ The files in this repository were written without Unity available, so the first 
 
   The hash interval comes from `rts/data/tuning/match.json` (`state_hash_interval_ticks`, 20 at the time of writing), so the spacing follows that file.
 - **Hierarchy:** `SimulationHost`, `Simulation Units` (one cube per unit), `Main Camera`, `Directional Light`, `Greybox Ground`.
+
+The command script is read from the same data folder (`scripts/smoke.json` below it); in a player build it is part of the `StreamingAssets/data` copy.
 
 Where the data comes from: in the editor the host reads `<repo>/rts/data` directly (resolved as `Application.dataPath + "/../../../data"`, and `dataPath` is `rts/src/Game/Assets`), so there is no copy step and the editor never sees a stale copy. In a player build it reads `Application.streamingAssetsPath + "/data"`: before building, copy `rts/data` to `rts/src/Game/Assets/StreamingAssets/data` (that folder is git-ignored; an automatic copy at build time is a Phase 1 follow-up). The Inspector field "Data Directory Override" on `SimulationHost` beats both. Desktop players only: Android and WebGL need `UnityWebRequest` to read StreamingAssets.
 
@@ -54,29 +56,17 @@ Where the data comes from: in the editor the host reads `<repo>/rts/data` direct
 
 The state hash is a function of the match state only, so Unity and the headless harness must print the same hash at the same tick when they run the same seed, players and commands.
 
-1. Run the harness: `dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/tools/BalanceHarness/scripts/smoke.json` and note the lines `tick=<n> hash=<16 hex>`.
-2. In Unity (Play), find the line with the same `tick=<n>` in the Console. The two hashes must be identical.
-3. This is only meaningful when the host's scripted commands equal `smoke.json`. The host (`SimulationHost.BuildScript`) uses seed 1234 (Inspector field `Match Seed`), players `0` team 0 faction `skai` and `1` team 1 faction `water`, and this script. All commands have issuer 255 (none) and one running sequence number:
-
-   | tick | sequence | command | details |
-   | --- | --- | --- | --- |
-   | 0 | 0 | `spawn_unit` | `skai.windrunner`, owner 0, (8, 8) |
-   | 0 | 1 | `spawn_unit` | `water.spoutling`, owner 0, (10, 8) |
-   | 0 | 2 | `spawn_unit` | `skai.windrunner`, owner 1, (56, 56) |
-   | 0 | 3 | `spawn_unit` | `water.spoutling`, owner 1, (54, 56) |
-   | 20 | 4 | `move_unit` | unit 1 to (56, 56) |
-   | 20 | 5 | `move_unit` | unit 2 to (32, 32) |
-   | 20 | 6 | `move_unit` | unit 3 to (8, 8) |
-   | 20 | 7 | `move_unit` | unit 4 to (34, 32) |
-
-   The move tick is the spawn tick plus one second of ticks (`ticks_per_second`, 20). If `smoke.json` differs, the numbers will not match even when everything is correct. A shared script file that both the harness and the Unity host read (so the two cannot drift apart) is a Phase 1 follow-up.
-4. The Unity hash is printed after the tick has run, exactly as the harness does, so `tick=N` means the same thing in both.
+1. Run the harness: `dotnet run --project rts/tools/BalanceHarness -- --data rts/data` (it plays `rts/data/scripts/smoke.json` by default) and note the lines `tick=<n> hash=<16 hex>` and the final `STATE_HASH=<16 hex>`.
+2. In Unity (Play), find the line with the same `tick=<n>` in the Console. The two hashes must be identical. When the script's 600 ticks are done the host logs once `script finished at tick 600, final hash <16 hex>`; that value equals the harness's `STATE_HASH=` line.
+3. The comparison is meaningful because both programs play the same file. `SimulationHost` has no match definition of its own: it reads `<data dir>/scripts/smoke.json` (Inspector field `Script Relative Path`, default `scripts/smoke.json`) with `Rts.Sim.Data.CommandScript`, takes the players, the seed and the tick count from it, submits every command before the first tick, and stops stepping at the script's tick count. The harness does the same with the same class. To keep them in step, leave the Inspector field `Match Seed` at -1 (use the script's seed); any value of 0 or more replaces the seed and the hashes will no longer match the harness unless you also pass `--seed` to it.
+4. To try another scenario, edit `rts/data/scripts/smoke.json` (or add a second file under `rts/data/scripts/` and point `Script Relative Path` and the harness `--script` at it); no C# changes are needed. The format is in `rts/tools/BalanceHarness/README.md`.
+5. The Unity hash is printed after the tick has run, exactly as the harness does, so `tick=N` means the same thing in both.
 
 ## Known limitations (Phase 0)
 
 - No selection, no unit orders from the player, no camera control: the picture is a fixed camera on a scripted match. Camera rig, box selection and input are tracked in `rts/docs/ASSET_STORE.md` (Asset Store picks pending; nothing from the Asset Store is installed, and anything chosen there must stay presentation only).
 - Placeholder cubes only; no animation, no health bars, no UI.
-- The scripted match is hard-coded in `SimulationHost`; it is replaced by real lobby and input code in Phase 1.
+- The match is whatever `rts/data/scripts/smoke.json` says (players, seed, commands); it is replaced by real lobby and input code in Phase 1, and later campaign missions reuse the same script format. The host stops stepping when the script's tick count is reached.
 - `AutoBootstrap` adds a host to every scene you press Play in. Delete `AutoBootstrap.cs` once a real entry scene exists.
 - The host steps at most 10 ticks per frame (Inspector `Max Steps Per Frame`) and drops the rest, so a very slow machine runs the match slower than real time. That is correct for a local match and must be replaced by lockstep waiting when networking arrives (Phase 2).
 - Player builds need `rts/data` copied to `Assets/StreamingAssets/data` by hand (desktop only).
@@ -96,4 +86,4 @@ The state hash is a function of the match state only, so Unity and the headless 
 | Nothing visible, no errors | Check the Game tab (not Scene), that the scene has no other camera pointing elsewhere (`AutoBootstrap` only adds a camera when none exists), and that `Time.timeScale` is not 0. |
 | Pink cubes | The project was switched to URP or HDRP and the default material is not valid for it. Phase 0 is Built-in Render Pipeline; either convert materials (Edit > Rendering > Materials) or remove the pipeline asset. |
 | Hash lines never appear | `Log State Hashes` is off on `SimulationHost`, or the Console filter hides info messages. |
-| Hashes differ from the headless runner | The scripted commands, seed or players differ from `smoke.json` (see the table above), or the data files differ; Unity reads `rts/data` directly, so check the harness uses the same checkout. A genuine mismatch with identical inputs is a determinism bug in the simulation: report the first differing tick. |
+| Hashes differ from the headless runner | The Inspector `Match Seed` is not -1, `Script Relative Path` points at a different file than the harness runs, the harness was given `--script`/`--seed`/`--ticks` overrides, or the data files differ; Unity reads `rts/data` directly, so check the harness uses the same checkout. A genuine mismatch with identical inputs is a determinism bug in the simulation: report the first differing tick. |

@@ -1,7 +1,9 @@
 // rts/src/Game/Assets/Scripts/Bootstrap/SimulationHost.cs
 // The Phase 0 bridge between Unity and the engine-free simulation (assembly Rts.Sim). It owns one Simulation,
-// feeds it scripted commands through Simulation.Submit, steps it on a fixed accumulator, and draws every unit
-// as a placeholder cube positioned from Unit.Position. Part of Rts.Game (Unity side, presentation only).
+// reads the command script <data dir>/scripts/smoke.json (the same file the headless harness runs) with
+// Rts.Sim.Data.CommandScript, builds the players from it, submits every scripted command through Simulation.Submit
+// before the first Step, steps the simulation on a fixed accumulator until the script's tick count is reached, and
+// draws every unit as a placeholder cube positioned from Unit.Position. Part of Rts.Game (Unity side, presentation only).
 //
 // Rules this file follows (docs/decisions and the architecture rules):
 //   - Unity only renders. The simulation is never written to except through Simulation.Submit (rule 2); no
@@ -17,10 +19,14 @@
 //            Assets/StreamingAssets/data (a build-time copy step is a Phase 1 follow-up; see docs/UNITY_SETUP.md).
 //   The Inspector field "Data Directory Override" beats both when it is not empty.
 //
-// Scripted commands (all issuer PlayerId.None with one running sequence number, so their order is fixed):
-//   tick 0:               spawn four units, one skai.windrunner and one water.spoutling per player (table in BuildScript).
-//   tick 0 + TicksPerSecond (one second later): move each spawned unit to its table target.
-// The same table must be used by the headless smoke script for the state hashes to be comparable.
+// Scripted match (one shared file, so Unity and the headless harness cannot drift apart):
+//   The script is <data dir>/<scriptRelativePath>, "scripts/smoke.json" by default. It supplies the seed, the tick
+//   count, the player slots (id, team, faction, name) and every command with its tick, issuer and sequence. All
+//   ticks are known up front, so every command is submitted before the first Step; nothing is submitted
+//   in response to events. The Inspector seed override beats the script's seed only when it is not negative.
+//   When the script's tick count has been stepped the host stops stepping, logs the final state hash once, and the
+//   cubes stay where the last tick left them. Compare the Console "tick=N hash=..." lines with the harness output
+//   of `dotnet run --project rts/tools/BalanceHarness -- --data rts/data` (see docs/UNITY_SETUP.md).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,7 +36,6 @@ using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
-using Rts.Sim.Teams;
 using Rts.Sim.Units;
 using UnityEngine;
 
@@ -44,43 +49,6 @@ namespace Rts.Game.Bootstrap
     [DisallowMultipleComponent]
     public sealed class SimulationHost : MonoBehaviour
     {
-        /// <summary>One scripted unit: where it spawns, where it is later sent, and the ID the simulation gave it.</summary>
-        private sealed class ScriptedUnit
-        {
-            /// <summary>Owning player slot. Unit: player ID. Range: 0 to 254 (this script uses 0 and 1).</summary>
-            public readonly byte Player;
-
-            /// <summary>Unit definition ID from data/units, for example "skai.windrunner".</summary>
-            public readonly string DefinitionId;
-
-            /// <summary>Spawn tile X. Unit: tiles. Range: 0 to 63 on the 64x64 greybox map.</summary>
-            public readonly int SpawnX;
-
-            /// <summary>Spawn tile Y (world Z in Unity). Unit: tiles. Range: 0 to 63.</summary>
-            public readonly int SpawnY;
-
-            /// <summary>Move target tile X. Unit: tiles. Range: 0 to 63.</summary>
-            public readonly int TargetX;
-
-            /// <summary>Move target tile Y (world Z in Unity). Unit: tiles. Range: 0 to 63.</summary>
-            public readonly int TargetY;
-
-            /// <summary>True once the matching UnitSpawnedEvent has been seen and the move order submitted.</summary>
-            public bool MoveSubmitted;
-
-            /// <summary>Builds one table row.</summary>
-            public ScriptedUnit(byte player, string definitionId, int spawnX, int spawnY, int targetX, int targetY)
-            {
-                Player = player;
-                DefinitionId = definitionId;
-                SpawnX = spawnX;
-                SpawnY = spawnY;
-                TargetX = targetX;
-                TargetY = targetY;
-                MoveSubmitted = false;
-            }
-        }
-
         /// <summary>The cube that draws one simulation unit, plus the two tick states it blends between.</summary>
         private sealed class UnitView
         {
@@ -100,8 +68,18 @@ namespace Rts.Game.Bootstrap
             public float Height;
         }
 
-        /// <summary>Seed for the simulation RNG. Unit: none. Range: 0 to 2147483647. 1234 matches the headless smoke script.</summary>
-        [SerializeField, Min(0)] private int matchSeed = 1234;
+        /// <summary>
+        /// Seed override for the simulation RNG. Unit: none. Range: -1 to 2147483647. -1 (default) means "use the script's
+        /// seed" (1234 in smoke.json, which is what makes the hashes match the headless runner); 0 or more replaces it.
+        /// </summary>
+        [SerializeField, Min(-1)] private int matchSeed = -1;
+
+        /// <summary>
+        /// Command script to play, relative to the data directory, forward slashes. Unit: file path. Range: an existing
+        /// JSON file in the CommandScript format under the data directory; default "scripts/smoke.json", the same file the
+        /// headless harness runs by default.
+        /// </summary>
+        [SerializeField] private string scriptRelativePath = "scripts/smoke.json";
 
         /// <summary>
         /// Most ticks stepped in one rendered frame. Unit: ticks per frame. Range: 1 to 60; default 10. A slow frame
@@ -129,9 +107,6 @@ namespace Rts.Game.Bootstrap
         /// <summary>Cube centre height for air units. Unit: world units. Range: 0 to 10.</summary>
         private const float AirHeight = 2f;
 
-        /// <summary>Whole seconds between a scripted unit spawning and its move order. Unit: seconds. Range: 1 upward; multiplied by the match tick rate to get ticks.</summary>
-        private const int ScriptedMoveDelaySeconds = 1;
-
         /// <summary>Player colours by player slot: 0 blue, 1 red, then fallbacks. Unit: linear-agnostic RGBA, each channel 0 to 1.</summary>
         private static readonly Color[] PlayerColors =
         {
@@ -156,11 +131,11 @@ namespace Rts.Game.Bootstrap
         /// <summary>Fraction of the way from the previous tick to the next, used to blend cube positions. Unit: fraction. Range: 0 to 1.</summary>
         private float _alpha;
 
-        /// <summary>Next command sequence number for issuer None. Unit: count. Range: 0 upward; never reused.</summary>
-        private uint _nextSequence;
+        /// <summary>How many ticks the script asks for; stepping stops when the clock reaches it. Unit: ticks. Range: 0 to 1000000 (CommandScript.MaxTicks).</summary>
+        private int _scriptTicks;
 
-        /// <summary>The scripted spawn/move table. Filled by BuildScript.</summary>
-        private readonly List<ScriptedUnit> _script = new List<ScriptedUnit>();
+        /// <summary>True once the script's tick count has been stepped and the final hash logged; no further ticks run. Unit: on/off.</summary>
+        private bool _scriptFinished;
 
         /// <summary>Cube per live simulation unit. Presentation state only, never hashed or fed back.</summary>
         private readonly Dictionary<EntityId, UnitView> _views = new Dictionary<EntityId, UnitView>();
@@ -180,7 +155,7 @@ namespace Rts.Game.Bootstrap
         /// <summary>How far between the last two ticks the picture currently is. Unit: fraction. Range: 0 to 1.</summary>
         public float InterpolationAlpha => _alpha;
 
-        /// <summary>Loads data, builds the simulation, starts it and queues the scripted spawns. Disables itself on failure.</summary>
+        /// <summary>Loads data and the command script, builds the simulation, starts it and queues every scripted command. Disables itself on failure.</summary>
         private void Awake()
         {
             try
@@ -190,27 +165,45 @@ namespace Rts.Game.Bootstrap
                 List<DataSourceFile> files = ReadDataFiles(dataDirectory);
                 DataSet dataSet = DataLoader.Load(files);
 
-                // Core settings: tick rate and hash interval from data/tuning/match.json, seed from the Inspector.
-                MatchSettings settings = dataSet.CreateMatchSettings((ulong)Mathf.Max(0, matchSeed));
+                // The command script: players, seed, tick count and every command. Error messages name its path and field.
+                CommandScript script = ReadScript(dataDirectory);
+                _scriptTicks = script.Ticks;
+                _scriptFinished = false;
 
-                // Two players on two teams: player 0 plays skai, player 1 plays water.
-                PlayerSetup[] players =
-                {
-                    new PlayerSetup(new PlayerId(0), new TeamId(0), "skai", "Skai"),
-                    new PlayerSetup(new PlayerId(1), new TeamId(1), "water", "Water"),
-                };
+                // Seed: the script's, unless the Inspector override is 0 or more.
+                ulong seed = matchSeed >= 0 ? (ulong)matchSeed : script.Seed;
 
-                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, players, BuiltInMechanics.CreateRegistry());
+                // Core settings: tick rate and hash interval from data/tuning/match.json.
+                MatchSettings settings = dataSet.CreateMatchSettings(seed);
+
+                // Players come from the script, not from code.
+                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, script.Players, BuiltInMechanics.CreateRegistry());
                 _sim = new Simulation(config);
                 _sim.Start();
 
                 _tickSeconds = 1f / settings.TicksPerSecond;
                 _unitRoot = new GameObject("Simulation Units").transform;
-                BuildScript();
-                SubmitScriptedSpawns();
+
+                // Every script tick is known now, so submit the whole stream before the first Step (the clock is at 0,
+                // so Submit accepts every tick >= 0). The simulation orders commands by (tick, issuer, sequence) itself.
+                foreach (Command command in script.Commands)
+                {
+                    if (command.Tick >= _scriptTicks)
+                    {
+                        Debug.LogWarning("[SimulationHost] " + command + " is scheduled at or after the last tick (" + _scriptTicks + ") and will not run.");
+                    }
+                    _sim.Submit(command);
+                }
                 ProcessEvents();
-                Debug.Log("[SimulationHost] Match started from " + dataDirectory + ": " + files.Count + " data files, "
-                    + settings.TicksPerSecond + " ticks per second, seed " + settings.Seed + ".");
+                if (_scriptTicks == 0)
+                {
+                    // A script that asks for zero ticks never steps.
+                    _scriptFinished = true;
+                    Debug.Log("[SimulationHost] script finished at tick 0, final hash " + _sim.ComputeStateHash().ToString("x16"));
+                }
+                Debug.Log("[SimulationHost] Match started from " + dataDirectory + ": " + files.Count + " data files, script "
+                    + scriptRelativePath + " (" + script.Commands.Count + " commands, " + script.Players.Count + " players, "
+                    + _scriptTicks + " ticks), " + settings.TicksPerSecond + " ticks per second, seed " + settings.Seed + ".");
             }
             catch (Exception exception)
             {
@@ -228,15 +221,26 @@ namespace Rts.Game.Bootstrap
             {
                 return;
             }
+            if (_scriptFinished)
+            {
+                // The script is over: nothing steps, the cubes rest on the last tick.
+                _alpha = 1f;
+                return;
+            }
             // Real time since the previous frame; zero while Time.timeScale is 0, which pauses the match.
             _accumulatorSeconds += Time.deltaTime;
             // Ticks stepped this frame.
             int steps = 0;
-            while (_accumulatorSeconds >= _tickSeconds && steps < maxStepsPerFrame)
+            while (_accumulatorSeconds >= _tickSeconds && steps < maxStepsPerFrame && !_scriptFinished)
             {
                 StepOnce();
                 _accumulatorSeconds -= _tickSeconds;
                 steps++;
+            }
+            if (_scriptFinished)
+            {
+                _alpha = 1f;
+                return;
             }
             if (_accumulatorSeconds >= _tickSeconds)
             {
@@ -281,6 +285,13 @@ namespace Rts.Game.Bootstrap
             // Shift every existing cube's blend window forward before new events add or remove cubes.
             RefreshViewStates();
             ProcessEvents();
+            if (_sim.Clock.Tick >= _scriptTicks)
+            {
+                // The clock counts ticks already stepped, so this is the state after exactly the script's tick count,
+                // the same state the headless harness prints as STATE_HASH.
+                _scriptFinished = true;
+                Debug.Log("[SimulationHost] script finished at tick " + _sim.Clock.Tick + ", final hash " + _sim.ComputeStateHash().ToString("x16"));
+            }
         }
 
         /// <summary>For each cube: previous := current, current := the unit's position after the tick that just ran.</summary>
@@ -307,7 +318,6 @@ namespace Rts.Game.Bootstrap
                 if (simEvent is UnitSpawnedEvent spawned)
                 {
                     CreateView(spawned);
-                    SubmitScriptedMove(spawned);
                 }
                 else if (simEvent is UnitRemovedEvent removed)
                 {
@@ -415,52 +425,19 @@ namespace Rts.Game.Bootstrap
         }
 
         /// <summary>
-        /// Fills the scripted table: each player gets one skai.windrunner and one water.spoutling regardless of
-        /// faction (the commands are scripted, so faction rules do not apply), spawned in their own corner and sent
-        /// across the 64x64 map. Keep this table identical to the headless smoke script for hash comparisons.
+        /// Reads and parses the command script at dataDirectory + scriptRelativePath. Throws with a message naming the
+        /// path when the file is missing and a DataValidationException naming file and field when it is invalid.
         /// </summary>
-        private void BuildScript()
+        /// <param name="dataDirectory">Existing data folder the script path is relative to.</param>
+        private CommandScript ReadScript(string dataDirectory)
         {
-            _script.Clear();
-            //                          player  definition           spawn   target
-            _script.Add(new ScriptedUnit(0, "skai.windrunner", 8, 8, 56, 56));
-            _script.Add(new ScriptedUnit(0, "water.spoutling", 10, 8, 32, 32));
-            _script.Add(new ScriptedUnit(1, "skai.windrunner", 56, 56, 8, 8));
-            _script.Add(new ScriptedUnit(1, "water.spoutling", 54, 56, 34, 32));
-        }
-
-        /// <summary>Submits one spawn command per table row for tick 0. IDs come out as E1 to E4 in table order.</summary>
-        private void SubmitScriptedSpawns()
-        {
-            foreach (ScriptedUnit row in _script)
+            // Absolute path of the script file.
+            string path = Path.Combine(dataDirectory, scriptRelativePath);
+            if (!File.Exists(path))
             {
-                // Tick the spawn runs on; the clock is at 0 here, and Submit requires tick >= Clock.Tick.
-                int tick = _sim.Clock.Tick;
-                _sim.Submit(new SpawnUnitCommand(tick, PlayerId.None, _nextSequence++, row.DefinitionId,
-                    new PlayerId(row.Player), FixVec2.FromInts(row.SpawnX, row.SpawnY)));
+                throw new FileNotFoundException("Command script not found: " + path);
             }
-        }
-
-        /// <summary>
-        /// When a scripted unit's spawn event arrives, schedules its move order ScriptedMoveDelaySeconds later.
-        /// Matches the event to the first table row with the same owner and definition that has no move yet.
-        /// </summary>
-        /// <param name="spawned">The spawn event just read.</param>
-        private void SubmitScriptedMove(UnitSpawnedEvent spawned)
-        {
-            foreach (ScriptedUnit row in _script)
-            {
-                if (row.MoveSubmitted || row.Player != spawned.Owner.Value || row.DefinitionId != spawned.DefinitionId)
-                {
-                    continue;
-                }
-                row.MoveSubmitted = true;
-                // Tick the move runs on: one second after the spawn, never before the current tick.
-                int tick = Math.Max(spawned.Tick + _sim.Settings.TicksPerSecond * ScriptedMoveDelaySeconds, _sim.Clock.Tick);
-                _sim.Submit(new MoveUnitCommand(tick, PlayerId.None, _nextSequence++, spawned.Unit,
-                    FixVec2.FromInts(row.TargetX, row.TargetY)));
-                return;
-            }
+            return CommandScript.Parse(File.ReadAllText(path), scriptRelativePath.Replace('\\', '/'));
         }
 
         /// <summary>Picks the data folder: Inspector override, else the repo's rts/data in the editor, else StreamingAssets/data.</summary>

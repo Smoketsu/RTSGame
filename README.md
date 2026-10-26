@@ -27,7 +27,7 @@ You need the .NET 8 SDK.
 ```
 dotnet build rts/RtsGame.sln
 dotnet test rts/RtsGame.sln
-dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/tools/BalanceHarness/scripts/smoke.json
+dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 ```
 
 Build output goes to `rts/build/`, which git ignores.

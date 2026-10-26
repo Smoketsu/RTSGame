@@ -9,7 +9,7 @@ balance / Balance philosophy").
 
 1. Reads every `*.json` file under `--data` (normally `rts/data`) and hands the text to `Rts.Sim.Data.DataLoader`.
    This tool does the file IO; the simulation assembly never does.
-2. Builds a `Simulation` from the loaded content, `BuiltInMechanics.CreateRegistry()` and the players in the script.
+2. Parses the command script with `Rts.Sim.Data.CommandScript` (in the simulation assembly, so the Unity host reads the very same file) and builds a `Simulation` from the loaded content, `BuiltInMechanics.CreateRegistry()` and the players in the script.
 3. Submits the script's commands, steps the requested number of ticks, and prints:
    - one line per state hash: `tick=<n> hash=<16 hex digits>` (every `state_hash_interval_ticks`, default 20 = once a second);
    - a final line `STATE_HASH=<16 hex digits>` for the state after the last tick.
@@ -18,22 +18,23 @@ balance / Balance philosophy").
    Commands the simulation rejects (for example moving a unit that does not exist) print a `warning:` on stderr and do not change the exit code.
 
 Same data, script, seed and tick count always give the same output, on any machine. CI runs the smoke script twice and
-requires the two `STATE_HASH` lines to match.
+requires the two `STATE_HASH` lines to match. The default script, `rts/data/scripts/smoke.json`, is also what the Unity
+`SimulationHost` plays, so the `tick=<n> hash=<hex>` lines can be compared with the Unity Console (see `docs/UNITY_SETUP.md`).
 
 ```
-dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/tools/BalanceHarness/scripts/smoke.json [--ticks N] [--seed S]
+dotnet run --project rts/tools/BalanceHarness -- --data rts/data [--script <file>] [--ticks N] [--seed S]
 ```
 
 | Option | Meaning | Unit and range |
 | --- | --- | --- |
-| `--data <folder>` | Data folder with `tuning/`, `units/`, `factions/`, `maps/`, `cycles/` | Required |
-| `--script <file>` | Script JSON (comments allowed) | Required |
+| `--data <folder>` | Data folder with `tuning/`, `units/`, `factions/`, `maps/`, `cycles/`, `scripts/` | Required |
+| `--script <file>` | Script JSON (comments allowed) | Optional; default `<data folder>/scripts/smoke.json` |
 | `--ticks N` | Overrides the script's `ticks` | Ticks, 0 to 1 000 000 |
 | `--seed S` | Overrides the script's `seed` | Unsigned integer |
 
 ## Script format
 
-See `scripts/smoke.json`, which is commented line by line. In short:
+Scripts live in `rts/data/scripts/` (the data loader skips that folder; `Rts.Sim.Data.CommandScript` parses them). See `rts/data/scripts/smoke.json`, which is commented line by line. In short:
 
 ```
 { "$schema_version": 1, "$doc": "...", "seed": 1234, "ticks": 600,

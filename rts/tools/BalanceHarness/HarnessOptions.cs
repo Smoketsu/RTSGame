@@ -19,13 +19,22 @@ namespace Rts.Tools.BalanceHarness
     public sealed class HarnessOptions
     {
         /// <summary>Usage text printed with command-line errors.</summary>
-        public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> --script <script.json> [--ticks N] [--seed S]";
+        public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> [--script <script.json>] [--ticks N] [--seed S]";
 
-        /// <summary>Folder holding the game data (tuning/, units/, factions/, maps/, cycles/). Required.</summary>
+        /// <summary>Script used when --script is omitted, relative to the data folder. Range: fixed path inside rts/data; the Unity host's default is the same file.</summary>
+        public const string DefaultScriptRelativePath = "scripts/smoke.json";
+
+        /// <summary>Folder holding the game data (tuning/, units/, factions/, maps/, cycles/, scripts/). Required.</summary>
         public string DataDirectory { get; private set; } = string.Empty;
 
-        /// <summary>Path of the script JSON file. Required.</summary>
+        /// <summary>Path given with --script, or empty when the option was omitted. Use <see cref="ResolveScriptPath"/> for the path to read.</summary>
         public string ScriptPath { get; private set; } = string.Empty;
+
+        /// <summary>The script file to run: the --script path when given, else <see cref="DefaultScriptRelativePath"/> inside the data folder.</summary>
+        public string ResolveScriptPath()
+        {
+            return ScriptPath.Length > 0 ? ScriptPath : System.IO.Path.Combine(DataDirectory, DefaultScriptRelativePath);
+        }
 
         /// <summary>Tick count that overrides the script's "ticks", or null to use the script. Unit: ticks. Range: 0 to 1 000 000.</summary>
         public int? TicksOverride { get; private set; }
@@ -79,10 +88,6 @@ namespace Rts.Tools.BalanceHarness
             if (options.DataDirectory.Length == 0)
             {
                 throw new HarnessException("--data is required. " + Usage);
-            }
-            if (options.ScriptPath.Length == 0)
-            {
-                throw new HarnessException("--script is required. " + Usage);
             }
             return options;
         }

@@ -25,8 +25,7 @@ import sys
 # Default file sets, as globs relative to the repository root. `**` is recursive.
 # Unit: glob pattern strings. Range: any glob understood by glob.glob(recursive=True).
 DEFAULT_PATTERNS = (
-    "rts/data/**/*.json",
-    "rts/tools/BalanceHarness/scripts/*.json",
+    "rts/data/**/*.json",   # game data plus the command scripts in rts/data/scripts/ (same header rule)
 )
 
 

@@ -1,0 +1,37 @@
+// rts/data/scripts/smoke.json: Phase 0 smoke script. The one scripted command stream shared by the headless harness (rts/tools/BalanceHarness, default script) and the Unity bootstrap (SimulationHost); both parse it with Rts.Sim.Data.CommandScript, so the state hashes they print can be compared line by line. Skai versus Water on the grey-box map: each player spawns two units, the script sends all four across the map one second later, then a player-issued move, a no-op, a rejected move and a removal exercise the command path. CI runs the harness twice and requires identical STATE_HASH lines (determinism check).
+{
+  "$schema_version": 1,
+  "$doc": "Smoke script: two players, four spawns at tick 0, four scripted moves at tick 20, then a player move, a no-op, a rejected move, a removal and a move of the removed unit; 600 ticks (30 seconds) with seed 1234. Shared by the headless harness and the Unity host.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md (same seed and commands give the same hash).
+  "seed": 1234,
+  // How many ticks to simulate. Unit: ticks (20 per second, so 600 is 30 seconds). Range: 0 to 1000000. Source: docs/decisions/ADR-004-tick-rate.md.
+  "ticks": 600,
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. Source: Game modes (any player count, teams explicit).
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: player slot, or 255 for the script itself; sequence: per-issuer counter, unique per issuer (0 or more); type: noop, spawn_unit, move_unit or remove_unit. x and y: tiles from the map origin, decimal text or a number. Entity IDs are handed out in application order starting at 1: at tick 0 the four spawns below get units 1 to 4 in sequence order (the script issuer 255 is the only issuer at tick 0). Source: Phase 0 command set (rts/src/Sim/Commands/CoreCommands.cs).
+  "commands": [
+    // Tick 0: each player gets one Skai Windrunner (air) and one Water Spoutling in its own corner. The script spawns on behalf of the owners, so faction rules do not apply. Units 1 to 4.
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "8", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "water.spoutling", "owner": 0, "x": "10", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 1, "x": "56", "y": "56" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "54", "y": "56" },
+    // Tick 20 (one second in): the script sends every unit across the map: unit 1 to the far corner, unit 2 to the middle, unit 3 back to the first corner, unit 4 next to the middle.
+    { "tick": 20, "issuer": 255, "sequence": 4, "type": "move_unit", "unit": 1, "x": "56", "y": "56" },
+    { "tick": 20, "issuer": 255, "sequence": 5, "type": "move_unit", "unit": 2, "x": "32", "y": "32" },
+    { "tick": 20, "issuer": 255, "sequence": 6, "type": "move_unit", "unit": 3, "x": "8", "y": "8" },
+    { "tick": 20, "issuer": 255, "sequence": 7, "type": "move_unit", "unit": 4, "x": "34", "y": "32" },
+    // Tick 100: Skai (player 0) issues its own move for unit 1, to a fractional target.
+    { "tick": 100, "issuer": 0, "sequence": 0, "type": "move_unit", "unit": 1, "x": "40", "y": "20.5" },
+    // Tick 150: a no-op from the script, as a network keep-alive stand-in.
+    { "tick": 150, "issuer": 255, "sequence": 8, "type": "noop" },
+    // Tick 200: Water (player 1) tries to move Skai's unit 1; the simulation rejects it (not_owner) and the hosts print a warning.
+    { "tick": 200, "issuer": 1, "sequence": 0, "type": "move_unit", "unit": 1, "x": "9", "y": "8" },
+    // Tick 250: Water removes its own Spoutling (unit 4).
+    { "tick": 250, "issuer": 1, "sequence": 1, "type": "remove_unit", "unit": 4 },
+    // Tick 300: Water orders the removed unit 4 to move; the simulation rejects it (unknown_unit).
+    { "tick": 300, "issuer": 1, "sequence": 2, "type": "move_unit", "unit": 4, "x": "20", "y": "20" }
+  ]
+}

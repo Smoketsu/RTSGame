@@ -71,12 +71,12 @@ rts/docs/          ADRs, CHANGELOG.md, ASSET_STORE.md, UNITY_SETUP.md, CI.md
 ```
 dotnet build rts/RtsGame.sln
 dotnet test rts/RtsGame.sln
-dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/tools/BalanceHarness/scripts/smoke.json
+dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 ```
 
 - `rts/build/` is the output folder (set in `rts/Directory.Build.props`). It is git-ignored; never commit it.
 - Warnings are errors (`TreatWarningsAsErrors`), and the code uses C# 9 with nullable reference types on. Fix every warning rather than suppressing it.
-- The harness command reads its script from the path shown; if that file is missing the run fails with a file error.
+- The harness reads its command script from `rts/data/scripts/smoke.json` unless `--script <path>` is given; the Unity `SimulationHost` plays the same file (parsed by `Rts.Sim.Data.CommandScript`), so their state hashes are comparable. If the script file is missing the run fails with a file error.
 
 ## Subagents (`.claude/agents`)
 
