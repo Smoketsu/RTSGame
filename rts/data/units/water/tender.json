@@ -1,0 +1,25 @@
+// rts/data/units/water/tender.json: Tender, worker. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Tender unit definition for the water faction (worker); placeholder numbers until the Phase 1 unit docs are written.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.tender",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts.
+  "display_name": "Tender",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Water faction / Unit concepts; placeholder choice, a worker has to reach dry-land fields.
+  "layer": "ground",
+  // Health at full. Unit: health points. Range: 1 to 100000 (design placeholders sit between 40 and 160). Source: placeholder for Phase 1 unit docs.
+  "max_health": 50,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (placeholders sit between 2 and 5). Source: placeholder for Phase 1 unit docs.
+  "speed_tiles_per_second": 2,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100 (placeholders sit between 1 and 3). Source: placeholder for Phase 1 unit docs.
+  "supply": 1,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10 (placeholders sit between 0.3 and 0.6). Source: placeholder for Phase 1 unit docs.
+  "radius_tiles": 0.35,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 50 and 150). Source: placeholder for Phase 1 unit docs.
+  "cost_common": 50,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 0 and 50). Source: placeholder for Phase 1 unit docs.
+  "cost_rare": 0
+}

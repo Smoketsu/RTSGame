@@ -1,0 +1,13 @@
+// rts/data/cycles/windstorm.json: Planetary Cycle "Windstorm". Part of rts/data/cycles; read by the data loader (rts/src/Sim/Data) into a CycleDefinition. Effect numbers are still to be settled in the systems spec, so only identity and the favoured play style are data for now.
+{
+  "$schema_version": 1,
+  "$doc": "Planetary Cycle Windstorm, which favours air play; Phase 0 stores identity and description only.",
+  // Stable cycle ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "windstorm",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Win condition and twists / Planetary Cycles.
+  "display_name": "Windstorm",
+  // Play style the cycle favours (cycles favour a play style, not a faction). Unit: style name. Range: "air", "attackers" or "position". Source: Win condition and twists / Planetary Cycles (Favours column).
+  "favours": "air",
+  // What the cycle does, for tooltips. Unit: text. Range: 1 to 200 characters. Source: Win condition and twists / Planetary Cycles (Effect column).
+  "description": "Flyers gain speed; ground ranged units lose range."
+}
