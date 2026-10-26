@@ -21,14 +21,14 @@ Restores, builds and tests `rts/RtsGame.sln` in Release configuration.
 
 Proves the Phase 0 exit criterion: the same inputs always give the same simulation.
 
-- **Headless double run.** The balance harness plays `rts/tools/BalanceHarness/scripts/smoke.json` against `rts/data` in two separate processes. Each prints one `tick=<n> hash=<16 hex>` line per state-hash interval and a final `STATE_HASH=<16 hex>` line. The job fails if either run exits non-zero, if a run does not print exactly one `STATE_HASH=` line, if the two final hashes differ, or if any per-tick line differs. On success the hash appears in the job summary.
+- **Headless double run.** The balance harness plays `rts/data/scripts/smoke.json` (also its default script, and the one the Unity host plays) against `rts/data` in two separate processes. Each prints one `tick=<n> hash=<16 hex>` line per state-hash interval and a final `STATE_HASH=<16 hex>` line. The job fails if either run exits non-zero, if a run does not print exactly one `STATE_HASH=` line, if the two final hashes differ, or if any per-tick line differs. On success the hash appears in the job summary.
 - **NUnit determinism tests.** `dotnet test` with the filter `FullyQualifiedName~DeterminismTests` runs on its own as a named step, and fails if the filter matches no test.
 
 ### 3. `data-files`
 
 Runs `.github/scripts/validate_jsonc.py` (Python 3 standard library only).
 
-- Every `rts/data/**/*.json` file and every `rts/tools/BalanceHarness/scripts/*.json` file must be valid JSON once `//` and `/* */` comments are removed. Trailing commas, duplicate keys in one object, `NaN` and `Infinity` are rejected.
+- Every `rts/data/**/*.json` file, which includes the command scripts in `rts/data/scripts/`, must be valid JSON once `//` and `/* */` comments are removed. Trailing commas, duplicate keys in one object, `NaN` and `Infinity` are rejected.
 - Every one of those files must start with a `//` header comment line (path on line 1, as the documentation standard requires).
 
 Failures are printed as `path:line: problem`.
@@ -59,11 +59,11 @@ dotnet build rts/RtsGame.sln --configuration Release --no-restore
 dotnet test rts/RtsGame.sln --configuration Release --no-build \
   --logger "trx;LogFileName=results.trx" --results-directory rts/build/TestResults
 
-# determinism: the headless runner twice, then compare the hashes
+# determinism: the headless runner twice, then compare the hashes (--script is optional; it defaults to <data>/scripts/smoke.json)
 dotnet run --project rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj --configuration Release -- \
-  --data rts/data --script rts/tools/BalanceHarness/scripts/smoke.json > /tmp/run1.out
+  --data rts/data --script rts/data/scripts/smoke.json > /tmp/run1.out
 dotnet run --project rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj --configuration Release -- \
-  --data rts/data --script rts/tools/BalanceHarness/scripts/smoke.json > /tmp/run2.out
+  --data rts/data --script rts/data/scripts/smoke.json > /tmp/run2.out
 grep '^STATE_HASH=' /tmp/run1.out /tmp/run2.out   # the two hashes must be identical
 diff /tmp/run1.out /tmp/run2.out                  # no output means identical
 

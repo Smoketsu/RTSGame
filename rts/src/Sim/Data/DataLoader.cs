@@ -3,8 +3,10 @@
 // The loader does no file IO: hosts pass DataSourceFile pairs. Files are processed in ordinal path order so the
 // first error reported is the same on every machine. Every error is a DataValidationException that names the file
 // (the first words of the message) and the field. Folder routing: tuning/, units/<faction>/, factions/, maps/, cycles/.
-// Unknown folders, unknown keys, missing keys, wrong types, out-of-range values, dangling references and a
-// $schema_version other than 1 are all errors; nothing is silently ignored.
+// Exception: the scripts/ folder is skipped. Scripted command streams (the headless harness, the Unity bootstrap and
+// later campaign missions) live there and are parsed by CommandScript, not by this loader. Everything else is strict:
+// unknown folders, unknown keys, missing keys, wrong types, out-of-range values, dangling references and a
+// $schema_version other than 1 are all errors; nothing else is silently ignored.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -24,6 +26,12 @@ namespace Rts.Sim.Data
 
         /// <summary>The only schema version this build reads. Range: exactly 1. Later phases add migrations (ADR-002).</summary>
         public const int SupportedSchemaVersion = 1;
+
+        /// <summary>
+        /// Name of the data folder holding scripted command streams. Files under it are ignored by <see cref="Load"/>;
+        /// <see cref="CommandScript"/> parses them. Range: fixed folder name, "scripts".
+        /// </summary>
+        public const string ScriptsFolder = "scripts";
 
         /// <summary>Largest allowed value of a health, cost or similar unit field. Unit: points or resource units. Range: fixed validation bound, not a tuning value.</summary>
         private const string MaxStatText = "100000";
@@ -72,6 +80,12 @@ namespace Rts.Sim.Data
                 {
                     throw new DataValidationException(path, string.Empty, "is not a .json data file");
                 }
+                if (parts[0] == ScriptsFolder)
+                {
+                    // Scripted command streams live here (harness default script, Unity bootstrap, later campaign missions).
+                    // CommandScript parses them with its own schema; the loader neither reads nor validates them.
+                    continue;
+                }
                 // Parsed document; syntax errors name the file, line and column.
                 JsonValue root = JsonReader.Parse(pair.Value.Text, path);
                 CheckHeader(root);
@@ -108,7 +122,7 @@ namespace Rts.Sim.Data
                         }
                     default:
                         throw new DataValidationException(path, string.Empty,
-                            "is not under a known data folder (tuning/, units/, factions/, maps/ or cycles/)");
+                            "is not under a known data folder (tuning/, units/, factions/, maps/, cycles/ or scripts/)");
                 }
             }
 

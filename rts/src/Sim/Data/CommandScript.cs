@@ -1,20 +1,24 @@
-// rts/tools/BalanceHarness/HarnessScript.cs
-// Reads a harness script (JSON with comments) into players, commands, a seed and a tick count. Part of
-// Rts.Tools.BalanceHarness. The script format is documented in README.md and in rts/tools/BalanceHarness/scripts/smoke.json.
-// Parsing reuses the simulation's JsonReader so scripts get the same comments, exact numbers and file/line/field
-// error messages as game data. Errors are DataValidationException naming the script path and the field.
+// rts/src/Sim/Data/CommandScript.cs
+// Reads a command script (JSON with comments) into players, commands, a seed and a tick count. Part of Rts.Sim.Data.
+// One script file drives every host: the headless harness (rts/tools/BalanceHarness) and the Unity bootstrap
+// (rts/src/Game SimulationHost) both parse the same rts/data/scripts/*.json with this class, so their state hashes
+// are comparable; later campaign missions use the same format. The script format is documented in
+// rts/tools/BalanceHarness/README.md and in rts/data/scripts/smoke.json. Engine-free like the rest of the simulation
+// assembly: it takes text, never touches the file system (hosts do the file IO), and uses only Fix64 and integers.
+// Parsing reuses JsonReader so scripts get the same comments, exact numbers and file/line/field error messages as game
+// data. Errors are DataValidationException naming the script path and the field. DataLoader skips the scripts/ folder
+// on purpose: scripts are parsed here, not by the loader.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
-using Rts.Sim.Data;
 using Rts.Sim.Teams;
 
-namespace Rts.Tools.BalanceHarness
+namespace Rts.Sim.Data
 {
-    /// <summary>A parsed script: who plays, what commands are issued when, how long to run.</summary>
-    public sealed class HarnessScript
+    /// <summary>A parsed command script: who plays, what commands are issued when, how long to run.</summary>
+    public sealed class CommandScript
     {
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
         public const int MaxTicks = 1000000;
@@ -22,7 +26,7 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>The script's seed. Range: any ulong.</summary>
         public ulong Seed { get; }
 
-        /// <summary>How many ticks to simulate unless --ticks overrides it. Unit: ticks. Range: 0 to <see cref="MaxTicks"/>.</summary>
+        /// <summary>How many ticks to simulate unless the host overrides it (the harness has --ticks). Unit: ticks. Range: 0 to <see cref="MaxTicks"/>.</summary>
         public int Ticks { get; }
 
         /// <summary>Player slots in script order.</summary>
@@ -32,7 +36,7 @@ namespace Rts.Tools.BalanceHarness
         public IReadOnlyList<Command> Commands { get; }
 
         /// <summary>Bundles the parsed pieces.</summary>
-        private HarnessScript(ulong seed, int ticks, IReadOnlyList<PlayerSetup> players, IReadOnlyList<Command> commands)
+        private CommandScript(ulong seed, int ticks, IReadOnlyList<PlayerSetup> players, IReadOnlyList<Command> commands)
         {
             Seed = seed;
             Ticks = ticks;
@@ -42,10 +46,21 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Parses script text. Throws <see cref="DataValidationException"/> naming <paramref name="sourceName"/> and the field on any problem.</summary>
         /// <param name="text">The script file's text.</param>
-        /// <param name="sourceName">The script path, used in error messages.</param>
-        public static HarnessScript Parse(string text, string sourceName)
+        /// <param name="sourceName">The script path (data-root-relative or full), used in error messages.</param>
+        public static CommandScript Parse(string text, string sourceName)
         {
-            JsonValue root = JsonReader.Parse(text, sourceName);
+            return Parse(JsonReader.Parse(text, sourceName), sourceName);
+        }
+
+        /// <summary>Builds a script from an already parsed JSON tree. Throws <see cref="DataValidationException"/> naming <paramref name="sourceName"/> and the field on any problem.</summary>
+        /// <param name="root">The parsed top-level node of the script file.</param>
+        /// <param name="sourceName">The script path, used for problems with the file as a whole (field-level problems name the node's own source and path).</param>
+        public static CommandScript Parse(JsonValue root, string sourceName)
+        {
+            if (root.Kind != JsonKind.Object)
+            {
+                throw new DataValidationException(sourceName, string.Empty, "the top level must be a JSON object (found " + root.Kind.ToString().ToLowerInvariant() + ")");
+            }
             root.RejectUnknownKeys("seed", "ticks", "players", "commands");
             if (root.Require(DataLoader.SchemaVersionKey).AsInt() != DataLoader.SupportedSchemaVersion)
             {
@@ -76,7 +91,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 commands.Add(ReadCommand(node));
             }
-            return new HarnessScript(seed, ticks, players, commands);
+            return new CommandScript(seed, ticks, players, commands);
         }
 
         /// <summary>Reads one command object.</summary>

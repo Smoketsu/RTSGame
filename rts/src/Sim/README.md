@@ -64,6 +64,6 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | `Factions/` | `IFactionMechanic`, `FactionMechanicRegistry`, `BuiltInMechanics`, and one subfolder per faction (`Skai/`, `Water/`, `Earth/`, `Fire/`). |
 | `Cycles/` | Placeholder (Phase 1): Planetary Cycles on the match clock. |
 | `Events/` | `SimEvent`, `EventLog` and the core events hosts react to (spawned, removed, arrived, rejected, state hashed). |
-| `Data/` | The data loader: `JsonReader`, `JsonValue`, `DataLoader`, `DataSet`, definitions for maps and cycles, and `Tuning/` (one typed class per `rts/data/tuning` file). Hosts do the file IO and pass `DataSourceFile(relativePath, text)` objects in. |
+| `Data/` | The data loader: `JsonReader`, `JsonValue`, `DataLoader`, `DataSet`, `CommandScript` (the shared command-script parser; scripts live in `rts/data/scripts`, which the loader skips), definitions for maps and cycles, and `Tuning/` (one typed class per `rts/data/tuning` file). Hosts do the file IO and pass `DataSourceFile(relativePath, text)` objects in. |
 
 Related files in this folder: `Simulation.cs` (the one entry point), `Rts.Sim.csproj` (.NET build), `package.json` and `Rts.Sim.asmdef` (Unity). Setup for the Unity project is in `rts/docs/UNITY_SETUP.md`.

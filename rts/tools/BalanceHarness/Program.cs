@@ -1,7 +1,8 @@
 // rts/tools/BalanceHarness/Program.cs
 // Headless runner: loads every *.json under --data, builds a Simulation with the built-in faction mechanics, plays
 // a scripted command stream for N ticks without Unity, prints one "tick=<n> hash=<16 hex>" line per state hash and a
-// final "STATE_HASH=<16 hex>". Exit code 0 on success, 1 on any error (message on stderr). Part of
+// final "STATE_HASH=<16 hex>". The script is parsed by Rts.Sim.Data.CommandScript and defaults to
+// <data>/scripts/smoke.json, the same file the Unity SimulationHost plays. Exit code 0 on success, 1 on any error (message on stderr). Part of
 // Rts.Tools.BalanceHarness. Phase 0 proves determinism and the data pipeline in CI; Phase 2 grows this into the
 // AI-versus-AI balance harness (see README.md). This tool does the file IO the simulation assembly may not.
 using System;
@@ -36,12 +37,13 @@ namespace Rts.Tools.BalanceHarness
             {
                 HarnessOptions options = HarnessOptions.Parse(args);
                 DataSet data = DataLoader.Load(ReadDataFolder(options.DataDirectory));
-                string scriptPath = options.ScriptPath;
+                // Script to run: --script, else <data dir>/scripts/smoke.json.
+                string scriptPath = options.ResolveScriptPath();
                 if (!File.Exists(scriptPath))
                 {
                     throw new HarnessException("script file not found: " + scriptPath);
                 }
-                HarnessScript script = HarnessScript.Parse(File.ReadAllText(scriptPath), scriptPath.Replace('\\', '/'));
+                CommandScript script = CommandScript.Parse(File.ReadAllText(scriptPath), scriptPath.Replace('\\', '/'));
                 // Seed and length: the command line wins over the script.
                 ulong seed = options.SeedOverride ?? script.Seed;
                 int ticks = options.TicksOverride ?? script.Ticks;
