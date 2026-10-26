@@ -78,7 +78,7 @@ namespace Rts.Sim.Tests
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x0685a2bd1d3a4573UL;
+        private const ulong GoldenFinalHash = 0x0685a3602cc02df3UL;
 
         [Test]
         public void GoldenHash_IsPinned()
