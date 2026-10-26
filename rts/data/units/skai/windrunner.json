@@ -21,5 +21,22 @@
   // Cost in the common resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 50 and 150). Source: placeholder for Phase 1 unit docs.
   "cost_common": 75,
   // Cost in the rare resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 0 and 50). Source: placeholder for Phase 1 unit docs.
-  "cost_rare": 0
+  "cost_rare": 0,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "armour_type": "light",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
+  "sight_range_tiles": 9,
+  // Weapon: omit the whole object for an unarmed unit. Windrunner: fast raider, light kinetic shots at all layers. Every number is a placeholder for playtesting. Source: placeholder for Phase 1 unit docs.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.
+    "damage": 6,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: one of the damage_types in tuning/combat.json ("kinetic", "blast", "drench"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: placeholder for Phase 1 unit docs.
+    "range_tiles": 4,
+    // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: placeholder for Phase 1 unit docs.
+    "cooldown_seconds": 0.8,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
+    "can_target": ["ground", "water", "air"]
+  }
 }

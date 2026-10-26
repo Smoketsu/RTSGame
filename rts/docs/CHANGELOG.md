@@ -3,6 +3,18 @@
 
 All notable changes to this project are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Unreleased changes go under the [Unreleased] heading, grouped as Added, Changed, Deprecated, Removed, Fixed or Security.
 
+## [Unreleased] - Phase 1 Prototype (Skai versus water)
+
+### Added
+
+- `docs/PHASE1_PLAN.md` build order; ADR-006 (terrain as a tile grid of layered ground states) and ADR-007 (flow-field pathfinding per movement layer).
+- Terrain grid (`rts/src/Sim/Terrain`): per-tile height layer 0 to 7, ramp flag, water depth, surface state (dry, raised, scorched) and blockers (wall, footprint); passability with the cliff and ramp rule and no corner cutting; speed multipliers by layer and depth class from `tuning/terrain.json` and `tuning/flood.json`; mutators only inside a step, each raising `TerrainChangedEvent` and bumping `Version`; every tile hashed.
+- Map format: `height_rows`, `ramp_rows`, `resource_fields` (common or rare, amount) and `core`; `greybox_1v1` rebuilt with two layer-2 start plateaus, ramps, a layer-1 ring and a layer-0 basin around the Core (lowest layer 11% of the map).
+- Flow-field pathfinding (`rts/src/Sim/Pathing`): integer-cost Dijkstra with a (cost, index) heap, flow directions in fixed neighbour order, cache keyed by (layer, goal) invalidated by terrain version with deterministic eviction. `MovementSystem` moves ground and water units along the field's direction vectors, air units straight; arrival within `arrival_radius_tiles`; `MoveUnreachableEvent` when the goal cannot be reached.
+- `Unit.EffectiveLayer` (status override for Grounded flyers), `StatusSpeedMultiplier` and the `ISpeedModifier` hook (Momentum) registered at `OnMatchStart`; `SimulationConfig` now takes the `Tuning` and the `MapDefinition`; command scripts may name a `map`.
+- Combat system (`rts/src/Sim/Combat`): runs after movement and before mechanics; target acquisition (enemies on a layer the weapon can hit, nearest with lowest-ID tie-break), cooldowns in ticks, damage through the `tuning/combat.json` damage-type by armour-type table, lethal hits resolved after all units act, `attack_move`, `attack_unit` and `stop` commands, `UnitDamagedEvent` and `UnitKilledEvent`, the `IDamageModifier` hook. Unit files gain optional `armour_type`, `sight_range_tiles` and `weapon`; Windrunner, Roc Rider, Spoutling and Grasper have placeholder weapons. `combat_smoke.json` script.
+- Tests: 22 terrain, pathing, movement and combat tests (157 in total); golden final hash re-pinned.
+
 ## [Unreleased] - Phase 0 Foundations
 
 ### Added

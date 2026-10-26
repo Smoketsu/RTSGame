@@ -52,6 +52,28 @@ namespace Rts.Sim.Data
             Cycles = orderedCycles;
         }
 
+        /// <summary>
+        /// The map with <paramref name="id"/>, or the first map in ordinal ID order when <paramref name="id"/> is null.
+        /// Throws <see cref="DataValidationException"/> naming the missing map, or when no map is loaded at all.
+        /// </summary>
+        /// <param name="id">Map ID or null.</param>
+        public MapDefinition RequireMap(string? id)
+        {
+            if (id != null)
+            {
+                if (Maps.TryGetValue(id, out MapDefinition? named))
+                {
+                    return named;
+                }
+                throw new DataValidationException("maps/" + id + ".json", string.Empty, "is not a loaded map");
+            }
+            foreach (KeyValuePair<string, MapDefinition> pair in Maps)
+            {
+                return pair.Value;
+            }
+            throw new DataValidationException("maps/", string.Empty, "contains no map files");
+        }
+
         /// <summary>Builds the core match settings from tuning/match.json (ticks_per_second and state_hash_interval_ticks).</summary>
         /// <param name="seed">Seed for the one simulation RNG; any ulong.</param>
         public MatchSettings CreateMatchSettings(ulong seed)

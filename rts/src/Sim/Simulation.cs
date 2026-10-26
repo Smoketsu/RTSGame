@@ -8,16 +8,21 @@
 //   1. clear the event log
 //   2. apply this tick's commands in (issuer, sequence) order
 //   3. movement
-//   4. faction mechanics in ascending mechanic ID order
-//   5. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-//   6. advance the clock
+//   4. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
+//   5. faction mechanics in ascending mechanic ID order
+//   6. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+//   7. advance the clock
 using System;
 using System.Collections.Generic;
+using Rts.Sim.Combat;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
+using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
+using Rts.Sim.Pathing;
 using Rts.Sim.Teams;
+using Rts.Sim.Terrain;
 using Rts.Sim.Units;
 
 namespace Rts.Sim
@@ -52,6 +57,27 @@ namespace Rts.Sim
         /// <summary>Live units.</summary>
         public UnitRegistry Units { get; }
 
+        /// <summary>Every tuning file. Systems read the part they own.</summary>
+        public Tuning Tuning { get; }
+
+        /// <summary>The map being played (spawns, resource fields, Core). Static for the match.</summary>
+        public MapDefinition Map { get; }
+
+        /// <summary>Live terrain: heights, water, surfaces, blockers (ADR-006). Hashed every tile.</summary>
+        public TerrainGrid Terrain { get; }
+
+        /// <summary>Flow-field cache for ground and water movement (ADR-007). Not hashed: a pure function of terrain.</summary>
+        public FlowFieldCache Pathing { get; }
+
+        /// <summary>
+        /// Speed modifiers registered by mechanics at <see cref="IFactionMechanic.OnMatchStart"/>, kept sorted by
+        /// <see cref="ISpeedModifier.Id"/> (ordinal). <see cref="MovementSystem"/> multiplies a unit's speed by each in this order.
+        /// </summary>
+        public IReadOnlyList<ISpeedModifier> SpeedModifiers => _speedModifiers;
+
+        /// <summary>Backing store for <see cref="SpeedModifiers"/>, kept sorted by Id.</summary>
+        private readonly List<ISpeedModifier> _speedModifiers = new List<ISpeedModifier>();
+
         /// <summary>Mechanic instances active in this match, keyed by mechanic ID in ordinal order. Filled by <see cref="Start"/>.</summary>
         public IReadOnlyDictionary<string, IFactionMechanic> Mechanics => _mechanics;
 
@@ -84,6 +110,18 @@ namespace Rts.Sim
         /// </summary>
         public ulong ContentDigest { get; private set; }
 
+        /// <summary>
+        /// Damage modifiers registered by mechanics at <see cref="IFactionMechanic.OnMatchStart"/>, in ascending
+        /// <see cref="IDamageModifier.Id"/> (ordinal) order. <see cref="CombatSystem"/> multiplies a hit's damage by each in this order.
+        /// </summary>
+        public IReadOnlyList<IDamageModifier> DamageModifiers => _damageModifiers;
+
+        /// <summary>Backing store for <see cref="DamageModifiers"/>, kept sorted by Id.</summary>
+        private readonly List<IDamageModifier> _damageModifiers = new List<IDamageModifier>();
+
+        /// <summary>True only while mechanics run <see cref="IFactionMechanic.OnMatchStart"/>, the one time modifiers may be registered.</summary>
+        private bool _modifierRegistrationOpen;
+
         /// <summary>Backing store for <see cref="Mechanics"/>.</summary>
         private readonly SortedDictionary<string, IFactionMechanic> _mechanics = new SortedDictionary<string, IFactionMechanic>(StringComparer.Ordinal);
 
@@ -111,6 +149,10 @@ namespace Rts.Sim
             Events = new EventLog();
             Players = new PlayerRegistry(config.Players);
             Units = new UnitRegistry();
+            Tuning = config.Tuning;
+            Map = config.Map;
+            Terrain = new TerrainGrid(Map, Tuning.Terrain, Tuning.Flood);
+            Pathing = new FlowFieldCache(Terrain, Tuning.Terrain.MaxCachedFlowFields);
             _mechanicRegistry = config.Mechanics;
         }
 
@@ -151,6 +193,7 @@ namespace Rts.Sim
             Events.Add(new MatchStartedEvent(Clock.Tick, Players.Count, Settings.Seed));
             IsStepping = true;
             Rng.SetLocked(false);
+            _modifierRegistrationOpen = true;
             try
             {
                 foreach (IFactionMechanic mechanic in _mechanics.Values)
@@ -160,9 +203,87 @@ namespace Rts.Sim
             }
             finally
             {
+                _modifierRegistrationOpen = false;
                 Rng.SetLocked(true);
                 IsStepping = false;
             }
+        }
+
+        /// <summary>
+        /// Adds a speed modifier. Same rules as <see cref="RegisterDamageModifier"/>: only from
+        /// <see cref="IFactionMechanic.OnMatchStart"/>, sorted by Id, duplicate Ids throw.
+        /// </summary>
+        /// <param name="modifier">The modifier; its Id must be non-empty.</param>
+        public void RegisterSpeedModifier(ISpeedModifier modifier)
+        {
+            if (modifier == null)
+            {
+                throw new ArgumentNullException(nameof(modifier));
+            }
+            if (!_modifierRegistrationOpen)
+            {
+                throw new InvalidOperationException("Speed modifiers can only be registered from IFactionMechanic.OnMatchStart.");
+            }
+            if (string.IsNullOrEmpty(modifier.Id))
+            {
+                throw new ArgumentException("A speed modifier needs a non-empty Id.", nameof(modifier));
+            }
+            // Insertion index keeping the list sorted by Id. Unit: list position. Range: 0 to Count.
+            int index = 0;
+            while (index < _speedModifiers.Count)
+            {
+                // Comparison of the existing Id with the new one: negative when the existing one sorts first.
+                int order = string.CompareOrdinal(_speedModifiers[index].Id, modifier.Id);
+                if (order == 0)
+                {
+                    throw new InvalidOperationException("A speed modifier with id '" + modifier.Id + "' is already registered.");
+                }
+                if (order > 0)
+                {
+                    break;
+                }
+                index++;
+            }
+            _speedModifiers.Insert(index, modifier);
+        }
+
+        /// <summary>
+        /// Adds a damage modifier. Only allowed from <see cref="IFactionMechanic.OnMatchStart"/>; the list is kept sorted by
+        /// <see cref="IDamageModifier.Id"/> (ordinal) so the multiplication order never depends on mechanic creation order.
+        /// A second modifier with the same Id throws.
+        /// </summary>
+        /// <param name="modifier">The modifier; its Id must be non-empty.</param>
+        public void RegisterDamageModifier(IDamageModifier modifier)
+        {
+            if (modifier == null)
+            {
+                throw new ArgumentNullException(nameof(modifier));
+            }
+            if (!_modifierRegistrationOpen)
+            {
+                throw new InvalidOperationException("Damage modifiers can only be registered from IFactionMechanic.OnMatchStart.");
+            }
+            if (string.IsNullOrEmpty(modifier.Id))
+            {
+                throw new ArgumentException("A damage modifier needs a non-empty Id.", nameof(modifier));
+            }
+            // Insertion index keeping the list sorted by Id. Unit: list position. Range: 0 to Count.
+            int index = 0;
+            while (index < _damageModifiers.Count)
+            {
+                // Comparison of the existing Id with the new one: negative when the existing one sorts first.
+                int order = string.CompareOrdinal(_damageModifiers[index].Id, modifier.Id);
+                if (order == 0)
+                {
+                    throw new InvalidOperationException("A damage modifier with id '" + modifier.Id + "' is already registered.");
+                }
+                if (order > 0)
+                {
+                    break;
+                }
+                index++;
+            }
+            _damageModifiers.Insert(index, modifier);
         }
 
         /// <summary>Replaces the <see cref="HandOverPolicy"/>. Only allowed before <see cref="Start"/>, so one policy rules the whole match.</summary>
@@ -197,7 +318,7 @@ namespace Rts.Sim
             Commands.Enqueue(command);
         }
 
-        /// <summary>Runs one tick: commands, movement, mechanics, hash, then advances the clock.</summary>
+        /// <summary>Runs one tick: commands, movement, combat, mechanics, hash, then advances the clock.</summary>
         public void Step()
         {
             if (!IsStarted)
@@ -217,6 +338,7 @@ namespace Rts.Sim
                 Events.Clear();
                 ApplyCommands(tick);
                 MovementSystem.Step(this);
+                CombatSystem.Step(this);
                 foreach (IFactionMechanic mechanic in _mechanics.Values)
                 {
                     mechanic.OnTick(this);
@@ -295,7 +417,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
-        /// mechanics, hand-over policy. Safe to call between steps; the result is never 0.
+        /// mechanics, damage modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
@@ -306,11 +428,17 @@ namespace Rts.Sim
             EntityIds.WriteHash(_hasher);
             Players.WriteHash(_hasher);
             Units.WriteHash(_hasher);
+            Terrain.WriteHash(_hasher);
             _hasher.Write(_mechanics.Count);
             foreach (KeyValuePair<string, IFactionMechanic> pair in _mechanics)
             {
                 _hasher.Write(pair.Key);
                 pair.Value.WriteHash(_hasher);
+            }
+            _hasher.Write(_damageModifiers.Count);
+            foreach (IDamageModifier modifier in _damageModifiers)
+            {
+                _hasher.Write(modifier.Id);
             }
             _hasher.Write(HandOverPolicy.Id);
             HandOverPolicy.WriteHash(_hasher);

@@ -43,20 +43,23 @@ namespace Rts.Sim.Tests
             sim.Step(20);
             Assert.That(unit.Position.X.Raw, Is.EqualTo(Fix64.FromInt(2).Raw).Within(40));
             Assert.That(unit.HasMoveTarget, Is.True);
-            // 10 tiles takes 100 movement steps (ticks 1 to 100); each step truncates by under one raw unit, so the
-            // final snap to the target happens on the 101st step. Step 81 more so that step has run.
-            sim.Step(81);
-            Assert.That(unit.Position, Is.EqualTo(FixVec2.FromInts(10, 0)));
-            Assert.That(unit.HasMoveTarget, Is.False);
+            // 10 tiles takes about 100 movement steps; the order completes once the unit is within
+            // arrival_radius_tiles (ADR-007), so step tick by tick and watch for the arrival event.
             bool arrived = false;
-            foreach (SimEvent evt in sim.Events.Current)
+            for (int i = 0; i < 81 && !arrived; i++)
             {
-                if (evt is UnitArrivedEvent)
+                sim.Step();
+                foreach (SimEvent evt in sim.Events.Current)
                 {
-                    arrived = true;
+                    if (evt is UnitArrivedEvent)
+                    {
+                        arrived = true;
+                    }
                 }
             }
-            Assert.That(arrived, Is.True, "expected a unit_arrived event on the arrival tick");
+            Assert.That(arrived, Is.True, "expected a unit_arrived event");
+            Assert.That((unit.Position - FixVec2.FromInts(10, 0)).Length() <= sim.Tuning.Terrain.ArrivalRadiusTiles, Is.True);
+            Assert.That(unit.HasMoveTarget, Is.False);
         }
 
         [Test]
@@ -195,7 +198,9 @@ namespace Rts.Sim.Tests
                 new MatchSettings(1, 20, 20),
                 TestWorld.Catalog(),
                 new[] { new Rts.Sim.Teams.PlayerSetup(new PlayerId(0), new TeamId(0), "fire", "Zed") },
-                Rts.Sim.Factions.BuiltInMechanics.CreateRegistry());
+                Rts.Sim.Factions.BuiltInMechanics.CreateRegistry(),
+                TestWorld.Tuning,
+                TestWorld.FlatMap());
             Simulation sim = new Simulation(config);
             Expect.Throws<InvalidOperationException>(() => sim.Start());
         }

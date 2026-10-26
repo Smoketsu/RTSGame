@@ -177,7 +177,9 @@ namespace Rts.Game.Bootstrap
                 MatchSettings settings = dataSet.CreateMatchSettings(seed);
 
                 // Players come from the script, not from code.
-                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, script.Players, BuiltInMechanics.CreateRegistry());
+                // Map named by the script, or the first map in ordinal order.
+                MapDefinition map = dataSet.RequireMap(script.MapId);
+                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, script.Players, BuiltInMechanics.CreateRegistry(), dataSet.Tuning, map);
                 _sim = new Simulation(config);
                 _sim.Start();
 

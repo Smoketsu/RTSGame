@@ -29,6 +29,9 @@ namespace Rts.Sim.Data
         /// <summary>How many ticks to simulate unless the host overrides it (the harness has --ticks). Unit: ticks. Range: 0 to <see cref="MaxTicks"/>.</summary>
         public int Ticks { get; }
 
+        /// <summary>Map ID the script expects, or null when it does not care (the host then uses the first map in ordinal ID order).</summary>
+        public string? MapId { get; }
+
         /// <summary>Player slots in script order.</summary>
         public IReadOnlyList<PlayerSetup> Players { get; }
 
@@ -36,9 +39,10 @@ namespace Rts.Sim.Data
         public IReadOnlyList<Command> Commands { get; }
 
         /// <summary>Bundles the parsed pieces.</summary>
-        private CommandScript(ulong seed, int ticks, IReadOnlyList<PlayerSetup> players, IReadOnlyList<Command> commands)
+        private CommandScript(ulong seed, int ticks, IReadOnlyList<PlayerSetup> players, IReadOnlyList<Command> commands, string? mapId)
         {
             Seed = seed;
+            MapId = mapId;
             Ticks = ticks;
             Players = players;
             Commands = commands;
@@ -61,7 +65,9 @@ namespace Rts.Sim.Data
             {
                 throw new DataValidationException(sourceName, string.Empty, "the top level must be a JSON object (found " + root.Kind.ToString().ToLowerInvariant() + ")");
             }
-            root.RejectUnknownKeys("seed", "ticks", "players", "commands");
+            root.RejectUnknownKeys("seed", "ticks", "players", "commands", "map");
+            // Map ID to play on, or null to let the host pick the first map in ordinal order. Range: an ID under data/maps.
+            string? mapId = root.TryGetMember("map", out JsonValue? mapNode) ? mapNode.AsString() : null;
             if (root.Require(DataLoader.SchemaVersionKey).AsInt() != DataLoader.SupportedSchemaVersion)
             {
                 throw root.Require(DataLoader.SchemaVersionKey).Fail("must be " + DataLoader.SupportedSchemaVersion);
@@ -97,13 +103,13 @@ namespace Rts.Sim.Data
             {
                 commands.Add(ReadCommand(node));
             }
-            return new CommandScript(seed, ticks, players, commands);
+            return new CommandScript(seed, ticks, players, commands, mapId);
         }
 
         /// <summary>Reads one command object.</summary>
         private static Command ReadCommand(JsonValue node)
         {
-            // Command kind name, such as spawn_unit. Range: one of the four known kinds.
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -126,8 +132,18 @@ namespace Rts.Sim.Data
                 case "remove_unit":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit");
                     return new RemoveUnitCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)));
+                case "attack_move":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "x", "y");
+                    return new AttackMoveCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)), ReadPoint(node));
+                case "attack_unit":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "target");
+                    return new AttackUnitCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
+                        new EntityId((uint)node.RequireInt("target", 1, int.MaxValue)));
+                case "stop":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit");
+                    return new StopCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)));
                 default:
-                    throw node.Require("type").Fail("must be \"noop\", \"spawn_unit\", \"move_unit\" or \"remove_unit\" (found \"" + type + "\")");
+                    throw node.Require("type").Fail("must be \"noop\", \"spawn_unit\", \"move_unit\", \"remove_unit\", \"attack_move\", \"attack_unit\" or \"stop\" (found \"" + type + "\")");
             }
         }
 

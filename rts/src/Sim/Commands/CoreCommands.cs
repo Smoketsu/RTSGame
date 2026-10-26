@@ -133,6 +133,8 @@ namespace Rts.Sim.Commands
                 return CommandResult.Reject("out_of_bounds");
             }
             unit.SetMoveTarget(Target);
+            // A plain move replaces any attack-move order or attack target (the unit still shoots what is in range).
+            unit.ClearCombatOrders();
             return CommandResult.Ok;
         }
 

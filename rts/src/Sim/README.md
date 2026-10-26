@@ -30,9 +30,10 @@ Unity writes a `.meta` file next to every file and folder here when the project 
 1. clear the event log
 2. apply this tick's commands in (issuer, sequence) order
 3. movement
-4. faction mechanics in ascending mechanic ID order
-5. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-6. advance the clock
+4. combat (`CombatSystem`: cooldowns, targeting, damage, deaths; units in ascending ID order)
+5. faction mechanics in ascending mechanic ID order
+6. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+7. advance the clock
 
 The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, read `Events.Current`, repeat. `Submit` is rejected inside a step and for ticks already played.
 
@@ -52,14 +53,14 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | Folder | What lives there |
 | --- | --- |
 | `Core/` | `Fix64`, `FixVec2`, IDs (`EntityId`, `PlayerId`, `TeamId`), `MatchClock`, `DeterministicRandom`, `StateHasher`, `MatchSettings`, `SimulationConfig`, `ContentCatalog`. |
-| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op). The only way state changes. |
+| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op) and the combat commands (attack-move, attack unit, stop). The only way state changes. |
 | `Teams/` | `PlayerSetup` and `PlayerRegistry`: players, teams, alliances. |
 | `Terrain/` | Placeholder (Phase 1): tile map, cliffs, walls, floods. |
 | `Pathing/` | Placeholder (Phase 1): flow fields per movement layer. |
 | `Vision/` | Placeholder (Phase 1): fog of war and vision. |
 | `Statuses/` | Placeholder (Phase 1): statuses such as Grounded, rooted. |
-| `Units/` | `Unit`, `UnitDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`. |
-| `Combat/` | Placeholder (Phase 1): damage, armour, attacks. |
+| `Units/` | `Unit`, `UnitDefinition`, `WeaponDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`. A unit file may carry `armour_type`, `sight_range_tiles` and a `weapon` object; see `rts/data/README.md`. |
+| `Combat/` | `CombatSystem` (targeting, attack-move, cooldowns, damage, death, run after movement each tick), `CombatRules` (damage and armour table from `tuning/combat.json`), `IDamageModifier` (hook for mechanics such as Momentum). |
 | `Economy/` | Placeholder (Phase 1): resources, supply, production. |
 | `Factions/` | `IFactionMechanic`, `FactionMechanicRegistry`, `BuiltInMechanics`, and one subfolder per faction (`Skai/`, `Water/`, `Earth/`, `Fire/`). |
 | `Cycles/` | Placeholder (Phase 1): Planetary Cycles on the match clock. |

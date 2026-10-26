@@ -74,6 +74,17 @@ namespace Rts.Sim.Data
             // Faction file roots by faction ID, kept for the unit-list reference check.
             SortedDictionary<string, JsonValue> factionRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
 
+            // Combat tuning, parsed ahead of the main loop because unit files are validated against its armour and damage
+            // types. Null when tuning/combat.json was not supplied (reported below as a missing tuning file).
+            CombatTuning? combatTuning = null;
+            if (byPath.TryGetValue(CombatTuning.FilePath, out DataSourceFile? combatFile))
+            {
+                // Parsed combat file; syntax and header errors name the file.
+                JsonValue combatRoot = JsonReader.Parse(combatFile.Text, combatFile.Path);
+                CheckHeader(combatRoot);
+                combatTuning = new CombatTuning(combatRoot);
+            }
+
             foreach (KeyValuePair<string, DataSourceFile> pair in byPath)
             {
                 // Path of the file being processed.
@@ -101,7 +112,8 @@ namespace Rts.Sim.Data
                     case "units":
                         {
                             // Unit definition read from this file. Range: validated by ReadUnit.
-                            UnitDefinition unit = ReadUnit(root, path, parts);
+                            UnitDefinition unit = ReadUnit(root, path, parts,
+                                combatTuning ?? throw new DataValidationException(CombatTuning.FilePath, string.Empty, "is missing; every tuning file is required"));
                             AddUnit(content, unit, path);
                             unitFiles.Add(unit.Id, path);
                             break;
@@ -134,9 +146,10 @@ namespace Rts.Sim.Data
                 }
             }
 
-            // Typed tuning built from every tuning file together. Range: all nine tuning files present.
+            // Typed tuning built from every tuning file together. Range: every tuning file present.
             Tuning tuning = BuildTuning(tuningRoots);
             CheckReferences(content, unitFiles, factionRoots);
+            content.SetCombatRules(tuning.Combat.CreateRules());
             return new DataSet(content, tuning, maps, cycles);
         }
 
@@ -209,14 +222,15 @@ namespace Rts.Sim.Data
 
         // ---------------------------------------------------------------- tuning
 
-        /// <summary>Builds the typed tuning classes, requiring all nine files and rejecting unknown ones.</summary>
+        /// <summary>Builds the typed tuning classes, requiring every known file and rejecting unknown ones.</summary>
         private static Tuning BuildTuning(SortedDictionary<string, JsonValue> roots)
         {
             foreach (string path in roots.Keys)
             {
                 if (path != MatchTuning.FilePath && path != HqTuning.FilePath && path != MomentumTuning.FilePath
                     && path != StatusTuning.FilePath && path != FloodTuning.FilePath && path != SupplyTuning.FilePath
-                    && path != EarthTuning.FilePath && path != OnlineTuning.FilePath && path != HarnessTuning.FilePath)
+                    && path != EarthTuning.FilePath && path != OnlineTuning.FilePath && path != HarnessTuning.FilePath
+                    && path != TerrainTuning.FilePath && path != CombatTuning.FilePath)
                 {
                     throw new DataValidationException(path, string.Empty, "is not a known tuning file");
                 }
@@ -230,7 +244,9 @@ namespace Rts.Sim.Data
                 new SupplyTuning(RequireTuningRoot(roots, SupplyTuning.FilePath)),
                 new EarthTuning(RequireTuningRoot(roots, EarthTuning.FilePath)),
                 new OnlineTuning(RequireTuningRoot(roots, OnlineTuning.FilePath)),
-                new HarnessTuning(RequireTuningRoot(roots, HarnessTuning.FilePath)));
+                new HarnessTuning(RequireTuningRoot(roots, HarnessTuning.FilePath)),
+                new TerrainTuning(RequireTuningRoot(roots, TerrainTuning.FilePath)),
+                new CombatTuning(RequireTuningRoot(roots, CombatTuning.FilePath)));
         }
 
         /// <summary>Looks up a tuning file's parsed root, failing with a file-level error when the file was not supplied.</summary>
@@ -246,11 +262,11 @@ namespace Rts.Sim.Data
         // ---------------------------------------------------------------- units
 
         /// <summary>Reads units/&lt;faction&gt;/&lt;name&gt;.json.</summary>
-        private static UnitDefinition ReadUnit(JsonValue root, string path, string[] parts)
+        private static UnitDefinition ReadUnit(JsonValue root, string path, string[] parts, CombatTuning combat)
         {
             CheckDepth(path, parts, 3, "units/<faction>/<name>.json");
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
-                "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare");
+                "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "weapon");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
             // Display name text. Range: non-empty string.
@@ -291,7 +307,11 @@ namespace Rts.Sim.Data
             int costCommon = root.RequireInt("cost_common", 0, 100000);
             // Rare-resource cost. Unit: resource points. Range: 0 to 100000.
             int costRare = root.RequireInt("cost_rare", 0, 100000);
-            return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare);
+            // Armour type name (default from combat tuning), sight range and optional weapon; see UnitSchema.
+            string armourType = UnitSchema.ReadArmourType(root, combat);
+            Fix64 sightRange = UnitSchema.ReadSightRange(root);
+            WeaponDefinition? weapon = UnitSchema.ReadWeapon(root, combat);
+            return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon);
         }
 
         /// <summary>Adds a unit to the catalog, turning a duplicate ID into a file-named error.</summary>
@@ -372,7 +392,7 @@ namespace Rts.Sim.Data
         private static MapDefinition ReadMap(JsonValue root, string path, string[] parts)
         {
             CheckDepth(path, parts, 2, "maps/<id>.json");
-            root.RejectUnknownKeys("id", "display_name", "width_tiles", "height_tiles", "spawns");
+            root.RejectUnknownKeys("id", "display_name", "width_tiles", "height_tiles", "spawns", "height_rows", "ramp_rows", "resource_fields", "core");
             // Map ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
             // Map display name. Range: non-empty string.
@@ -404,7 +424,149 @@ namespace Rts.Sim.Data
                 }
                 spawns.Add(point);
             }
-            return new MapDefinition(id, displayName, width, height, spawns);
+            // Elevation layer per tile from height_rows, or all zero when the key is absent (flat map).
+            byte[]? heights = ReadHeightRows(root, width, height);
+            // Ramp flag per tile from ramp_rows, or none when absent.
+            bool[]? ramps = ReadRampRows(root, width, height);
+            // Resource fields in file order; empty when absent.
+            List<ResourceField> fields = ReadResourceFields(root, width, height);
+            // The Core, or null when absent.
+            CoreArea? core = ReadCore(root, width, height);
+            // Spawns and fields must sit on unblocked tiles: blockers are not authored in Phase 1, so only bounds apply.
+            foreach (FixVec2 spawn in spawns)
+            {
+                if (spawn.X >= Fix64.FromInt(width) || spawn.Y >= Fix64.FromInt(height))
+                {
+                    throw root.Require("spawns").Fail("has a spawn on the far edge (" + spawn + "); spawns must be strictly inside the map");
+                }
+            }
+            return new MapDefinition(id, displayName, width, height, spawns, heights, ramps, fields, core);
+        }
+
+        /// <summary>Reads height_rows: one string per row (row 0 is y = 0), one digit 0 to 7 per tile. Returns null when absent.</summary>
+        private static byte[]? ReadHeightRows(JsonValue root, int width, int height)
+        {
+            if (!root.TryGetMember("height_rows", out JsonValue? rowsNode))
+            {
+                return null;
+            }
+            // Row strings in file order.
+            IReadOnlyList<JsonValue> rows = rowsNode.Items;
+            if (rows.Count != height)
+            {
+                throw rowsNode.Fail("must have exactly height_tiles (" + height + ") rows (found " + rows.Count + ")");
+            }
+            byte[] heights = new byte[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                // Digits of this row.
+                string row = rows[y].AsString();
+                if (row.Length != width)
+                {
+                    throw rows[y].Fail("must have exactly width_tiles (" + width + ") characters (found " + row.Length + ")");
+                }
+                for (int x = 0; x < width; x++)
+                {
+                    // The character for tile (x, y); must be a digit 0 to 7.
+                    char c = row[x];
+                    if (c < '0' || c > (char)('0' + Terrain.TerrainTile.MaxHeight))
+                    {
+                        throw rows[y].Fail("has '" + c + "' at column " + x + "; height digits must be 0 to " + Terrain.TerrainTile.MaxHeight);
+                    }
+                    heights[y * width + x] = (byte)(c - '0');
+                }
+            }
+            return heights;
+        }
+
+        /// <summary>Reads ramp_rows: one string per row, '.' for no ramp and 'R' for a ramp tile. Returns null when absent.</summary>
+        private static bool[]? ReadRampRows(JsonValue root, int width, int height)
+        {
+            if (!root.TryGetMember("ramp_rows", out JsonValue? rowsNode))
+            {
+                return null;
+            }
+            // Row strings in file order.
+            IReadOnlyList<JsonValue> rows = rowsNode.Items;
+            if (rows.Count != height)
+            {
+                throw rowsNode.Fail("must have exactly height_tiles (" + height + ") rows (found " + rows.Count + ")");
+            }
+            bool[] ramps = new bool[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                // Characters of this row.
+                string row = rows[y].AsString();
+                if (row.Length != width)
+                {
+                    throw rows[y].Fail("must have exactly width_tiles (" + width + ") characters (found " + row.Length + ")");
+                }
+                for (int x = 0; x < width; x++)
+                {
+                    // The character for tile (x, y); '.' or 'R'.
+                    char c = row[x];
+                    if (c != '.' && c != 'R')
+                    {
+                        throw rows[y].Fail("has '" + c + "' at column " + x + "; ramp rows use '.' and 'R' only");
+                    }
+                    ramps[y * width + x] = c == 'R';
+                }
+            }
+            return ramps;
+        }
+
+        /// <summary>Reads resource_fields: objects with x, y (tile ints), kind ("common" or "rare") and amount. Empty when absent.</summary>
+        private static List<ResourceField> ReadResourceFields(JsonValue root, int width, int height)
+        {
+            List<ResourceField> fields = new List<ResourceField>();
+            if (!root.TryGetMember("resource_fields", out JsonValue? node))
+            {
+                return fields;
+            }
+            foreach (JsonValue item in node.Items)
+            {
+                item.RejectUnknownKeys("x", "y", "kind", "amount");
+                // Tile X of the field. Unit: tiles. Range: 0 to width - 1.
+                int x = item.RequireInt("x", 0, width - 1);
+                // Tile Y of the field. Unit: tiles. Range: 0 to height - 1.
+                int y = item.RequireInt("y", 0, height - 1);
+                // "common" or "rare".
+                string kindText = item.RequireNonEmptyString("kind");
+                ResourceKind kind;
+                if (kindText == "common")
+                {
+                    kind = ResourceKind.Common;
+                }
+                else if (kindText == "rare")
+                {
+                    kind = ResourceKind.Rare;
+                }
+                else
+                {
+                    throw item.Require("kind").Fail("must be \"common\" or \"rare\" (found " + kindText + ")");
+                }
+                // Starting amount. Unit: resource units. Range: 1 to 1 000 000.
+                int amount = item.RequireInt("amount", 1, 1000000);
+                fields.Add(new ResourceField(x, y, kind, amount));
+            }
+            return fields;
+        }
+
+        /// <summary>Reads core: x, y (tiles, decimal) and radius_tiles. Null when absent.</summary>
+        private static CoreArea? ReadCore(JsonValue root, int width, int height)
+        {
+            if (!root.TryGetMember("core", out JsonValue? node))
+            {
+                return null;
+            }
+            node.RejectUnknownKeys("x", "y", "radius_tiles");
+            // Core centre X. Unit: tiles. Range: 0 to width.
+            Fix64 x = node.RequireFix64("x", "0", width.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            // Core centre Y. Unit: tiles. Range: 0 to height.
+            Fix64 y = node.RequireFix64("y", "0", height.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            // Capture radius. Unit: tiles. Range: 1 to 32.
+            Fix64 radius = node.RequireFix64("radius_tiles", "1", "32");
+            return new CoreArea(new FixVec2(x, y), radius);
         }
 
         // ---------------------------------------------------------------- cycles

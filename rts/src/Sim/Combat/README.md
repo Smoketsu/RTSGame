@@ -1,9 +1,8 @@
-<!-- rts/src/Sim/Combat/README.md: placeholder for ranged and melee combat with damage and armour types; not built yet. -->
-# Combat (Phase 1 placeholder)
+<!-- rts/src/Sim/Combat/README.md: what the combat folder holds (system, rules, damage modifier hook) and the per-tick rules. -->
+# Combat (Phase 1)
 
-Not built yet. Phase 1 (Prototype, Skai vs water, Jan-Mar 2027) adds here:
+- `CombatSystem.cs`: runs once per tick after movement and before faction mechanics. Cooldowns, target acquisition, attack-move steering, damage and death. The header comment lists every rule.
+- `CombatRules.cs`: the damage and armour table, acquire bonus and default armour type, built from `rts/data/tuning/combat.json` and stored on the `ContentCatalog`.
+- `IDamageModifier.cs`: hook a faction mechanic registers (`Simulation.RegisterDamageModifier`, from `OnMatchStart`) to scale outgoing damage. Applied in ascending `Id` order. Momentum will use it.
 
-- Ranged and melee attacks, applied as commands and resolved inside the simulation step.
-- Damage types and armour types, so a unit's armour changes how much each damage type does.
-
-Unit health, damage and armour values are data in `rts/data/units/`, not constants in code.
+Commands live in `Commands/CombatCommands.cs` (`attack_move`, `attack_unit`, `stop`), events in `Events/CombatEvents.cs` (`unit_damaged`, `unit_killed`). Unit weapons, armour types and sight range are data in `rts/data/units/`; the damage table is data in `rts/data/tuning/combat.json`. Not built yet: buildings as targets, projectiles, area damage, fog-of-war gating of targets.

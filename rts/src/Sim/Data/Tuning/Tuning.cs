@@ -5,7 +5,7 @@ using System;
 
 namespace Rts.Sim.Data
 {
-    /// <summary>The nine tuning files of rts/data/tuning, parsed and validated. Immutable.</summary>
+    /// <summary>The tuning files of rts/data/tuning, parsed and validated. Immutable.</summary>
     public sealed class Tuning
     {
         /// <summary>tuning/match.json: tick rate, hash interval, match length, tides, Planetary Cycles and the Core.</summary>
@@ -35,10 +35,18 @@ namespace Rts.Sim.Data
         /// <summary>tuning/harness.json: balance harness run sizes and hard limits.</summary>
         public HarnessTuning Harness { get; }
 
-        /// <summary>Bundles the nine parsed files; none may be null.</summary>
+        /// <summary>tuning/terrain.json: per-layer speed multipliers, depth thresholds and pathfinder limits.</summary>
+        public TerrainTuning Terrain { get; }
+
+        /// <summary>tuning/combat.json: damage types, armour types, the damage multiplier table and the attack-move acquire bonus.</summary>
+        public CombatTuning Combat { get; }
+
+        /// <summary>Bundles the parsed files; none may be null.</summary>
         public Tuning(MatchTuning match, HqTuning hq, MomentumTuning momentum, StatusTuning status, FloodTuning flood,
-            SupplyTuning supply, EarthTuning earth, OnlineTuning online, HarnessTuning harness)
+            SupplyTuning supply, EarthTuning earth, OnlineTuning online, HarnessTuning harness, TerrainTuning terrain, CombatTuning combat)
         {
+            Terrain = terrain ?? throw new ArgumentNullException(nameof(terrain));
+            Combat = combat ?? throw new ArgumentNullException(nameof(combat));
             Match = match ?? throw new ArgumentNullException(nameof(match));
             Hq = hq ?? throw new ArgumentNullException(nameof(hq));
             Momentum = momentum ?? throw new ArgumentNullException(nameof(momentum));

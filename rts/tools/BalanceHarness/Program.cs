@@ -48,7 +48,9 @@ namespace Rts.Tools.BalanceHarness
                 ulong seed = options.SeedOverride ?? script.Seed;
                 int ticks = options.TicksOverride ?? script.Ticks;
 
-                SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry());
+                // Map named by the script, or the first map in ordinal order.
+                MapDefinition map = data.RequireMap(script.MapId);
+                SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry(), data.Tuning, map);
                 Simulation sim = new Simulation(config);
                 sim.Start();
                 foreach (Command command in script.Commands)
