@@ -12,6 +12,7 @@ namespace Rts.Sim.Factions.Skai
         /// <summary>Mechanic ID as named in data/factions/skai.json.</summary>
         public const string MechanicId = "momentum";
 
+        /// <summary>Mechanic ID as named in faction data.</summary>
         public string Id => MechanicId;
 
         /// <summary>Called once before tick 0 runs.</summary>

@@ -15,12 +15,12 @@ namespace Rts.Sim.Core
         /// <summary>North-south component. Same unit and range as <see cref="X"/>.</summary>
         public readonly Fix64 Y;
 
-        /// <summary>The origin (0, 0).</summary>
+        /// <summary>The origin (0, 0). Range: exactly (0, 0).</summary>
         public static readonly FixVec2 Zero = new FixVec2(Fix64.Zero, Fix64.Zero);
 
         /// <summary>
         /// Largest component magnitude whose square still fits Fix64 with room for the sum of two: 2^15 tiles (2 × 2^30
-        /// is below the 2^31 saturation point). Offsets beyond it are pre-scaled in <see cref="MoveTowards"/>.
+        /// is below the 2^31 saturation point). Offsets beyond it are pre-scaled in <see cref="MoveTowards"/>. Unit: tiles. Range: 0 to 2^15 tiles.
         /// </summary>
         public static readonly Fix64 SafeComponentLimit = Fix64.FromInt(1 << 15);
 
@@ -92,12 +92,14 @@ namespace Rts.Sim.Core
                 direction = new FixVec2(Fix64.FromRaw(delta.X.Raw >> 16), Fix64.FromRaw(delta.Y.Raw >> 16));
                 scaled = true;
             }
+            // Squared length of the (possibly scaled) offset. Unit: squared tiles (fixed-point). Range: 0 or more.
             Fix64 distanceSquared = direction.LengthSquared();
             // Comparing squares avoids a square root when the target is in reach.
             if (!scaled && distanceSquared <= maxDistance * maxDistance)
             {
                 return target;
             }
+            // Length of the offset. Unit: tiles (fixed-point). Range: 0 or more.
             Fix64 distance = Fix64.Sqrt(distanceSquared);
             if (distance == Fix64.Zero)
             {
@@ -129,7 +131,9 @@ namespace Rts.Sim.Core
             return unchecked(X.GetHashCode() * 397) ^ Y.GetHashCode();
         }
 
+        /// <summary>True when both components are equal.</summary>
         public static bool operator ==(FixVec2 a, FixVec2 b) => a.Equals(b);
+        /// <summary>True when either component differs.</summary>
         public static bool operator !=(FixVec2 a, FixVec2 b) => !a.Equals(b);
 
         /// <summary>Text such as "(1.5, -2)" for logs and tests.</summary>

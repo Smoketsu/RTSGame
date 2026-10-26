@@ -42,6 +42,7 @@ namespace Rts.Sim.Data
             {
                 orderedMaps.Add(pair.Key, pair.Value);
             }
+            // Cycle definitions copied in ordinal ID order. Range: one entry per cycle ID.
             SortedDictionary<string, CycleDefinition> orderedCycles = new SortedDictionary<string, CycleDefinition>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, CycleDefinition> pair in cycles)
             {

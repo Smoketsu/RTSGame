@@ -15,7 +15,7 @@ namespace Rts.Sim.Core
         /// <summary>Index of the tick currently being simulated or about to be. Starts at 0, increases by 1 per <see cref="Advance"/>. Range: 0 to int.MaxValue.</summary>
         public int Tick { get; private set; }
 
-        /// <summary>Length of one tick in seconds as a fixed-point value (1 / TicksPerSecond), truncated. For display; conversions divide by <see cref="TicksPerSecond"/> instead to avoid compounding the truncation.</summary>
+        /// <summary>Length of one tick in seconds as a fixed-point value (1 / TicksPerSecond), truncated. For display; conversions divide by <see cref="TicksPerSecond"/> instead to avoid compounding the truncation. Range: above 0 and at most 1 second.</summary>
         public Fix64 SecondsPerTick { get; }
 
         /// <summary>Creates a clock at tick 0.</summary>
@@ -65,6 +65,7 @@ namespace Rts.Sim.Core
             }
             // Product in ticks; exact because TicksPerSecond is a whole number. Fix64 saturates on overflow, which RoundToInt then reports as int.MaxValue.
             Fix64 ticks = seconds * Fix64.FromInt(TicksPerSecond);
+            // Rounded whole-tick count. Unit: ticks. Range: 0 or more; int.MaxValue marks overflow.
             int rounded = ticks.RoundToInt();
             if (rounded == int.MaxValue)
             {

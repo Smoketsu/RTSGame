@@ -10,10 +10,10 @@ namespace Rts.Sim.Core
     /// <summary>Seeded PCG32 generator. One instance per match, owned by <see cref="Simulation"/>; its state is part of the state hash.</summary>
     public sealed class DeterministicRandom
     {
-        /// <summary>PCG32 multiplier constant (from the reference implementation).</summary>
+        /// <summary>PCG32 multiplier constant (from the reference implementation). Range: fixed constant.</summary>
         private const ulong Multiplier = 6364136223846793005UL;
 
-        /// <summary>PCG32 increment constant. Must be odd; the reference default stream.</summary>
+        /// <summary>PCG32 increment constant. Must be odd; the reference default stream. Range: odd values only; fixed constant.</summary>
         private const ulong Increment = 1442695040888963407UL;
 
         /// <summary>Internal generator state. Any ulong; advances every call. Exposed read-only for hashing and tests.</summary>
@@ -81,6 +81,7 @@ namespace Rts.Sim.Core
             DrawCount++;
             // XSH-RR output: xorshift high bits, then rotate right by the top 5 bits.
             uint xorShifted = (uint)(((old >> 18) ^ old) >> 27);
+            // Right-rotation amount from the top 5 state bits. Unit: bit positions. Range: 0 to 31.
             int rotation = (int)(old >> 59);
             return (xorShifted >> rotation) | (xorShifted << ((-rotation) & 31));
         }
@@ -106,6 +107,7 @@ namespace Rts.Sim.Core
             uint threshold = unchecked((uint)(-bound)) % bound;
             while (true)
             {
+                // Raw 32-bit draw from the generator. Unit: bits. Range: 0 to 2^32 - 1.
                 uint draw = NextUInt();
                 if (draw >= threshold)
                 {

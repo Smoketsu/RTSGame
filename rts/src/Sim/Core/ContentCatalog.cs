@@ -78,6 +78,7 @@ namespace Rts.Sim.Core
         /// </summary>
         public ulong ComputeDigest()
         {
+            // Hasher that accumulates the content digest for this call. Range: fresh per call.
             StateHasher hasher = new StateHasher();
             hasher.Write(_units.Count);
             foreach (UnitDefinition unit in _units.Values)

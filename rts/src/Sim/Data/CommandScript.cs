@@ -66,7 +66,9 @@ namespace Rts.Sim.Data
             {
                 throw root.Require(DataLoader.SchemaVersionKey).Fail("must be " + DataLoader.SupportedSchemaVersion);
             }
+            // Match seed from the script. Unit: integer seed. Range: any ulong.
             ulong seed = ReadUlong(root.Require("seed"));
+            // Ticks to simulate. Unit: ticks. Range: 0 to MaxTicks.
             int ticks = root.RequireInt("ticks", 0, MaxTicks);
 
             // Player slots, in script order.
@@ -74,9 +76,13 @@ namespace Rts.Sim.Data
             foreach (JsonValue node in root.RequireArray("players"))
             {
                 node.RejectUnknownKeys("id", "team", "faction", "name");
+                // Player slot index. Unit: slot number. Range: 0 to PlayerId.MaxValue.
                 int id = node.RequireInt("id", 0, PlayerId.MaxValue);
+                // Team index. Unit: team number. Range: 0 to TeamId.MaxValue.
                 int team = node.RequireInt("team", 0, TeamId.MaxValue);
+                // Faction ID, non-empty text. Range: any non-empty string.
                 string faction = node.RequireNonEmptyString("faction");
+                // Display name. Range: any string; defaults to "Player <id>" when absent.
                 string name = node.OptionalString("name", "Player " + id.ToString(CultureInfo.InvariantCulture));
                 players.Add(new PlayerSetup(new PlayerId((byte)id), new TeamId((byte)team), faction, name));
             }
@@ -97,9 +103,13 @@ namespace Rts.Sim.Data
         /// <summary>Reads one command object.</summary>
         private static Command ReadCommand(JsonValue node)
         {
+            // Command kind name, such as spawn_unit. Range: one of the four known kinds.
             string type = node.RequireString("type");
+            // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
+            // Issuing player slot. Unit: slot number. Range: 0 to PlayerId.None.Value (none).
             PlayerId issuer = new PlayerId((byte)node.RequireInt("issuer", 0, PlayerId.None.Value));
+            // Per-issuer sequence number. Unit: integer sequence. Range: 0 to int.MaxValue.
             uint sequence = (uint)node.RequireInt("sequence", 0, int.MaxValue);
             switch (type)
             {
@@ -151,6 +161,7 @@ namespace Rts.Sim.Data
         {
             // Decimal text of the number node.
             string text = value.NumberText;
+            // Sequence parsed from the text. Unit: integer. Range: 0 to ulong.MaxValue.
             if (!ulong.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out ulong result))
             {
                 throw value.Fail("must be a whole number from 0 to 18446744073709551615 (found " + text + ")");

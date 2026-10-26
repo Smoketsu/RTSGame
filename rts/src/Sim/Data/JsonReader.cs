@@ -72,8 +72,10 @@ namespace Rts.Sim.Data
             {
                 throw new ArgumentException("A source name is needed for error messages.", nameof(sourceName));
             }
+            // Parser state for this one document. Range: created per Parse call.
             JsonReader reader = new JsonReader(text, sourceName);
-            if (text.Length > 0 && text[0] == '﻿')
+            // UTF-8 byte-order mark (U+FEFF) at the start of the text; skipped when present.
+            if (text.Length > 0 && text[0] == '\uFEFF')
             {
                 reader._pos = 1;
             }
@@ -147,6 +149,7 @@ namespace Rts.Sim.Data
                 {
                     // Position of the slash, for the unterminated-comment message.
                     int startLine = _line;
+                    // Column of the slash that opened the comment. Unit: characters, 1-based.
                     int startColumn = _column;
                     Next();
                     if (AtEnd)
@@ -206,6 +209,7 @@ namespace Rts.Sim.Data
             }
             // Start of the value, recorded on the node.
             int line = _line;
+            // Column where the value starts. Unit: characters, 1-based.
             int column = _column;
             // First character decides the kind.
             char c = Peek();
@@ -240,7 +244,9 @@ namespace Rts.Sim.Data
         {
             // Position of the word's first letter.
             int startLine = _line;
+            // Column of the literal's first letter. Unit: characters, 1-based.
             int startColumn = _column;
+            // Index into the literal word. Unit: characters. Range: 0 to word length - 1.
             for (int i = 0; i < word.Length; i++)
             {
                 if (AtEnd || Peek() != word[i])
@@ -285,7 +291,9 @@ namespace Rts.Sim.Data
                 }
                 // Position of the key, for the duplicate-key message.
                 int keyLine = _line;
+                // Column of the member key. Unit: characters, 1-based.
                 int keyColumn = _column;
+                // Member key after unescaping. Range: any string, including empty.
                 string key = ParseString();
                 if (members.ContainsKey(key))
                 {
@@ -362,6 +370,7 @@ namespace Rts.Sim.Data
         {
             // Position of the opening quote, for the unterminated-string message.
             int startLine = _line;
+            // Column of the opening quote. Unit: characters, 1-based.
             int startColumn = _column;
             Next();
             // Decoded characters.
@@ -374,7 +383,9 @@ namespace Rts.Sim.Data
                 }
                 // Position of the character about to be read, for escape errors.
                 int charLine = _line;
+                // Column of the character about to be read. Unit: characters, 1-based.
                 int charColumn = _column;
+                // Character just consumed. Unit: UTF-16 code unit. Range: 0 to 0xFFFF.
                 char c = Next();
                 if (c == '"')
                 {
@@ -410,8 +421,9 @@ namespace Rts.Sim.Data
                     case 'r': builder.Append('\r'); break;
                     case 't': builder.Append('\t'); break;
                     case 'u':
-                        // UTF-16 code unit from four hex digits; surrogate pairs arrive as two \u escapes.
+                        // UTF-16 code unit from four hex digits; surrogate pairs arrive as two \u escapes. Unit: code unit. Range: 0 to 0xFFFF.
                         int code = 0;
+                        // Index of the hex digit being read. Unit: digits. Range: 0 to 3.
                         for (int i = 0; i < 4; i++)
                         {
                             if (AtEnd)
@@ -461,6 +473,7 @@ namespace Rts.Sim.Data
         {
             // Position of the first character, for error messages.
             int startLine = _line;
+            // Column of the number's first character. Unit: characters, 1-based.
             int startColumn = _column;
             // Index where the number text starts.
             int start = _pos;

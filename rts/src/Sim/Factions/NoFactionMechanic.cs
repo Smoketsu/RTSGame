@@ -8,6 +8,7 @@ namespace Rts.Sim.Factions
     /// <summary>A mechanic that does nothing and hashes nothing but its ID.</summary>
     public sealed class NoFactionMechanic : IFactionMechanic
     {
+        /// <summary>Mechanic ID as named in faction data.</summary>
         public string Id => FactionDefinition.NoMechanic;
 
         /// <summary>Called once before tick 0 runs.</summary>

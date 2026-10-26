@@ -10,7 +10,7 @@ namespace Rts.Sim.Core
     /// <summary>Identifies one simulated entity (unit, building, projectile). 0 means "no entity".</summary>
     public readonly struct EntityId : IEquatable<EntityId>, IComparable<EntityId>
     {
-        /// <summary>The number. 0 = none; 1 and up are allocated in order by <see cref="EntityIdAllocator"/>.</summary>
+        /// <summary>The number. 0 = none; 1 and up are allocated in order by <see cref="EntityIdAllocator"/>. Range: 0 to uint.MaxValue.</summary>
         public readonly uint Value;
 
         /// <summary>The "no entity" value.</summary>
@@ -33,7 +33,9 @@ namespace Rts.Sim.Core
         public override int GetHashCode() => (int)Value;
         /// <summary>Orders by the numeric value.</summary>
         public int CompareTo(EntityId other) => Value.CompareTo(other.Value);
+        /// <summary>True when the underlying values are equal.</summary>
         public static bool operator ==(EntityId a, EntityId b) => a.Value == b.Value;
+        /// <summary>True when the underlying values differ.</summary>
         public static bool operator !=(EntityId a, EntityId b) => a.Value != b.Value;
         /// <summary>Short text for logs and tests.</summary>
         public override string ToString() => "E" + Value;
@@ -68,7 +70,9 @@ namespace Rts.Sim.Core
         public override int GetHashCode() => Value;
         /// <summary>Orders by the numeric value.</summary>
         public int CompareTo(PlayerId other) => Value.CompareTo(other.Value);
+        /// <summary>True when the underlying values are equal.</summary>
         public static bool operator ==(PlayerId a, PlayerId b) => a.Value == b.Value;
+        /// <summary>True when the underlying values differ.</summary>
         public static bool operator !=(PlayerId a, PlayerId b) => a.Value != b.Value;
         /// <summary>Short text for logs and tests.</summary>
         public override string ToString() => IsValid ? "P" + Value : "P-none";
@@ -103,7 +107,9 @@ namespace Rts.Sim.Core
         public override int GetHashCode() => Value;
         /// <summary>Orders by the numeric value.</summary>
         public int CompareTo(TeamId other) => Value.CompareTo(other.Value);
+        /// <summary>True when the underlying values are equal.</summary>
         public static bool operator ==(TeamId a, TeamId b) => a.Value == b.Value;
+        /// <summary>True when the underlying values differ.</summary>
         public static bool operator !=(TeamId a, TeamId b) => a.Value != b.Value;
         /// <summary>Short text for logs and tests.</summary>
         public override string ToString() => IsValid ? "T" + Value : "T-none";
@@ -112,7 +118,7 @@ namespace Rts.Sim.Core
     /// <summary>Hands out entity IDs in order, never reusing one. Owned by <see cref="Simulation"/>; its counter is hashed.</summary>
     public sealed class EntityIdAllocator
     {
-        /// <summary>The value the next call to <see cref="Allocate"/> returns. Starts at 1; only ever increases.</summary>
+        /// <summary>The value the next call to <see cref="Allocate"/> returns. Starts at 1; only ever increases. Range: 1 to uint.MaxValue.</summary>
         public uint Next { get; private set; } = 1;
 
         /// <summary>Returns the next ID and advances. Internal: only the simulation's spawn path allocates. Throws once all 2^32 - 1 IDs are used, which no match reaches.</summary>
@@ -122,6 +128,7 @@ namespace Rts.Sim.Core
             {
                 throw new InvalidOperationException("EntityIdAllocator exhausted.");
             }
+            // The ID handed out by this call. Unit: entity ID. Range: 1 to 2^32 - 2.
             EntityId id = new EntityId(Next);
             Next++;
             return id;

@@ -14,7 +14,7 @@ namespace Rts.Sim.Factions
         private readonly SortedDictionary<string, Func<IFactionMechanic>> _factories =
             new SortedDictionary<string, Func<IFactionMechanic>>(StringComparer.Ordinal);
 
-        /// <summary>Number of registered mechanics.</summary>
+        /// <summary>Number of registered mechanics. Range: 0 or more.</summary>
         public int Count => _factories.Count;
 
         /// <summary>Registered IDs in ordinal order.</summary>
@@ -53,6 +53,7 @@ namespace Rts.Sim.Factions
             {
                 throw new KeyNotFoundException("No faction mechanic registered with id '" + id + "'.");
             }
+            // Mechanic built by the factory; its Id must equal the requested ID.
             IFactionMechanic mechanic = factory();
             if (!string.Equals(mechanic.Id, id, StringComparison.Ordinal))
             {

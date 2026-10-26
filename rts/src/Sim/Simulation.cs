@@ -61,7 +61,7 @@ namespace Rts.Sim
         /// <summary>True while <see cref="Step"/> is running; mutation methods require it.</summary>
         public bool IsStepping { get; private set; }
 
-        /// <summary>The most recent hash reported by a <see cref="StateHashedEvent"/>, or 0 before the first. For hosts that only want the latest value.</summary>
+        /// <summary>The most recent hash reported by a <see cref="StateHashedEvent"/>, or 0 before the first. For hosts that only want the latest value. Range: any ulong; 0 before the first report.</summary>
         public ulong LastReportedHash { get; private set; }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// FNV-1a digest of every unit and faction definition, computed once by <see cref="Start"/> and written into the
-        /// state hash, so two peers with different data files diverge at tick 0 instead of mid-match. 0 before Start.
+        /// state hash, so two peers with different data files diverge at tick 0 instead of mid-match. 0 before Start. Range: any ulong.
         /// </summary>
         public ulong ContentDigest { get; private set; }
 
@@ -212,6 +212,7 @@ namespace Rts.Sim
             Rng.SetLocked(false);
             try
             {
+                // Current tick being simulated. Unit: ticks. Range: 0 up to the match length.
                 int tick = Clock.Tick;
                 Events.Clear();
                 ApplyCommands(tick);
@@ -222,6 +223,7 @@ namespace Rts.Sim
                 }
                 if (tick % Settings.StateHashIntervalTicks == 0)
                 {
+                    // State hash of the whole simulation at this tick. Unit: 64-bit hash value. Range: any ulong except 0.
                     ulong hash = ComputeStateHash();
                     LastReportedHash = hash;
                     Events.Add(new StateHashedEvent(tick, hash));
@@ -242,6 +244,7 @@ namespace Rts.Sim
             {
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
+            // Loop counter over the ticks to run. Unit: ticks. Range: 0 to count - 1.
             for (int i = 0; i < count; i++)
             {
                 Step();
@@ -255,12 +258,15 @@ namespace Rts.Sim
         /// </summary>
         private void ApplyCommands(int tick)
         {
+            // Commands due at this tick, sorted by (issuer, sequence, kind). Range: zero or more commands.
             List<Command> commands = Commands.TakeForTick(tick);
             // Number of commands per (issuer, sequence) key; the key packs the issuer slot above the 32-bit sequence.
             SortedDictionary<ulong, int> keyCounts = new SortedDictionary<ulong, int>();
             foreach (Command command in commands)
             {
+                // Packed (issuer, sequence) key: issuer slot in bits 32 to 39, sequence in bits 0 to 31.
                 ulong key = ((ulong)command.Issuer.Value << 32) | command.Sequence;
+                // Commands already counted under this key. Unit: commands. Range: 0 up; 0 when first seen.
                 keyCounts.TryGetValue(key, out int count);
                 keyCounts[key] = count + 1;
             }
@@ -278,6 +284,7 @@ namespace Rts.Sim
                     Events.Add(new CommandRejectedEvent(tick, command, "unknown_issuer"));
                     continue;
                 }
+                // Outcome of applying this command: accepted flag and optional rejection reason.
                 CommandResult result = command.Apply(this);
                 if (!result.Accepted)
                 {
@@ -307,6 +314,7 @@ namespace Rts.Sim
             }
             _hasher.Write(HandOverPolicy.Id);
             HandOverPolicy.WriteHash(_hasher);
+            // Raw hash of all state written so far. Unit: 64-bit hash value. Range: any ulong; 0 is remapped below.
             ulong hash = _hasher.Hash;
             // Reserve 0 for "no hash" in network messages and host code.
             return hash == 0 ? 1UL : hash;
@@ -323,6 +331,7 @@ namespace Rts.Sim
             {
                 throw new ArgumentNullException(nameof(definition));
             }
+            // The unit just created, with its ID allocated here. Range: ID from 1 up.
             Unit unit = new Unit(EntityIds.Allocate(), owner, definition, position, Clock.Tick);
             Units.Add(unit);
             Events.Add(new UnitSpawnedEvent(Clock.Tick, unit.Id, owner, definition.Id, position));

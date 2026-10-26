@@ -13,6 +13,7 @@ namespace Rts.Sim.Factions.Water
         /// <summary>Mechanic ID as named in data/factions/water.json.</summary>
         public const string MechanicId = "flooding";
 
+        /// <summary>Mechanic ID as named in faction data.</summary>
         public string Id => MechanicId;
 
         /// <summary>Called once before tick 0 runs.</summary>
