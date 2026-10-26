@@ -11,6 +11,10 @@
 //     or Time value flows into a command. Fix64 -> float conversion goes one way only (ToFloatForPresentation).
 //   - Wall-clock time (Time.deltaTime) only decides HOW MANY ticks run this frame, never what a tick does.
 //   - Rendering interpolates between the previous and current tick state (ADR-004), one tick behind the sim.
+//   - Phase 1 interaction: the host exposes read-only views for presentation code (TryGetViewTransform, UnitViews,
+//     EventRaised, LayerHeightWorldUnits). TerrainView, SelectionController and RtsCameraController read them; the
+//     only way player input reaches the simulation is SelectionController calling Simulation.Submit.
+//   - Cubes stand on the terrain: world Y = tile elevation layer x LayerHeightWorldUnits + the cube's offset above ground.
 //
 // Data directory (where every *.json under it is read and handed to Rts.Sim.Data.DataLoader):
 //   Editor:  <repo>/rts/data, resolved as Application.dataPath + "/../../../data" (dataPath is
@@ -64,8 +68,32 @@ namespace Rts.Game.Bootstrap
             /// <summary>World position at the end of the latest tick. Unit: Unity world units (1 = one tile).</summary>
             public Vector3 Current;
 
-            /// <summary>Cube centre height. Unit: world units. Range: 0.5 (ground and water) or 2 (air).</summary>
+            /// <summary>Cube centre height above the terrain surface under it. Unit: world units. Range: 0.5 (ground and water) or 2 (air).</summary>
             public float Height;
+        }
+
+        /// <summary>Read-only handle to one unit's cube, handed to presentation code (selection, rings). Holds no simulation state.</summary>
+        public readonly struct UnitViewRef
+        {
+            /// <summary>The simulation unit this cube draws. Range: valid while the unit lives.</summary>
+            public readonly EntityId Id;
+
+            /// <summary>The cube's transform. Range: non-null; destroyed when the unit is removed, so do not keep it across frames without a null check.</summary>
+            public readonly Transform Transform;
+
+            /// <summary>Cube centre height above the terrain under it. Unit: world units. Range: 0.5 (ground and water) or 2 (air).</summary>
+            public readonly float GroundOffset;
+
+            /// <summary>Builds the handle from its fields.</summary>
+            /// <param name="id">Simulation unit.</param>
+            /// <param name="transform">The unit's cube.</param>
+            /// <param name="groundOffset">Cube centre height above the terrain, in world units.</param>
+            public UnitViewRef(EntityId id, Transform transform, float groundOffset)
+            {
+                Id = id;
+                Transform = transform;
+                GroundOffset = groundOffset;
+            }
         }
 
         /// <summary>
@@ -76,10 +104,24 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Command script to play, relative to the data directory, forward slashes. Unit: file path. Range: an existing
-        /// JSON file in the CommandScript format under the data directory; default "scripts/smoke.json", the same file the
-        /// headless harness runs by default.
+        /// JSON file in the CommandScript format under the data directory. Default "scripts/economy_smoke.json" (the Phase 1
+        /// economy scenario on greybox_1v1); use "scripts/smoke.json" for the Phase 0 movement scenario, the file the headless
+        /// harness runs by default. Pass the same file to the harness with --script to compare hashes.
         /// </summary>
-        [SerializeField] private string scriptRelativePath = "scripts/smoke.json";
+        [SerializeField] private string scriptRelativePath = "scripts/economy_smoke.json";
+
+        /// <summary>
+        /// Keep stepping the simulation after the script's tick count so the player can keep ordering units. Unit: on/off.
+        /// Default on. Off restores the Phase 0 behaviour (stop at the script's last tick; orders are then never executed).
+        /// The final-hash line is logged either way when the script's tick count is reached.
+        /// </summary>
+        [SerializeField] private bool continueAfterScript = true;
+
+        /// <summary>
+        /// World height of one terrain elevation layer. Unit: world units per layer (one tile = 1 world unit wide).
+        /// Range: 0.1 to 2; default 0.5. TerrainView draws layer N at world Y = N x this value and units stand on it.
+        /// </summary>
+        [SerializeField, Range(0.1f, 2f)] private float layerHeightWorldUnits = 0.5f;
 
         /// <summary>
         /// Most ticks stepped in one rendered frame. Unit: ticks per frame. Range: 1 to 60; default 10. A slow frame
@@ -101,10 +143,10 @@ namespace Rts.Game.Bootstrap
         /// <summary>Smallest cube edge so tiny units stay visible. Unit: world units. Range: 0.1 to 2.</summary>
         [SerializeField, Range(0.1f, 2f)] private float minimumCubeSize = 0.4f;
 
-        /// <summary>Cube centre height for ground and water units. Unit: world units. Range: 0 to 5; 0.5 rests a unit cube on the ground.</summary>
+        /// <summary>Cube centre height above the terrain for ground and water units. Unit: world units. Range: 0 to 5; 0.5 rests a unit cube on the ground.</summary>
         private const float GroundHeight = 0.5f;
 
-        /// <summary>Cube centre height for air units. Unit: world units. Range: 0 to 10.</summary>
+        /// <summary>Cube centre height above the terrain for air units. Unit: world units. Range: 0 to 10.</summary>
         private const float AirHeight = 2f;
 
         /// <summary>Player colours by player slot: 0 blue, 1 red, then fallbacks. Unit: linear-agnostic RGBA, each channel 0 to 1.</summary>
@@ -134,7 +176,7 @@ namespace Rts.Game.Bootstrap
         /// <summary>How many ticks the script asks for; stepping stops when the clock reaches it. Unit: ticks. Range: 0 to 1000000 (CommandScript.MaxTicks).</summary>
         private int _scriptTicks;
 
-        /// <summary>True once the script's tick count has been stepped and the final hash logged; no further ticks run. Unit: on/off.</summary>
+        /// <summary>True once the script's tick count has been stepped and the final hash logged; no further ticks run unless continueAfterScript is on. Unit: on/off.</summary>
         private bool _scriptFinished;
 
         /// <summary>Cube per live simulation unit. Presentation state only, never hashed or fed back.</summary>
@@ -154,6 +196,46 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>How far between the last two ticks the picture currently is. Unit: fraction. Range: 0 to 1.</summary>
         public float InterpolationAlpha => _alpha;
+
+        /// <summary>World height of one elevation layer. Unit: world units per layer. Range: 0.1 to 2 (Inspector field).</summary>
+        public float LayerHeightWorldUnits => layerHeightWorldUnits;
+
+        /// <summary>
+        /// Raised once for every simulation event of each tick that ran (and of the scripted submissions before the first tick),
+        /// oldest first, after the host has handled it itself. Listeners must only read; they must never change the simulation.
+        /// An exception thrown by a listener is logged and does not stop the tick.
+        /// </summary>
+        public event Action<SimEvent> EventRaised;
+
+        /// <summary>
+        /// Every live cube, in no particular order. Snapshot-free: do not add or remove units while enumerating (the host only does
+        /// that inside Update, so enumerating from another script's Update or OnGUI is safe).
+        /// </summary>
+        public IEnumerable<UnitViewRef> UnitViews
+        {
+            get
+            {
+                foreach (UnitView view in _views.Values)
+                {
+                    yield return new UnitViewRef(view.Id, view.Transform, view.Height);
+                }
+            }
+        }
+
+        /// <summary>Finds the cube of a unit.</summary>
+        /// <param name="id">The simulation unit.</param>
+        /// <param name="transform">The cube's transform when found; null otherwise.</param>
+        /// <returns>True when the unit has a live cube.</returns>
+        public bool TryGetViewTransform(EntityId id, out Transform transform)
+        {
+            if (_views.TryGetValue(id, out UnitView view) && view.Transform != null)
+            {
+                transform = view.Transform;
+                return true;
+            }
+            transform = null;
+            return false;
+        }
 
         /// <summary>Loads data and the command script, builds the simulation, starts it and queues every scripted command. Disables itself on failure.</summary>
         private void Awake()
@@ -190,7 +272,7 @@ namespace Rts.Game.Bootstrap
                 // so Submit accepts every tick >= 0). The simulation orders commands by (tick, issuer, sequence) itself.
                 foreach (Command command in script.Commands)
                 {
-                    if (command.Tick >= _scriptTicks)
+                    if (command.Tick >= _scriptTicks && !continueAfterScript)
                     {
                         Debug.LogWarning("[SimulationHost] " + command + " is scheduled at or after the last tick (" + _scriptTicks + ") and will not run.");
                     }
@@ -223,9 +305,9 @@ namespace Rts.Game.Bootstrap
             {
                 return;
             }
-            if (_scriptFinished)
+            if (!ShouldStep)
             {
-                // The script is over: nothing steps, the cubes rest on the last tick.
+                // The script is over and continueAfterScript is off: nothing steps, the cubes rest on the last tick.
                 _alpha = 1f;
                 return;
             }
@@ -233,13 +315,13 @@ namespace Rts.Game.Bootstrap
             _accumulatorSeconds += Time.deltaTime;
             // Ticks stepped this frame.
             int steps = 0;
-            while (_accumulatorSeconds >= _tickSeconds && steps < maxStepsPerFrame && !_scriptFinished)
+            while (_accumulatorSeconds >= _tickSeconds && steps < maxStepsPerFrame && ShouldStep)
             {
                 StepOnce();
                 _accumulatorSeconds -= _tickSeconds;
                 steps++;
             }
-            if (_scriptFinished)
+            if (!ShouldStep)
             {
                 _alpha = 1f;
                 return;
@@ -251,6 +333,9 @@ namespace Rts.Game.Bootstrap
             }
             _alpha = Mathf.Clamp01(_accumulatorSeconds / _tickSeconds);
         }
+
+        /// <summary>True while ticks should still run: the script has not finished, or continueAfterScript keeps the match going. Unit: on/off.</summary>
+        private bool ShouldStep => !_scriptFinished || continueAfterScript;
 
         /// <summary>Positions every cube between its previous and current tick position. Runs after all Update calls.</summary>
         private void LateUpdate()
@@ -273,6 +358,7 @@ namespace Rts.Game.Bootstrap
             }
             _playerMaterials.Clear();
             _views.Clear();
+            EventRaised = null;
             if (_unitRoot != null)
             {
                 Destroy(_unitRoot.gameObject);
@@ -287,7 +373,7 @@ namespace Rts.Game.Bootstrap
             // Shift every existing cube's blend window forward before new events add or remove cubes.
             RefreshViewStates();
             ProcessEvents();
-            if (_sim.Clock.Tick >= _scriptTicks)
+            if (!_scriptFinished && _sim.Clock.Tick >= _scriptTicks)
             {
                 // The clock counts ticks already stepped, so this is the state after exactly the script's tick count,
                 // the same state the headless harness prints as STATE_HASH.
@@ -317,6 +403,7 @@ namespace Rts.Game.Bootstrap
             for (int i = 0; i < events.Count; i++)
             {
                 SimEvent simEvent = events[i];
+                NotifyListeners(simEvent);
                 if (simEvent is UnitSpawnedEvent spawned)
                 {
                     CreateView(spawned);
@@ -336,6 +423,25 @@ namespace Rts.Game.Bootstrap
                 {
                     Debug.LogWarning("[SimulationHost] " + rejected.Describe());
                 }
+            }
+        }
+
+        /// <summary>Hands one event to the EventRaised listeners; a throwing listener is logged and skipped so it cannot break the tick.</summary>
+        /// <param name="simEvent">Event of the tick that just ran.</param>
+        private void NotifyListeners(SimEvent simEvent)
+        {
+            Action<SimEvent> handlers = EventRaised;
+            if (handlers == null)
+            {
+                return;
+            }
+            try
+            {
+                handlers(simEvent);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
             }
         }
 
@@ -417,13 +523,16 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Converts a simulation position to Unity world space. Simulation X is world X, simulation Y is world Z
-        /// (the ground plane is X/Z in Unity), one tile is one world unit. One-way, presentation only.
+        /// (the ground plane is X/Z in Unity), one tile is one world unit, and world Y is the elevation of the tile
+        /// under the position (layer x layerHeightWorldUnits) plus the given offset. One-way, presentation only.
         /// </summary>
         /// <param name="position">Simulation position in tiles.</param>
-        /// <param name="height">World Y of the cube centre in world units.</param>
-        private static Vector3 ToWorld(FixVec2 position, float height)
+        /// <param name="heightAboveGround">Height of the cube centre above the terrain surface, in world units.</param>
+        private Vector3 ToWorld(FixVec2 position, float heightAboveGround)
         {
-            return new Vector3(position.X.ToFloatForPresentation(), height, position.Y.ToFloatForPresentation());
+            // Elevation layer of the tile under the position. Unit: layer index. Range: 0 to 7.
+            int layer = _sim.Terrain[_sim.Terrain.TileOf(position)].Height;
+            return new Vector3(position.X.ToFloatForPresentation(), layer * layerHeightWorldUnits + heightAboveGround, position.Y.ToFloatForPresentation());
         }
 
         /// <summary>
