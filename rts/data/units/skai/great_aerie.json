@@ -10,8 +10,8 @@
   "faction_id": "skai",
   // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
   "kind": "unit",
-  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders / Unit concepts (HQ carried by giant birds).
-  "layer": "air",
+  // Pathing layer the unit moves on. Ground, not air: the design says every Skai structure stays hittable by ground ranged units, and a rooted nest must be a ground target; the birds carrying it while Uprooted are a Phase 2 presentation and speed detail. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders (Cliff structures: no base is unhittable).
+  "layer": "ground",
   // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder for Phase 1 unit docs.
   "max_health": 1500,
   // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder for Phase 1 unit docs.
@@ -28,7 +28,7 @@
   "build_seconds": 60,
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "armour_type": "armoured",
-  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder for Phase 1 unit docs.
+  // How far the unit sees; used by fog of war (rts/src/Sim/Vision) while the unit is on the ground or water layer, or Grounded. Unit: tiles. Range: 1 to 64. Source: placeholder for Phase 1 unit docs.
   "sight_range_tiles": 12,
   // HQ rules. A unit with this object is a mobile HQ: it roots and uproots (times in tuning/hq.json), its weapon works only while Rooted, and its death defeats its owner. Source: The mobile HQ unit.
   "hq": {

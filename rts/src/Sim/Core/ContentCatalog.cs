@@ -106,6 +106,7 @@ namespace Rts.Sim.Core
                 hasher.Write(unit.CostRare);
                 hasher.Write(unit.ArmourType);
                 hasher.Write(unit.SightRangeTiles);
+                hasher.Write(unit.AirborneSightRangeTiles);
                 hasher.Write(unit.Weapon != null);
                 if (unit.Weapon != null)
                 {
@@ -117,6 +118,7 @@ namespace Rts.Sim.Core
                     unit.Hq.WriteHash(hasher);
                 }
                 unit.Economy.WriteHash(hasher);
+                unit.Flood.WriteHash(hasher);
             }
             hasher.Write(_factions.Count);
             foreach (FactionDefinition faction in _factions.Values)

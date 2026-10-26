@@ -26,8 +26,10 @@
   "build_seconds": 30,
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "armour_type": "armoured",
-  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
+  // How far the unit sees; used by fog of war (rts/src/Sim/Vision) while the unit is on the ground or water layer, or Grounded. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
   "sight_range_tiles": 10,
+  // How far the unit sees while its effective layer is Air, shorter than sight_range_tiles so flyers get no free vision. Required for air units, rejected for others. Unit: tiles. Range: 1 to 64. Source: Maps / Layout rules ("short sight range when airborne"); placeholder 6 for the Roc Rider.
+  "airborne_sight_range_tiles": 6,
   // Weapon: omit the whole object for an unarmed unit. Roc Rider: heavy flyer that hits air and ground. Every number is a placeholder for playtesting. Source: placeholder for Phase 1 unit docs.
   "weapon": {
     // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.

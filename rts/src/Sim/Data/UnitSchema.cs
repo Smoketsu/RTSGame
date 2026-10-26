@@ -1,7 +1,8 @@
 // rts/src/Sim/Data/UnitSchema.cs
 // Parsing helpers for the combat-related and economy keys of a unit file (units/<faction>/<name>.json): armour_type,
-// sight_range_tiles, the weapon object, the hq object and the economy keys (build_seconds, can_gather, is_drop_off, trains,
-// is_static_defence, footprint, provides_supply). Part of Rts.Sim.Data. Called from the unit section of DataLoader so that
+// sight_range_tiles, airborne_sight_range_tiles (required for air units), the weapon object, the hq object and the economy keys (build_seconds, can_gather, is_drop_off, trains,
+// is_static_defence, footprint, provides_supply) and the flooding keys (flood_source_output_per_second, flood_source_capacity,
+// can_cast_wave). Part of Rts.Sim.Data. Called from the unit section of DataLoader so that
 // file stays short. All three keys are optional, so unit files written before Phase 1 still load; damage_type and
 // armour_type are validated against tuning/combat.json and every error names the unit file and the field
 // (for example "units/skai/windrunner.json: field 'weapon.damage_type' must be one of ...").
@@ -15,7 +16,7 @@ namespace Rts.Sim.Data
     /// <summary>Static helpers that turn the combat keys of a unit file into definition fields.</summary>
     public static class UnitSchema
     {
-        /// <summary>Sight range used when a unit file has no sight_range_tiles. Unit: tiles. Range: fixed schema default, 8 (the value fog of war will start from; stored now, unused until Phase 1 vision).</summary>
+        /// <summary>Sight range used when a unit file has no sight_range_tiles. Unit: tiles. Range: fixed schema default, 8 (read by fog of war, rts/src/Sim/Vision).</summary>
         public static readonly Fix64 DefaultSightRangeTiles = Fix64.FromInt(8);
 
         /// <summary>Reads the optional armour_type key, defaulting to the combat tuning's default and checking the name against its armour types.</summary>
@@ -41,6 +42,29 @@ namespace Rts.Sim.Data
                 return DefaultSightRangeTiles;
             }
             return node.AsFix64(Fix64.One, Fix64.FromInt(64));
+        }
+
+        /// <summary>
+        /// Reads the airborne_sight_range_tiles key (fog_of_war.md section 2): required when the unit's layer is air, rejected
+        /// for ground and water units. Returns null for non-air units (the definition then uses sight_range_tiles).
+        /// Unit: tiles. Range: 1 to 64.
+        /// </summary>
+        /// <param name="root">The unit file's root object.</param>
+        /// <param name="layer">The unit's definition layer, already parsed.</param>
+        public static Fix64? ReadAirborneSightRange(JsonValue root, MovementLayer layer)
+        {
+            // True when the file carries the key.
+            bool present = root.TryGetMember("airborne_sight_range_tiles", out JsonValue? node);
+            if (layer != MovementLayer.Air)
+            {
+                if (present)
+                {
+                    throw node!.Fail("is only allowed for units whose layer is \"air\"");
+                }
+                return null;
+            }
+            // The key is mandatory for flyers: Require names the file and field when it is missing.
+            return root.Require("airborne_sight_range_tiles").AsFix64(Fix64.One, Fix64.FromInt(64));
         }
 
         /// <summary>Reads the optional weapon object. Returns null when the key is absent (an unarmed unit).</summary>
@@ -167,6 +191,36 @@ namespace Rts.Sim.Data
             // Supply added to the owner's cap. Unit: supply. Range: 0 to 100.
             int providesSupply = root.TryGetMember("provides_supply", out JsonValue? supplyNode) ? supplyNode.AsInt(0, 100) : 0;
             return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply);
+        }
+
+        /// <summary>
+        /// Reads the optional flooding keys of a unit file (rts/docs/specs/flooding.md section 2): flood_source_output_per_second
+        /// (depth-unit tiles per second, 0 to 64, default 0; above 0 makes the unit a flood source), flood_source_capacity
+        /// (depth-unit tiles, 0 to 4096, default 0; must be above 0 when the output is above 0) and can_cast_wave (boolean,
+        /// default false). Returns <see cref="UnitFloodDefinition.None"/> when none of the keys is present.
+        /// </summary>
+        /// <param name="root">The unit file's root object.</param>
+        public static UnitFloodDefinition ReadFlood(JsonValue root)
+        {
+            // Water released per second. Unit: depth-unit tiles per second. Range: 0 to 64; 0 when absent.
+            Fix64 output = root.TryGetMember("flood_source_output_per_second", out JsonValue? outputNode)
+                ? outputNode.AsFix64(Fix64.Zero, UnitFloodDefinition.MaxOutputPerSecond)
+                : Fix64.Zero;
+            // Share of the team's high-tide volume. Unit: depth-unit tiles. Range: 0 to 4096; 0 when absent.
+            Fix64 capacity = root.TryGetMember("flood_source_capacity", out JsonValue? capacityNode)
+                ? capacityNode.AsFix64(Fix64.Zero, UnitFloodDefinition.MaxCapacity)
+                : Fix64.Zero;
+            if (output > Fix64.Zero && capacity <= Fix64.Zero)
+            {
+                throw root.Require("flood_source_output_per_second").Fail("needs flood_source_capacity above 0 (a source with no capacity could never release water)");
+            }
+            // Wave switch (Tidecaller). Range: true or false; false when absent.
+            bool canCastWave = root.TryGetMember("can_cast_wave", out JsonValue? waveNode) && waveNode.AsBool();
+            if (output == Fix64.Zero && capacity == Fix64.Zero && !canCastWave)
+            {
+                return UnitFloodDefinition.None;
+            }
+            return new UnitFloodDefinition(output, capacity, canCastWave);
         }
 
         /// <summary>True when <paramref name="name"/> is in <paramref name="names"/> (ordinal comparison).</summary>

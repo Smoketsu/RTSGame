@@ -24,7 +24,7 @@ namespace Rts.Sim.Terrain
         /// <summary>Number of tiles, Width × Height. Range: 64 to 1 048 576.</summary>
         public int TileCount => _tiles.Length;
 
-        /// <summary>Increases by 1 on every terrain change. Range: 0 upward. Pathfinding caches compare against it.</summary>
+        /// <summary>Increases by 1 on every terrain change that can alter passability or traversal cost (height, ramp, blockers, surface, depth class). Range: 0 upward. Pathfinding caches compare against it.</summary>
         public int Version { get; private set; }
 
         /// <summary>The map this grid was built from (resource fields, Core, spawns).</summary>
@@ -190,12 +190,7 @@ namespace Rts.Sim.Terrain
         /// <summary>Depth class of a tile: 0 dry, 1 shallow, 2 deep, from the tuning threshold.</summary>
         public int DepthClass(int index)
         {
-            Fix64 depth = _tiles[index].WaterDepth;
-            if (depth <= Fix64.Zero)
-            {
-                return 0;
-            }
-            return depth >= _tuning.DeepWaterDepthThreshold ? 2 : 1;
+            return DepthClassOf(_tiles[index].WaterDepth);
         }
 
         /// <summary>
@@ -308,16 +303,38 @@ namespace Rts.Sim.Terrain
             Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers & ~blockers));
         }
 
-        /// <summary>Stores a new tile value, bumps the version and reports the change. Requires an active step.</summary>
+        /// <summary>
+        /// Stores a new tile value and reports the change. Requires an active step. The version (which invalidates every
+        /// cached flow field) only advances when the change can alter passability or traversal cost: height, ramp,
+        /// blockers, surface or the water depth class. A depth change inside the same class (most flood ticks) keeps it.
+        /// </summary>
         private void Replace(Simulation sim, int index, TerrainTile tile)
         {
             if (!sim.IsStepping)
             {
                 throw new InvalidOperationException("Terrain can only change inside Simulation.Step.");
             }
+            // The value being replaced, to decide whether pathing costs changed.
+            TerrainTile old = _tiles[index];
+            // True when any field the flow-field cost function reads has changed.
+            bool affectsPathing = old.Height != tile.Height || old.IsRamp != tile.IsRamp || old.Blockers != tile.Blockers
+                || old.Surface != tile.Surface || DepthClassOf(old.WaterDepth) != DepthClassOf(tile.WaterDepth);
             _tiles[index] = tile;
-            Version++;
+            if (affectsPathing)
+            {
+                Version++;
+            }
             sim.Events.Add(new TerrainChangedEvent(sim.Clock.Tick, index, tile));
+        }
+
+        /// <summary>Depth class of a depth value: 0 dry, 1 shallow, 2 deep.</summary>
+        private int DepthClassOf(Fix64 depth)
+        {
+            if (depth <= Fix64.Zero)
+            {
+                return 0;
+            }
+            return depth >= _tuning.DeepWaterDepthThreshold ? 2 : 1;
         }
 
         /// <summary>Feeds size, version and every tile in index order into the state hash.</summary>

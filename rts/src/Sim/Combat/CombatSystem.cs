@@ -12,8 +12,11 @@
 //     distance is at most range + attackerRadius + targetRadius (compared squared).
 //   * Targets: an alive unit of an enemy player (PlayerRegistry.AreEnemies; neutral units are never enemies) on a
 //     movement layer the weapon can hit. Allies are never targeted.
-//   * Acquisition: an unforced target is kept while it stays valid and within range (plus the acquire bonus for
-//     attack-moving units); otherwise the nearest valid enemy within that reach is taken, ties to the lowest ID.
+//   * Acquisition: an unforced target is kept while it stays valid, within range (plus the acquire bonus for
+//     attack-moving units) and visible to the attacker's team; otherwise the nearest valid, visible enemy within that reach is
+//     taken, ties to the lowest ID. Visibility is the fog of war of the previous tick's end (sim.Vision, one-tick delay).
+//     A forced target (attack_unit) is exempt: an explicit order still works on a unit the team cannot see (commands are not
+//     yet filtered by vision; the Phase 2 anti-cheat plan is in rts/docs/specs/fog_of_war.md section 5).
 //   * Attack-move (attack_move, attack_unit): the unit stops to fight enemies within weapon range, chases targets
 //     within range + acquire bonus (an attack_unit target is chased at any distance), and resumes walking to the
 //     goal when no target is left. Arrival (within the movement arrival radius) clears the order. A chase toward a target
@@ -209,7 +212,8 @@ namespace Rts.Sim.Combat
             if (unit.AttackTarget.IsValid)
             {
                 if (sim.Units.TryGet(unit.AttackTarget, out Unit? current) && IsValidTarget(sim, unit, weapon, current)
-                    && (unit.IsAttackTargetForced || InReach(unit, current, acquireRange)))
+                    && (unit.IsAttackTargetForced
+                        || (InReach(unit, current, acquireRange) && sim.Vision.IsUnitVisibleTo(sim.Players.TeamOf(unit.Owner), current))))
                 {
                     return current;
                 }
@@ -218,9 +222,12 @@ namespace Rts.Sim.Combat
             // Best candidate so far and its squared centre distance. Unit: squared tiles. Range: 0 or more.
             Unit? best = null;
             Fix64 bestDistanceSquared = Fix64.Zero;
+            // Team whose fog of war limits automatic acquisition (TeamId.None for a neutral attacker, which targets nothing anyway).
+            TeamId attackerTeam = sim.Players.TeamOf(unit.Owner);
             foreach (Unit candidate in sim.Units.All)
             {
-                if (!IsValidTarget(sim, unit, weapon, candidate) || !InReach(unit, candidate, acquireRange))
+                if (!IsValidTarget(sim, unit, weapon, candidate) || !InReach(unit, candidate, acquireRange)
+                    || !sim.Vision.IsUnitVisibleTo(attackerTeam, candidate))
                 {
                     continue;
                 }

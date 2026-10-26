@@ -15,8 +15,11 @@
     "water.tender",
     "water.spoutling",
     "water.grasper",
+    "water.shellback",
+    "water.ink_lobber",
     "water.grand_shell",
     "water.tidepool",
+    "water.shell_forge",
     "water.coral_turret"
   ]
 }

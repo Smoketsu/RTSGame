@@ -109,7 +109,7 @@ namespace Rts.Sim.Data
         /// <summary>Reads one command object.</summary>
         private static Command ReadCommand(JsonValue node)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status).
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status, cast_wave).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -163,6 +163,9 @@ namespace Rts.Sim.Data
                 case "apply_status":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "status", "multiplier", "seconds", "source");
                     return ReadApplyStatus(node, tick, issuer, sequence);
+                case "cast_wave":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "x", "y");
+                    return new CastWaveCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)), ReadPoint(node));
                 default:
                     throw node.Require("type").Fail("must be \"noop\", \"spawn_unit\", \"move_unit\", \"remove_unit\", \"attack_move\", \"attack_unit\", \"stop\", \"root_hq\", \"uproot_hq\", \"gather\", \"train_unit\", \"build_structure\" or \"apply_status\" (found \"" + type + "\")");
             }

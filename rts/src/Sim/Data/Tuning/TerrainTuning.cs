@@ -51,6 +51,10 @@ namespace Rts.Sim.Data
                 "max_cached_flow_fields");
             DeepWaterDepthThreshold = root.RequireFix64("deep_water_depth_threshold", "0.05", "10");
             MaxWaterDepth = root.RequireFix64("max_water_depth", "0.5", "20");
+            if (!FloodTuning.IsWholeDrops(MaxWaterDepth))
+            {
+                throw root.Require("max_water_depth").Fail("must be a multiple of 1/256");
+            }
             GroundDrySpeedMultiplier = root.RequireFix64("ground_dry_speed_multiplier", "0.1", "2");
             GroundRaisedSpeedMultiplier = root.RequireFix64("ground_raised_speed_multiplier", "0.1", "2");
             GroundScorchedSpeedMultiplier = root.RequireFix64("ground_scorched_speed_multiplier", "0.1", "2");

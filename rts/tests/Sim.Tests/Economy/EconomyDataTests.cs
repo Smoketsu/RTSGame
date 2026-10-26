@@ -28,7 +28,8 @@ namespace Rts.Sim.Tests.Economy
             UnitDefinition shell = data.Content.Units["water.grand_shell"];
             Assert.That(aerie.Hq, Is.Not.Null);
             Assert.That(shell.Hq, Is.Not.Null);
-            Assert.That(aerie.Layer, Is.EqualTo(MovementLayer.Air));
+            // Ground, not air: a rooted nest must be hittable by ground weapons (no base is unhittable).
+            Assert.That(aerie.Layer, Is.EqualTo(MovementLayer.Ground));
             Assert.That(shell.Layer, Is.EqualTo(MovementLayer.Water));
             Assert.That(aerie.SpeedTilesPerSecond, Is.GreaterThan(shell.SpeedTilesPerSecond));
             Assert.That(aerie.Weapon, Is.Not.Null);
@@ -41,7 +42,7 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(data.Content.Units["skai.windrunner"].Economy.CanGather, Is.False);
 
             UnitDefinition roost = data.Content.Units["skai.roost"];
-            Assert.That(roost.Economy.Trains, Is.EqualTo(new[] { "skai.windrunner" }));
+            Assert.That(roost.Economy.Trains, Is.EqualTo(new[] { "skai.windrunner", "skai.roc_rider" }));
             Assert.That(roost.Economy.ProvidesSupply, Is.EqualTo(8));
             Assert.That(roost.Economy.FootprintTiles, Is.EqualTo(1));
             UnitDefinition tidepool = data.Content.Units["water.tidepool"];
@@ -90,7 +91,7 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(missing.Message, Does.Contain("factions/water.json").And.Contain("hq_unit").And.Contain("is missing"));
             // trains naming a unit that does not exist.
             DataValidationException dangling = Expect.Throws<DataValidationException>(() => DataLoader.Load(
-                TestData.WithEdit("units/skai/roost.json", "\"trains\": [\"skai.windrunner\"]", "\"trains\": [\"skai.ghost\"]")));
+                TestData.WithEdit("units/skai/roost.json", "\"trains\": [\"skai.windrunner\", \"skai.roc_rider\"]", "\"trains\": [\"skai.ghost\"]")));
             Assert.That(dangling.Message, Does.Contain("units/skai/roost.json").And.Contain("trains").And.Contain("skai.ghost"));
             // An HQ whose worker is not a worker.
             DataValidationException badWorker = Expect.Throws<DataValidationException>(() => DataLoader.Load(

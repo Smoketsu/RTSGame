@@ -14,9 +14,12 @@
   "units": [
     "skai.fledgling",
     "skai.windrunner",
+    "skai.talon_archer",
+    "skai.stormcaller",
     "skai.roc_rider",
     "skai.great_aerie",
     "skai.roost",
+    "skai.windspire",
     "skai.perch_tower"
   ]
 }

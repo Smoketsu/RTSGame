@@ -9,5 +9,31 @@
   // Multiplier on enemy ground speed in deep water (0.5 = half speed). Unit: multiplier of base ground speed. Range: 0.1 to 1.0. Source: Currents and depth.
   "deep_water_enemy_speed_multiplier": 0.5,
   // Multiplier on enemy ground speed in shallow water (0.85 = 85% speed). Unit: multiplier of base ground speed. Range: 0.1 to 1.0. Source: not in the design doc; placeholder, open question.
-  "shallow_water_enemy_speed_multiplier": 0.85
+  "shallow_water_enemy_speed_multiplier": 0.85,
+  // Depth that counts as one height layer when water levels are compared, so it sets how steeply "downhill" weighs a cliff against a depth difference. Must be a multiple of 1/256 and no more than max_water_depth in terrain.json. Unit: depth units. Range: 0.5 to max_water_depth (terrain.json). Source: not in the design doc; placeholder (rts/docs/specs/flooding.md section 2).
+  "depth_units_per_height_layer": 2,
+  // How often water emission, the tide and the downhill flow run. Unit: seconds (converted to whole ticks, at least 1). Range: 0.25 to 5. Source: not in the design doc; placeholder (flooding.md section 2).
+  "flood_update_interval_seconds": 1,
+  // Redistribution passes per flood update; more passes make the water flow faster. Unit: passes (count). Range: 1 to 16. Source: not in the design doc; placeholder (flooding.md section 2).
+  "flow_passes_per_update": 4,
+  // Share of its high-tide volume a team may hold at low tide. Unit: fraction of high-tide volume (0.5 = half). Range: 0 to 1. Source: Tides ("at low tide it pulls back and exposes ground"); the value is a placeholder.
+  "low_tide_volume_fraction": 0.5,
+  // Floor on how fast water drains toward the sources when the tide falls, so a team with no sources still drains. Unit: depth-unit tiles per second. Range: 0 to 64. Source: not in the design doc; placeholder (flooding.md section 2).
+  "min_retreat_per_second": 0.5,
+  // How far from a flood source's own tile the release point may be searched (the source's footprint stays dry). Unit: tiles (Chebyshev distance, whole). Range: 0 to 6. Source: Flood limits (building footprints stay dry); the value is a placeholder.
+  "flood_source_release_radius_tiles": 2,
+  // A resource field this close to an enemy drop-off counts as an enemy resource field that floods must stay clear of. Unit: tiles (Chebyshev distance, whole). Range: 1 to 32. Source: Flood limits (stop short of enemy resource fields); the value is a placeholder.
+  "resource_claim_radius_tiles": 10,
+  // Healing of water-layer units standing on their own team's flooded tiles. Unit: health points per second. Range: 0 to 50. Source: Flooding ("on flooded ground, water units ... heal"); the value is a placeholder.
+  "water_unit_heal_per_second": 2,
+  // Time before the same caster can cast the wave again. Unit: seconds (converted to whole ticks). Range: 1 to 300. Source: Waves; the value is a placeholder.
+  "wave_cooldown_seconds": 30,
+  // How far a wave reaches from the caster along its direction. Unit: tiles. Range: 1 to 20. Source: Waves; the value is a placeholder.
+  "wave_length_tiles": 6,
+  // Width of a wave across its direction. Unit: tiles (odd number). Range: 1 to 9. Source: Waves; the value is a placeholder.
+  "wave_width_tiles": 3,
+  // Water added to each tile the wave covers. Must be a multiple of 1/256. Unit: depth units. Range: 0 to 8. Source: Waves ("briefly extend the flood onto dry ground"); the value is a placeholder.
+  "wave_water_depth": 1,
+  // Distance enemy non-air units are shoved by a wave. Unit: tiles (whole steps). Range: 0 to 6. Source: Waves ("shove enemy units back"); the value is a placeholder.
+  "wave_push_tiles": 2
 }

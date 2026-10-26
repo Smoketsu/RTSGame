@@ -267,8 +267,9 @@ namespace Rts.Sim.Data
         {
             CheckDepth(path, parts, 3, "units/<faction>/<name>.json");
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
-                "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "weapon",
-                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "is_static_defence", "footprint", "provides_supply");
+                "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "airborne_sight_range_tiles", "weapon",
+                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "is_static_defence", "footprint", "provides_supply",
+                "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
             // Display name text. Range: non-empty string.
@@ -312,11 +313,15 @@ namespace Rts.Sim.Data
             // Armour type name (default from combat tuning), sight range and optional weapon; see UnitSchema.
             string armourType = UnitSchema.ReadArmourType(root, combat);
             Fix64 sightRange = UnitSchema.ReadSightRange(root);
+            // Sight while airborne: required for air units, null otherwise (fog_of_war.md section 2).
+            Fix64? airborneSightRange = UnitSchema.ReadAirborneSightRange(root, layer);
             WeaponDefinition? weapon = UnitSchema.ReadWeapon(root, combat);
             // Optional HQ rules and the economy keys (build time, worker, drop-off, trains, defence, footprint, supply provided).
             HqDefinition? hq = UnitSchema.ReadHq(root, combat);
             UnitEconomyDefinition economy = UnitSchema.ReadEconomy(root);
-            return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon, hq, economy);
+            // Optional flooding keys: flood source output and capacity, wave casting (flooding.md section 2).
+            UnitFloodDefinition flood = UnitSchema.ReadFlood(root);
+            return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon, hq, economy, airborneSightRange, flood);
         }
 
         /// <summary>Adds a unit to the catalog, turning a duplicate ID into a file-named error.</summary>

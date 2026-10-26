@@ -61,6 +61,10 @@ namespace Rts.Sim.Data
             Earth = earth ?? throw new ArgumentNullException(nameof(earth));
             Online = online ?? throw new ArgumentNullException(nameof(online));
             Harness = harness ?? throw new ArgumentNullException(nameof(harness));
+            if (flood.DepthUnitsPerHeightLayer > terrain.MaxWaterDepth)
+            {
+                throw new DataValidationException(FloodTuning.FilePath, "depth_units_per_height_layer", "must not exceed max_water_depth (" + terrain.MaxWaterDepth + ") in " + TerrainTuning.FilePath);
+            }
         }
     }
 }

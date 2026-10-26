@@ -35,5 +35,9 @@
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "armour_type": "structure",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder for Phase 1 unit docs.
-  "sight_range_tiles": 8
+  "sight_range_tiles": 8,
+  // Water this Tidepool releases once complete: flood source output. Unit: depth-unit tiles per second. Range: 0 to 64 (0 or absent means not a flood source). Source: Flooding (structures release water); placeholder (rts/docs/specs/flooding.md section 2).
+  "flood_source_output_per_second": 1,
+  // This unit's share of its team's high-tide water volume (the team may hold the sum of its sources' capacities at high tide). Unit: depth-unit tiles. Range: 0 to 4096 (above 0 whenever the output is above 0). Source: Tides (the water reaches its full extent at high tide); placeholder (flooding.md section 2).
+  "flood_source_capacity": 40
 }

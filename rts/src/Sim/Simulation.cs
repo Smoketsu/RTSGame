@@ -13,9 +13,12 @@
 //   6. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
 //   7. economy (EconomySystem: worker gather loops, production queues, construction, supply; units in ascending ID order)
 //   8. faction mechanics in ascending mechanic ID order
-//   9. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-//  10. advance the clock
-// (The vision recompute of the fog-of-war spec will slot in between the mechanics and the state hash.)
+//   9. vision recompute (VisionSystem.Recompute: per-team visible and explored grids; fog_of_war.md step 7)
+//  10. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+//  11. advance the clock
+// Start also runs one vision recompute after the mechanics' OnMatchStart, so tick 0 has vision. Combat reads the vision of the
+// previous tick's end (a one-tick delay) plus the sight of units spawned this tick (SpawnUnit stamps them at once, so a new unit
+// can fight on its spawn tick); the hash reads the end of this tick.
 // Spawn and removal hooks (SpawnUnit, RemoveUnit) also run the HQ and economy bookkeeping: a new HQ picks Rooted or Uprooted, a
 // structure's footprint blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
 using System;
@@ -32,6 +35,7 @@ using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
+using Rts.Sim.Vision;
 
 namespace Rts.Sim
 {
@@ -73,6 +77,9 @@ namespace Rts.Sim
 
         /// <summary>Live terrain: heights, water, surfaces, blockers (ADR-006). Hashed every tile.</summary>
         public TerrainGrid Terrain { get; }
+
+        /// <summary>Per-team fog of war: visible-now and explored-ever grids and the query API (fog_of_war.md). Recomputed at step 9; both grids are hashed after the terrain.</summary>
+        public VisionSystem Vision { get; }
 
         /// <summary>Live resource fields: what each field of the map still holds. Hashed (remaining amounts, ascending field index).</summary>
         public ResourceFields Resources { get; }
@@ -163,6 +170,7 @@ namespace Rts.Sim
             Tuning = config.Tuning;
             Map = config.Map;
             Terrain = new TerrainGrid(Map, Tuning.Terrain, Tuning.Flood);
+            Vision = new VisionSystem(Terrain, Players, Units);
             Resources = new ResourceFields(Map);
             Pathing = new FlowFieldCache(Terrain, Tuning.Terrain.MaxCachedFlowFields);
             _mechanicRegistry = config.Mechanics;
@@ -215,6 +223,8 @@ namespace Rts.Sim
                 // Economy: starting stock, first supply figures and the carrying speed modifier.
                 EconomySystem.RegisterModifiers(this);
                 EconomySystem.OnMatchStart(this);
+                // Tick 0 vision: units placed by mechanics at match start already see their surroundings.
+                Vision.Recompute();
             }
             finally
             {
@@ -361,6 +371,7 @@ namespace Rts.Sim
                 {
                     mechanic.OnTick(this);
                 }
+                Vision.Recompute();
                 if (tick % Settings.StateHashIntervalTicks == 0)
                 {
                     // State hash of the whole simulation at this tick. Unit: 64-bit hash value. Range: any ulong except 0.
@@ -435,7 +446,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
-        /// terrain, resource fields, mechanics, damage modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
+        /// terrain, vision, resource fields, mechanics, damage modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
@@ -447,6 +458,7 @@ namespace Rts.Sim
             Players.WriteHash(_hasher);
             Units.WriteHash(_hasher);
             Terrain.WriteHash(_hasher);
+            Vision.WriteHash(_hasher);
             Resources.WriteHash(_hasher);
             _hasher.Write(_mechanics.Count);
             foreach (KeyValuePair<string, IFactionMechanic> pair in _mechanics)
@@ -481,6 +493,8 @@ namespace Rts.Sim
             // The unit just created, with its ID allocated here. Range: ID from 1 up.
             Unit unit = new Unit(EntityIds.Allocate(), owner, definition, position, Clock.Tick);
             Units.Add(unit);
+            // The new unit sees at once (not only after the step's vision recompute), so it can fight on its spawn tick.
+            Vision.OnUnitSpawned(unit);
             Events.Add(new UnitSpawnedEvent(Clock.Tick, unit.Id, owner, definition.Id, position));
             HqSystem.OnUnitSpawned(this, unit);
             EconomySystem.OnUnitSpawned(this, unit);

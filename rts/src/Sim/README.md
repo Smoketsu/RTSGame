@@ -35,8 +35,9 @@ Unity writes a `.meta` file next to every file and folder here when the project 
 6. combat (`CombatSystem`: cooldowns, targeting, damage, deaths; units in ascending ID order)
 7. economy (`EconomySystem`: worker gather loops, production queues, construction, supply; units in ascending ID order)
 8. faction mechanics in ascending mechanic ID order
-9. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-10. advance the clock
+9. vision recompute (`VisionSystem.Recompute`: per-team visible and explored grids; `Start` runs it once too, so tick 0 has vision)
+10. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+11. advance the clock
 
 The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, read `Events.Current`, repeat. `Submit` is rejected inside a step and for ticks already played.
 
@@ -60,7 +61,7 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | `Teams/` | `PlayerSetup` and `PlayerRegistry`: players, teams, alliances. |
 | `Terrain/` | Placeholder (Phase 1): tile map, cliffs, walls, floods. |
 | `Pathing/` | Placeholder (Phase 1): flow fields per movement layer. |
-| `Vision/` | Placeholder (Phase 1): fog of war and vision. |
+| `Vision/` | Fog of war (`sim.Vision`): per-team visible and explored grids with the high-ground rule, short airborne sight, query API and the combat hook. See `rts/docs/specs/fog_of_war.md`. |
 | `Statuses/` | The shared status system: `UnitStatusSet` (Grounded, slows, drench counter), `StatusSystem` (step 3 and the apply methods), `StatusKind`, `SlowEntry`. See `rts/docs/specs/statuses.md`. |
 | `Units/` | `Unit`, `UnitDefinition`, `WeaponDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`, and the mobile HQ: `HqDefinition`, `HqState`, `HqSystem` (root and uproot countdowns, Last Stand, defeat on HQ death), plus `UnitEconomyDefinition` (build time, worker, drop-off, trains, static defence, footprint, supply provided). A unit file may carry `armour_type`, `sight_range_tiles`, a `weapon` object, an `hq` object and the economy keys; see `rts/data/README.md`. |
 | `Combat/` | `CombatSystem` (targeting, attack-move, cooldowns, damage, death, run after movement each tick), `CombatRules` (damage and armour table from `tuning/combat.json`), `IDamageModifier` (hook for mechanics such as Momentum). |

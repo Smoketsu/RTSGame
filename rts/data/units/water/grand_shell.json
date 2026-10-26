@@ -53,5 +53,9 @@
     "cooldown_seconds": 1.0,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
     "can_target": ["ground", "water", "air"]
-  }
+  },
+  // Water this Grand Shell (a source only while Rooted) releases once complete: flood source output. Unit: depth-unit tiles per second. Range: 0 to 64 (0 or absent means not a flood source). Source: Flooding (structures release water); placeholder (rts/docs/specs/flooding.md section 2).
+  "flood_source_output_per_second": 1,
+  // This unit's share of its team's high-tide water volume (the team may hold the sum of its sources' capacities at high tide). Unit: depth-unit tiles. Range: 0 to 4096 (above 0 whenever the output is above 0). Source: Tides (the water reaches its full extent at high tide); placeholder (flooding.md section 2).
+  "flood_source_capacity": 40
 }

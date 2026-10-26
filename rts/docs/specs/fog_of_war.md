@@ -94,3 +94,14 @@ Setup unless stated: 16x16 map, all heights 0, no ramps; two players on teams 0 
 - Fire smoke "blocks flyer vision" (Phase 5): a per-tile flag that airborne stamping skips.
 - Observer and replay views: union of all teams' grids, computed outside the simulation.
 - Should explored-ever remember last-seen structures (ghosts)? Renderer and AI memory, not simulation state.
+
+## 9. Implementation notes (as built)
+
+- Code: `rts/src/Sim/Vision/` (`VisionSystem`, `TeamVision`, `VisionStamp`); tests: `rts/tests/Sim.Tests/Vision/VisionTests.cs` (acceptance tests 1 to 12 with the numbers above, plus the combat hook and the data field).
+- **Commands are not yet filtered by vision.** The simulation applies a command that names an enemy unit the issuer's team cannot see; only automatic target acquisition in `CombatSystem` reads the grids. Section 5 is the Phase 2 plan.
+- `VisionSystem` is created in the `Simulation` constructor (right after the terrain) rather than in `Start`, so `ComputeStateHash` is valid before `Start`; `Start` runs the first recompute.
+- `SpawnUnit` stamps the new unit's sight onto its team's visible grid at once (`VisionSystem.OnUnitSpawned`). Without it a unit placed by a command or by training could not acquire a target until the next tick, which would shift every existing combat and statuses test by one tick (statuses.md pins drench hits on ticks 0, 1 and 2). The step's recompute rebuilds both grids from scratch, so the end-of-tick state and the hash are identical to a recompute-only design; only mid-step readers (combat) see the difference.
+- Combat also drops an unforced (non-`attack_unit`) current target when it stops being visible, not only when it is not chosen at acquisition.
+- Query aliases beyond section 6: `CanTeamSee(team, x, y)`, `IsExplored(team, x, y)`, `CanTeamSeeUnit(team, unit)`; `GridsOf(team)` returns the `TeamVision` (bit counts for tools and tests).
+- `UnitDefinition.AirborneSightRangeTiles` is in the content digest. Loader: required for `layer: "air"`, rejected otherwise (the error names the file and field). Data written: Roc Rider 6. The Great Aerie was changed to a ground unit by the data pass, so it needs none. The other sight placeholders of section 2 (workers 7, Windrunner 10, Roc Rider 9) were not written because a combat test pins `skai.fledgling` at 8; tune them in a data pass.
+

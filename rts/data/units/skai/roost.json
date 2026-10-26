@@ -27,7 +27,7 @@
   // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent). Source: Economy; placeholder for Phase 1 unit docs.
   "build_seconds": 25,
   // Units this building can train, in menu order. Unit: list of unit IDs. Range: IDs of existing units, no duplicates (default empty when absent). Source: Economy (production buildings); placeholder.
-  "trains": ["skai.windrunner"],
+  "trains": ["skai.windrunner", "skai.roc_rider"],
   // Tiles the unit blocks to ground and water movement while it stands. Unit: tiles. Range: 0 or 1 (default 0 when absent; 1 is the only structure size in Phase 1). Source: Economy (building footprints); placeholder.
   "footprint": 1,
   // Supply this building adds to its owner's supply cap while it stands complete. Unit: supply. Range: 0 to 100 (default 0 when absent). Source: Economy / Supply cap; placeholder.
