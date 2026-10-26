@@ -1,0 +1,13 @@
+<!-- rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj: headless console runner. Phase 0: plays one scripted command stream without Unity and prints the final state hash. Later phases grow it into the AI-versus-AI balance harness. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Rts.Tools.BalanceHarness</AssemblyName>
+    <RootNamespace>Rts.Tools.BalanceHarness</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+  </ItemGroup>
+</Project>

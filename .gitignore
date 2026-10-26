@@ -1,0 +1,18 @@
+# .gitignore: build output, IDE and Unity scratch folders. Source, data and docs are always committed.
+# .NET build output (redirected under rts/build by Directory.Build.props)
+rts/build/
+bin/
+obj/
+*.user
+.vs/
+.idea/
+# Unity generated folders inside the Unity project (rts/src/Game)
+rts/src/Game/Library/
+rts/src/Game/Temp/
+rts/src/Game/Logs/
+rts/src/Game/UserSettings/
+rts/src/Game/obj/
+rts/src/Game/*.csproj
+rts/src/Game/*.sln
+# Local test results
+TestResults/

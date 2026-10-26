@@ -1,0 +1,148 @@
+// rts/src/Sim/Commands/CoreCommands.cs
+// The Phase 0 command set: spawn a unit from a data definition, move a unit, remove a unit, do nothing.
+// Part of Rts.Sim.Commands. Spawn and remove exist for tests, scripts and the campaign layer; gameplay
+// production (Phase 1) will add build and train commands that go through the economy.
+using Rts.Sim.Core;
+using Rts.Sim.Units;
+
+namespace Rts.Sim.Commands
+{
+    /// <summary>Does nothing when applied. Used by tests and as a network keep-alive placeholder.</summary>
+    public sealed class NoOpCommand : Command
+    {
+        public NoOpCommand(int tick, PlayerId issuer, uint sequence) : base(tick, issuer, sequence)
+        {
+        }
+
+        public override string Kind => "noop";
+
+        public override CommandResult Apply(Simulation sim)
+        {
+            return CommandResult.Ok;
+        }
+
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+        }
+    }
+
+    /// <summary>Spawns one unit of a data-defined type for a player at a position.</summary>
+    public sealed class SpawnUnitCommand : Command
+    {
+        /// <summary>Definition ID from data/units, for example "skai.windrunner".</summary>
+        public string DefinitionId { get; }
+
+        /// <summary>Player who will own the unit, or <see cref="PlayerId.None"/> for a neutral unit.</summary>
+        public PlayerId Owner { get; }
+
+        /// <summary>Spawn position in tiles.</summary>
+        public FixVec2 Position { get; }
+
+        public SpawnUnitCommand(int tick, PlayerId issuer, uint sequence, string definitionId, PlayerId owner, FixVec2 position)
+            : base(tick, issuer, sequence)
+        {
+            DefinitionId = definitionId;
+            Owner = owner;
+            Position = position;
+        }
+
+        public override string Kind => "spawn_unit";
+
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? definition))
+            {
+                return CommandResult.Reject("unknown_definition");
+            }
+            if (Owner.IsValid && !sim.Players.Contains(Owner))
+            {
+                return CommandResult.Reject("unknown_owner");
+            }
+            sim.SpawnUnit(definition, Owner, Position);
+            return CommandResult.Ok;
+        }
+
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(DefinitionId);
+            hasher.Write(Owner);
+            hasher.Write(Position);
+        }
+    }
+
+    /// <summary>Orders one unit to move in a straight line to a target. Phase 1 replaces the straight line with pathfinding.</summary>
+    public sealed class MoveUnitCommand : Command
+    {
+        /// <summary>The unit to move. Must exist and belong to the issuer (or the issuer is None, the script).</summary>
+        public EntityId Unit { get; }
+
+        /// <summary>Destination in tiles.</summary>
+        public FixVec2 Target { get; }
+
+        public MoveUnitCommand(int tick, PlayerId issuer, uint sequence, EntityId unit, FixVec2 target)
+            : base(tick, issuer, sequence)
+        {
+            Unit = unit;
+            Target = target;
+        }
+
+        public override string Kind => "move_unit";
+
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Unit, out Unit? unit))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && unit.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            unit.SetMoveTarget(Target);
+            return CommandResult.Ok;
+        }
+
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Unit);
+            hasher.Write(Target);
+        }
+    }
+
+    /// <summary>Removes a unit from the match. For scripts and tests; combat deaths (Phase 1) use the same removal path.</summary>
+    public sealed class RemoveUnitCommand : Command
+    {
+        /// <summary>The unit to remove.</summary>
+        public EntityId Unit { get; }
+
+        public RemoveUnitCommand(int tick, PlayerId issuer, uint sequence, EntityId unit) : base(tick, issuer, sequence)
+        {
+            Unit = unit;
+        }
+
+        public override string Kind => "remove_unit";
+
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Unit, out Unit? unit))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && unit.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            sim.RemoveUnit(Unit, "remove_command");
+            return CommandResult.Ok;
+        }
+
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Unit);
+        }
+    }
+}
