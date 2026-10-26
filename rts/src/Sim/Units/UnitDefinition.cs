@@ -1,7 +1,8 @@
 // rts/src/Sim/Units/UnitDefinition.cs
 // Immutable description of a unit type, loaded from data/units/*.json by the data loader.
 // Part of Rts.Sim.Units. Rule 3 of the architecture: every number here comes from a data file.
-// Holds the skeleton fields plus (Phase 1) armour type, sight range and an optional weapon; later phases add abilities and build info.
+// Holds the skeleton fields plus (Phase 1) armour type, sight range, an optional weapon, the optional HQ rules and the economy rules
+// (build time, worker, drop-off, trains, static defence, footprint, supply provided); later phases add abilities.
 using System;
 using Rts.Sim.Core;
 
@@ -53,6 +54,12 @@ namespace Rts.Sim.Units
         /// <summary>The unit's weapon, or null for an unarmed unit such as a worker.</summary>
         public WeaponDefinition? Weapon { get; }
 
+        /// <summary>The HQ rules, or null for an ordinary unit. A unit with this set is a mobile HQ (rooting, Last Stand, defeat on death).</summary>
+        public HqDefinition? Hq { get; }
+
+        /// <summary>Economy rules (build time, worker and drop-off flags, trains, static defence, footprint, supply provided). Never null; <see cref="UnitEconomyDefinition.Default"/> for ordinary units.</summary>
+        public UnitEconomyDefinition Economy { get; }
+
         /// <summary>Armour type given to hand-built definitions (tests, tools) that do not pass one; equals the placeholder default_armour_type in tuning/combat.json. Range: fixed text "light".</summary>
         public const string FallbackArmourType = "light";
 
@@ -74,6 +81,20 @@ namespace Rts.Sim.Units
         public UnitDefinition(string id, string displayName, string factionId, MovementLayer layer, Fix64 maxHealth,
             Fix64 speedTilesPerSecond, int supply, Fix64 radius, int costCommon, int costRare,
             string armourType, Fix64 sightRangeTiles, WeaponDefinition? weapon)
+            : this(id, displayName, factionId, layer, maxHealth, speedTilesPerSecond, supply, radius, costCommon, costRare,
+                armourType, sightRangeTiles, weapon, null, null)
+        {
+        }
+
+        /// <summary>Builds a definition with the HQ and economy parts, validating every range. The loader turns a failure into an error naming the file and field.</summary>
+        /// <param name="armourType">Armour type name, non-empty.</param>
+        /// <param name="sightRangeTiles">Sight range in tiles, greater than 0.</param>
+        /// <param name="weapon">The weapon, or null for an unarmed unit.</param>
+        /// <param name="hq">The HQ rules, or null for an ordinary unit.</param>
+        /// <param name="economy">The economy rules, or null for <see cref="UnitEconomyDefinition.Default"/>.</param>
+        public UnitDefinition(string id, string displayName, string factionId, MovementLayer layer, Fix64 maxHealth,
+            Fix64 speedTilesPerSecond, int supply, Fix64 radius, int costCommon, int costRare,
+            string armourType, Fix64 sightRangeTiles, WeaponDefinition? weapon, HqDefinition? hq, UnitEconomyDefinition? economy)
         {
             if (string.IsNullOrEmpty(id))
             {
@@ -110,6 +131,8 @@ namespace Rts.Sim.Units
             ArmourType = armourType;
             SightRangeTiles = sightRangeTiles;
             Weapon = weapon;
+            Hq = hq;
+            Economy = economy ?? UnitEconomyDefinition.Default;
             Id = id;
             DisplayName = displayName ?? id;
             FactionId = factionId ?? Rts.Sim.Factions.FactionDefinition.NeutralId;

@@ -1,0 +1,25 @@
+// rts/data/tuning/economy.json: Economy values: starting resources, base supply, gathering trips, the production queue, base radius and construction. Read by the economy simulation system (rts/src/Sim/Economy); part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a placeholder for playtesting from the Game Design Proposal (26 Oct 2026), not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Starting resources, base supply, worker gathering trips, production queue length, base radius for the static defence cap and construction values that the economy simulation reads at match start.",
+  // Common resource each player starts with. Unit: resource units. Range: 0 to 100000. Source: Economy (two resources); placeholder.
+  "starting_common": 200,
+  // Rare resource each player starts with. Unit: resource units. Range: 0 to 100000. Source: Economy (the rare resource is found only at contested flank expansions, so nobody starts with any); placeholder.
+  "starting_rare": 0,
+  // Supply cap a player has before any supply building stands; the cap grows with each building's provides_supply up to supply_cap in supply.json. Unit: supply. Range: 0 to 300. Source: Economy / Supply cap; placeholder.
+  "base_supply": 10,
+  // Resource a worker takes from a field in one trip (less when the field holds less). Unit: resource units per trip. Range: 1 to 100. Source: Economy (gathered the same way by every faction); placeholder.
+  "gather_amount_per_trip": 5,
+  // Time a worker spends at a field before it has taken one load. Unit: seconds. Range: 0.05 to 60. Source: Economy; placeholder.
+  "gather_seconds_per_trip": 2.0,
+  // Speed multiplier for a worker that is carrying resources. Unit: multiplier of base speed. Range: 0.1 to 2. Source: Economy; placeholder (1.0 means carrying does not slow a worker).
+  "worker_speed_multiplier_while_carrying": 1.0,
+  // Longest production queue one producer holds (the unit being trained counts). Unit: queue entries (count). Range: 1 to 20. Source: Economy; placeholder.
+  "max_queue_length": 5,
+  // Radius around a drop-off that counts as one base for the static defence cap (static_defences_per_base_max in supply.json). Unit: tiles. Range: 2 to 64. Source: Economy / Supply cap (a base holds at most 6 static defences); placeholder.
+  "base_radius_tiles": 12,
+  // How close a worker must get to a field or a drop-off (edge distance for a drop-off) to gather or deposit; never less than the movement arrival radius in terrain.json. Unit: tiles. Range: 0.5 to 4. Source: Economy; placeholder.
+  "interact_range_tiles": 1.5,
+  // Health a structure starts with when placed, as a fraction of its maximum; it gains the rest evenly over its build_seconds. Unit: fraction of max health (0.1 = 10%). Range: 0.01 to 1. Source: Economy (structures are built by workers); placeholder.
+  "construction_start_health_fraction": 0.1
+}

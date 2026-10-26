@@ -230,7 +230,7 @@ namespace Rts.Sim.Data
                 if (path != MatchTuning.FilePath && path != HqTuning.FilePath && path != MomentumTuning.FilePath
                     && path != StatusTuning.FilePath && path != FloodTuning.FilePath && path != SupplyTuning.FilePath
                     && path != EarthTuning.FilePath && path != OnlineTuning.FilePath && path != HarnessTuning.FilePath
-                    && path != TerrainTuning.FilePath && path != CombatTuning.FilePath)
+                    && path != TerrainTuning.FilePath && path != CombatTuning.FilePath && path != EconomyTuning.FilePath)
                 {
                     throw new DataValidationException(path, string.Empty, "is not a known tuning file");
                 }
@@ -246,7 +246,8 @@ namespace Rts.Sim.Data
                 new OnlineTuning(RequireTuningRoot(roots, OnlineTuning.FilePath)),
                 new HarnessTuning(RequireTuningRoot(roots, HarnessTuning.FilePath)),
                 new TerrainTuning(RequireTuningRoot(roots, TerrainTuning.FilePath)),
-                new CombatTuning(RequireTuningRoot(roots, CombatTuning.FilePath)));
+                new CombatTuning(RequireTuningRoot(roots, CombatTuning.FilePath)),
+                new EconomyTuning(RequireTuningRoot(roots, EconomyTuning.FilePath)));
         }
 
         /// <summary>Looks up a tuning file's parsed root, failing with a file-level error when the file was not supplied.</summary>
@@ -266,7 +267,8 @@ namespace Rts.Sim.Data
         {
             CheckDepth(path, parts, 3, "units/<faction>/<name>.json");
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
-                "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "weapon");
+                "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "weapon",
+                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "is_static_defence", "footprint", "provides_supply");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
             // Display name text. Range: non-empty string.
@@ -311,7 +313,10 @@ namespace Rts.Sim.Data
             string armourType = UnitSchema.ReadArmourType(root, combat);
             Fix64 sightRange = UnitSchema.ReadSightRange(root);
             WeaponDefinition? weapon = UnitSchema.ReadWeapon(root, combat);
-            return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon);
+            // Optional HQ rules and the economy keys (build time, worker, drop-off, trains, defence, footprint, supply provided).
+            HqDefinition? hq = UnitSchema.ReadHq(root, combat);
+            UnitEconomyDefinition economy = UnitSchema.ReadEconomy(root);
+            return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon, hq, economy);
         }
 
         /// <summary>Adds a unit to the catalog, turning a duplicate ID into a file-named error.</summary>
@@ -330,7 +335,7 @@ namespace Rts.Sim.Data
         private static FactionDefinition ReadFaction(JsonValue root, string path, string[] parts)
         {
             CheckDepth(path, parts, 2, "factions/<id>.json");
-            root.RejectUnknownKeys("id", "display_name", "mechanic_id", "units");
+            root.RejectUnknownKeys("id", "display_name", "mechanic_id", "units", "hq_unit");
             // Faction ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
             // Faction display name. Range: non-empty string.
@@ -351,7 +356,17 @@ namespace Rts.Sim.Data
                 }
                 unitIds.Add(unitId);
             }
-            return new FactionDefinition(id, displayName, mechanicId, unitIds);
+            // HQ unit ID: required for a faction that lists units, absent for one that lists none (neutral). Existence and HQ rules are checked in CheckReferences.
+            string? hqUnit = null;
+            if (unitIds.Count > 0)
+            {
+                hqUnit = root.RequireNonEmptyString("hq_unit");
+            }
+            else if (root.TryGetMember("hq_unit", out JsonValue? hqNode))
+            {
+                throw hqNode.Fail("must be absent for a faction that lists no units");
+            }
+            return new FactionDefinition(id, displayName, mechanicId, unitIds, hqUnit);
         }
 
         /// <summary>Checks unit-to-faction and faction-to-unit references, naming the file and field of the dangling one.</summary>
@@ -365,8 +380,50 @@ namespace Rts.Sim.Data
                         "names the faction '" + pair.Value.FactionId + "', which has no file in factions/");
                 }
             }
+            foreach (KeyValuePair<string, UnitDefinition> pair in content.Units)
+            {
+                // Economy and HQ references of this unit: every trains entry and the HQ worker must be known units.
+                foreach (string trained in pair.Value.Economy.Trains)
+                {
+                    if (!content.Units.ContainsKey(trained))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], "trains", "names the unit '" + trained + "', which has no file in units/");
+                    }
+                }
+                if (pair.Value.Hq != null)
+                {
+                    // The worker this HQ trains; must exist, belong to the same faction and be able to gather.
+                    string workerId = pair.Value.Hq.WorkerUnitId;
+                    if (!content.Units.TryGetValue(workerId, out UnitDefinition? worker))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], "hq.worker_unit", "names the unit '" + workerId + "', which has no file in units/");
+                    }
+                    if (!string.Equals(worker.FactionId, pair.Value.FactionId, StringComparison.Ordinal) || !worker.Economy.CanGather)
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], "hq.worker_unit", "names the unit '" + workerId + "', which must be a worker (can_gather) of the same faction");
+                    }
+                }
+            }
             foreach (KeyValuePair<string, FactionDefinition> pair in content.Factions)
             {
+                if (pair.Value.HqUnitId != null)
+                {
+                    // The faction's HQ unit; must exist, belong to the faction and carry HQ rules.
+                    string hqId = pair.Value.HqUnitId;
+                    JsonValue hqNode = factionRoots[pair.Key].Require("hq_unit");
+                    if (!content.Units.TryGetValue(hqId, out UnitDefinition? hqUnit))
+                    {
+                        throw hqNode.Fail("names the unit '" + hqId + "', which has no file in units/");
+                    }
+                    if (!string.Equals(hqUnit.FactionId, pair.Key, StringComparison.Ordinal))
+                    {
+                        throw hqNode.Fail("names the unit '" + hqId + "', which belongs to faction '" + hqUnit.FactionId + "'");
+                    }
+                    if (hqUnit.Hq == null)
+                    {
+                        throw hqNode.Fail("names the unit '" + hqId + "', which is not an HQ (its file has no hq object with is_hq true)");
+                    }
+                }
                 // The faction file's items, to point the error at the exact array element.
                 IReadOnlyList<JsonValue> items = factionRoots[pair.Key].RequireArray("units");
                 // Index into the faction's unit list. Unit: list position. Range: 0 to Count - 1.

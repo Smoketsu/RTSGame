@@ -7,20 +7,28 @@
 // Step order (fixed, documented here and in rts/src/Sim/README.md):
 //   1. clear the event log
 //   2. apply this tick's commands in (issuer, sequence) order
-//   3. movement
-//   4. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
-//   5. faction mechanics in ascending mechanic ID order
-//   6. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-//   7. advance the clock
+//   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
+//   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
+//   5. movement
+//   6. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
+//   7. economy (EconomySystem: worker gather loops, production queues, construction, supply; units in ascending ID order)
+//   8. faction mechanics in ascending mechanic ID order
+//   9. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+//  10. advance the clock
+// (The vision recompute of the fog-of-war spec will slot in between the mechanics and the state hash.)
+// Spawn and removal hooks (SpawnUnit, RemoveUnit) also run the HQ and economy bookkeeping: a new HQ picks Rooted or Uprooted, a
+// structure's footprint blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Combat;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
+using Rts.Sim.Economy;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Pathing;
+using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
@@ -65,6 +73,9 @@ namespace Rts.Sim
 
         /// <summary>Live terrain: heights, water, surfaces, blockers (ADR-006). Hashed every tile.</summary>
         public TerrainGrid Terrain { get; }
+
+        /// <summary>Live resource fields: what each field of the map still holds. Hashed (remaining amounts, ascending field index).</summary>
+        public ResourceFields Resources { get; }
 
         /// <summary>Flow-field cache for ground and water movement (ADR-007). Not hashed: a pure function of terrain.</summary>
         public FlowFieldCache Pathing { get; }
@@ -152,6 +163,7 @@ namespace Rts.Sim
             Tuning = config.Tuning;
             Map = config.Map;
             Terrain = new TerrainGrid(Map, Tuning.Terrain, Tuning.Flood);
+            Resources = new ResourceFields(Map);
             Pathing = new FlowFieldCache(Terrain, Tuning.Terrain.MaxCachedFlowFields);
             _mechanicRegistry = config.Mechanics;
         }
@@ -200,6 +212,9 @@ namespace Rts.Sim
                 {
                     mechanic.OnMatchStart(this);
                 }
+                // Economy: starting stock, first supply figures and the carrying speed modifier.
+                EconomySystem.RegisterModifiers(this);
+                EconomySystem.OnMatchStart(this);
             }
             finally
             {
@@ -337,8 +352,11 @@ namespace Rts.Sim
                 int tick = Clock.Tick;
                 Events.Clear();
                 ApplyCommands(tick);
+                StatusSystem.BeginTick(this);
+                HqSystem.Step(this);
                 MovementSystem.Step(this);
                 CombatSystem.Step(this);
+                EconomySystem.Step(this);
                 foreach (IFactionMechanic mechanic in _mechanics.Values)
                 {
                     mechanic.OnTick(this);
@@ -417,7 +435,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
-        /// mechanics, damage modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
+        /// terrain, resource fields, mechanics, damage modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
@@ -429,6 +447,7 @@ namespace Rts.Sim
             Players.WriteHash(_hasher);
             Units.WriteHash(_hasher);
             Terrain.WriteHash(_hasher);
+            Resources.WriteHash(_hasher);
             _hasher.Write(_mechanics.Count);
             foreach (KeyValuePair<string, IFactionMechanic> pair in _mechanics)
             {
@@ -463,6 +482,8 @@ namespace Rts.Sim
             Unit unit = new Unit(EntityIds.Allocate(), owner, definition, position, Clock.Tick);
             Units.Add(unit);
             Events.Add(new UnitSpawnedEvent(Clock.Tick, unit.Id, owner, definition.Id, position));
+            HqSystem.OnUnitSpawned(this, unit);
+            EconomySystem.OnUnitSpawned(this, unit);
             return unit;
         }
 
@@ -472,11 +493,14 @@ namespace Rts.Sim
         public bool RemoveUnit(EntityId id, string reason)
         {
             RequireStepping();
-            if (!Units.Remove(id))
+            if (!Units.TryGet(id, out Unit? removed))
             {
                 return false;
             }
+            Units.Remove(id);
             Events.Add(new UnitRemovedEvent(Clock.Tick, id, reason));
+            EconomySystem.OnUnitRemoved(this, removed);
+            HqSystem.OnUnitRemoved(this, removed);
             return true;
         }
 

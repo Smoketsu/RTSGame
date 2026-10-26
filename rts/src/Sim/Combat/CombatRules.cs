@@ -162,6 +162,10 @@ namespace Rts.Sim.Combat
                 {
                     return "Unit '" + unit.Id + "' has a weapon with unknown damage type '" + unit.Weapon.DamageType + "'.";
                 }
+                if (unit.Hq != null && (!_armourTypes.Contains(unit.Hq.RootedArmourType) || !_armourTypes.Contains(unit.Hq.UprootedArmourType)))
+                {
+                    return "Unit '" + unit.Id + "' has an HQ armour type that is unknown to the damage table.";
+                }
             }
             return null;
         }

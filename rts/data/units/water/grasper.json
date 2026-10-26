@@ -22,6 +22,8 @@
   "cost_common": 100,
   // Cost in the rare resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 0 and 50). Source: placeholder for Phase 1 unit docs.
   "cost_rare": 0,
+  // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent; placeholders sit between 10 and 30). Source: Economy; placeholder for Phase 1 unit docs.
+  "build_seconds": 18,
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "armour_type": "armoured",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.

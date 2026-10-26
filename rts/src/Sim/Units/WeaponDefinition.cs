@@ -36,6 +36,9 @@ namespace Rts.Sim.Units
         /// <summary>True when the weapon may hit units on the air layer.</summary>
         public bool CanTargetAir { get; }
 
+        /// <summary>True when every landed hit counts as a drench hit on an air target (Spoutling): three hits ground it, each slows it. Range: true or false; false for every other weapon. Set by the optional applies_drench key of the weapon object.</summary>
+        public bool AppliesDrench { get; }
+
         /// <summary>True when <see cref="RangeTiles"/> is at most <see cref="MeleeMaxRangeTiles"/>.</summary>
         public bool IsMelee => RangeTiles <= MeleeMaxRangeTiles;
 
@@ -47,8 +50,9 @@ namespace Rts.Sim.Units
         /// <param name="canTargetGround">May hit the ground layer.</param>
         /// <param name="canTargetWater">May hit the water layer.</param>
         /// <param name="canTargetAir">May hit the air layer.</param>
+        /// <param name="appliesDrench">True when each landed hit calls the status system's drench rule. Default false.</param>
         public WeaponDefinition(Fix64 damage, string damageType, Fix64 rangeTiles, Fix64 cooldownSeconds,
-            bool canTargetGround, bool canTargetWater, bool canTargetAir)
+            bool canTargetGround, bool canTargetWater, bool canTargetAir, bool appliesDrench = false)
         {
             if (damage <= Fix64.Zero)
             {
@@ -77,6 +81,7 @@ namespace Rts.Sim.Units
             CanTargetGround = canTargetGround;
             CanTargetWater = canTargetWater;
             CanTargetAir = canTargetAir;
+            AppliesDrench = appliesDrench;
         }
 
         /// <summary>True when the weapon may hit a unit on <paramref name="layer"/>.</summary>
@@ -102,6 +107,7 @@ namespace Rts.Sim.Units
             hasher.Write(CanTargetGround);
             hasher.Write(CanTargetWater);
             hasher.Write(CanTargetAir);
+            hasher.Write(AppliesDrench);
         }
     }
 }

@@ -122,15 +122,15 @@ namespace Rts.Sim.Tests.Data
                     pair.Key + " names unregistered mechanic " + pair.Value.MechanicId);
             }
             Assert.That(_data.Content.Validate(), Is.Null);
-            Assert.That(_data.Content.Factions["skai"].UnitIds, Is.EqualTo(new[] { "skai.fledgling", "skai.windrunner", "skai.roc_rider" }));
-            Assert.That(_data.Content.Factions["water"].UnitIds, Is.EqualTo(new[] { "water.tender", "water.spoutling", "water.grasper" }));
+            Assert.That(_data.Content.Factions["skai"].UnitIds, Is.EqualTo(new[] { "skai.fledgling", "skai.windrunner", "skai.roc_rider", "skai.great_aerie", "skai.roost", "skai.perch_tower" }));
+            Assert.That(_data.Content.Factions["water"].UnitIds, Is.EqualTo(new[] { "water.tender", "water.spoutling", "water.grasper", "water.grand_shell", "water.tidepool", "water.coral_turret" }));
         }
 
         /// <summary>Example unit values and layers.</summary>
         [Test]
         public void Units_Load_WithLayersAndValues()
         {
-            Assert.That(_data.Content.Units.Count, Is.EqualTo(6));
+            Assert.That(_data.Content.Units.Count, Is.EqualTo(12));
             UnitDefinition windrunner = _data.Content.Units["skai.windrunner"];
             Assert.That(windrunner.Layer, Is.EqualTo(MovementLayer.Ground));
             Assert.That(windrunner.SpeedTilesPerSecond, Is.EqualTo(Fix64.Parse("3.5")));
@@ -140,6 +140,11 @@ namespace Rts.Sim.Tests.Data
             Assert.That(_data.Content.Units["water.spoutling"].Layer, Is.EqualTo(MovementLayer.Water));
             foreach (UnitDefinition unit in _data.Content.Units.Values)
             {
+                if (unit.Hq != null || unit.Economy.FootprintTiles > 0)
+                {
+                    // HQs and buildings have their own placeholder ranges (large health, slow or no movement).
+                    continue;
+                }
                 Assert.That(unit.MaxHealth, Is.GreaterThanOrEqualTo(Fix64.FromInt(40)).And.LessThanOrEqualTo(Fix64.FromInt(160)), unit.Id);
                 Assert.That(unit.SpeedTilesPerSecond, Is.GreaterThanOrEqualTo(Fix64.FromInt(2)).And.LessThanOrEqualTo(Fix64.FromInt(5)), unit.Id);
             }

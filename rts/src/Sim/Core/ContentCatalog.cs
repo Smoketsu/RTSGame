@@ -85,7 +85,7 @@ namespace Rts.Sim.Core
         }
 
         /// <summary>
-        /// FNV-1a digest of every definition that affects simulation (IDs, layers, stats, costs, armour, sight, weapons, the combat rules, mechanic IDs and unit
+        /// FNV-1a digest of every definition that affects simulation (IDs, layers, stats, costs, armour, sight, weapons, HQ and economy rules, the combat rules, mechanic IDs, HQ unit IDs and unit
         /// lists), in ordinal ID order. Display names are left out. Two catalogs with the same digest simulate the same.
         /// </summary>
         public ulong ComputeDigest()
@@ -111,12 +111,19 @@ namespace Rts.Sim.Core
                 {
                     unit.Weapon.WriteHash(hasher);
                 }
+                hasher.Write(unit.Hq != null);
+                if (unit.Hq != null)
+                {
+                    unit.Hq.WriteHash(hasher);
+                }
+                unit.Economy.WriteHash(hasher);
             }
             hasher.Write(_factions.Count);
             foreach (FactionDefinition faction in _factions.Values)
             {
                 hasher.Write(faction.Id);
                 hasher.Write(faction.MechanicId);
+                hasher.Write(faction.HqUnitId);
                 hasher.Write(faction.UnitIds.Count);
                 foreach (string unitId in faction.UnitIds)
                 {
@@ -144,6 +151,24 @@ namespace Rts.Sim.Core
                     {
                         return "Faction '" + faction.Id + "' lists unknown unit '" + unitId + "'.";
                     }
+                }
+                if (faction.HqUnitId != null && (!_units.TryGetValue(faction.HqUnitId, out UnitDefinition? hq) || hq.Hq == null))
+                {
+                    return "Faction '" + faction.Id + "' names '" + faction.HqUnitId + "' as its HQ unit, which is unknown or has no HQ rules.";
+                }
+            }
+            foreach (UnitDefinition unit in _units.Values)
+            {
+                foreach (string trained in unit.Economy.Trains)
+                {
+                    if (!_units.ContainsKey(trained))
+                    {
+                        return "Unit '" + unit.Id + "' trains unknown unit '" + trained + "'.";
+                    }
+                }
+                if (unit.Hq != null && !_units.ContainsKey(unit.Hq.WorkerUnitId))
+                {
+                    return "Unit '" + unit.Id + "' has HQ worker '" + unit.Hq.WorkerUnitId + "', which is unknown.";
                 }
             }
             return null;

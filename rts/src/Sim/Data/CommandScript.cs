@@ -109,7 +109,7 @@ namespace Rts.Sim.Data
         /// <summary>Reads one command object.</summary>
         private static Command ReadCommand(JsonValue node)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop).
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -142,9 +142,57 @@ namespace Rts.Sim.Data
                 case "stop":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit");
                     return new StopCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)));
+                case "root_hq":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit");
+                    return new RootHqCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)));
+                case "uproot_hq":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit");
+                    return new UprootHqCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)));
+                case "gather":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "field");
+                    return new GatherCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
+                        node.RequireInt("field", 0, 1023));
+                case "train_unit":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "producer", "definition");
+                    return new TrainUnitCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue)),
+                        node.RequireNonEmptyString("definition"));
+                case "build_structure":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "definition", "x", "y");
+                    return new BuildStructureCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
+                        node.RequireNonEmptyString("definition"), node.RequireInt("x", 0, 1023), node.RequireInt("y", 0, 1023));
+                case "apply_status":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "status", "multiplier", "seconds", "source");
+                    return ReadApplyStatus(node, tick, issuer, sequence);
                 default:
-                    throw node.Require("type").Fail("must be \"noop\", \"spawn_unit\", \"move_unit\", \"remove_unit\", \"attack_move\", \"attack_unit\" or \"stop\" (found \"" + type + "\")");
+                    throw node.Require("type").Fail("must be \"noop\", \"spawn_unit\", \"move_unit\", \"remove_unit\", \"attack_move\", \"attack_unit\", \"stop\", \"root_hq\", \"uproot_hq\", \"gather\", \"train_unit\", \"build_structure\" or \"apply_status\" (found \"" + type + "\")");
             }
+        }
+
+        /// <summary>
+        /// Reads the apply_status command: unit, status ("grounded" or "slowed"), optional multiplier (default 1; Slowed needs
+        /// a value above 0 and at most 1, checked when applied), optional seconds (default 0 = the tuning default for Grounded,
+        /// invalid for Slowed) and optional source (default "script").
+        /// </summary>
+        private static Command ReadApplyStatus(JsonValue node, int tick, PlayerId issuer, uint sequence)
+        {
+            // Status name as written. Range: "grounded" or "slowed".
+            string status = node.RequireString("status");
+            if (status != "grounded" && status != "slowed")
+            {
+                throw node.Require("status").Fail("must be \"grounded\" or \"slowed\" (found \"" + status + "\")");
+            }
+            // Speed multiplier of a slow. Unit: multiplier of speed. Range: above 0 and at most 1 for Slowed; default 1.
+            Fix64 multiplier = node.TryGetMember("multiplier", out JsonValue? multiplierNode) ? ReadCoordinate(multiplierNode) : Fix64.One;
+            // Length in seconds. Unit: seconds. Range: above 0; default 0 (Grounded: use grounded_duration_seconds).
+            Fix64 seconds = node.TryGetMember("seconds", out JsonValue? secondsNode) ? ReadCoordinate(secondsNode) : Fix64.Zero;
+            // Source label. Range: 1 to 64 characters of a-z, 0-9, underscore and dot; default "script".
+            string source = node.OptionalString("source", ApplyStatusCommand.DefaultSourceKey);
+            if (!Statuses.SlowEntry.IsValidKey(source))
+            {
+                throw node.Require("source").Fail("must be 1 to 64 characters of a-z, 0-9, '_' and '.' (found \"" + source + "\")");
+            }
+            return new ApplyStatusCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
+                status == "grounded" ? Statuses.StatusKind.Grounded : Statuses.StatusKind.Slowed, multiplier, seconds, source);
         }
 
         /// <summary>Reads the x and y members, each either decimal text ("20.5") or a JSON number, as a fixed-point point in tiles.</summary>

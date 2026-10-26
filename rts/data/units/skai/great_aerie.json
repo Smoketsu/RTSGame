@@ -1,0 +1,57 @@
+// rts/data/units/skai/great_aerie.json: Great Aerie, the Skai Riders mobile HQ carried by giant birds. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Great Aerie unit definition for the skai faction (mobile HQ carried by giant birds, flies while Uprooted); placeholder numbers until the Phase 1 unit docs are written.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "skai.great_aerie",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (HQ carried by giant birds).
+  "display_name": "Great Aerie",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "skai",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
+  "kind": "unit",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders / Unit concepts (HQ carried by giant birds).
+  "layer": "air",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder for Phase 1 unit docs.
+  "max_health": 1500,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder for Phase 1 unit docs.
+  "speed_tiles_per_second": 1.5,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. The HQ uses no supply. Source: placeholder for Phase 1 unit docs.
+  "supply": 0,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder for Phase 1 unit docs.
+  "radius_tiles": 1.2,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder for Phase 1 unit docs.
+  "cost_common": 0,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder for Phase 1 unit docs.
+  "cost_rare": 0,
+  // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent). Source: Economy; placeholder for Phase 1 unit docs.
+  "build_seconds": 60,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "armour_type": "armoured",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder for Phase 1 unit docs.
+  "sight_range_tiles": 12,
+  // HQ rules. A unit with this object is a mobile HQ: it roots and uproots (times in tuning/hq.json), its weapon works only while Rooted, and its death defeats its owner. Source: The mobile HQ unit.
+  "hq": {
+    // Marks the unit as an HQ. Unit: boolean. Range: true (false means the object is ignored). Source: The mobile HQ unit.
+    "is_hq": true,
+    // Armour type while Rooted ("Bonus" armour). Unit: armour type name. Range: one of the armour_types in tuning/combat.json. Source: The mobile HQ unit (Rooted: armour bonus); placeholder.
+    "rooted_armour_type": "structure",
+    // Armour type while Uprooted, Rooting or Uprooting ("Reduced" armour). Unit: armour type name. Range: one of the armour_types in tuning/combat.json. Source: The mobile HQ unit (Uprooted: armour reduced); placeholder.
+    "uprooted_armour_type": "armoured",
+    // Worker the Rooted HQ trains. Unit: unit ID. Range: a worker (can_gather) unit of the same faction. Source: The mobile HQ unit (Rooted: worker production); placeholder.
+    "worker_unit": "skai.fledgling"
+  },
+  // Weapon: short-range defensive weapon that fires only while Rooted, enough to stop early raids but not armies. Every number is a placeholder for playtesting. Source: The mobile HQ unit / placeholder for Phase 1 unit docs.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.
+    "damage": 8,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: one of the damage_types in tuning/combat.json ("kinetic", "blast", "drench"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: placeholder for Phase 1 unit docs.
+    "range_tiles": 6,
+    // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: placeholder for Phase 1 unit docs.
+    "cooldown_seconds": 1.0,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
+    "can_target": ["ground", "water", "air"]
+  }
+}

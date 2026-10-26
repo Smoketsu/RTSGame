@@ -25,12 +25,20 @@
 //     modifier ID). A hit that takes health to 0 does not remove the target at once: all units act within the same
 //     tick (so two units that would kill each other both fire), then the dead are removed in ascending ID order,
 //     each as UnitKilledEvent followed by UnitRemovedEvent("killed"). A unit at 0 health can no longer be targeted.
+//   * Drench: after a hit lands (UnitDamagedEvent), a weapon with applies_drench calls StatusSystem.ApplyDrenchHit, which
+//     slows and eventually grounds air targets (rts/docs/specs/statuses.md); the hook adds no state to this class.
+//   * HQs and structures: an HQ unit has no weapon while it is not Rooted, and a structure under construction has none
+//     either (the weapon is read as null for the tick). Damage uses Unit.ArmourType (an HQ's armour follows its state).
+//     A target with Unit.IsInvulnerable (HQ Last Stand) takes no damage: the hit is still reported, with damage 0. After a
+//     landed hit HqSystem.AfterDamage may start Last Stand. Deaths go through Simulation.RemoveUnit, which defeats the owner
+//     of a removed HQ and clears a structure's footprint.
 //   * Cost: acquisition scans all units per armed unit, O(n^2) per tick; fine for Phase 1 sizes, a spatial grid is
 //     the planned replacement once unit counts require it.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
 using Rts.Sim.Events;
+using Rts.Sim.Statuses;
 using Rts.Sim.Units;
 
 namespace Rts.Sim.Combat
@@ -95,6 +103,11 @@ namespace Rts.Sim.Combat
             }
             // The unit's weapon; null for workers and other unarmed units.
             WeaponDefinition? weapon = unit.Definition.Weapon;
+            if (weapon != null && (unit.IsUnderConstruction || (unit.Definition.Hq != null && unit.HqState != HqState.Rooted)))
+            {
+                // An HQ fires only while Rooted, and a structure only once it is built.
+                weapon = null;
+            }
             // True when the unit already had a target at the start of this tick (it may have just died or gone out of reach).
             bool hadTarget = unit.AttackTarget.IsValid;
             // The unit being fought this tick, or null.
@@ -260,15 +273,29 @@ namespace Rts.Sim.Combat
         private static void Fire(Simulation sim, CombatRules rules, Unit attacker, WeaponDefinition weapon, Unit target, List<PendingKill> kills)
         {
             // Damage after the table multiplier. Unit: health points. Range: 0 or more.
-            Fix64 damage = weapon.Damage * rules.GetMultiplier(weapon.DamageType, target.Definition.ArmourType);
+            Fix64 damage = weapon.Damage * rules.GetMultiplier(weapon.DamageType, target.ArmourType);
             foreach (IDamageModifier modifier in sim.DamageModifiers)
             {
                 // Mechanic multiplier for this hit; a negative answer counts as 0 so damage never heals.
                 Fix64 factor = Fix64.Max(Fix64.Zero, modifier.OutgoingDamageMultiplier(sim, attacker));
                 damage = damage * factor;
             }
-            target.SetHealth(target.Health - damage);
+            if (target.IsInvulnerable)
+            {
+                // Last Stand: the hit lands but does nothing (reported with damage 0).
+                damage = Fix64.Zero;
+            }
+            else
+            {
+                target.SetHealth(target.Health - damage);
+                HqSystem.AfterDamage(sim, target);
+            }
             sim.Events.Add(new UnitDamagedEvent(sim.Clock.Tick, attacker.Id, target.Id, damage, target.Health));
+            if (weapon.AppliesDrench)
+            {
+                // Spoutling drench: the status system counts the hit, slows the flyer and grounds it at the threshold (statuses.md 4). It ignores targets that are not in the air.
+                StatusSystem.ApplyDrenchHit(sim, attacker, target);
+            }
             // Ticks until the next shot, at least 1 so a very short cooldown still spaces the hits. Unit: ticks. Range: 1 or more.
             attacker.SetCooldownTicks(Math.Max(1, sim.Clock.SecondsToTicks(weapon.CooldownSeconds)));
             if (target.Health <= Fix64.Zero)

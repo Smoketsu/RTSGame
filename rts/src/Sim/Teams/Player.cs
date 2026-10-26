@@ -57,6 +57,25 @@ namespace Rts.Sim.Teams
         /// </summary>
         public int PauseTicksUsed { get; private set; }
 
+        /// <summary>Stock of the common resource. Unit: resource units. Range: 0 upward. Starts at starting_common (tuning/economy.json). Hashed.</summary>
+        public int Common { get; private set; }
+
+        /// <summary>Stock of the rare resource. Unit: resource units. Range: 0 upward. Starts at starting_rare (tuning/economy.json). Hashed.</summary>
+        public int Rare { get; private set; }
+
+        /// <summary>
+        /// Supply in use: the supply of every living unit the player owns plus the units waiting in its production queues
+        /// (reserved when queued). Unit: supply. Range: 0 upward (script spawns may exceed the cap). Recomputed by the economy
+        /// system every tick and before each train or build command. Hashed.
+        /// </summary>
+        public int SupplyUsed { get; private set; }
+
+        /// <summary>
+        /// Supply the player may use: min(supply_cap in supply.json, base_supply in economy.json plus provides_supply of every
+        /// completed structure the player owns). Unit: supply. Range: 0 to supply_cap. Recomputed with <see cref="SupplyUsed"/>. Hashed.
+        /// </summary>
+        public int SupplyCap { get; private set; }
+
         /// <summary>True while <see cref="State"/> is <see cref="PlayerState.Active"/>.</summary>
         public bool IsActive => State == PlayerState.Active;
 
@@ -88,6 +107,56 @@ namespace Rts.Sim.Teams
             StateSinceTick = tick;
         }
 
+        /// <summary>Sets the starting stock. Internal: <see cref="Rts.Sim.Economy.EconomySystem"/> at match start only.</summary>
+        /// <param name="common">Common resource. Unit: resource units. Range: 0 upward.</param>
+        /// <param name="rare">Rare resource. Unit: resource units. Range: 0 upward.</param>
+        internal void SetStock(int common, int rare)
+        {
+            Common = common;
+            Rare = rare;
+        }
+
+        /// <summary>Adds gathered resources of one kind to the stock. Internal: economy system only.</summary>
+        /// <param name="kind">Which stock grows.</param>
+        /// <param name="amount">Resource units added. Unit: resource units. Range: 0 upward.</param>
+        internal void AddResource(Rts.Sim.Data.ResourceKind kind, int amount)
+        {
+            if (kind == Rts.Sim.Data.ResourceKind.Common)
+            {
+                Common += amount;
+            }
+            else
+            {
+                Rare += amount;
+            }
+        }
+
+        /// <summary>True when the stock covers both costs.</summary>
+        /// <param name="common">Common cost. Unit: resource units. Range: 0 upward.</param>
+        /// <param name="rare">Rare cost. Unit: resource units. Range: 0 upward.</param>
+        public bool CanAfford(int common, int rare)
+        {
+            return Common >= common && Rare >= rare;
+        }
+
+        /// <summary>Deducts a cost the caller has already checked with <see cref="CanAfford"/>. Internal: train and build commands only.</summary>
+        /// <param name="common">Common cost. Unit: resource units. Range: 0 to <see cref="Common"/>.</param>
+        /// <param name="rare">Rare cost. Unit: resource units. Range: 0 to <see cref="Rare"/>.</param>
+        internal void Spend(int common, int rare)
+        {
+            Common -= common;
+            Rare -= rare;
+        }
+
+        /// <summary>Stores the recomputed supply figures. Internal: economy system only.</summary>
+        /// <param name="used">Supply in use. Unit: supply. Range: 0 upward.</param>
+        /// <param name="cap">Supply cap. Unit: supply. Range: 0 upward.</param>
+        internal void SetSupply(int used, int cap)
+        {
+            SupplyUsed = used;
+            SupplyCap = cap;
+        }
+
         /// <summary>
         /// Phase 2 hook: records that a disconnect of this player paused the game. Not called in Phase 0.
         /// TODO(Phase 2): call from the lockstep pause logic when a disconnect pause starts, after checking
@@ -115,7 +184,8 @@ namespace Rts.Sim.Teams
 
         /// <summary>
         /// Feeds everything about this player that affects future ticks into the state hash, in a fixed order:
-        /// ID, team, faction ID, state, state-since tick, disconnect count, disconnect pauses used, pause ticks used.
+        /// ID, team, faction ID, state, state-since tick, disconnect count, disconnect pauses used, pause ticks used, common, rare,
+        /// supply used, supply cap.
         /// The display name is deliberately left out.
         /// </summary>
         /// <param name="hasher">Hasher being filled by <see cref="PlayerRegistry.WriteHash"/>.</param>
@@ -129,6 +199,10 @@ namespace Rts.Sim.Teams
             hasher.Write(DisconnectCount);
             hasher.Write(DisconnectPausesUsed);
             hasher.Write(PauseTicksUsed);
+            hasher.Write(Common);
+            hasher.Write(Rare);
+            hasher.Write(SupplyUsed);
+            hasher.Write(SupplyCap);
         }
 
         /// <summary>Text such as "P2 (T1, skai, active)" for logs.</summary>

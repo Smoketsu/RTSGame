@@ -1,0 +1,50 @@
+// rts/data/units/skai/perch_tower.json: Perch Tower, Skai static defence. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Perch Tower building definition for the skai faction (static defence that shoots ground, water and air targets); placeholder numbers until the Phase 1 unit docs are written.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "skai.perch_tower",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Economy / Supply cap (static defences); Factions / Skai Riders (placeholder).
+  "display_name": "Perch Tower",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "skai",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
+  "kind": "building",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Economy / Supply cap (static defences); Factions / Skai Riders (placeholder).
+  "layer": "ground",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder for Phase 1 unit docs.
+  "max_health": 300,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder for Phase 1 unit docs.
+  "speed_tiles_per_second": 0,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Ignored for a static defence: static_defence_supply_cost in tuning/supply.json applies instead. Source: placeholder for Phase 1 unit docs.
+  "supply": 1,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder for Phase 1 unit docs.
+  "radius_tiles": 0.5,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder for Phase 1 unit docs.
+  "cost_common": 100,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder for Phase 1 unit docs.
+  "cost_rare": 0,
+  // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent). Source: Economy; placeholder for Phase 1 unit docs.
+  "build_seconds": 20,
+  // Marks a static defence: it costs static_defence_supply_cost (tuning/supply.json) instead of its own supply, and a base holds at most static_defences_per_base_max of them. Unit: boolean. Range: true or false (default false when absent). Source: Economy / Supply cap (static defences cost 1 supply each, at most 6 per base); placeholder.
+  "is_static_defence": true,
+  // Tiles the unit blocks to ground and water movement while it stands. Unit: tiles. Range: 0 or 1 (default 0 when absent; 1 is the only structure size in Phase 1). Source: Economy (building footprints); placeholder.
+  "footprint": 1,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "armour_type": "structure",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder for Phase 1 unit docs.
+  "sight_range_tiles": 9,
+  // Weapon: Perch Tower: steady kinetic fire at all layers from a fixed post. Every number is a placeholder for playtesting. Source: The mobile HQ unit / placeholder for Phase 1 unit docs.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.
+    "damage": 7,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: one of the damage_types in tuning/combat.json ("kinetic", "blast", "drench"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: placeholder for Phase 1 unit docs.
+    "range_tiles": 7,
+    // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: placeholder for Phase 1 unit docs.
+    "cooldown_seconds": 1.0,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
+    "can_target": ["ground", "water", "air"]
+  }
+}

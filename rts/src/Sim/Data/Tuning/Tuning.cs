@@ -41,10 +41,15 @@ namespace Rts.Sim.Data
         /// <summary>tuning/combat.json: damage types, armour types, the damage multiplier table and the attack-move acquire bonus.</summary>
         public CombatTuning Combat { get; }
 
+        /// <summary>tuning/economy.json: starting resources, base supply, gathering trips, queue length, base radius and construction.</summary>
+        public EconomyTuning Economy { get; }
+
         /// <summary>Bundles the parsed files; none may be null.</summary>
         public Tuning(MatchTuning match, HqTuning hq, MomentumTuning momentum, StatusTuning status, FloodTuning flood,
-            SupplyTuning supply, EarthTuning earth, OnlineTuning online, HarnessTuning harness, TerrainTuning terrain, CombatTuning combat)
+            SupplyTuning supply, EarthTuning earth, OnlineTuning online, HarnessTuning harness, TerrainTuning terrain, CombatTuning combat,
+            EconomyTuning economy)
         {
+            Economy = economy ?? throw new ArgumentNullException(nameof(economy));
             Terrain = terrain ?? throw new ArgumentNullException(nameof(terrain));
             Combat = combat ?? throw new ArgumentNullException(nameof(combat));
             Match = match ?? throw new ArgumentNullException(nameof(match));

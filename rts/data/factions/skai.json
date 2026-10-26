@@ -1,17 +1,22 @@
 // rts/data/factions/skai.json: Skai Riders faction definition. Part of rts/data/factions; read by the data loader (rts/src/Sim/Data) into a FactionDefinition at match start.
 {
   "$schema_version": 1,
-  "$doc": "Skai Riders: fast bird people whose signature mechanic is Momentum; lists the units available in the Phase 0 content set.",
+  "$doc": "Skai Riders: fast bird people whose signature mechanic is Momentum; lists the units, HQ and buildings available in the Phase 1 content set.",
   // Stable faction ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders.
   "display_name": "Skai Riders",
   // Signature mechanic plug-in the simulation instantiates for this faction. Unit: mechanic ID. Range: an ID registered in BuiltInMechanics ("momentum", "flooding") or "none". Source: Factions / Skai Riders / Signature mechanic: Momentum.
   "mechanic_id": "momentum",
-  // Units the faction can field, in menu order. Unit: list of unit IDs. Range: IDs of files under rts/data/units/skai, no duplicates. Source: Factions / Skai Riders / Unit concepts (Phase 0 subset: worker, scout and one flyer).
+  // The faction's mobile HQ unit: the unit a host or script spawns for each player at match start. Unit: unit ID. Range: a unit of this faction whose file has an hq object. Required for a faction that lists units. Source: The mobile HQ unit (one per player).
+  "hq_unit": "skai.great_aerie",
+  // Units the faction can field, in menu order. Unit: list of unit IDs. Range: IDs of files under rts/data/units/skai, no duplicates. Source: Factions / Skai Riders / Unit concepts (Phase 1: worker, units, HQ, production building and static defence).
   "units": [
     "skai.fledgling",
     "skai.windrunner",
-    "skai.roc_rider"
+    "skai.roc_rider",
+    "skai.great_aerie",
+    "skai.roost",
+    "skai.perch_tower"
   ]
 }

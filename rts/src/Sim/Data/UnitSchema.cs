@@ -1,6 +1,7 @@
 // rts/src/Sim/Data/UnitSchema.cs
-// Parsing helpers for the combat-related keys of a unit file (units/<faction>/<name>.json): armour_type,
-// sight_range_tiles and the weapon object. Part of Rts.Sim.Data. Called from the unit section of DataLoader so that
+// Parsing helpers for the combat-related and economy keys of a unit file (units/<faction>/<name>.json): armour_type,
+// sight_range_tiles, the weapon object, the hq object and the economy keys (build_seconds, can_gather, is_drop_off, trains,
+// is_static_defence, footprint, provides_supply). Part of Rts.Sim.Data. Called from the unit section of DataLoader so that
 // file stays short. All three keys are optional, so unit files written before Phase 1 still load; damage_type and
 // armour_type are validated against tuning/combat.json and every error names the unit file and the field
 // (for example "units/skai/windrunner.json: field 'weapon.damage_type' must be one of ...").
@@ -51,7 +52,7 @@ namespace Rts.Sim.Data
             {
                 return null;
             }
-            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target");
+            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench");
             // Damage per hit. Unit: health points (fixed-point). Range: 0.01 to 100000.
             Fix64 damage = weapon.RequireFix64("damage", "0.01", "100000");
             // Damage type name; must be one of the damage types in tuning/combat.json.
@@ -93,7 +94,79 @@ namespace Rts.Sim.Data
                     throw item.Fail("lists \"" + layer + "\" twice");
                 }
             }
-            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air);
+            // Optional switch: every landed hit counts as a drench hit on air targets (Spoutling). Range: true or false; false when absent.
+            bool appliesDrench = weapon.TryGetMember("applies_drench", out JsonValue? drenchNode) && drenchNode.AsBool();
+            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench);
+        }
+
+        /// <summary>
+        /// Reads the optional hq object: { "is_hq": true, "rooted_armour_type", "uprooted_armour_type", "worker_unit" }. Returns null
+        /// when the key is absent or is_hq is false. Both armour types are checked against tuning/combat.json; the worker unit's
+        /// existence is checked later, once every unit is loaded.
+        /// </summary>
+        /// <param name="root">The unit file's root object.</param>
+        /// <param name="combat">The parsed tuning/combat.json, for the armour type names.</param>
+        public static HqDefinition? ReadHq(JsonValue root, CombatTuning combat)
+        {
+            if (!root.TryGetMember("hq", out JsonValue? hq))
+            {
+                return null;
+            }
+            hq.RejectUnknownKeys("is_hq", "rooted_armour_type", "uprooted_armour_type", "worker_unit");
+            if (!hq.RequireBool("is_hq"))
+            {
+                return null;
+            }
+            // Armour type while Rooted, and while Uprooted or switching; both must be armour types of the damage table.
+            string rooted = hq.RequireNonEmptyString("rooted_armour_type");
+            string uprooted = hq.RequireNonEmptyString("uprooted_armour_type");
+            if (!Contains(combat.ArmourTypes, rooted))
+            {
+                throw hq.Require("rooted_armour_type").Fail("must be one of " + Join(combat.ArmourTypes) + " from " + CombatTuning.FilePath + " (found \"" + rooted + "\")");
+            }
+            if (!Contains(combat.ArmourTypes, uprooted))
+            {
+                throw hq.Require("uprooted_armour_type").Fail("must be one of " + Join(combat.ArmourTypes) + " from " + CombatTuning.FilePath + " (found \"" + uprooted + "\")");
+            }
+            return new HqDefinition(rooted, uprooted, hq.RequireNonEmptyString("worker_unit"));
+        }
+
+        /// <summary>
+        /// Reads the optional economy keys of a unit file: build_seconds (0.05 to 3600, default <see cref="UnitEconomyDefinition.DefaultBuildSeconds"/>),
+        /// can_gather, is_drop_off, is_static_defence (booleans, default false), trains (array of unit IDs, default empty),
+        /// footprint (0 or 1, default 0) and provides_supply (0 to 100, default 0). References in trains are checked once every unit is loaded.
+        /// </summary>
+        /// <param name="root">The unit file's root object.</param>
+        public static UnitEconomyDefinition ReadEconomy(JsonValue root)
+        {
+            // Train or construction time. Unit: seconds (fixed-point). Range: 0.05 to 3600.
+            Fix64 buildSeconds = root.TryGetMember("build_seconds", out JsonValue? buildNode)
+                ? buildNode.AsFix64(Fix64.Parse("0.05"), Fix64.FromInt(3600))
+                : UnitEconomyDefinition.DefaultBuildSeconds;
+            // Worker flag, drop-off flag and static-defence flag. Range: true or false; false when absent.
+            bool canGather = root.TryGetMember("can_gather", out JsonValue? gatherNode) && gatherNode.AsBool();
+            bool isDropOff = root.TryGetMember("is_drop_off", out JsonValue? dropNode) && dropNode.AsBool();
+            bool isStaticDefence = root.TryGetMember("is_static_defence", out JsonValue? defenceNode) && defenceNode.AsBool();
+            // Units this unit can train, in file order; duplicates are an error.
+            List<string> trains = new List<string>();
+            if (root.TryGetMember("trains", out JsonValue? trainsNode))
+            {
+                foreach (JsonValue item in trainsNode.Items)
+                {
+                    // One listed unit ID.
+                    string id = item.AsString();
+                    if (trains.Contains(id))
+                    {
+                        throw item.Fail("lists the unit '" + id + "' twice");
+                    }
+                    trains.Add(id);
+                }
+            }
+            // Tiles blocked while the unit lives. Unit: tiles. Range: 0 or 1.
+            int footprint = root.TryGetMember("footprint", out JsonValue? footprintNode) ? footprintNode.AsInt(0, 1) : 0;
+            // Supply added to the owner's cap. Unit: supply. Range: 0 to 100.
+            int providesSupply = root.TryGetMember("provides_supply", out JsonValue? supplyNode) ? supplyNode.AsInt(0, 100) : 0;
+            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply);
         }
 
         /// <summary>True when <paramref name="name"/> is in <paramref name="names"/> (ordinal comparison).</summary>

@@ -5,5 +5,15 @@
   // How long the Grounded status lasts on a unit. Unit: seconds. Range: 0.5 to 15. Source: Factions / Grounded, a shared status.
   "grounded_duration_seconds": 4,
   // Number of Spoutling drench hits that apply Grounded to the target. Unit: hits. Range: 1 to 10. Source: Factions / Water faction / Unit concepts (Spoutling).
-  "spoutling_drench_hits_to_ground": 3
+  "spoutling_drench_hits_to_ground": 3,
+  // How long a drench hit is remembered after the latest hit before the hit counter resets. Unit: seconds. Range: 0.5 to 30. Source: placeholder, not in the design doc (statuses spec).
+  "spoutling_drench_reset_seconds": 5,
+  // Speed multiplier each drench hit applies to a flyer for a while. Unit: multiplier of speed (0.75 = 25% slower). Range: 0.1 to 1. Source: placeholder, not in the design doc (statuses spec).
+  "drench_slow_multiplier": 0.75,
+  // How long the slow of one drench hit lasts. Unit: seconds. Range: 0.1 to 10. Source: placeholder, not in the design doc (statuses spec).
+  "drench_slow_duration_seconds": 2,
+  // How far a flyer grounded over a blocked tile searches for a free landing tile. Unit: tiles (Chebyshev rings around the flyer's tile). Range: 0 to 8; 0 means it never relocates. Source: placeholder, not in the design doc (statuses spec).
+  "grounded_landing_search_radius_tiles": 3,
+  // Most distinct slow sources one unit tracks at once; a new source beyond this replaces the entry that ends soonest. Unit: entries. Range: 1 to 8. Source: placeholder, not in the design doc (statuses spec).
+  "max_slow_sources_per_unit": 4
 }

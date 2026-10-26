@@ -34,6 +34,18 @@ namespace Rts.Sim.Tests
         /// <summary>ID of the armed test mortar: ground, 100 health, radius 0.5; blast 20 damage, range 6, cooldown 1.0 s, hits all layers.</summary>
         public const string MortarId = "test.mortar";
 
+        /// <summary>ID of the test mobile HQ: ground, 200 health, speed 2, radius 0.5; Rooted armour "armoured", Uprooted armour "light"; weapon kinetic 10 damage, range 5, cooldown 0.8 s, hits ground and water (fires only while Rooted); trains <see cref="WorkerId"/>.</summary>
+        public const string HqId = "test.hq";
+
+        /// <summary>ID of the test worker: ground, 40 health, speed 4, radius 0.3, light armour, supply 1, cost 50 common, build time 5 s (100 ticks), can gather.</summary>
+        public const string WorkerId = "test.worker";
+
+        /// <summary>ID of the test production building: 200 health, no movement, armoured, cost 100 common, build time 5 s (100 ticks), footprint 1, provides 8 supply, trains <see cref="RunnerId"/> and <see cref="WorkerId"/>.</summary>
+        public const string BarracksId = "test.barracks";
+
+        /// <summary>ID of the test static defence: 100 health, no movement, light armour, cost 10 common, build time 2 s (40 ticks), footprint 1, kinetic 10 damage at range 6 (ground and water); supply comes from tuning/supply.json (1).</summary>
+        public const string TowerId = "test.tower";
+
         /// <summary>ID of the test faction with no mechanic.</summary>
         public const string TestFactionId = "test";
 
@@ -72,7 +84,23 @@ namespace Rts.Sim.Tests
                 new List<FixVec2> { FixVec2.FromInts(4, 4), FixVec2.FromInts(60, 60) });
         }
 
-        /// <summary>A catalog with one runner unit and two factions.</summary>
+        /// <summary>
+        /// A flat 64 by 64 map with three resource fields, for economy tests: a common field with 12 units at tile (10, 10) (three
+        /// trips of 5, 5 and 2), a rare field with 50 at (30, 10) and a large common field with 1500 at (50, 50). Spawns at (4, 4) and (60, 60).
+        /// </summary>
+        public static MapDefinition EconomyMap()
+        {
+            return new MapDefinition("test_economy", "Test Economy", FlatMapSize, FlatMapSize,
+                new List<FixVec2> { FixVec2.FromInts(4, 4), FixVec2.FromInts(60, 60) }, null, null,
+                new List<ResourceField>
+                {
+                    new ResourceField(10, 10, ResourceKind.Common, 12),
+                    new ResourceField(30, 10, ResourceKind.Rare, 50),
+                    new ResourceField(50, 50, ResourceKind.Common, 1500),
+                }, null);
+        }
+
+        /// <summary>A catalog with the test units (runner, shooter, flyer, tank, glass, mortar, HQ, worker, barracks, tower) and two factions.</summary>
         public static ContentCatalog Catalog()
         {
             ContentCatalog catalog = new ContentCatalog();
@@ -90,8 +118,23 @@ namespace Rts.Sim.Tests
             catalog.AddUnit(new UnitDefinition(MortarId, "Mortar", TestFactionId, MovementLayer.Ground,
                 Fix64.FromInt(100), Fix64.FromInt(2), 1, Fix64.Half, 50, 0, "light", Fix64.FromInt(8),
                 new WeaponDefinition(Fix64.FromInt(20), "blast", Fix64.FromInt(6), Fix64.One, true, true, true)));
+            catalog.AddUnit(new UnitDefinition(HqId, "HQ", TestFactionId, MovementLayer.Ground,
+                Fix64.FromInt(200), Fix64.FromInt(2), 0, Fix64.Half, 0, 0, "armoured", Fix64.FromInt(8),
+                new WeaponDefinition(Fix64.FromInt(10), "kinetic", Fix64.FromInt(5), Fix64.Parse("0.8"), true, true, false),
+                new HqDefinition("armoured", "light", WorkerId),
+                new UnitEconomyDefinition(Fix64.FromInt(10), false, false, new List<string>(), false, 0, 0)));
+            catalog.AddUnit(new UnitDefinition(WorkerId, "Worker", TestFactionId, MovementLayer.Ground,
+                Fix64.FromInt(40), Fix64.FromInt(4), 1, Fix64.Parse("0.3"), 50, 0, "light", Fix64.FromInt(8), null, null,
+                new UnitEconomyDefinition(Fix64.FromInt(5), true, false, new List<string>(), false, 0, 0)));
+            catalog.AddUnit(new UnitDefinition(BarracksId, "Barracks", TestFactionId, MovementLayer.Ground,
+                Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 100, 0, "armoured", Fix64.FromInt(8), null, null,
+                new UnitEconomyDefinition(Fix64.FromInt(5), false, false, new List<string> { RunnerId, WorkerId }, false, 1, 8)));
+            catalog.AddUnit(new UnitDefinition(TowerId, "Tower", TestFactionId, MovementLayer.Ground,
+                Fix64.FromInt(100), Fix64.Zero, 1, Fix64.Half, 10, 0, "light", Fix64.FromInt(8),
+                new WeaponDefinition(Fix64.FromInt(10), "kinetic", Fix64.FromInt(6), Fix64.Parse("0.8"), true, true, false), null,
+                new UnitEconomyDefinition(Fix64.FromInt(2), false, false, new List<string>(), true, 1, 0)));
             catalog.SetCombatRules(Rules());
-            catalog.AddFaction(new FactionDefinition(TestFactionId, "Test", FactionDefinition.NoMechanic, new List<string> { RunnerId }));
+            catalog.AddFaction(new FactionDefinition(TestFactionId, "Test", FactionDefinition.NoMechanic, new List<string> { RunnerId }, HqId));
             catalog.AddFaction(new FactionDefinition(SkaiFactionId, "Skai Riders", "momentum", new List<string> { RunnerId }));
             return catalog;
         }
@@ -128,6 +171,24 @@ namespace Rts.Sim.Tests
                 BuiltInMechanics.CreateRegistry(),
                 Tuning,
                 FlatMap());
+            Simulation sim = new Simulation(config);
+            sim.Start();
+            return sim;
+        }
+
+        /// <summary>
+        /// A started simulation for economy tests: the default catalog, P0 (test faction) against P1 (Skai), the economy map (or
+        /// <paramref name="map"/>), the shipped tuning (or <paramref name="tuning"/>) and the given seed.
+        /// </summary>
+        public static Simulation StartedEconomy(ulong seed = 1234, Tuning? tuning = null, MapDefinition? map = null)
+        {
+            SimulationConfig config = new SimulationConfig(
+                new MatchSettings(seed, TicksPerSecond, HashInterval),
+                Catalog(),
+                TwoPlayers(),
+                BuiltInMechanics.CreateRegistry(),
+                tuning ?? Tuning,
+                map ?? EconomyMap());
             Simulation sim = new Simulation(config);
             sim.Start();
             return sim;

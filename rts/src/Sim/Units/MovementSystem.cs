@@ -80,8 +80,13 @@ namespace Rts.Sim.Units
                         next = unit.Position + DirectionVectors[direction] * stepLength;
                     }
                 }
-                unit.SetPosition(terrain.ClampToMap(next));
-                unit.MarkSelfMoved(sim.Clock.Tick);
+                // Position after clamping; only an actual change counts as a self-move (Momentum spec section 3).
+                FixVec2 clamped = terrain.ClampToMap(next);
+                if (clamped != unit.Position)
+                {
+                    unit.SetPosition(clamped);
+                    unit.MarkSelfMoved(sim.Clock.Tick);
+                }
                 // Squared distance left to the goal, for the arrival test.
                 Fix64 remainingSquared = (goal - unit.Position).LengthSquared();
                 if (remainingSquared <= arrivalRadiusSquared)

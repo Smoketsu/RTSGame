@@ -128,13 +128,18 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("not_owner");
             }
+            if (HqSystem.IsMovementLocked(unit))
+            {
+                return CommandResult.Reject(HqSystem.ReasonHqRooted);
+            }
             if (!Simulation.IsWithinWorldBounds(Target))
             {
                 return CommandResult.Reject("out_of_bounds");
             }
             unit.SetMoveTarget(Target);
-            // A plain move replaces any attack-move order or attack target (the unit still shoots what is in range).
+            // A plain move replaces any attack-move order or attack target (the unit still shoots what is in range) and any gather loop.
             unit.ClearCombatOrders();
+            unit.ClearGather();
             return CommandResult.Ok;
         }
 

@@ -39,11 +39,16 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("not_owner");
             }
+            if (HqSystem.IsMovementLocked(unit))
+            {
+                return CommandResult.Reject(HqSystem.ReasonHqRooted);
+            }
             if (!Simulation.IsWithinWorldBounds(Goal))
             {
                 return CommandResult.Reject("out_of_bounds");
             }
             unit.ClearCombatOrders();
+            unit.ClearGather();
             unit.SetAttackMove(Goal);
             unit.SetMoveTarget(Goal);
             return CommandResult.Ok;
@@ -113,7 +118,12 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("cannot_target_layer");
             }
+            if (HqSystem.IsMovementLocked(unit))
+            {
+                return CommandResult.Reject(HqSystem.ReasonHqRooted);
+            }
             unit.ClearCombatOrders();
+            unit.ClearGather();
             unit.SetAttackTarget(target.Id, true);
             unit.SetAttackMove(target.Position);
             unit.SetMoveTarget(target.Position);
@@ -158,6 +168,7 @@ namespace Rts.Sim.Commands
             }
             unit.ClearMoveTarget();
             unit.ClearCombatOrders();
+            unit.ClearGather();
             return CommandResult.Ok;
         }
 

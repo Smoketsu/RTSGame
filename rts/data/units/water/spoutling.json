@@ -22,6 +22,8 @@
   "cost_common": 100,
   // Cost in the rare resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 0 and 50). Source: placeholder for Phase 1 unit docs.
   "cost_rare": 25,
+  // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent; placeholders sit between 10 and 30). Source: Economy; placeholder for Phase 1 unit docs.
+  "build_seconds": 20,
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "armour_type": "light",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
@@ -37,6 +39,8 @@
     // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: placeholder for Phase 1 unit docs.
     "cooldown_seconds": 1.0,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
-    "can_target": ["air", "ground", "water"]
+    "can_target": ["air", "ground", "water"],
+    // Whether each landed hit counts as a drench hit on an air target: each hit slows the flyer and the third hit within the reset time grounds it (tuning/statuses.json). Unit: boolean (true or false). Range: true or false; false when absent. Source: Factions / Water faction / Unit concepts (Spoutling Drench).
+    "applies_drench": true
   }
 }
