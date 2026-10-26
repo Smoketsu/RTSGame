@@ -1,0 +1,13 @@
+{
+  "name": "com.rtsgame.sim",
+  "displayName": "RTS Simulation",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "The deterministic, engine-free RTS simulation (assembly Rts.Sim): fixed-point math, commands, events, state hash, data loader and faction mechanics. Unity only renders it and submits commands to it.",
+  "keywords": [
+    "rts",
+    "simulation",
+    "deterministic",
+    "lockstep"
+  ]
+}

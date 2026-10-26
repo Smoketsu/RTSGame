@@ -1,0 +1,2 @@
+<!-- rts/src/Game/Directory.Build.props: deliberately empty. MSBuild stops at the nearest Directory.Build.props, so the .csproj files Unity generates in this folder for IDEs do not inherit rts/Directory.Build.props (build output redirection, warnings as errors). Unity compiles with its own settings; the IDE project files are only for editing and IntelliSense. Unity ignores this file because it sits outside Assets and Packages. -->
+<Project />
