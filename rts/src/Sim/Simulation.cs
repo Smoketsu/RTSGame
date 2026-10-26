@@ -64,6 +64,13 @@ namespace Rts.Sim
         /// <summary>The most recent hash reported by a <see cref="StateHashedEvent"/>, or 0 before the first. For hosts that only want the latest value.</summary>
         public ulong LastReportedHash { get; private set; }
 
+        /// <summary>
+        /// What happens to a player's units and resources when they leave the match or disconnect. Called by
+        /// <see cref="PlayerTransitions"/>. Defaults to <see cref="StateOnlyHandOverPolicy"/> (Phase 0: state change and
+        /// event only); change it with <see cref="SetHandOverPolicy"/> before <see cref="Start"/>.
+        /// </summary>
+        public IHandOverPolicy HandOverPolicy { get; private set; } = StateOnlyHandOverPolicy.Instance;
+
         /// <summary>Backing store for <see cref="Mechanics"/>.</summary>
         private readonly SortedDictionary<string, IFactionMechanic> _mechanics = new SortedDictionary<string, IFactionMechanic>(StringComparer.Ordinal);
 
@@ -109,7 +116,7 @@ namespace Rts.Sim
             }
             // Mechanic IDs needed, collected in ordinal order so creation order is deterministic.
             SortedSet<string> mechanicIds = new SortedSet<string>(StringComparer.Ordinal);
-            foreach (PlayerSetup player in Players.All)
+            foreach (Player player in Players.All)
             {
                 if (!Content.Factions.TryGetValue(player.FactionId, out FactionDefinition? faction))
                 {
@@ -136,6 +143,17 @@ namespace Rts.Sim
             {
                 IsStepping = false;
             }
+        }
+
+        /// <summary>Replaces the <see cref="HandOverPolicy"/>. Only allowed before <see cref="Start"/>, so one policy rules the whole match.</summary>
+        /// <param name="policy">The policy for this match; not null.</param>
+        public void SetHandOverPolicy(IHandOverPolicy policy)
+        {
+            if (IsStarted)
+            {
+                throw new InvalidOperationException("The hand-over policy must be set before Start.");
+            }
+            HandOverPolicy = policy ?? throw new ArgumentNullException(nameof(policy));
         }
 
         /// <summary>

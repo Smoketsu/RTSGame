@@ -16,3 +16,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `.github/scripts/validate_jsonc.py` checks every data and script JSON file parses once comments are stripped and opens with a `//` header.
 - `docs/CI.md`: badge, what each job checks, how to read a determinism failure, local commands.
 - Repository documentation: root README.md, CLAUDE.md (architecture and determinism rules, documentation standard, model tiers), `.claude/agents` definitions for docs-writer (Haiku), builder (Sonnet) and sim-reviewer (Opus), README stubs for every folder reserved for later phases, docs index and data folder README.
+- Player and team model for any player count: `Player` with a `PlayerState` state machine (Active, Surrendered, Disconnected, Defeated, Eliminated), `PlayerRegistry` alliance queries (`AreAllied`, `AreEnemies`, `AlliesOf`, `TeamOf`, `PlayersOnTeam`, `Teams`) in ascending ID order, `MatchOutcome` (standing teams, decided, winner, draw) that works for 1v1, 2v2, 1v1v1 and FFA.
+- `SurrenderCommand` and `SetConnectionStateCommand`, `PlayerStateChangedEvent`; player states change only through `PlayerTransitions` inside `Simulation.Step`.
+- `IHandOverPolicy` extension point with the Phase 0 `StateOnlyHandOverPolicy`, plus disconnect and pause counters tied to the `tuning/online.json` keys (Phase 2 pause and Phase 3 hand-over are TODOs).
+- The state hash now covers each player's state, state-since tick and disconnect and pause counters; display names are not hashed. 17 team-model tests.
