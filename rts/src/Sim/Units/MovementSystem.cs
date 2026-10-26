@@ -10,8 +10,8 @@ namespace Rts.Sim.Units
     /// <summary>Moves units toward their targets once per tick, in ascending ID order.</summary>
     public static class MovementSystem
     {
-        /// <summary>Runs one tick of movement for every unit in <paramref name="sim"/>.</summary>
-        public static void Step(Simulation sim)
+        /// <summary>Runs one tick of movement for every unit in <paramref name="sim"/>. Internal: only <see cref="Simulation.Step"/> calls it.</summary>
+        internal static void Step(Simulation sim)
         {
             foreach (Unit unit in sim.Units.All)
             {

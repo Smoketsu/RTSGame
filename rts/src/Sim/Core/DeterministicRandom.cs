@@ -22,6 +22,13 @@ namespace Rts.Sim.Core
         /// <summary>Number of values drawn since seeding. Range: 0 upward; part of the state hash so a missed draw is caught.</summary>
         public ulong DrawCount { get; private set; }
 
+        /// <summary>
+        /// True while draws are forbidden. The owning <see cref="Simulation"/> locks the generator between steps so a
+        /// listener (renderer, audio, UI) can never consume a value and desync the match. A standalone generator
+        /// (tests, tools) starts unlocked.
+        /// </summary>
+        public bool IsLocked { get; private set; }
+
         /// <summary>Seeds the generator. The same seed always gives the same sequence.</summary>
         /// <param name="seed">Match seed, any ulong.</param>
         public DeterministicRandom(ulong seed)
@@ -29,30 +36,45 @@ namespace Rts.Sim.Core
             Reseed(seed);
         }
 
-        /// <summary>Resets to the sequence for <paramref name="seed"/>, following the PCG32 seeding recipe.</summary>
+        /// <summary>Resets to the sequence for <paramref name="seed"/>, following the PCG32 seeding recipe. Internal: only the simulation and tests reseed.</summary>
         /// <param name="seed">Any ulong.</param>
-        public void Reseed(ulong seed)
+        internal void Reseed(ulong seed)
         {
+            // Seeding must draw even while locked, so remember and restore the lock around the two priming draws.
+            bool wasLocked = IsLocked;
+            IsLocked = false;
             State = 0;
             DrawCount = 0;
             NextUInt();
             State = unchecked(State + seed);
             NextUInt();
             DrawCount = 0;
+            IsLocked = wasLocked;
         }
 
-        /// <summary>Restores an exact state, for replays and tests that resume mid-sequence.</summary>
+        /// <summary>Restores an exact state, for replays and tests that resume mid-sequence. Internal: only the simulation and tests restore.</summary>
         /// <param name="state">A state previously read from <see cref="State"/>.</param>
         /// <param name="drawCount">The matching <see cref="DrawCount"/>.</param>
-        public void Restore(ulong state, ulong drawCount)
+        internal void Restore(ulong state, ulong drawCount)
         {
             State = state;
             DrawCount = drawCount;
         }
 
-        /// <summary>Next value uniformly distributed over all 32 bits.</summary>
+        /// <summary>Locks or unlocks draws; see <see cref="IsLocked"/>. Internal: only the owning simulation toggles it.</summary>
+        /// <param name="locked">True to forbid draws.</param>
+        internal void SetLocked(bool locked)
+        {
+            IsLocked = locked;
+        }
+
+        /// <summary>Next value uniformly distributed over all 32 bits. Throws while <see cref="IsLocked"/>.</summary>
         public uint NextUInt()
         {
+            if (IsLocked)
+            {
+                throw new InvalidOperationException("The simulation RNG can only be drawn inside Simulation.Step (from a command, system or mechanic).");
+            }
             // The state before this step is what the output function mixes.
             ulong old = State;
             State = unchecked(old * Multiplier + Increment);
@@ -73,15 +95,21 @@ namespace Rts.Sim.Core
             {
                 throw new ArgumentOutOfRangeException(nameof(maxExclusive), "NextInt: maxExclusive must be positive.");
             }
-            uint bound = (uint)maxExclusive;
-            // Smallest value that would bias the modulo; draws at or above it are rejected. Computed as 2^32 mod bound.
+            return (int)NextBelow((uint)maxExclusive);
+        }
+
+        /// <summary>Uniform value in [0, <paramref name="bound"/>) by rejection sampling, so no value is favoured. Bound must be at least 1.</summary>
+        /// <param name="bound">Exclusive upper bound, 1 to uint.MaxValue.</param>
+        private uint NextBelow(uint bound)
+        {
+            // Smallest draw that would bias the modulo; draws at or above it are kept. Computed as 2^32 mod bound.
             uint threshold = unchecked((uint)(-bound)) % bound;
             while (true)
             {
                 uint draw = NextUInt();
                 if (draw >= threshold)
                 {
-                    return (int)(draw % bound);
+                    return draw % bound;
                 }
             }
         }
@@ -93,13 +121,11 @@ namespace Rts.Sim.Core
             {
                 throw new ArgumentOutOfRangeException(nameof(maxInclusive), "NextIntInclusive: max below min.");
             }
-            // Span of the range as a long so int.MaxValue - int.MinValue does not overflow.
+            // Span of the range as a long so int.MaxValue - int.MinValue does not overflow. Range: 1 to 2^32.
             long span = (long)maxInclusive - minInclusive + 1;
-            if (span > int.MaxValue)
-            {
-                return unchecked((int)(minInclusive + (long)NextUInt() % span));
-            }
-            return minInclusive + NextInt((int)span);
+            // Offset into the range, 0 to span - 1, unbiased in every case: a full 32-bit span uses the raw draw.
+            uint offset = span == (1L << 32) ? NextUInt() : NextBelow((uint)span);
+            return unchecked((int)(minInclusive + offset));
         }
 
         /// <summary>Uniform fixed-point value in [0, 1): the 32 output bits become the fraction bits.</summary>
@@ -108,8 +134,8 @@ namespace Rts.Sim.Core
             return Fix64.FromRaw((long)NextUInt());
         }
 
-        /// <summary>True with probability <paramref name="chance"/>, which is clamped to [0, 1].</summary>
-        /// <param name="chance">Probability as a fraction, 0 to 1.</param>
+        /// <summary>True with probability <paramref name="chance"/>: always false at or below 0, always true at or above 1.</summary>
+        /// <param name="chance">Probability as a fraction; values outside 0 to 1 behave as those limits.</param>
         public bool NextChance(Fix64 chance)
         {
             return NextFix64Unit() < chance;

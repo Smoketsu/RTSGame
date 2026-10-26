@@ -355,9 +355,9 @@ namespace Rts.Sim.Data
             int width = root.RequireInt("width_tiles", 8, 1024);
             int height = root.RequireInt("height_tiles", 8, 1024);
             IReadOnlyList<JsonValue> spawnNodes = root.RequireArray("spawns");
-            if (spawnNodes.Count < 2 || spawnNodes.Count > 4)
+            if (spawnNodes.Count < MapDefinition.MinSpawns || spawnNodes.Count > MapDefinition.MaxSpawns)
             {
-                throw root.Require("spawns").Fail("must list 2 to 4 spawn points (found " + spawnNodes.Count + ")");
+                throw root.Require("spawns").Fail("must list " + MapDefinition.MinSpawns + " to " + MapDefinition.MaxSpawns + " spawn points (found " + spawnNodes.Count + ")");
             }
             // Spawn points in slot order.
             List<FixVec2> spawns = new List<FixVec2>();

@@ -32,7 +32,7 @@ namespace Rts.Sim.Tests
         public void SpawnedUnit_MovesAtDefinedSpeed()
         {
             Simulation sim = TestWorld.Started();
-            sim.Submit(new SpawnUnitCommand(0, new PlayerId(0), 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero));
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero));
             sim.Step();
             Assert.That(sim.Units.Count, Is.EqualTo(1));
             Assert.That(sim.Units.TryGet(new EntityId(1), out Unit? unit), Is.True);
@@ -118,6 +118,74 @@ namespace Rts.Sim.Tests
             UnitDefinition definition = sim.Content.Units[TestWorld.RunnerId];
             Expect.Throws<InvalidOperationException>(() => { sim.SpawnUnit(definition, new PlayerId(0), FixVec2.Zero); });
             Expect.Throws<InvalidOperationException>(() => { sim.RemoveUnit(new EntityId(1), "test"); });
+        }
+
+        [Test]
+        public void Rng_IsLockedOutsideStep()
+        {
+            Simulation sim = TestWorld.Started();
+            Assert.That(sim.Rng.IsLocked, Is.True);
+            Expect.Throws<InvalidOperationException>(() => { sim.Rng.NextUInt(); });
+            // A command may draw during its step; the draw changes the RNG state and therefore the hash.
+            ulong before = sim.ComputeStateHash();
+            sim.Submit(new DrawRandomCommand(0, PlayerId.None, 0));
+            sim.Step();
+            Assert.That(sim.Rng.DrawCount, Is.EqualTo(1UL));
+            Assert.That(sim.ComputeStateHash(), Is.Not.EqualTo(before));
+            Assert.That(sim.Rng.IsLocked, Is.True);
+        }
+
+        [Test]
+        public void Content_IsFrozenAfterStart()
+        {
+            Simulation sim = TestWorld.Started();
+            Assert.That(sim.Content.IsFrozen, Is.True);
+            Expect.Throws<InvalidOperationException>(() => { sim.Content.AddUnit(sim.Content.Units[TestWorld.RunnerId]); });
+            Assert.That(sim.ContentDigest, Is.Not.EqualTo(0UL));
+            Assert.That(TestWorld.Catalog().ComputeDigest(), Is.EqualTo(sim.ContentDigest));
+        }
+
+        [Test]
+        public void StateHash_CoversEveryUnitField()
+        {
+            // Each hashed unit field, changed on its own, must change the hash (ADR-005).
+            Simulation sim = TestWorld.Started();
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, TestWorld.RunnerId, new PlayerId(0), FixVec2.Zero));
+            sim.Step();
+            ulong baseline = sim.ComputeStateHash();
+            Unit unit = sim.Units.TryGet(new EntityId(1), out Unit? found) ? found! : throw new InvalidOperationException();
+            unit.SetPosition(FixVec2.FromInts(1, 0));
+            ulong moved = sim.ComputeStateHash();
+            Assert.That(moved, Is.Not.EqualTo(baseline), "position");
+            unit.SetHealth(Fix64.FromInt(50));
+            ulong hurt = sim.ComputeStateHash();
+            Assert.That(hurt, Is.Not.EqualTo(moved), "health");
+            unit.SetMoveTarget(FixVec2.FromInts(3, 3));
+            ulong ordered = sim.ComputeStateHash();
+            Assert.That(ordered, Is.Not.EqualTo(hurt), "move target");
+            unit.ClearMoveTarget();
+            Assert.That(sim.ComputeStateHash(), Is.EqualTo(hurt), "clearing restores the earlier hash");
+        }
+
+        /// <summary>Test-only command that draws one random number, to prove draws are legal inside a step.</summary>
+        private sealed class DrawRandomCommand : Command
+        {
+            public DrawRandomCommand(int tick, PlayerId issuer, uint sequence) : base(tick, issuer, sequence)
+            {
+            }
+
+            public override string Kind => "test_draw_random";
+
+            public override CommandResult Apply(Simulation sim)
+            {
+                sim.Rng.NextUInt();
+                return CommandResult.Ok;
+            }
+
+            public override void WriteHash(StateHasher hasher)
+            {
+                hasher.Write(Kind);
+            }
         }
 
         [Test]

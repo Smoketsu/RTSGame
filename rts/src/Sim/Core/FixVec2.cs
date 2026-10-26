@@ -9,14 +9,20 @@ namespace Rts.Sim.Core
     /// <summary>A 2D vector of <see cref="Fix64"/> components. Immutable; every operation returns a new value.</summary>
     public readonly struct FixVec2 : IEquatable<FixVec2>
     {
-        /// <summary>East-west component. Unit: tiles (for positions) or tiles per tick (for velocities).</summary>
+        /// <summary>East-west component. Unit: tiles (for positions) or tiles per tick (for velocities). Range: any Fix64; command positions are limited to ±<see cref="Simulation.WorldBoundTiles"/>.</summary>
         public readonly Fix64 X;
 
-        /// <summary>North-south component. Same unit as <see cref="X"/>.</summary>
+        /// <summary>North-south component. Same unit and range as <see cref="X"/>.</summary>
         public readonly Fix64 Y;
 
         /// <summary>The origin (0, 0).</summary>
         public static readonly FixVec2 Zero = new FixVec2(Fix64.Zero, Fix64.Zero);
+
+        /// <summary>
+        /// Largest component magnitude whose square still fits Fix64 with room for the sum of two: 2^15 tiles (2 × 2^30
+        /// is below the 2^31 saturation point). Offsets beyond it are pre-scaled in <see cref="MoveTowards"/>.
+        /// </summary>
+        public static readonly Fix64 SafeComponentLimit = Fix64.FromInt(1 << 15);
 
         /// <summary>Builds a vector from two components.</summary>
         public FixVec2(Fix64 x, Fix64 y)
@@ -55,7 +61,7 @@ namespace Rts.Sim.Core
             return X * X + Y * Y;
         }
 
-        /// <summary>Euclidean length, truncated to 2^-32. Saturates for components beyond about 32 000 tiles, far larger than any map.</summary>
+        /// <summary>Euclidean length, truncated to 2^-32. Saturates for components at or beyond <see cref="SafeComponentLimit"/> (32 768 tiles), far larger than any map; <see cref="MoveTowards"/> guards against that itself.</summary>
         public Fix64 Length()
         {
             return Fix64.Sqrt(LengthSquared());
@@ -75,17 +81,33 @@ namespace Rts.Sim.Core
             }
             // Offset still to travel.
             FixVec2 delta = target - this;
-            Fix64 distanceSquared = delta.LengthSquared();
+            // Direction vector used for the ratio below. When a component is at or beyond SafeComponentLimit, squaring
+            // would saturate Fix64, so the offset is scaled down by 2^16 first; the ratio step = delta × max / |delta|
+            // is unchanged by uniform scaling, and such a far target is never "in reach" in one step.
+            FixVec2 direction = delta;
+            // True when the far-target path was taken and the in-reach shortcut must be skipped.
+            bool scaled = false;
+            if (delta.X.Abs() >= SafeComponentLimit || delta.Y.Abs() >= SafeComponentLimit)
+            {
+                direction = new FixVec2(Fix64.FromRaw(delta.X.Raw >> 16), Fix64.FromRaw(delta.Y.Raw >> 16));
+                scaled = true;
+            }
+            Fix64 distanceSquared = direction.LengthSquared();
             // Comparing squares avoids a square root when the target is in reach.
-            if (distanceSquared <= maxDistance * maxDistance)
+            if (!scaled && distanceSquared <= maxDistance * maxDistance)
             {
                 return target;
             }
             Fix64 distance = Fix64.Sqrt(distanceSquared);
+            if (distance == Fix64.Zero)
+            {
+                // Only possible when the offset is non-zero but below 2^-16 of a tile after scaling; treat as arrived.
+                return target;
+            }
             // Scale each component by maxDistance / distance, multiplying first and dividing last so truncation
             // costs at most one raw unit per axis per call instead of compounding through a truncated fraction.
-            // The product cannot saturate on any map: components stay below a few thousand tiles.
-            FixVec2 step = new FixVec2(delta.X * maxDistance / distance, delta.Y * maxDistance / distance);
+            // direction components are below 2^15 tiles and maxDistance is a per-tick step, so the product cannot saturate.
+            FixVec2 step = new FixVec2(direction.X * maxDistance / distance, direction.Y * maxDistance / distance);
             return this + step;
         }
 

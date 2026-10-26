@@ -71,6 +71,19 @@ namespace Rts.Sim
         /// </summary>
         public IHandOverPolicy HandOverPolicy { get; private set; } = StateOnlyHandOverPolicy.Instance;
 
+        /// <summary>
+        /// Largest absolute X or Y coordinate (in tiles) a command may name. Positions beyond this are rejected as
+        /// out_of_bounds so squared distances never saturate Fix64 (2 × 16384² is far below the 2^31 limit). This is a
+        /// validation bound, not a tuning value; Phase 1 maps are at most a few hundred tiles across.
+        /// </summary>
+        public static readonly Fix64 WorldBoundTiles = Fix64.FromInt(16384);
+
+        /// <summary>
+        /// FNV-1a digest of every unit and faction definition, computed once by <see cref="Start"/> and written into the
+        /// state hash, so two peers with different data files diverge at tick 0 instead of mid-match. 0 before Start.
+        /// </summary>
+        public ulong ContentDigest { get; private set; }
+
         /// <summary>Backing store for <see cref="Mechanics"/>.</summary>
         private readonly SortedDictionary<string, IFactionMechanic> _mechanics = new SortedDictionary<string, IFactionMechanic>(StringComparer.Ordinal);
 
@@ -91,6 +104,8 @@ namespace Rts.Sim
             Content = config.Content;
             Clock = new MatchClock(Settings.TicksPerSecond);
             Rng = new DeterministicRandom(Settings.Seed);
+            // Draws are only legal inside a step; Start and Step unlock the generator while they run.
+            Rng.SetLocked(true);
             EntityIds = new EntityIdAllocator();
             Commands = new CommandQueue();
             Events = new EventLog();
@@ -114,6 +129,9 @@ namespace Rts.Sim
             {
                 throw new InvalidOperationException("Content invalid: " + contentProblem);
             }
+            // No definition may change once the match is running; the digest below would otherwise go stale.
+            Content.Freeze();
+            ContentDigest = Content.ComputeDigest();
             // Mechanic IDs needed, collected in ordinal order so creation order is deterministic.
             SortedSet<string> mechanicIds = new SortedSet<string>(StringComparer.Ordinal);
             foreach (Player player in Players.All)
@@ -132,6 +150,7 @@ namespace Rts.Sim
             Events.Clear();
             Events.Add(new MatchStartedEvent(Clock.Tick, Players.Count, Settings.Seed));
             IsStepping = true;
+            Rng.SetLocked(false);
             try
             {
                 foreach (IFactionMechanic mechanic in _mechanics.Values)
@@ -141,6 +160,7 @@ namespace Rts.Sim
             }
             finally
             {
+                Rng.SetLocked(true);
                 IsStepping = false;
             }
         }
@@ -189,6 +209,7 @@ namespace Rts.Sim
                 throw new InvalidOperationException("Step is not re-entrant.");
             }
             IsStepping = true;
+            Rng.SetLocked(false);
             try
             {
                 int tick = Clock.Tick;
@@ -209,6 +230,7 @@ namespace Rts.Sim
             }
             finally
             {
+                Rng.SetLocked(true);
                 IsStepping = false;
             }
         }
@@ -226,20 +248,31 @@ namespace Rts.Sim
             }
         }
 
-        /// <summary>Applies every command scheduled for <paramref name="tick"/>, rejecting duplicates and reporting results.</summary>
+        /// <summary>
+        /// Applies every command scheduled for <paramref name="tick"/> in (issuer, sequence) order. When two or more
+        /// commands share an (issuer, sequence) key, every one of them is rejected as duplicate_sequence, so the outcome
+        /// never depends on which arrived first (a key is unique per issuer by contract; a collision is an issuer bug).
+        /// </summary>
         private void ApplyCommands(int tick)
         {
             List<Command> commands = Commands.TakeForTick(tick);
-            // The previous command, to detect a duplicate (same issuer and sequence) after sorting.
-            Command? previous = null;
+            // Number of commands per (issuer, sequence) key; the key packs the issuer slot above the 32-bit sequence.
+            SortedDictionary<ulong, int> keyCounts = new SortedDictionary<ulong, int>();
             foreach (Command command in commands)
             {
-                if (previous != null && previous.Issuer == command.Issuer && previous.Sequence == command.Sequence)
+                ulong key = ((ulong)command.Issuer.Value << 32) | command.Sequence;
+                keyCounts.TryGetValue(key, out int count);
+                keyCounts[key] = count + 1;
+            }
+            foreach (Command command in commands)
+            {
+                // Key of this command, as built above.
+                ulong key = ((ulong)command.Issuer.Value << 32) | command.Sequence;
+                if (keyCounts[key] > 1)
                 {
                     Events.Add(new CommandRejectedEvent(tick, command, "duplicate_sequence"));
                     continue;
                 }
-                previous = command;
                 if (command.Issuer.IsValid && !Players.Contains(command.Issuer))
                 {
                     Events.Add(new CommandRejectedEvent(tick, command, "unknown_issuer"));
@@ -254,12 +287,13 @@ namespace Rts.Sim
         }
 
         /// <summary>
-        /// Hashes the whole simulation state in a fixed order: clock, RNG, ID allocator, players, units, mechanics.
-        /// Safe to call between steps; the result is never 0.
+        /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
+        /// mechanics, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
             _hasher.Reset();
+            _hasher.Write(ContentDigest);
             Clock.WriteHash(_hasher);
             Rng.WriteHash(_hasher);
             EntityIds.WriteHash(_hasher);
@@ -271,6 +305,8 @@ namespace Rts.Sim
                 _hasher.Write(pair.Key);
                 pair.Value.WriteHash(_hasher);
             }
+            _hasher.Write(HandOverPolicy.Id);
+            HandOverPolicy.WriteHash(_hasher);
             ulong hash = _hasher.Hash;
             // Reserve 0 for "no hash" in network messages and host code.
             return hash == 0 ? 1UL : hash;
@@ -305,6 +341,13 @@ namespace Rts.Sim
             }
             Events.Add(new UnitRemovedEvent(Clock.Tick, id, reason));
             return true;
+        }
+
+        /// <summary>True when both components of <paramref name="position"/> lie within ±<see cref="WorldBoundTiles"/>.</summary>
+        /// <param name="position">Position in tiles.</param>
+        public static bool IsWithinWorldBounds(FixVec2 position)
+        {
+            return position.X.Abs() <= WorldBoundTiles && position.Y.Abs() <= WorldBoundTiles;
         }
 
         /// <summary>Throws unless called from inside a step, so listeners can never mutate state (rule 8).</summary>

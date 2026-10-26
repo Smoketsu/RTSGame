@@ -18,6 +18,9 @@ namespace Rts.Sim.Core
         /// <summary>Faction definitions by ID, ordinal order.</summary>
         private readonly SortedDictionary<string, FactionDefinition> _factions = new SortedDictionary<string, FactionDefinition>(StringComparer.Ordinal);
 
+        /// <summary>True once <see cref="Freeze"/> has run (at <see cref="Simulation.Start"/>); Add methods then throw.</summary>
+        public bool IsFrozen { get; private set; }
+
         /// <summary>Unit definitions by ID. Iteration is in ordinal ID order.</summary>
         public IReadOnlyDictionary<string, UnitDefinition> Units => _units;
 
@@ -27,6 +30,7 @@ namespace Rts.Sim.Core
         /// <summary>Adds a unit definition. A duplicate ID throws so two data files cannot silently collide.</summary>
         public void AddUnit(UnitDefinition definition)
         {
+            RequireNotFrozen();
             if (definition == null)
             {
                 throw new ArgumentNullException(nameof(definition));
@@ -41,6 +45,7 @@ namespace Rts.Sim.Core
         /// <summary>Adds a faction definition. A duplicate ID throws.</summary>
         public void AddFaction(FactionDefinition definition)
         {
+            RequireNotFrozen();
             if (definition == null)
             {
                 throw new ArgumentNullException(nameof(definition));
@@ -50,6 +55,55 @@ namespace Rts.Sim.Core
                 throw new InvalidOperationException("Duplicate faction definition id '" + definition.Id + "'.");
             }
             _factions.Add(definition.Id, definition);
+        }
+
+        /// <summary>Makes the catalog read-only. Internal: called by <see cref="Simulation.Start"/>.</summary>
+        internal void Freeze()
+        {
+            IsFrozen = true;
+        }
+
+        /// <summary>Throws when the catalog is frozen, so no definition changes after a match starts.</summary>
+        private void RequireNotFrozen()
+        {
+            if (IsFrozen)
+            {
+                throw new InvalidOperationException("The content catalog is frozen once a match has started.");
+            }
+        }
+
+        /// <summary>
+        /// FNV-1a digest of every definition that affects simulation (IDs, layers, stats, costs, mechanic IDs and unit
+        /// lists), in ordinal ID order. Display names are left out. Two catalogs with the same digest simulate the same.
+        /// </summary>
+        public ulong ComputeDigest()
+        {
+            StateHasher hasher = new StateHasher();
+            hasher.Write(_units.Count);
+            foreach (UnitDefinition unit in _units.Values)
+            {
+                hasher.Write(unit.Id);
+                hasher.Write(unit.FactionId);
+                hasher.Write((byte)unit.Layer);
+                hasher.Write(unit.MaxHealth);
+                hasher.Write(unit.SpeedTilesPerSecond);
+                hasher.Write(unit.Supply);
+                hasher.Write(unit.Radius);
+                hasher.Write(unit.CostCommon);
+                hasher.Write(unit.CostRare);
+            }
+            hasher.Write(_factions.Count);
+            foreach (FactionDefinition faction in _factions.Values)
+            {
+                hasher.Write(faction.Id);
+                hasher.Write(faction.MechanicId);
+                hasher.Write(faction.UnitIds.Count);
+                foreach (string unitId in faction.UnitIds)
+                {
+                    hasher.Write(unitId);
+                }
+            }
+            return hasher.Hash;
         }
 
         /// <summary>Checks every faction's unit list names a known unit. Returns the first problem or null.</summary>

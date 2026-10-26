@@ -1,7 +1,8 @@
 // rts/src/Sim/Commands/CommandQueue.cs
 // Holds submitted commands until their tick and hands them back in deterministic order.
-// Part of Rts.Sim.Commands. Order within a tick is (issuer, sequence, kind); arrival order never matters,
-// which is what lets local input, network peers and replays produce identical matches.
+// Part of Rts.Sim.Commands. Order within a tick is (issuer, sequence, kind). Arrival order never affects the
+// outcome because duplicated (issuer, sequence) keys are rejected wholesale by the simulation, which is what
+// lets local input, network peers and replays produce identical matches.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -23,9 +24,9 @@ namespace Rts.Sim.Commands
         /// <summary>Comparer that fixes the order of commands scheduled for the same tick.</summary>
         private static readonly IComparer<Command> WithinTickOrder = new CommandOrderComparer();
 
-        /// <summary>Adds a command for its scheduled tick. The caller (<see cref="Simulation.Submit"/>) checks the tick is not in the past.</summary>
+        /// <summary>Adds a command for its scheduled tick. Internal: hosts go through <see cref="Simulation.Submit"/>, which checks the tick is not in the past.</summary>
         /// <param name="command">Command to store.</param>
-        public void Enqueue(Command command)
+        internal void Enqueue(Command command)
         {
             if (command == null)
             {
@@ -43,11 +44,12 @@ namespace Rts.Sim.Commands
 
         /// <summary>
         /// Removes and returns every command scheduled for <paramref name="tick"/>, sorted by (issuer, sequence, kind).
-        /// Returns an empty list when none are scheduled. Two commands with the same issuer and sequence stay adjacent;
-        /// the simulation rejects the second as a duplicate.
+        /// Returns an empty list when none are scheduled. Commands sharing an (issuer, sequence) key compare equal and
+        /// may come back in any order; the simulation rejects every member of such a group, so that order never matters.
+        /// Internal: only the simulation's step takes commands.
         /// </summary>
         /// <param name="tick">Tick being stepped.</param>
-        public List<Command> TakeForTick(int tick)
+        internal List<Command> TakeForTick(int tick)
         {
             if (!_byTick.TryGetValue(tick, out List<Command>? list))
             {
@@ -55,8 +57,8 @@ namespace Rts.Sim.Commands
             }
             _byTick.Remove(tick);
             PendingCount -= list.Count;
-            // Stable ordering: sort by the deterministic key. List.Sort is unstable, but the key is unique except for
-            // true duplicates, which are rejected anyway, so the result is deterministic.
+            // Sort by the deterministic key. List.Sort is unstable, but the key is unique except for duplicated
+            // (issuer, sequence) groups, every member of which the simulation rejects, so the outcome is deterministic.
             list.Sort(WithinTickOrder);
             return list;
         }

@@ -16,7 +16,7 @@ namespace Rts.Sim.Units
         /// <summary>Name shown to players. Presentation only; not hashed.</summary>
         public string DisplayName { get; }
 
-        /// <summary>ID of the faction that fields this unit, such as "skai", or "neutral".</summary>
+        /// <summary>ID of the faction that fields this unit, such as "skai", or <see cref="Rts.Sim.Factions.FactionDefinition.NeutralId"/>.</summary>
         public string FactionId { get; }
 
         /// <summary>Default movement layer.</summary>
@@ -70,7 +70,7 @@ namespace Rts.Sim.Units
             }
             Id = id;
             DisplayName = displayName ?? id;
-            FactionId = factionId ?? "neutral";
+            FactionId = factionId ?? Rts.Sim.Factions.FactionDefinition.NeutralId;
             Layer = layer;
             MaxHealth = maxHealth;
             SpeedTilesPerSecond = speedTilesPerSecond;

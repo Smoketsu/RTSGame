@@ -22,17 +22,17 @@ namespace Rts.Sim.Core
         /// <param name="ticksPerSecond">Ticks per second, 10 to 60.</param>
         public MatchClock(int ticksPerSecond)
         {
-            if (ticksPerSecond < 10 || ticksPerSecond > 60)
+            if (ticksPerSecond < MatchSettings.MinTicksPerSecond || ticksPerSecond > MatchSettings.MaxTicksPerSecond)
             {
-                throw new ArgumentOutOfRangeException(nameof(ticksPerSecond), "ticks_per_second must be between 10 and 60.");
+                throw new ArgumentOutOfRangeException(nameof(ticksPerSecond), "ticks_per_second must be between " + MatchSettings.MinTicksPerSecond + " and " + MatchSettings.MaxTicksPerSecond + ".");
             }
             TicksPerSecond = ticksPerSecond;
             SecondsPerTick = Fix64.One / Fix64.FromInt(ticksPerSecond);
             Tick = 0;
         }
 
-        /// <summary>Moves to the next tick. Called once per simulation step, after every system has run.</summary>
-        public void Advance()
+        /// <summary>Moves to the next tick. Internal: called once per <see cref="Simulation.Step"/>, after every system has run.</summary>
+        internal void Advance()
         {
             if (Tick == int.MaxValue)
             {
@@ -41,9 +41,9 @@ namespace Rts.Sim.Core
             Tick++;
         }
 
-        /// <summary>Restores the tick counter, for replays and tests.</summary>
+        /// <summary>Restores the tick counter, for replays and tests. Internal: only the simulation and tests restore.</summary>
         /// <param name="tick">Tick index, 0 or more.</param>
-        public void Restore(int tick)
+        internal void Restore(int tick)
         {
             if (tick < 0)
             {

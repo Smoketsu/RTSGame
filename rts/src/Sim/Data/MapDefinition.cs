@@ -7,7 +7,7 @@ using Rts.Sim.Core;
 
 namespace Rts.Sim.Data
 {
-    /// <summary>One map: name, size in tiles and 2 to 4 player spawn points.</summary>
+    /// <summary>One map: name, size in tiles and its player spawn points (<see cref="MinSpawns"/> to <see cref="MaxSpawns"/>).</summary>
     public sealed class MapDefinition
     {
         /// <summary>Stable ID, equal to the file name without ".json", such as "greybox_1v1". Lower-case letters, digits and underscores.</summary>
@@ -22,7 +22,13 @@ namespace Rts.Sim.Data
         /// <summary>Map height. Unit: tiles. Range: 8 to 1024.</summary>
         public int HeightTiles { get; }
 
-        /// <summary>Spawn points in slot order; spawn i is for player slot i. Unit: tiles from the map origin. Range: x 0 to WidthTiles, y 0 to HeightTiles. Count: 2 to 4.</summary>
+        /// <summary>Fewest spawn points a map may have. Schema bound: a map needs two opponents.</summary>
+        public const int MinSpawns = 2;
+
+        /// <summary>Most spawn points a map may have. Schema bound, not a design limit: the design ships 2 to 4 player modes, and nothing in the simulation assumes fewer than this.</summary>
+        public const int MaxSpawns = 16;
+
+        /// <summary>Spawn points in slot order; spawn i is for player slot i. Unit: tiles from the map origin. Range: x 0 to WidthTiles, y 0 to HeightTiles. Count: <see cref="MinSpawns"/> to <see cref="MaxSpawns"/>.</summary>
         public IReadOnlyList<FixVec2> Spawns { get; }
 
         /// <summary>Builds a map; the loader has already validated ranges and reported them with file and field names.</summary>
