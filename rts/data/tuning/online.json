@@ -6,7 +6,7 @@
   "disconnect_pause_max_seconds": 300,
   // Number of disconnect pauses each player may trigger in a match. Unit: pauses per player per match (count). Range: 0 to 5. Source: Surrender and disconnects.
   "disconnect_pauses_per_player": 1,
-  // Total pause time each player may use in a match. Unit: seconds per player per match. Range: 0 to 600. Source: Surrender and disconnects.
+  // Total voluntary pause time each player may use in a match; separate from the disconnect pause above, which has its own limit. Unit: seconds per player per match. Range: 0 to 600. Source: Surrender and disconnects.
   "pause_budget_seconds_per_player": 120,
   // Matches a player must finish before ranked mode unlocks. Unit: matches (count). Range: 0 to 100. Source: Game modes.
   "ranked_unlock_matches": 10

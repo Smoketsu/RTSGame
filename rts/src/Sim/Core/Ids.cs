@@ -25,12 +25,17 @@ namespace Rts.Sim.Core
         /// <summary>True for any allocated ID, false for <see cref="None"/>.</summary>
         public bool IsValid => Value != 0;
 
+        /// <summary>True when both values are equal.</summary>
         public bool Equals(EntityId other) => Value == other.Value;
+        /// <summary>True when <paramref name="obj"/> is the same type with the same value.</summary>
         public override bool Equals(object? obj) => obj is EntityId other && Value == other.Value;
+        /// <summary>Hash for dictionaries outside the simulation hot path; state hashing uses <see cref="StateHasher"/>.</summary>
         public override int GetHashCode() => (int)Value;
+        /// <summary>Orders by the numeric value.</summary>
         public int CompareTo(EntityId other) => Value.CompareTo(other.Value);
         public static bool operator ==(EntityId a, EntityId b) => a.Value == b.Value;
         public static bool operator !=(EntityId a, EntityId b) => a.Value != b.Value;
+        /// <summary>Short text for logs and tests.</summary>
         public override string ToString() => "E" + Value;
     }
 
@@ -55,12 +60,17 @@ namespace Rts.Sim.Core
         /// <summary>True for a real player slot, false for <see cref="None"/>.</summary>
         public bool IsValid => Value != None.Value;
 
+        /// <summary>True when both values are equal.</summary>
         public bool Equals(PlayerId other) => Value == other.Value;
+        /// <summary>True when <paramref name="obj"/> is the same type with the same value.</summary>
         public override bool Equals(object? obj) => obj is PlayerId other && Value == other.Value;
+        /// <summary>Hash for dictionaries outside the simulation hot path; state hashing uses <see cref="StateHasher"/>.</summary>
         public override int GetHashCode() => Value;
+        /// <summary>Orders by the numeric value.</summary>
         public int CompareTo(PlayerId other) => Value.CompareTo(other.Value);
         public static bool operator ==(PlayerId a, PlayerId b) => a.Value == b.Value;
         public static bool operator !=(PlayerId a, PlayerId b) => a.Value != b.Value;
+        /// <summary>Short text for logs and tests.</summary>
         public override string ToString() => IsValid ? "P" + Value : "P-none";
     }
 
@@ -85,12 +95,17 @@ namespace Rts.Sim.Core
         /// <summary>True for a real team, false for <see cref="None"/>.</summary>
         public bool IsValid => Value != None.Value;
 
+        /// <summary>True when both values are equal.</summary>
         public bool Equals(TeamId other) => Value == other.Value;
+        /// <summary>True when <paramref name="obj"/> is the same type with the same value.</summary>
         public override bool Equals(object? obj) => obj is TeamId other && Value == other.Value;
+        /// <summary>Hash for dictionaries outside the simulation hot path; state hashing uses <see cref="StateHasher"/>.</summary>
         public override int GetHashCode() => Value;
+        /// <summary>Orders by the numeric value.</summary>
         public int CompareTo(TeamId other) => Value.CompareTo(other.Value);
         public static bool operator ==(TeamId a, TeamId b) => a.Value == b.Value;
         public static bool operator !=(TeamId a, TeamId b) => a.Value != b.Value;
+        /// <summary>Short text for logs and tests.</summary>
         public override string ToString() => IsValid ? "T" + Value : "T-none";
     }
 

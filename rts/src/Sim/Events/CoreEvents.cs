@@ -15,6 +15,7 @@ namespace Rts.Sim.Events
         /// <summary>Match seed, echoed so logs can reproduce the match.</summary>
         public ulong Seed { get; }
 
+        /// <summary>Builds the event from its fields.</summary>
         public MatchStartedEvent(int tick, int playerCount, ulong seed) : base(tick)
         {
             PlayerCount = playerCount;
@@ -23,6 +24,7 @@ namespace Rts.Sim.Events
 
         public override string Kind => "match_started";
 
+        /// <summary>One-line description for logs.</summary>
         public override string Describe() => "Match started with " + PlayerCount + " players, seed " + Seed + ".";
     }
 
@@ -41,6 +43,7 @@ namespace Rts.Sim.Events
         /// <summary>Spawn position in tiles.</summary>
         public FixVec2 Position { get; }
 
+        /// <summary>Builds the event from its fields.</summary>
         public UnitSpawnedEvent(int tick, EntityId unit, PlayerId owner, string definitionId, FixVec2 position) : base(tick)
         {
             Unit = unit;
@@ -51,6 +54,7 @@ namespace Rts.Sim.Events
 
         public override string Kind => "unit_spawned";
 
+        /// <summary>One-line description for logs.</summary>
         public override string Describe() => Unit + " (" + DefinitionId + ") spawned for " + Owner + " at " + Position + ".";
     }
 
@@ -63,6 +67,7 @@ namespace Rts.Sim.Events
         /// <summary>Where it stopped, in tiles.</summary>
         public FixVec2 Position { get; }
 
+        /// <summary>Builds the event from its fields.</summary>
         public UnitArrivedEvent(int tick, EntityId unit, FixVec2 position) : base(tick)
         {
             Unit = unit;
@@ -71,6 +76,7 @@ namespace Rts.Sim.Events
 
         public override string Kind => "unit_arrived";
 
+        /// <summary>One-line description for logs.</summary>
         public override string Describe() => Unit + " arrived at " + Position + ".";
     }
 
@@ -83,6 +89,7 @@ namespace Rts.Sim.Events
         /// <summary>Why it was removed, for example "killed" or "despawn_command".</summary>
         public string Reason { get; }
 
+        /// <summary>Builds the event from its fields.</summary>
         public UnitRemovedEvent(int tick, EntityId unit, string reason) : base(tick)
         {
             Unit = unit;
@@ -91,6 +98,7 @@ namespace Rts.Sim.Events
 
         public override string Kind => "unit_removed";
 
+        /// <summary>One-line description for logs.</summary>
         public override string Describe() => Unit + " removed: " + Reason + ".";
     }
 
@@ -103,6 +111,7 @@ namespace Rts.Sim.Events
         /// <summary>Short reason such as "unknown_unit" or "not_owner".</summary>
         public string Reason { get; }
 
+        /// <summary>Builds the event from its fields.</summary>
         public CommandRejectedEvent(int tick, Command command, string reason) : base(tick)
         {
             Command = command;
@@ -111,6 +120,7 @@ namespace Rts.Sim.Events
 
         public override string Kind => "command_rejected";
 
+        /// <summary>One-line description for logs.</summary>
         public override string Describe() => "Rejected " + Command + ": " + Reason + ".";
     }
 
@@ -120,6 +130,7 @@ namespace Rts.Sim.Events
         /// <summary>64-bit FNV-1a hash of the whole simulation state (ADR-005). Never 0.</summary>
         public ulong Hash { get; }
 
+        /// <summary>Builds the event from its fields.</summary>
         public StateHashedEvent(int tick, ulong hash) : base(tick)
         {
             Hash = hash;
@@ -127,6 +138,7 @@ namespace Rts.Sim.Events
 
         public override string Kind => "state_hashed";
 
+        /// <summary>One-line description for logs.</summary>
         public override string Describe() => "State hash " + Hash.ToString("x16") + ".";
     }
 }

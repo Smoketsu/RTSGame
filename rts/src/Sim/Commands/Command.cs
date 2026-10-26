@@ -17,6 +17,7 @@ namespace Rts.Sim.Commands
         /// <summary>Short snake_case reason when rejected, for example "unknown_unit". Null when accepted.</summary>
         public readonly string? Reason;
 
+        /// <summary>Stores the outcome; use <see cref="Ok"/> or <see cref="Reject"/>.</summary>
         private CommandResult(bool accepted, string? reason)
         {
             Accepted = accepted;

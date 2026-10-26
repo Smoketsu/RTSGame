@@ -95,6 +95,7 @@ namespace Rts.Sim.Core
             return X == other.X && Y == other.Y;
         }
 
+        /// <summary>True when <paramref name="obj"/> is the same type with the same value.</summary>
         public override bool Equals(object? obj)
         {
             return obj is FixVec2 other && Equals(other);
