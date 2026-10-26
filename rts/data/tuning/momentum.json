@@ -1,0 +1,21 @@
+// momentum.json: Skai Riders signature mechanic, Momentum (stack gain, bonuses, drain and loss rules). Read by the Skai Riders Momentum simulation system. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Momentum stack rates, caps, bonuses and loss rules that the Skai Riders Momentum simulation reads at match start.",
+  // Rate at which Momentum stacks are gained. Unit: stacks/second. Range: 0.1 to 5. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "stack_gain_per_second": 1,
+  // Maximum number of Momentum stacks a unit can hold. Unit: stacks. Range: 1 to 10. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "max_stacks": 5,
+  // Speed bonus gained per Momentum stack. Unit: fraction of base speed per stack (0.04 = 4%). Range: 0 to 0.2. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "speed_bonus_per_stack": 0.04,
+  // Damage bonus gained per Momentum stack. Unit: fraction of base damage per stack (0.04 = 4%). Range: 0 to 0.2. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "damage_bonus_per_stack": 0.04,
+  // Time after stack gain stops before Momentum starts to drain. Unit: seconds. Range: 0 to 10. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "drain_delay_seconds": 1.5,
+  // Rate at which Momentum stacks drain once draining has started. Unit: stacks/second. Range: 0.1 to 5. Source: not in the design doc; placeholder, open question.
+  "drain_stacks_per_second": 1,
+  // Switch: Momentum is lost when the unit becomes Grounded. Unit: boolean (true or false). Range: true or false. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "lost_on_grounded": true,
+  // Switch: Momentum is lost when the unit becomes slowed. Unit: boolean (true or false). Range: true or false. Source: Factions / Skai Riders / Signature mechanic: Momentum.
+  "lost_on_slowed": true
+}

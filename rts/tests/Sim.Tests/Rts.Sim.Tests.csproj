@@ -1,0 +1,26 @@
+<!-- rts/tests/Sim.Tests/Rts.Sim.Tests.csproj: NUnit tests for the simulation library. Runs on .NET 8 outside Unity; Unity's Test Runner can also pick up the same sources through Rts.Sim.Tests.asmdef. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Tests run on the current LTS .NET; the library under test is netstandard2.1. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Rts.Sim.Tests</AssemblyName>
+    <RootNamespace>Rts.Sim.Tests</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- NUnit is the framework Unity's Test Runner also uses, so tests are portable. -->
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <Compile Remove="**/*.meta" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Data files are copied next to the test binary so tests can load real tuning and unit files. -->
+    <None Include="../../data/**/*.json" Link="data/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

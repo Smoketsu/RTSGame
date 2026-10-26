@@ -1,0 +1,23 @@
+// hq.json: The mobile HQ unit (rooting, uprooting, survivability floor, Last Stand and the FFA reveal). Read by the HQ unit simulation system. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Rooting, uprooting, survivability and Last Stand values that the HQ unit simulation reads at match start.",
+  // Time the HQ takes to root in place. Unit: seconds. Range: 1 to 60. Source: The mobile HQ unit.
+  "root_seconds": 10,
+  // Time the HQ takes to uproot and become mobile. Unit: seconds. Range: 1 to 60. Source: The mobile HQ unit.
+  "uproot_seconds": 5,
+  // Minimum time the HQ must survive against the strongest HQ-killing army. Checked by the balance harness. Unit: seconds. Range: 5 to 120. Source: Survivability floor.
+  "survivability_floor_seconds": 20,
+  // Supply value of the strongest HQ-killing army used in the survivability floor check. Checked by the balance harness. Unit: supply. Range: 1 to 200. Source: Survivability floor.
+  "survivability_floor_supply": 30,
+  // Switch that enables Last Stand for the prototype test. Unit: boolean (true or false). Range: true or false. Source: Last Stand.
+  "last_stand_enabled": false,
+  // Health fraction at or below which Last Stand triggers. Unit: fraction of max health (0.25 = 25%). Range: 0.05 to 0.5. Source: Last Stand.
+  "last_stand_health_fraction": 0.25,
+  // Time the HQ is invulnerable once Last Stand triggers. Unit: seconds. Range: 0 to 30. Source: Last Stand.
+  "last_stand_invulnerable_seconds": 5,
+  // How many times Last Stand can trigger in one match. Unit: uses per match (count). Range: 0 to 5. Source: Last Stand.
+  "last_stand_uses_per_match": 1,
+  // Time an Uprooted HQ stays hidden in 1v1v1 and FFA before it is revealed to everyone. Unit: seconds. Range: 0 to 120. Source: No hiding.
+  "ffa_uprooted_reveal_seconds": 30
+}

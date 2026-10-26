@@ -1,0 +1,11 @@
+// supply.json: Supply cap and static defence limits. Read by the economy supply simulation system. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Supply cap and static defence supply cost and count limits that the economy supply simulation reads at match start.",
+  // Maximum supply a player can use. Unit: supply. Range: 50 to 300. Source: Economy / Supply cap.
+  "supply_cap": 200,
+  // Supply consumed by each static defence. Unit: supply per static defence. Range: 0 to 10. Source: Economy / Supply cap.
+  "static_defence_supply_cost": 1,
+  // Maximum number of static defences per base. Unit: static defences per base (count). Range: 0 to 20. Source: Economy / Supply cap.
+  "static_defences_per_base_max": 6
+}

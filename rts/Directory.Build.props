@@ -1,0 +1,17 @@
+<!-- rts/Directory.Build.props: MSBuild settings shared by every .csproj under rts/. Keeps build output out of source folders so Unity never imports bin/obj as assets. -->
+<Project>
+  <PropertyGroup>
+    <!-- Where compiled assemblies land: rts/build/bin/<ProjectName>/. Outside every Unity-visible folder. -->
+    <BaseOutputPath>$(MSBuildThisFileDirectory)build/bin/$(MSBuildProjectName)/</BaseOutputPath>
+    <!-- Where MSBuild scratch files land: rts/build/obj/<ProjectName>/. Same reason. -->
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)build/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <!-- Nullable reference types on everywhere; the simulation treats a nullability warning as an error. -->
+    <Nullable>enable</Nullable>
+    <!-- C# language version pinned so Unity 6 (C# 9) and the .NET SDK compile the same source. -->
+    <LangVersion>9.0</LangVersion>
+    <!-- Treat warnings as errors in CI; a local developer can override with -p:TreatWarningsAsErrors=false. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Deterministic builds: the same source gives byte-identical assemblies. -->
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+</Project>
