@@ -74,6 +74,7 @@ namespace Rts.Sim.Commands
         /// <summary>Orders commands on one tick by issuer slot, then issuer sequence, then kind name (ordinal).</summary>
         private sealed class CommandOrderComparer : IComparer<Command>
         {
+            /// <summary>Compares two commands by issuer, sequence, then kind; nulls sort first.</summary>
             public int Compare(Command? a, Command? b)
             {
                 if (ReferenceEquals(a, b))

@@ -14,16 +14,19 @@ namespace Rts.Sim.Factions.Skai
 
         public string Id => MechanicId;
 
+        /// <summary>Called once before tick 0 runs.</summary>
         public void OnMatchStart(Simulation sim)
         {
             // Phase 1: read momentum tuning into tick counts here.
         }
 
+        /// <summary>Called once per tick after commands and movement.</summary>
         public void OnTick(Simulation sim)
         {
             // Phase 1: gain stacks for moving Skai units, drain for still ones, clear on Grounded or slowed.
         }
 
+        /// <summary>Feeds the mechanic's state into the state hash; Phase 0 has only the ID.</summary>
         public void WriteHash(StateHasher hasher)
         {
             hasher.Write(Id);

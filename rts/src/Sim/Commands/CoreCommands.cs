@@ -10,17 +10,20 @@ namespace Rts.Sim.Commands
     /// <summary>Does nothing when applied. Used by tests and as a network keep-alive placeholder.</summary>
     public sealed class NoOpCommand : Command
     {
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
         public NoOpCommand(int tick, PlayerId issuer, uint sequence) : base(tick, issuer, sequence)
         {
         }
 
         public override string Kind => "noop";
 
+        /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
         public override CommandResult Apply(Simulation sim)
         {
             return CommandResult.Ok;
         }
 
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
         public override void WriteHash(StateHasher hasher)
         {
             hasher.Write(Kind);
@@ -39,6 +42,7 @@ namespace Rts.Sim.Commands
         /// <summary>Spawn position in tiles.</summary>
         public FixVec2 Position { get; }
 
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
         public SpawnUnitCommand(int tick, PlayerId issuer, uint sequence, string definitionId, PlayerId owner, FixVec2 position)
             : base(tick, issuer, sequence)
         {
@@ -49,6 +53,7 @@ namespace Rts.Sim.Commands
 
         public override string Kind => "spawn_unit";
 
+        /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
         public override CommandResult Apply(Simulation sim)
         {
             if (!sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? definition))
@@ -63,6 +68,7 @@ namespace Rts.Sim.Commands
             return CommandResult.Ok;
         }
 
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
         public override void WriteHash(StateHasher hasher)
         {
             hasher.Write(Kind);
@@ -81,6 +87,7 @@ namespace Rts.Sim.Commands
         /// <summary>Destination in tiles.</summary>
         public FixVec2 Target { get; }
 
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
         public MoveUnitCommand(int tick, PlayerId issuer, uint sequence, EntityId unit, FixVec2 target)
             : base(tick, issuer, sequence)
         {
@@ -90,6 +97,7 @@ namespace Rts.Sim.Commands
 
         public override string Kind => "move_unit";
 
+        /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
         public override CommandResult Apply(Simulation sim)
         {
             if (!sim.Units.TryGet(Unit, out Unit? unit))
@@ -104,6 +112,7 @@ namespace Rts.Sim.Commands
             return CommandResult.Ok;
         }
 
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
         public override void WriteHash(StateHasher hasher)
         {
             hasher.Write(Kind);
@@ -118,6 +127,7 @@ namespace Rts.Sim.Commands
         /// <summary>The unit to remove.</summary>
         public EntityId Unit { get; }
 
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
         public RemoveUnitCommand(int tick, PlayerId issuer, uint sequence, EntityId unit) : base(tick, issuer, sequence)
         {
             Unit = unit;
@@ -125,6 +135,7 @@ namespace Rts.Sim.Commands
 
         public override string Kind => "remove_unit";
 
+        /// <summary>Applies the command; see the class summary for the rules it checks.</summary>
         public override CommandResult Apply(Simulation sim)
         {
             if (!sim.Units.TryGet(Unit, out Unit? unit))
@@ -139,6 +150,7 @@ namespace Rts.Sim.Commands
             return CommandResult.Ok;
         }
 
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
         public override void WriteHash(StateHasher hasher)
         {
             hasher.Write(Kind);

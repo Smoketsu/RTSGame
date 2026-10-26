@@ -15,16 +15,19 @@ namespace Rts.Sim.Factions.Water
 
         public string Id => MechanicId;
 
+        /// <summary>Called once before tick 0 runs.</summary>
         public void OnMatchStart(Simulation sim)
         {
             // Phase 1: convert tide_cycle_seconds to ticks and register flood sources.
         }
 
+        /// <summary>Called once per tick after commands and movement.</summary>
         public void OnTick(Simulation sim)
         {
             // Phase 1: advance the tide on the match clock and redistribute water in fixed tile order.
         }
 
+        /// <summary>Feeds the mechanic's state into the state hash; Phase 0 has only the ID.</summary>
         public void WriteHash(StateHasher hasher)
         {
             hasher.Write(Id);

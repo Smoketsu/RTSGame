@@ -10,14 +10,17 @@ namespace Rts.Sim.Factions
     {
         public string Id => FactionDefinition.NoMechanic;
 
+        /// <summary>Called once before tick 0 runs.</summary>
         public void OnMatchStart(Simulation sim)
         {
         }
 
+        /// <summary>Called once per tick after commands and movement.</summary>
         public void OnTick(Simulation sim)
         {
         }
 
+        /// <summary>Feeds the mechanic's state into the state hash; Phase 0 has only the ID.</summary>
         public void WriteHash(StateHasher hasher)
         {
             hasher.Write(Id);

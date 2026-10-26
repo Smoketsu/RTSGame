@@ -6,11 +6,11 @@
   "recasting_seconds": 15,
   // Share of the unit's cost paid to Recast. Unit: fraction of cost (0.25 = 25%). Range: 0 to 1. Source: Factions / Earth / Recasting.
   "recasting_cost_fraction": 0.25,
-  // Attunement gained per hit landed. Unit: fraction of full Attunement (1.0 = full) per hit. Range: 0 to 0.1. Source: Factions / Earth / Attunement.
+  // Resistance to a damage type gained each time the unit is hit by that type. Unit: fraction of incoming damage of that type resisted, per hit (0.01 = 1%). Range: 0 to 0.1. Source: Factions / Earth / Attunement.
   "attunement_gain_per_hit": 0.01,
-  // Maximum Attunement a unit can hold. Unit: fraction of full Attunement (1.0 = full). Range: 0 to 1. Source: Factions / Earth / Attunement.
+  // Maximum resistance Attunement can reach against one damage type. Unit: fraction of incoming damage resisted (0.30 = 30%). Range: 0 to 1. Source: Factions / Earth / Attunement.
   "attunement_cap": 0.30,
-  // Attunement lost at each fade interval. Unit: fraction of full Attunement (1.0 = full). Range: 0 to 0.3. Source: Factions / Earth / Attunement.
+  // Resistance lost at each fade step while out of combat. Unit: fraction of incoming damage resisted (0.05 = 5 percentage points). Range: 0 to 0.3. Source: Factions / Earth / Attunement.
   "attunement_fade_fraction": 0.05,
   // Time between Attunement fade steps. Unit: seconds. Range: 1 to 60. Source: Factions / Earth / Attunement.
   "attunement_fade_interval_seconds": 10
