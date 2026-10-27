@@ -1,0 +1,23 @@
+// match.json: Match clock, tides, Planetary Cycles and the Core. Read by the match clock and Core-capture simulation systems. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Match clock, tide, Planetary Cycle and Core-holding timings that the match clock and Core-capture systems read at match start.",
+  // Simulation ticks per second. Unit: ticks/second. Range: 10 to 60. Source: docs/decisions/ADR-004-tick-rate.md.
+  "ticks_per_second": 20,
+  // How often the full state hash is computed. Unit: ticks. Range: 1 to 600. Source: docs/decisions/ADR-005-state-hash.md.
+  "state_hash_interval_ticks": 20,
+  // Shortest target match length. Unit: seconds. Range: 300 to 3600. Source: Core gameplay loop.
+  "match_target_min_seconds": 900,
+  // Longest target match length. Unit: seconds. Range: 300 to 3600. Source: Core gameplay loop.
+  "match_target_max_seconds": 1500,
+  // Duration of one full high-to-high tide cycle, shared by all water players. Unit: seconds. Range: 60 to 600. Source: Win condition and twists / Planetary Cycles, Factions / Water.
+  "tide_cycle_seconds": 210,
+  // Time between Planetary Cycle shifts. Unit: seconds. Range: 60 to 900. Source: Win condition and twists / Planetary Cycles.
+  "planetary_cycle_interval_seconds": 240,
+  // How far ahead of a shift the next Planetary Cycle is shown to players. Unit: seconds. Range: 0 to 120. Source: Win condition and twists / Planetary Cycles.
+  "planetary_cycle_warning_seconds": 60,
+  // Uncontested time a unit must spend in the Core radius to become Core holder. Unit: seconds. Range: 5 to 60. Source: Holding the Core.
+  "core_capture_seconds": 20,
+  // Cumulative time a player must hold the Core to win in 1v1v1 and FFA. Unit: seconds. Range: 60 to 1500. Source: Holding the Core.
+  "ffa_core_win_cumulative_seconds": 480
+}

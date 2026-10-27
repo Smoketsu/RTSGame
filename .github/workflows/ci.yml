@@ -1,0 +1,183 @@
+# .github/workflows/ci.yml
+# Continuous integration for the RTS: builds the engine-free simulation, runs the NUnit tests, proves the simulation
+# is deterministic through the headless runner, and validates the JSON data files. Runs on every push to every branch
+# and on every pull request. No secrets are used or needed. See rts/docs/CI.md for what each job checks and how to
+# run the same commands locally with the .NET 8 SDK.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Read-only token: CI only checks out code and uploads artifacts.
+permissions:
+  contents: read
+
+# One run per ref at a time: a newer push to the same branch (or pull request) cancels the superseded run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep the .NET CLI quiet and free of first-run banners and telemetry in logs.
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  # Job 1: compile everything (warnings are errors via rts/Directory.Build.props) and run every NUnit test.
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up the .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore NuGet packages
+        run: dotnet restore rts/RtsGame.sln
+
+      - name: Build (Release, warnings are errors)
+        run: dotnet build rts/RtsGame.sln --configuration Release --no-restore
+
+      - name: Run all tests
+        run: >-
+          dotnet test rts/RtsGame.sln
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=results.trx"
+          --results-directory rts/build/TestResults
+
+      - name: Upload the TRX test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-trx
+          path: rts/build/TestResults/**/*.trx
+          if-no-files-found: warn
+
+  # Job 2: the Phase 0 exit criterion. The same scripted match run twice in separate processes must print the same
+  # final state hash, and the NUnit determinism tests must pass when run on their own.
+  determinism:
+    name: Determinism
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up the .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore NuGet packages
+        run: dotnet restore rts/RtsGame.sln
+
+      - name: Build the headless runner (Release)
+        run: dotnet build rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj --configuration Release --no-restore
+
+      - name: Run the headless smoke script twice and compare state hashes
+        shell: bash
+        env:
+          # Where the two captured stdout files land. Unit: directory path.
+          RUN_DIR: ${{ runner.temp }}/determinism
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUN_DIR"
+
+          # run_once <n>: one fresh process; stdout goes to run<n>.out, stderr to run<n>.err.
+          run_once() {
+            dotnet run --no-build \
+              --project rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj \
+              --configuration Release -- \
+              --data rts/data \
+              --script rts/data/scripts/smoke.json \
+              > "$RUN_DIR/run$1.out" 2> "$RUN_DIR/run$1.err"
+          }
+
+          for n in 1 2; do
+            if ! run_once "$n"; then
+              echo "::error title=Headless runner failed::Run $n exited with a non-zero code. stderr follows."
+              cat "$RUN_DIR/run$n.err" >&2
+              exit 1
+            fi
+          done
+
+          # extract_hash <n>: prints the 16 hex digits of the single STATE_HASH= line of run <n>, or nothing.
+          extract_hash() {
+            grep -E '^STATE_HASH=[0-9a-f]{16}$' "$RUN_DIR/run$1.out" | sed 's/^STATE_HASH=//' || true
+          }
+          hash1="$(extract_hash 1)"
+          hash2="$(extract_hash 2)"
+
+          if [ -z "$hash1" ] || [ -z "$hash2" ] || [ "$(printf '%s\n' "$hash1" | wc -l)" -ne 1 ] || [ "$(printf '%s\n' "$hash2" | wc -l)" -ne 1 ]; then
+            echo "::error title=STATE_HASH missing::Each run must print exactly one line 'STATE_HASH=<16 hex digits>'. Run 1 found: '${hash1}'. Run 2 found: '${hash2}'."
+            echo "--- run 1 stdout ---"; cat "$RUN_DIR/run1.out"
+            echo "--- run 2 stdout ---"; cat "$RUN_DIR/run2.out"
+            exit 1
+          fi
+
+          if [ "$hash1" != "$hash2" ]; then
+            echo "::error title=Simulation is not deterministic::Same script, same data, same seed gave STATE_HASH=$hash1 then STATE_HASH=$hash2."
+            echo "First differing per-tick lines (tick=<n> hash=<hex>):"
+            diff "$RUN_DIR/run1.out" "$RUN_DIR/run2.out" | head -n 20 || true
+            {
+              echo "### Determinism FAILED"
+              echo "- run 1: \`STATE_HASH=$hash1\`"
+              echo "- run 2: \`STATE_HASH=$hash2\`"
+              echo "See rts/docs/CI.md, section 'Reading a determinism failure'."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          # The per-tick hash lines must agree too, not just the final one.
+          if ! diff -q "$RUN_DIR/run1.out" "$RUN_DIR/run2.out" > /dev/null; then
+            echo "::error title=Per-tick hashes differ::Final hashes match but intermediate tick hashes differ between runs."
+            diff "$RUN_DIR/run1.out" "$RUN_DIR/run2.out" | head -n 20 || true
+            exit 1
+          fi
+
+          ticks="$(grep -cE '^tick=[0-9]+ hash=[0-9a-f]{16}$' "$RUN_DIR/run1.out" || true)"
+          {
+            echo "### Determinism OK"
+            echo "- Two separate runs of \`smoke.json\` printed the same hash."
+            echo "- \`STATE_HASH=$hash1\`"
+            echo "- Per-tick hash lines compared: $ticks"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "STATE_HASH=$hash1 (both runs)"
+
+      - name: Run the NUnit determinism tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test rts/tests/Sim.Tests/Rts.Sim.Tests.csproj \
+            --configuration Release \
+            --no-restore \
+            --filter "FullyQualifiedName~DeterminismTests" \
+            --logger "console;verbosity=normal" | tee "${{ runner.temp }}/determinism-tests.log"
+          # A filter that matches nothing exits 0; make that a failure so the check cannot silently vanish.
+          if ! grep -Eq '(Total|Passed):[[:space:]]+[1-9]' "${{ runner.temp }}/determinism-tests.log"; then
+            echo "::error title=No determinism tests ran::The filter FullyQualifiedName~DeterminismTests matched zero tests."
+            exit 1
+          fi
+
+  # Job 3: every data file and command script (rts/data/**, including rts/data/scripts/*.json) must be valid JSON once
+  # comments are stripped, and every file must open with a // header comment. Needs no .NET SDK, only the python3 that ubuntu-latest provides.
+  data-files:
+    name: Data files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Validate rts/data/**/*.json including scripts/ (JSON with comments, // header line)
+        run: python3 -I .github/scripts/validate_jsonc.py

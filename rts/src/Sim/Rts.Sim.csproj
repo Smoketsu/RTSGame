@@ -1,0 +1,21 @@
+<!-- rts/src/Sim/Rts.Sim.csproj: the engine-free simulation library. Targets netstandard2.1 so the same source compiles inside Unity 6 (via Rts.Sim.asmdef) and in the plain .NET test and tool projects. No package references, no engine references, no floating point. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- netstandard2.1 is the newest standard Unity 6 fully supports. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <!-- Assembly and root namespace match the Unity assembly definition name. -->
+    <AssemblyName>Rts.Sim</AssemblyName>
+    <RootNamespace>Rts.Sim</RootNamespace>
+    <!-- No implicit usings: every file lists what it uses, same as inside Unity. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- XML doc generation is off; the documentation standard is enforced by review, not by CS1591. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Unity package metadata and asmdef files live beside the source but are not compiled. -->
+    <None Remove="package.json" />
+    <None Remove="Rts.Sim.asmdef" />
+    <!-- Unity writes .meta files next to every asset; they are not source. -->
+    <Compile Remove="**/*.meta" />
+  </ItemGroup>
+</Project>

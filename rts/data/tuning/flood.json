@@ -1,0 +1,13 @@
+// flood.json: Water faction flooding limits and water depth effects. Read by the Water flooding and terrain depth simulation system. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Flood placement limits and water depth speed effects that the flooding and terrain depth simulation reads at match start.",
+  // Distance floods must stop short of enemy resource fields and drop-offs. Unit: tiles. Range: 0 to 12. Source: Flood limits.
+  "enemy_resource_gap_tiles": 4,
+  // Maximum share of a map's area that the lowest elevation layer may cover. Unit: fraction of map area (0.35 = 35%). Range: 0.05 to 0.6. Source: Maps / Layout rules.
+  "lowest_layer_max_map_fraction": 0.35,
+  // Multiplier on enemy ground speed in deep water (0.5 = half speed). Unit: multiplier of base ground speed. Range: 0.1 to 1.0. Source: Currents and depth.
+  "deep_water_enemy_speed_multiplier": 0.5,
+  // Multiplier on enemy ground speed in shallow water (0.85 = 85% speed). Unit: multiplier of base ground speed. Range: 0.1 to 1.0. Source: not in the design doc; placeholder, open question.
+  "shallow_water_enemy_speed_multiplier": 0.85
+}

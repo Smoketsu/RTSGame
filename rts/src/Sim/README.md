@@ -1,0 +1,69 @@
+<!-- rts/src/Sim/README.md: package readme for com.rtsgame.sim, the engine-free deterministic RTS simulation (assembly Rts.Sim). -->
+# RTS Simulation (`com.rtsgame.sim`, assembly `Rts.Sim`)
+
+The whole game rules live here: units, commands, movement, factions, the match clock and the state hash. Unity (or a console tool, or a test) only **reads** the simulation, **submits commands** to it and **steps** it. Nothing in this folder knows what a Unity object, a frame or a renderer is.
+
+The same folder is used three ways:
+
+| Consumer | How it builds this folder |
+| --- | --- |
+| Unity 6 project `rts/src/Game` | Local package (`package.json`) with assembly definition `Rts.Sim.asmdef`; Unity compiles every `.cs` below this folder into `Rts.Sim.dll`. |
+| Unit tests and headless tools | `Rts.Sim.csproj` (`netstandard2.1`, C# 9) compiled by the .NET SDK. Build output goes to `rts/build/`, never into this folder. |
+| Documentation | This file, `rts/docs/decisions/*.md` and the header comment of every source file. |
+
+## Why `noEngineReferences` is on
+
+`Rts.Sim.asmdef` sets `"noEngineReferences": true`. Unity then compiles the assembly **without** `UnityEngine.dll` or `UnityEditor.dll`; only the .NET Standard 2.1 class library is visible. Consequences:
+
+- A `using UnityEngine;`, a `Vector3`, a `Mathf` call or a `Debug.Log` anywhere in this folder is a **compile error**, so the rule "the simulation has no engine references" is enforced by the compiler, not by review.
+- The identical source also compiles in the plain .NET projects (tests, balance harness, replay checker), which proves it does not secretly depend on Unity.
+- Nothing here can read `Time.deltaTime`, Unity's `Random`, `float` physics or frame timing, which are the usual sources of desyncs in lockstep games.
+
+`Rts.Sim.asmdef` also keeps `allowUnsafeCode` false and `autoReferenced` true (other assemblies in the project may reference `Rts.Sim` by name; the Unity side lists it explicitly in `Rts.Game.asmdef`). The asmdef is JSON, which cannot hold comments, which is why the explanation lives here.
+
+`Rts.Sim.rsp` (one line, `-nullable:enable`) tells the Unity compiler to treat the source as nullable-annotated, as `rts/Directory.Build.props` does for the .NET build. Without it Unity prints harmless CS8632 warnings for every `string?`.
+
+Unity writes a `.meta` file next to every file and folder here when the project first opens. **Commit those `.meta` files**: they hold the GUIDs that references between assets use.
+
+## Step order (copied from `Simulation.cs`; changing it changes every replay)
+
+1. clear the event log
+2. apply this tick's commands in (issuer, sequence) order
+3. movement
+4. faction mechanics in ascending mechanic ID order
+5. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+6. advance the clock
+
+The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, read `Events.Current`, repeat. `Submit` is rejected inside a step and for ticks already played.
+
+## Determinism rules (non-negotiable)
+
+1. No engine references, no `float`/`double`/`decimal`, no `System.Numerics`, no `System.Random`, no `DateTime`/`Stopwatch`, no file, network or thread access. Numbers are `Fix64` (Q32.32, parse decimals with `Fix64.Parse`) or integers.
+2. Everything that changes state is a `Command` applied inside `Simulation.Step`. Events go out, never in.
+3. Data-driven: every tuning number lives in `rts/data`, never in code.
+4. Faction mechanics are plug-ins behind `IFactionMechanic`, registered by ID; the core never names a faction (only `Factions/BuiltInMechanics.cs` does).
+5. Any player count; nothing assumes 1v1.
+6. Iterate collections in sorted-ID order (`SortedDictionary`, `SortedSet`, sorted lists), never `Dictionary`/`HashSet` order.
+7. Everything that affects future ticks is written into the state hash (`StateHasher`) in a fixed order.
+8. Fixed-point to float conversion (`Fix64.ToFloatForPresentation`) is for rendering only and must never flow back into the simulation.
+
+## Folder map
+
+| Folder | What lives there |
+| --- | --- |
+| `Core/` | `Fix64`, `FixVec2`, IDs (`EntityId`, `PlayerId`, `TeamId`), `MatchClock`, `DeterministicRandom`, `StateHasher`, `MatchSettings`, `SimulationConfig`, `ContentCatalog`. |
+| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op). The only way state changes. |
+| `Teams/` | `PlayerSetup` and `PlayerRegistry`: players, teams, alliances. |
+| `Terrain/` | Placeholder (Phase 1): tile map, cliffs, walls, floods. |
+| `Pathing/` | Placeholder (Phase 1): flow fields per movement layer. |
+| `Vision/` | Placeholder (Phase 1): fog of war and vision. |
+| `Statuses/` | Placeholder (Phase 1): statuses such as Grounded, rooted. |
+| `Units/` | `Unit`, `UnitDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`. |
+| `Combat/` | Placeholder (Phase 1): damage, armour, attacks. |
+| `Economy/` | Placeholder (Phase 1): resources, supply, production. |
+| `Factions/` | `IFactionMechanic`, `FactionMechanicRegistry`, `BuiltInMechanics`, and one subfolder per faction (`Skai/`, `Water/`, `Earth/`, `Fire/`). |
+| `Cycles/` | Placeholder (Phase 1): Planetary Cycles on the match clock. |
+| `Events/` | `SimEvent`, `EventLog` and the core events hosts react to (spawned, removed, arrived, rejected, state hashed). |
+| `Data/` | The data loader: `JsonReader`, `JsonValue`, `DataLoader`, `DataSet`, `CommandScript` (the shared command-script parser; scripts live in `rts/data/scripts`, which the loader skips), definitions for maps and cycles, and `Tuning/` (one typed class per `rts/data/tuning` file). Hosts do the file IO and pass `DataSourceFile(relativePath, text)` objects in. |
+
+Related files in this folder: `Simulation.cs` (the one entry point), `Rts.Sim.csproj` (.NET build), `package.json` and `Rts.Sim.asmdef` (Unity). Setup for the Unity project is in `rts/docs/UNITY_SETUP.md`.

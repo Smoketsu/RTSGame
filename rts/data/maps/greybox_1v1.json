@@ -1,0 +1,18 @@
+// rts/data/maps/greybox_1v1.json: grey-box 1v1 test map. Part of rts/data/maps; read by the data loader (rts/src/Sim/Data) into a MapDefinition. Flat placeholder map used by the headless harness and tests until Phase 1 map work adds terrain.
+{
+  "$schema_version": 1,
+  "$doc": "Grey-box 1v1 map: 64 by 64 tiles with two mirror-symmetric spawns, used for movement tests and the headless harness before real maps exist.",
+  // Stable map ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "greybox_1v1",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: not in the design doc; placeholder for Phase 1.
+  "display_name": "Greybox 1v1",
+  // Map width. Unit: tiles. Range: 8 to 1024. Source: not in the design doc; placeholder for Phase 1 map work.
+  "width_tiles": 64,
+  // Map height. Unit: tiles. Range: 8 to 1024. Source: not in the design doc; placeholder for Phase 1 map work.
+  "height_tiles": 64,
+  // Player start points in slot order (spawn 0 is player slot 0), mirror-symmetric through the map centre. Unit: tiles from the map origin, x 0 to width_tiles, y 0 to height_tiles. Range: 2 to 4 distinct points. Source: Maps (2 to 4 spawns, symmetric for fairness).
+  "spawns": [
+    { "x": 8, "y": 8 },
+    { "x": 56, "y": 56 }
+  ]
+}

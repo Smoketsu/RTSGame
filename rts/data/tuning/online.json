@@ -1,0 +1,13 @@
+// online.json: Pauses, disconnects and ranked rules enforced by the match rules layer. Read by the match rules layer. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Disconnect pause limits, per-player pause budget and ranked unlock threshold that the match rules layer enforces.",
+  // Longest a single disconnect pause may last. Unit: seconds. Range: 30 to 600. Source: Surrender and disconnects.
+  "disconnect_pause_max_seconds": 300,
+  // Number of disconnect pauses each player may trigger in a match. Unit: pauses per player per match (count). Range: 0 to 5. Source: Surrender and disconnects.
+  "disconnect_pauses_per_player": 1,
+  // Total voluntary pause time each player may use in a match; separate from the disconnect pause above, which has its own limit. Unit: seconds per player per match. Range: 0 to 600. Source: Surrender and disconnects.
+  "pause_budget_seconds_per_player": 120,
+  // Matches a player must finish before ranked mode unlocks. Unit: matches (count). Range: 0 to 100. Source: Game modes.
+  "ranked_unlock_matches": 10
+}

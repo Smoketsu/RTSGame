@@ -1,0 +1,17 @@
+// rts/data/factions/water.json: Water faction (name TBD) definition. Part of rts/data/factions; read by the data loader (rts/src/Sim/Data) into a FactionDefinition at match start.
+{
+  "$schema_version": 1,
+  "$doc": "Water faction (name TBD): octopus and mollusk people whose signature mechanic is Flooding; lists the units available in the Phase 0 content set.",
+  // Stable faction ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction (name TBD).
+  "display_name": "Water",
+  // Signature mechanic plug-in the simulation instantiates for this faction. Unit: mechanic ID. Range: an ID registered in BuiltInMechanics ("momentum", "flooding") or "none". Source: Factions / Water faction / Signature mechanic: Flooding with tides and waves.
+  "mechanic_id": "flooding",
+  // Units the faction can field, in menu order. Unit: list of unit IDs. Range: IDs of files under rts/data/units/water, no duplicates. Source: Factions / Water faction / Unit concepts (Phase 0 subset: worker, anti-air and melee).
+  "units": [
+    "water.tender",
+    "water.spoutling",
+    "water.grasper"
+  ]
+}

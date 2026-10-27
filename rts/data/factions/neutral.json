@@ -1,0 +1,13 @@
+// rts/data/factions/neutral.json: the neutral pseudo-faction. Part of rts/data/factions; read by the data loader (rts/src/Sim/Data) into a FactionDefinition at match start.
+{
+  "$schema_version": 1,
+  "$doc": "Neutral pseudo-faction with no mechanic and no units; owner of map objects such as the Core and creeps in later phases, and a safe default for tests.",
+  // Stable faction ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "neutral",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: not in the design doc; placeholder for Phase 1.
+  "display_name": "Neutral",
+  // Signature mechanic plug-in for this faction. Unit: mechanic ID. Range: "none" for no mechanic, or an ID registered in BuiltInMechanics. Source: not in the design doc; the neutral faction has no mechanic.
+  "mechanic_id": "none",
+  // Units the faction can field. Unit: list of unit IDs. Range: empty, since the neutral faction fields no units in Phase 0. Source: not in the design doc; placeholder for Phase 1.
+  "units": []
+}

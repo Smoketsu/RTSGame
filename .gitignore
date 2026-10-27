@@ -1,0 +1,32 @@
+# .gitignore: build output, IDE and Unity scratch folders. Source, data and docs are always committed.
+# .NET build output (redirected under rts/build by Directory.Build.props)
+rts/build/
+bin/
+obj/
+*.user
+.vs/
+.idea/
+# Unity generated folders inside the Unity project (rts/src/Game)
+rts/src/Game/Library/
+rts/src/Game/Temp/
+rts/src/Game/Logs/
+rts/src/Game/UserSettings/
+rts/src/Game/obj/
+rts/src/Game/*.csproj
+rts/src/Game/*.sln
+rts/src/Game/*.slnx
+rts/src/Game/.vscode/
+rts/src/Game/MemoryCaptures/
+rts/src/Game/Recordings/
+rts/src/Game/Build/
+rts/src/Game/Builds/
+# Player-build copy of rts/data (the editor reads rts/data directly); regenerate, never commit
+rts/src/Game/Assets/StreamingAssets/data/
+rts/src/Game/Assets/StreamingAssets/data.meta
+# Unity build artefacts and crash dumps
+*.apk
+*.aab
+*.unitypackage
+sysinfo.txt
+# Local test results
+TestResults/

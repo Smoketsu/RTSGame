@@ -1,0 +1,9 @@
+// statuses.json: Shared statuses any faction can apply, Grounded and slowed. Read by the shared status simulation system. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026).
+{
+  "$schema_version": 1,
+  "$doc": "Duration and application values for the shared Grounded status and the Spoutling drench rule that the status simulation reads at match start.",
+  // How long the Grounded status lasts on a unit. Unit: seconds. Range: 0.5 to 15. Source: Factions / Grounded, a shared status.
+  "grounded_duration_seconds": 4,
+  // Number of Spoutling drench hits that apply Grounded to the target. Unit: hits. Range: 1 to 10. Source: Factions / Water faction / Unit concepts (Spoutling).
+  "spoutling_drench_hits_to_ground": 3
+}
