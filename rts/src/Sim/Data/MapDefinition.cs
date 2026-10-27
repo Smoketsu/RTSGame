@@ -142,6 +142,41 @@ namespace Rts.Sim.Data
         {
         }
 
+        /// <summary>
+        /// Feeds everything that affects simulation (size, spawns, heights, ramps, fields, Core) into a hash in a fixed
+        /// order. Display names are left out. Two maps with the same hash simulate the same.
+        /// </summary>
+        public void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Id);
+            hasher.Write(WidthTiles);
+            hasher.Write(HeightTiles);
+            hasher.Write(Spawns.Count);
+            foreach (FixVec2 spawn in Spawns)
+            {
+                hasher.Write(spawn);
+            }
+            for (int index = 0; index < _heights.Length; index++)
+            {
+                hasher.Write(_heights[index]);
+                hasher.Write(_ramps[index]);
+            }
+            hasher.Write(ResourceFields.Count);
+            foreach (ResourceField field in ResourceFields)
+            {
+                hasher.Write(field.X);
+                hasher.Write(field.Y);
+                hasher.Write((byte)field.Kind);
+                hasher.Write(field.Amount);
+            }
+            hasher.Write(Core != null);
+            if (Core != null)
+            {
+                hasher.Write(Core.Centre);
+                hasher.Write(Core.RadiusTiles);
+            }
+        }
+
         /// <summary>Authored elevation layer of a tile index. Range: 0 to 7.</summary>
         public byte HeightAt(int index)
         {

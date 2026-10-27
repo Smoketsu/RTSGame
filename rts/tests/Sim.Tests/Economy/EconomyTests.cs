@@ -325,22 +325,32 @@ namespace Rts.Sim.Tests.Economy
             AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 20, 20));
             Assert.That(sim.Terrain[tile].IsBlocked, Is.True);
             Assert.That(sim.Terrain[tile].Blockers & TileBlockers.Footprint, Is.EqualTo(TileBlockers.Footprint));
-            Assert.That(sim.Pathing.Get(MovementLayer.Ground, tile).IsReachable(beside), Is.False);
-            // A ground unit ordered onto the blocked tile cannot get there.
-            List<SimEvent> events = Do(sim, new MoveUnitCommand(sim.Clock.Tick, P0, Seq(), runner, new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("20.5"))));
-            Assert.That(Of<MoveUnreachableEvent>(events).Count, Is.EqualTo(1));
+            // The blocked tile itself is unreachable, but the field leads to its standable neighbours (ADR-007 follow-up),
+            // so a ground unit ordered onto the footprint walks up and stops beside it instead of failing.
+            Assert.That(sim.Pathing.Get(MovementLayer.Ground, tile).IsReachable(tile), Is.False);
+            Assert.That(sim.Pathing.Get(MovementLayer.Ground, tile).IsReachable(beside), Is.True);
             // Air units ignore the footprint.
             Assert.That(sim.Terrain.IsStandable(tile, MovementLayer.Air), Is.True);
             Assert.That(sim.Terrain.IsStandable(tile, MovementLayer.Ground), Is.False);
 
             // An enemy mortar (blast 20, x2 against the armoured barracks) one-shots the unfinished building.
             int versionBefore = sim.Terrain.Version;
-            events = Do(sim, new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, Seq(), TestWorld.MortarId, P1, At(20, 25)));
+            List<SimEvent> events = Do(sim, new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, Seq(), TestWorld.MortarId, P1, At(20, 25)));
             events.AddRange(StepCollect(sim, 5));
             Assert.That(Of<UnitKilledEvent>(events).Count, Is.EqualTo(1));
             Assert.That(sim.Terrain[tile].IsBlocked, Is.False);
             Assert.That(sim.Terrain.Version, Is.GreaterThan(versionBefore));
             Assert.That(sim.Pathing.Get(MovementLayer.Ground, tile).IsReachable(beside), Is.True);
+
+            // A second structure, out of the mortar's reach: a ground unit ordered onto its footprint walks up and
+            // stops beside it (the blocked goal seeds its standable neighbours), never on it and never "unreachable".
+            int farTile = sim.Terrain.IndexOf(30, 10);
+            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 30, 10));
+            events = Do(sim, new MoveUnitCommand(sim.Clock.Tick, P0, Seq(), runner, new FixVec2(Fix64.Parse("30.5"), Fix64.Parse("10.5"))));
+            events.AddRange(StepCollect(sim, 160));
+            Assert.That(Of<MoveUnreachableEvent>(events).Count, Is.EqualTo(0));
+            Assert.That(Of<UnitArrivedEvent>(events).Count, Is.EqualTo(1));
+            Assert.That(sim.Units.TryGet(runner, out Unit? walker) && sim.Terrain.TileOf(walker!.Position) != farTile, Is.True, "the runner stops beside the footprint, never on it");
         }
 
         /// <summary>The same economy script gives the same hashes twice; changing one command changes the result; the five new command kinds parse from a script.</summary>

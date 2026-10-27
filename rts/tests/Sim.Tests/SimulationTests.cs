@@ -145,7 +145,13 @@ namespace Rts.Sim.Tests
             Assert.That(sim.Content.IsFrozen, Is.True);
             Expect.Throws<InvalidOperationException>(() => { sim.Content.AddUnit(sim.Content.Units[TestWorld.RunnerId]); });
             Assert.That(sim.ContentDigest, Is.Not.EqualTo(0UL));
-            Assert.That(TestWorld.Catalog().ComputeDigest(), Is.EqualTo(sim.ContentDigest));
+            // The content digest mixes the catalog digest, the tuning source digest and the map hash (review M2).
+            StateHasher expected = new StateHasher();
+            expected.Write(TestWorld.Catalog().ComputeDigest());
+            expected.Write(TestWorld.Tuning.SourceDigest);
+            TestWorld.FlatMap().WriteHash(expected);
+            Assert.That(expected.Hash, Is.EqualTo(sim.ContentDigest));
+            Assert.That(TestWorld.Tuning.SourceDigest, Is.Not.EqualTo(0UL), "tuning loaded from data carries a source digest");
         }
 
         [Test]

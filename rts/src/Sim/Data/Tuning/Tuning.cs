@@ -38,6 +38,19 @@ namespace Rts.Sim.Data
         /// <summary>tuning/terrain.json: per-layer speed multipliers, depth thresholds and pathfinder limits.</summary>
         public TerrainTuning Terrain { get; }
 
+        /// <summary>
+        /// FNV-1a digest of the text of every tuning file this object was built from, set by the loader; 0 when built
+        /// by hand. Mixed into <see cref="Simulation.ContentDigest"/> so peers with different tuning diverge at tick 0.
+        /// </summary>
+        public ulong SourceDigest { get; private set; }
+
+        /// <summary>Records the source digest once, from the loader.</summary>
+        /// <param name="digest">FNV-1a over the sorted (path, text) pairs of the tuning files.</param>
+        internal void SetSourceDigest(ulong digest)
+        {
+            SourceDigest = digest;
+        }
+
         /// <summary>tuning/combat.json: damage types, armour types, the damage multiplier table and the attack-move acquire bonus.</summary>
         public CombatTuning Combat { get; }
 

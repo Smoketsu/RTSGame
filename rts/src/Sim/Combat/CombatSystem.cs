@@ -82,7 +82,15 @@ namespace Rts.Sim.Combat
                     StepUnit(sim, rules, unit, kills);
                 }
             }
-            kills.Sort((a, b) => a.Victim.CompareTo(b.Victim));
+            // Total order: victim ID, then killer ID. Two lethal hits on one victim in a tick are possible; List.Sort is not stable,
+            // so without the killer tie-break the credited killer would depend on the sort's internals. The lowest killer ID (the
+            // attacker visited first) gets the credit and the second entry finds its victim already removed.
+            kills.Sort((a, b) =>
+            {
+                // Comparison of the victims, then of the killers when the victims are equal. Range: negative, 0 or positive.
+                int byVictim = a.Victim.CompareTo(b.Victim);
+                return byVictim != 0 ? byVictim : a.Killer.CompareTo(b.Killer);
+            });
             foreach (PendingKill kill in kills)
             {
                 // The dead unit, still registered until removed below.
@@ -263,7 +271,7 @@ namespace Rts.Sim.Combat
         /// distance is compared, squared, with range plus both radii. A per-axis check first keeps the squares small.
         /// </summary>
         /// <param name="range">Edge-to-edge reach. Unit: tiles. Range: 0 or more.</param>
-        private static bool InReach(Unit attacker, Unit target, Fix64 range)
+        internal static bool InReach(Unit attacker, Unit target, Fix64 range)
         {
             // Largest allowed centre distance. Unit: tiles. Range: small (range plus two radii).
             Fix64 reach = range + attacker.Definition.Radius + target.Definition.Radius;

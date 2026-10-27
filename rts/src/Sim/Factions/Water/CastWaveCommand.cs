@@ -1,13 +1,14 @@
-// rts/src/Sim/Commands/FloodCommands.cs
-// The wave command of the Water faction: cast_wave. Part of Rts.Sim.Commands (spec: rts/docs/specs/flooding.md section 5).
+// rts/src/Sim/Factions/Water/CastWaveCommand.cs
+// The wave command of the Water faction: cast_wave. Part of Rts.Sim.Factions.Water (spec: rts/docs/specs/flooding.md section 5).
+// It lives with the mechanic it drives so the core (Commands, Data) never names a faction; its script reader is
+// CastWaveScriptParser, registered in BuiltInMechanics.ScriptParsers.
 // Like every command it only validates and then asks the flooding mechanic (rts/src/Sim/Factions/Water) to do the work,
 // so players, the AI, replays and campaign scripts all cast the same way.
+using Rts.Sim.Commands;
 using Rts.Sim.Core;
-using Rts.Sim.Factions;
-using Rts.Sim.Factions.Water;
 using Rts.Sim.Units;
 
-namespace Rts.Sim.Commands
+namespace Rts.Sim.Factions.Water
 {
     /// <summary>
     /// A unit casts the first-pass wave towards a point: water spreads over a strip in front of it and enemy non-air units

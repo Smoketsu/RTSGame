@@ -8,6 +8,7 @@
 // the content catalog at match start; no faction is named here). The mechanic changes speed and damage only through
 // the ISpeedModifier and IDamageModifier hooks it registers. Every number comes from rts/data/tuning/momentum.json.
 // Determinism: integer counters, entries in a SortedDictionary visited in ascending unit ID, no random numbers.
+using System;
 using System.Collections.Generic;
 using Rts.Sim.Combat;
 using Rts.Sim.Core;
@@ -68,6 +69,10 @@ namespace Rts.Sim.Factions.Skai
         /// <param name="sim">The stepping simulation.</param>
         public void OnTick(Simulation sim)
         {
+            if (!sim.IsStepping)
+            {
+                throw new InvalidOperationException("MomentumMechanic.OnTick can only run inside Simulation.Step.");
+            }
             // Current tick. Unit: ticks. Range: 0 upward.
             int tick = sim.Clock.Tick;
             // Step 1a: drop entries whose unit is gone, in ascending key order.

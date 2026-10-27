@@ -3,6 +3,7 @@
 // All three use the same ownership and bounds checks as MoveUnitCommand: the unit must exist, must belong to the
 // issuer (a script issuer, PlayerId.None, may order any unit), and positions must be within the world bound.
 // What the orders do each tick is documented in rts/src/Sim/Combat/CombatSystem.cs.
+using Rts.Sim.Combat;
 using Rts.Sim.Core;
 using Rts.Sim.Units;
 
@@ -88,7 +89,8 @@ namespace Rts.Sim.Commands
 
         /// <summary>
         /// Applies the command. Rejections: unknown_unit, not_owner, unknown_target, no_weapon, target_not_enemy,
-        /// cannot_target_layer.
+        /// cannot_target_layer, hq_rooted (an HQ that would have to walk: not Uprooted and the target is out of weapon range,
+        /// or Rooting or Uprooting). A Rooted HQ with the target already in weapon range accepts the order and fires from where it stands.
         /// </summary>
         public override CommandResult Apply(Simulation sim)
         {
@@ -120,7 +122,17 @@ namespace Rts.Sim.Commands
             }
             if (HqSystem.IsMovementLocked(unit))
             {
-                return CommandResult.Reject(HqSystem.ReasonHqRooted);
+                // A locked HQ can only fire from where it stands: a Rooted HQ whose target is already in weapon range may focus it;
+                // anything that would need to walk, or an HQ that is Rooting or Uprooting (its weapon is off), is rejected.
+                if (unit.HqState != HqState.Rooted || !CombatSystem.InReach(unit, target, weapon.RangeTiles))
+                {
+                    return CommandResult.Reject(HqSystem.ReasonHqRooted);
+                }
+                unit.ClearCombatOrders();
+                unit.ClearGather();
+                // Not forced: the HQ keeps the target only while it stays in reach, then goes back to picking its own.
+                unit.SetAttackTarget(target.Id, false);
+                return CommandResult.Ok;
             }
             unit.ClearCombatOrders();
             unit.ClearGather();

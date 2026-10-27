@@ -83,6 +83,7 @@ namespace Rts.Sim.Factions.Water
         {
             // Flood tuning: ranges and rates read by this method. Unit: see FloodTuning.
             FloodTuning flood = sim.Tuning.Flood;
+            // The match clock, for second to tick conversions.
             MatchClock clock = sim.Clock;
             TideTicks = sim.Tuning.Match.TideCycleTicks(clock);
             UpdateTicks = flood.FloodUpdateIntervalTicks(clock);
@@ -93,6 +94,7 @@ namespace Rts.Sim.Factions.Water
             HealPerUpdate = flood.WaterUnitHealPerSecond * Fix64.FromInt(UpdateTicks) / Fix64.FromInt(clock.TicksPerSecond);
             _minRetreatDrops = DropsPerUpdate(sim, flood.MinRetreatPerSecond);
             _floodFactions.Clear();
+            // Faction entry in ascending ID order; its key is the faction ID.
             foreach (KeyValuePair<string, FactionDefinition> pair in sim.Content.Factions)
             {
                 if (string.Equals(pair.Value.MechanicId, MechanicId, StringComparison.Ordinal))
@@ -111,6 +113,10 @@ namespace Rts.Sim.Factions.Water
         /// <param name="sim">The stepping simulation.</param>
         public void OnTick(Simulation sim)
         {
+            if (!sim.IsStepping)
+            {
+                throw new InvalidOperationException("FloodingMechanic.OnTick can only run inside Simulation.Step.");
+            }
             // Current tick. Unit: ticks. Range: 0 upward.
             int tick = sim.Clock.Tick;
             PruneCooldowns(sim);
@@ -137,6 +143,7 @@ namespace Rts.Sim.Factions.Water
         {
             hasher.Write(Id);
             hasher.Write(_nextWaveTick.Count);
+            // Cooldown entry in ascending caster ID: key caster, value next tick the caster may cast. Unit: ticks.
             foreach (KeyValuePair<EntityId, int> pair in _nextWaveTick)
             {
                 hasher.Write(pair.Key);
@@ -187,6 +194,7 @@ namespace Rts.Sim.Factions.Water
             }
             // Entries whose caster is gone.
             List<EntityId> gone = new List<EntityId>();
+            // Caster ID with a cooldown entry, ascending.
             foreach (EntityId id in _nextWaveTick.Keys)
             {
                 if (!sim.Units.Contains(id))
@@ -194,6 +202,7 @@ namespace Rts.Sim.Factions.Water
                     gone.Add(id);
                 }
             }
+            // Caster ID whose entry is removed, ascending.
             foreach (EntityId id in gone)
             {
                 _nextWaveTick.Remove(id);
@@ -238,7 +247,9 @@ namespace Rts.Sim.Factions.Water
         {
             // The live terrain grid this method reads and (through SetWater) changes.
             TerrainGrid terrain = sim.Terrain;
+            // The reusable working field this method fills.
             FloodField field = _field ?? throw new InvalidOperationException("The flooding mechanic has not started.");
+            // Tile index being copied. Unit: tile index. Range: 0 to TileCount - 1.
             for (int i = 0; i < field.TileCount; i++)
             {
                 // The tile being copied. Unit: one tile.
@@ -250,6 +261,7 @@ namespace Rts.Sim.Factions.Water
                 // Owner of the water. Water another system left unowned stays unowned (never given away) until a team's flow claims the tile.
                 field.Team[i] = field.Drops[i] > 0 && tile.WaterTeam.IsValid ? tile.WaterTeam.Value : FloodField.NoTeam;
             }
+            // Team slot whose no-flood mask is cleared. Unit: team number. Range: 0 to TeamSlots - 1.
             for (int team = 0; team < FloodField.TeamSlots; team++)
             {
                 field.NoFlood[team] = null;
@@ -266,9 +278,11 @@ namespace Rts.Sim.Factions.Water
         {
             // Flood tuning: ranges and rates read by this method. Unit: see FloodTuning.
             FloodTuning flood = sim.Tuning.Flood;
+            // The live terrain grid, read for unit tiles.
             TerrainGrid terrain = sim.Terrain;
             // Drop-off anchor tiles per owner team, each list in ascending unit ID order.
             SortedDictionary<int, List<int>> anchorsByTeam = new SortedDictionary<int, List<int>>();
+            // Unit checked for being a drop-off, ascending ID.
             foreach (Unit unit in sim.Units.All)
             {
                 if (!EconomyRules.IsDropOff(unit))
@@ -291,6 +305,7 @@ namespace Rts.Sim.Factions.Water
                 anchors.Add(tile);
                 // Resource fields within the claim radius of this drop-off count as enemy resource fields to everyone else.
                 IReadOnlyList<ResourceField> fields = sim.Map.ResourceFields;
+                // Index of the resource field being tested. Unit: list position. Range: 0 to field count - 1.
                 for (int f = 0; f < fields.Count; f++)
                 {
                     if (Math.Max(Math.Abs(fields[f].X - terrain.XOf(tile)), Math.Abs(fields[f].Y - terrain.YOf(tile))) <= flood.ResourceClaimRadiusTiles)
@@ -301,10 +316,12 @@ namespace Rts.Sim.Factions.Water
             }
             // Whole tiles of the dry gap: distances are whole, so "distance <= gap" equals "distance <= floor(gap)".
             int gap = flood.EnemyResourceGapTiles.FloorToInt();
+            // Team that may flood, ascending. Range: 0 to 254.
             foreach (int team in FloodingTeams(sim, field))
             {
                 // Anchors of all other teams, in ascending team then unit order.
                 List<int> enemyAnchors = new List<int>();
+                // Team entry in ascending team order: key team, value its anchor tiles.
                 foreach (KeyValuePair<int, List<int>> pair in anchorsByTeam)
                 {
                     if (pair.Key != team)
@@ -321,6 +338,7 @@ namespace Rts.Sim.Factions.Water
         {
             // Team IDs found, ascending. Range: 0 to 254.
             SortedSet<int> teams = new SortedSet<int>();
+            // Player in ascending ID order.
             foreach (Player player in sim.Players.All)
             {
                 if (_floodFactions.Contains(player.FactionId))
@@ -328,6 +346,7 @@ namespace Rts.Sim.Factions.Water
                     teams.Add(player.Team.Value);
                 }
             }
+            // Tile index being checked for water. Unit: tile index. Range: 0 to TileCount - 1.
             for (int i = 0; i < field.TileCount; i++)
             {
                 if (field.Team[i] != FloodField.NoTeam)
@@ -343,6 +362,7 @@ namespace Rts.Sim.Factions.Water
         {
             // Result list, in ascending unit ID because the registry iterates that way.
             List<SourceInfo> sources = new List<SourceInfo>();
+            // Unit tested as a flood source, ascending ID.
             foreach (Unit unit in sim.Units.All)
             {
                 if (!IsActiveSource(sim, unit) || TeamOfOwner(sim, unit.Owner).Value != team)
@@ -366,7 +386,9 @@ namespace Rts.Sim.Factions.Water
         {
             // Flood tuning: ranges and rates read by this method. Unit: see FloodTuning.
             FloodTuning flood = sim.Tuning.Flood;
+            // The live terrain grid that receives the written-back water.
             TerrainGrid terrain = sim.Terrain;
+            // The working field for this update.
             FloodField field = ReadField(sim);
             // Water state before this update, to find the changed tiles at the end.
             int[] originalDrops = (int[])field.Drops.Clone();
@@ -408,6 +430,7 @@ namespace Rts.Sim.Factions.Water
 
             // Step 3: tide, per team ascending.
             Fix64 level = TideClock.Level(tick, TideTicks, flood.LowTideVolumeFraction);
+            // Team whose tide is applied, ascending. Range: 0 to 254.
             foreach (int team in teams)
             {
                 // This team's active flood sources, ascending unit ID.
@@ -416,6 +439,7 @@ namespace Rts.Sim.Factions.Water
                 int capacity = 0;
                 // Sum of the sources' per-update output. Unit: drops.
                 int outputSum = 0;
+                // Source of this team, ascending unit ID.
                 foreach (SourceInfo info in sources)
                 {
                     capacity += info.CapacityDrops;
@@ -425,6 +449,7 @@ namespace Rts.Sim.Factions.Water
                 int allowed = (Fix64.FromInt(capacity) * level).FloorToInt();
                 // Water the team holds now. Unit: drops. Range: 0 upward (long: many full tiles can pass int range on big maps).
                 long held = 0;
+                // Tile index being summed. Unit: tile index. Range: 0 to TileCount - 1.
                 for (int i = 0; i < field.TileCount; i++)
                 {
                     if (field.Team[i] == team)
@@ -434,6 +459,7 @@ namespace Rts.Sim.Factions.Water
                 }
                 if (held < allowed)
                 {
+                    // Source of this team, ascending unit ID.
                     foreach (SourceInfo info in sources)
                     {
                         // Tile this source releases onto, -1 when none accepts. Unit: tile index.
@@ -457,7 +483,9 @@ namespace Rts.Sim.Factions.Water
                 {
                     // Drops the tide takes back now: the excess, limited by the sources' output or the minimum retreat speed.
                     long retreat = Math.Min(held - allowed, Math.Max(outputSum, _minRetreatDrops));
+                    // Release tiles where the retreat starts. Unit: tile indices. Range: 0 to TileCount - 1, in source order.
                     List<int> seeds = new List<int>();
+                    // Source of this team, ascending unit ID.
                     foreach (SourceInfo info in sources)
                     {
                         // Tile this source releases onto, -1 when none accepts. Unit: tile index.
@@ -482,6 +510,7 @@ namespace Rts.Sim.Factions.Water
                     terrain.SetWater(sim, i, FloodMath.ToDepth(field.Drops[i]), field.Team[i] == FloodField.NoTeam ? TeamId.None : new TeamId((byte)field.Team[i]));
                 }
             }
+            // Gap-removed counter in ascending team: key team, value drops removed. Unit: drops.
             foreach (KeyValuePair<int, int> pair in gapRemoved)
             {
                 if (pair.Value > 0)
@@ -489,6 +518,7 @@ namespace Rts.Sim.Factions.Water
                     sim.Events.Add(new FloodWaterRemovedEvent(tick, new TeamId((byte)pair.Key), pair.Value, ReasonResourceGap));
                 }
             }
+            // Displaced-removed counter in ascending team: key team, value drops removed. Unit: drops.
             foreach (KeyValuePair<int, int> pair in displacedRemoved)
             {
                 if (pair.Value > 0)
@@ -521,6 +551,7 @@ namespace Rts.Sim.Factions.Water
             }
             // The live terrain grid this method reads and (through SetWater) changes.
             TerrainGrid terrain = sim.Terrain;
+            // Unit that may be healed, ascending ID.
             foreach (Unit unit in sim.Units.All)
             {
                 if (unit.Definition.Layer != MovementLayer.Water || unit.Health <= Fix64.Zero || unit.Health >= unit.Definition.MaxHealth)
@@ -529,6 +560,7 @@ namespace Rts.Sim.Factions.Water
                 }
                 // Tile under the unit and the owner's team.
                 int tile = terrain.TileOf(unit.Position);
+                // Team of the unit's owner, None for a neutral unit.
                 TeamId team = TeamOfOwner(sim, unit.Owner);
                 if (team.IsValid && terrain.DepthClass(tile) >= 1 && terrain[tile].WaterTeam == team)
                 {
@@ -556,29 +588,42 @@ namespace Rts.Sim.Factions.Water
         /// <param name="caster">The casting unit.</param>
         /// <param name="dirX">X step of the wave direction. Unit: tile step. Range: -1, 0 or 1.</param>
         /// <param name="dirY">Y step of the wave direction. Unit: tile step. Range: -1, 0 or 1 (not both 0).</param>
-        public void CastWave(Simulation sim, Unit caster, int dirX, int dirY)
+        internal void CastWave(Simulation sim, Unit caster, int dirX, int dirY)
         {
+            if (!sim.IsStepping)
+            {
+                throw new InvalidOperationException("CastWave can only run inside Simulation.Step (through CastWaveCommand).");
+            }
             // Flood tuning: ranges and rates read by this method. Unit: see FloodTuning.
             FloodTuning flood = sim.Tuning.Flood;
+            // The live terrain grid the wave floods and reads.
             TerrainGrid terrain = sim.Terrain;
             // Tick of the cast and the caster's team.
             int tick = sim.Clock.Tick;
+            // Team of the caster's owner; the water it adds belongs to it.
             TeamId team = TeamOfOwner(sim, caster.Owner);
+            // The working field for this cast.
             FloodField field = ReadField(sim);
             BuildMasks(sim, field);
             // Caster tile coordinates and the half width of the wave. Unit: tiles.
             int tile = terrain.TileOf(caster.Position);
+            // Caster's tile column. Unit: tiles. Range: 0 to Width - 1.
             int cx = terrain.XOf(tile);
+            // Caster's tile row. Unit: tiles. Range: 0 to Height - 1.
             int cy = terrain.YOf(tile);
+            // Half the wave width, rounded down. Unit: tiles. Range: 0 upward ((wave_width_tiles - 1) / 2).
             int half = (flood.WaveWidthTiles - 1) / 2;
             // Covered tiles in ascending index order, each once.
             SortedSet<int> area = new SortedSet<int>();
+            // Distance along the wave direction. Unit: tiles. Range: 1 to wave_length_tiles.
             for (int s = 1; s <= flood.WaveLengthTiles; s++)
             {
+                // Offset across the wave direction. Unit: tiles. Range: -half to half.
                 for (int o = -half; o <= half; o++)
                 {
                     // Tile at distance s along the direction and offset o across it.
                     int x = cx + s * dirX - o * dirY;
+                    // Row of the covered tile. Unit: tiles. Range: may fall off the map; Contains checks.
                     int y = cy + s * dirY + o * dirX;
                     if (terrain.Contains(x, y))
                     {
@@ -588,6 +633,7 @@ namespace Rts.Sim.Factions.Water
             }
             // Tiles that gained water.
             int flooded = 0;
+            // Covered tile index, ascending. Unit: tile index.
             foreach (int index in area)
             {
                 if (!FloodRules.Accepts(field, index, team.Value, null))
@@ -610,28 +656,34 @@ namespace Rts.Sim.Factions.Water
             _nextWaveTick[caster.Id] = tick + WaveCooldownTicks;
         }
 
-        /// <summary>Shoves every enemy non-air unit standing on an area tile, ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>
+        /// <summary>Shoves every enemy non-air unit standing on an area tile (never a Rooted, Rooting or Uprooting HQ), ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>
         private void PushEnemies(Simulation sim, TeamId casterTeam, SortedSet<int> area, int dirX, int dirY)
         {
             // The live terrain grid this method reads and (through SetWater) changes.
             TerrainGrid terrain = sim.Terrain;
+            // Single steps each unit is shoved. Unit: tiles. Range: 0 to the wave_push_tiles tuning maximum.
             int pushTiles = sim.Tuning.Flood.WavePushTiles;
+            // Unit that may be shoved, ascending ID.
             foreach (Unit unit in sim.Units.All)
             {
                 // Team of the unit's owner (None for a neutral unit).
                 TeamId team = TeamOfOwner(sim, unit.Owner);
+                // Layer the unit currently moves on (a status or override may change it). Range: Ground, Water or Air.
                 MovementLayer layer = unit.EffectiveLayer;
-                if (!team.IsValid || team == casterTeam || layer == MovementLayer.Air || !area.Contains(terrain.TileOf(unit.Position)))
+                if (!team.IsValid || team == casterTeam || layer == MovementLayer.Air || HqSystem.IsMovementLocked(unit) || !area.Contains(terrain.TileOf(unit.Position)))
                 {
                     continue;
                 }
                 // Tile and position while stepping.
                 int tile = terrain.TileOf(unit.Position);
+                // Position reached so far while stepping. Unit: tiles.
                 FixVec2 position = unit.Position;
+                // Single step of the push. Unit: tiles. Range: 0 to wave_push_tiles - 1.
                 for (int step = 0; step < pushTiles; step++)
                 {
                     // Tile one step ahead. Unit: tiles.
                     int nx = terrain.XOf(tile) + dirX;
+                    // Row one step ahead. Unit: tiles. Range: may fall off the map; Contains checks.
                     int ny = terrain.YOf(tile) + dirY;
                     if (!terrain.Contains(nx, ny))
                     {

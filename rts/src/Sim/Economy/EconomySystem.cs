@@ -102,8 +102,12 @@ namespace Rts.Sim.Economy
         /// Recomputes every player's supply used and cap from the units that exist and the queues. A unit owned by nobody or by an
         /// unknown player counts for nobody. Unit: supply. See the file header for the cost.
         /// </summary>
-        public static void RecomputeSupply(Simulation sim)
+        internal static void RecomputeSupply(Simulation sim)
         {
+            if (!sim.IsStepping)
+            {
+                throw new InvalidOperationException("EconomySystem.RecomputeSupply can only run inside Simulation.Start or Simulation.Step.");
+            }
             // Supply used and supply provided per player, in ascending player ID order.
             SortedDictionary<PlayerId, int> used = new SortedDictionary<PlayerId, int>();
             SortedDictionary<PlayerId, int> provided = new SortedDictionary<PlayerId, int>();
@@ -142,6 +146,10 @@ namespace Rts.Sim.Economy
         /// <summary>Runs one tick of gathering, production and construction, then refreshes supply. Internal: only <see cref="Simulation.Step"/> calls it.</summary>
         internal static void Step(Simulation sim)
         {
+            if (!sim.IsStepping)
+            {
+                throw new InvalidOperationException("EconomySystem.Step can only run inside Simulation.Step.");
+            }
             // Snapshot of live unit IDs in ascending order; units spawned during the loop are not visited this tick.
             List<EntityId> ids = sim.Units.IdsSnapshot();
             foreach (EntityId id in ids)

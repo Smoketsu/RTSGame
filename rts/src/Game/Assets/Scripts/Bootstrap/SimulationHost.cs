@@ -548,7 +548,7 @@ namespace Rts.Game.Bootstrap
             {
                 throw new FileNotFoundException("Command script not found: " + path);
             }
-            return CommandScript.Parse(File.ReadAllText(path), scriptRelativePath.Replace('\\', '/'));
+            return CommandScript.Parse(File.ReadAllText(path), scriptRelativePath.Replace('\\', '/'), BuiltInMechanics.ScriptParsers);
         }
 
         /// <summary>Picks the data folder: Inspector override, else the repo's rts/data in the editor, else StreamingAssets/data.</summary>

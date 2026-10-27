@@ -60,6 +60,7 @@ namespace Rts.Sim.Terrain
             Width = map.WidthTiles;
             Height = map.HeightTiles;
             _tiles = new TerrainTile[Width * Height];
+            // Tile index being created. Unit: tile index. Range: 0 to Width * Height - 1.
             for (int index = 0; index < _tiles.Length; index++)
             {
                 _tiles[index] = new TerrainTile(map.HeightAt(index), map.IsRampAt(index), Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None);
@@ -108,6 +109,7 @@ namespace Rts.Sim.Terrain
         {
             // Floor of each component, clamped to the valid tile range.
             int x = Math.Min(Math.Max(position.X.FloorToInt(), 0), Width - 1);
+            // Tile row of the position, clamped. Unit: tiles. Range: 0 to Height - 1.
             int y = Math.Min(Math.Max(position.Y.FloorToInt(), 0), Height - 1);
             return IndexOf(x, y);
         }
@@ -123,6 +125,7 @@ namespace Rts.Sim.Terrain
         {
             // Largest allowed coordinate: one step inside the far edge so FloorToInt stays a valid tile.
             Fix64 maxX = Fix64.FromInt(Width) - Fix64.Epsilon;
+            // Largest allowed Y coordinate. Unit: tiles (fixed-point). Range: just below Height.
             Fix64 maxY = Fix64.FromInt(Height) - Fix64.Epsilon;
             return new FixVec2(Fix64.Clamp(position.X, Fix64.Zero, maxX), Fix64.Clamp(position.Y, Fix64.Zero, maxY));
         }
@@ -130,7 +133,9 @@ namespace Rts.Sim.Terrain
         /// <summary>Neighbour index in direction <paramref name="direction"/> (0 to 7), or -1 when off the map.</summary>
         public int Neighbour(int index, int direction)
         {
+            // Column of the neighbour tile. Unit: tiles. Range: may lie outside 0 to Width - 1 before the Contains check.
             int x = XOf(index) + NeighbourDx[direction];
+            // Row of the neighbour tile. Unit: tiles. Range: may lie outside 0 to Height - 1 before the Contains check.
             int y = YOf(index) + NeighbourDy[direction];
             return Contains(x, y) ? IndexOf(x, y) : -1;
         }
@@ -153,10 +158,13 @@ namespace Rts.Sim.Terrain
             }
             // Offsets between the tiles; a diagonal step has both non-zero.
             int dx = XOf(to) - XOf(from);
+            // Row offset from the first tile to the second. Unit: tiles. Range: -1, 0 or 1.
             int dy = YOf(to) - YOf(from);
             if (dx != 0 && dy != 0)
             {
+                // Tile reached by the horizontal half of a diagonal step. Unit: tile index. Range: 0 to tile count - 1.
                 int viaX = IndexOf(XOf(from) + dx, YOf(from));
+                // Tile reached by the vertical half of a diagonal step. Unit: tile index. Range: 0 to tile count - 1.
                 int viaY = IndexOf(XOf(from), YOf(from) + dy);
                 return EdgePassable(from, viaX) && EdgePassable(from, viaY) && EdgePassable(viaX, to) && EdgePassable(viaY, to);
             }
@@ -166,7 +174,9 @@ namespace Rts.Sim.Terrain
         /// <summary>The ground height rule between two adjacent tiles, ignoring diagonals.</summary>
         private bool EdgePassable(int a, int b)
         {
+            // Tile value at a. Read-only copy.
             TerrainTile ta = _tiles[a];
+            // Tile value at b. Read-only copy.
             TerrainTile tb = _tiles[b];
             if (ta.IsBlocked || tb.IsBlocked)
             {
@@ -259,9 +269,11 @@ namespace Rts.Sim.Terrain
         /// </summary>
         internal bool SetWater(Simulation sim, int index, Fix64 depth, TeamId team)
         {
+            // Requested depth limited to 0 and the maximum water depth. Unit: depth units. Range: 0 to max_water_depth.
             Fix64 clamped = Fix64.Clamp(depth, Fix64.Zero, _tuning.MaxWaterDepth);
             // Owner after the change: None once the tile is dry.
             TeamId owner = clamped > Fix64.Zero ? team : TeamId.None;
+            // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
             if (tile.WaterDepth == clamped && tile.WaterTeam == owner)
             {
@@ -278,6 +290,7 @@ namespace Rts.Sim.Terrain
             {
                 throw new ArgumentOutOfRangeException(nameof(height));
             }
+            // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
             Replace(sim, index, new TerrainTile(height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers));
         }
@@ -285,6 +298,7 @@ namespace Rts.Sim.Terrain
         /// <summary>Changes a tile's surface state. Internal; inside a step only.</summary>
         internal void SetSurface(Simulation sim, int index, SurfaceState surface)
         {
+            // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
             Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, surface, tile.Blockers));
         }
@@ -292,6 +306,7 @@ namespace Rts.Sim.Terrain
         /// <summary>Adds blockers to a tile (walls, footprints). Internal; inside a step only.</summary>
         internal void AddBlockers(Simulation sim, int index, TileBlockers blockers)
         {
+            // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
             Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers | blockers));
         }
@@ -299,6 +314,7 @@ namespace Rts.Sim.Terrain
         /// <summary>Removes blockers from a tile. Internal; inside a step only.</summary>
         internal void RemoveBlockers(Simulation sim, int index, TileBlockers blockers)
         {
+            // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
             Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers & ~blockers));
         }
@@ -343,6 +359,7 @@ namespace Rts.Sim.Terrain
             hasher.Write(Width);
             hasher.Write(Height);
             hasher.Write(Version);
+            // Tile index being hashed. Unit: tile index. Range: 0 to Width * Height - 1.
             for (int index = 0; index < _tiles.Length; index++)
             {
                 _tiles[index].WriteHash(hasher);

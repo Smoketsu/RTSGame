@@ -33,6 +33,7 @@ namespace Rts.Sim.Statuses
             int tick = sim.Clock.Tick;
             // Durations in ticks for this match.
             StatusRates rates = new StatusRates(sim.Tuning.Status, sim);
+            // Unit whose statuses are checked, visited in ascending ID order.
             foreach (Unit unit in sim.Units.All)
             {
                 // The unit's status container.
@@ -99,7 +100,9 @@ namespace Rts.Sim.Statuses
             }
             // Current tick and the first tick the new Grounded would no longer be active.
             int now = sim.Clock.Tick;
+            // First tick the new Grounded no longer holds. Unit: ticks. Range: now + 1 upward.
             int until = now + durationTicks;
+            // The target's status container.
             UnitStatusSet set = target.Statuses;
             // True when the unit was already Grounded.
             bool refreshed = set.IsGrounded;
@@ -144,7 +147,9 @@ namespace Rts.Sim.Statuses
             SlowEntry.RequireValidKey(sourceKey, nameof(sourceKey));
             // Current tick and the first tick the new slow would no longer be active.
             int now = sim.Clock.Tick;
+            // First tick the new slow no longer holds. Unit: ticks. Range: now + 1 upward.
             int until = now + durationTicks;
+            // The target's status container.
             UnitStatusSet set = target.Statuses;
             // Position of an existing entry with this key, or -1.
             int existing = set.IndexOfSlow(sourceKey);
@@ -164,6 +169,7 @@ namespace Rts.Sim.Statuses
                 {
                     // Position of the entry that ends soonest; the list is in key order, so a strict comparison keeps the smallest key on ties.
                     int victim = 0;
+                    // Index of the slow entry being compared. Unit: list position. Range: 1 to Slows.Count - 1.
                     for (int i = 1; i < set.Slows.Count; i++)
                     {
                         if (set.Slows[i].UntilTick < set.Slows[victim].UntilTick)
@@ -197,7 +203,9 @@ namespace Rts.Sim.Statuses
             }
             // Tuning and durations for the drench rule.
             StatusTuning tuning = sim.Tuning.Status;
+            // Status durations in ticks for this match.
             StatusRates rates = new StatusRates(tuning, sim);
+            // The target's status container.
             UnitStatusSet set = target.Statuses;
             // Current tick.
             int now = sim.Clock.Tick;
@@ -221,6 +229,7 @@ namespace Rts.Sim.Statuses
         /// </summary>
         private static void Land(Simulation sim, Unit unit)
         {
+            // The live terrain grid searched for a landing tile.
             TerrainGrid terrain = sim.Terrain;
             // Tile the unit hovers over.
             int home = terrain.TileOf(unit.Position);
@@ -230,14 +239,17 @@ namespace Rts.Sim.Statuses
             }
             // Tile coordinates of the home tile. Unit: tiles.
             int homeX = terrain.XOf(home);
+            // Row of the home tile. Unit: tiles. Range: 0 to Height - 1.
             int homeY = terrain.YOf(home);
             // Largest ring to search. Unit: tiles. Range: 0 to 8.
             int radius = sim.Tuning.Status.GroundedLandingSearchRadiusTiles;
+            // Chebyshev ring distance searched. Unit: tiles. Range: 1 to radius.
             for (int ring = 1; ring <= radius; ring++)
             {
                 // Rows from the lowest index (smallest y) up, then columns left to right: ascending tile index.
                 for (int y = homeY - ring; y <= homeY + ring; y++)
                 {
+                    // Column being tested. Unit: tiles. Range: homeX - ring to homeX + ring (may fall off the map; Contains checks).
                     for (int x = homeX - ring; x <= homeX + ring; x++)
                     {
                         // Chebyshev distance from the home tile; only tiles exactly on this ring count.

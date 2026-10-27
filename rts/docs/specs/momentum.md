@@ -26,7 +26,7 @@ Existing keys, all in `tuning/momentum.json`, none new:
 
 ## 3. State
 
-**Moving** is defined by the movement system, not by comparing positions: `Unit.LastSelfMoveTick` (new, int, ticks, -1 = never; appended to `Unit.WriteHash` after the existing last field `AttackMoveGoal`) is set to the current tick by `MovementSystem` when it moves the unit toward its `MoveTarget` (set by a move order, by attack-move, or by `CombatSystem` chasing a target) and the new position differs from the old one. A unit **moved this tick** when `LastSelfMoveTick == tick`. Wave pushes, landing relocation, teleports and scripts never set it.
+**Moving** is defined by the movement system, not by comparing positions: `Unit.LastSelfMoveTick` (new, int, ticks, -1 = never; hashed in `Unit.WriteHash` right after `StatusSpeedMultiplier` and before `CooldownTicksRemaining`) is set to the current tick by `MovementSystem` when it moves the unit toward its `MoveTarget` (set by a move order, by attack-move, or by `CombatSystem` chasing a target) and the new position differs from the old one. A unit **moved this tick** when `LastSelfMoveTick == tick`. Wave pushes, landing relocation, teleports and scripts never set it.
 
 Per eligible unit, a `MomentumState` in `SortedDictionary<EntityId, MomentumState>` owned by `MomentumMechanic` (integer stacks plus integer tick accumulators, so no fractional stacks exist):
 

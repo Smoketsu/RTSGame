@@ -1,0 +1,104 @@
+// rts/data/ai/defensive.json: the defensive skirmish AI profile. Part of rts/data/ai; DataLoader keeps the parsed file in DataSet.AiProfiles and Rts.Ai.AiProfile.Parse validates it (spec: rts/docs/specs/skirmish_ai.md). Builds a bigger army before attacking, defends its base, retreats early and times attacks to the tide.
+{
+  "$schema_version": 1,
+  "$doc": "Defensive skirmish AI: a fuller economy, a larger army before the first attack, early retreats and tide-timed attacks. Every number is a placeholder tuned so AI-versus-AI on greybox_1v1 ends inside the 6000-tick Phase 1 exit run.",
+  // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "defensive",
+  // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
+  "think_interval_seconds": 0.5,
+  // Most commands one decision may submit; later intents are dropped. Unit: commands. Range: 1 to 200. Source: placeholder.
+  "max_commands_per_think": 40,
+  // Workers sent to one resource field before the next field is used. Unit: workers. Range: 1 to 8. Source: Core gameplay loop (Opening: gather); placeholder.
+  "workers_per_field": 3,
+  // Worker count the AI stops training at. Unit: workers. Range: 1 to 100. Source: placeholder.
+  "max_workers": 10,
+  // Fields farther than this from the own HQ are never worked (keeps workers in the base). Unit: tiles. Range: 2 to 64. Source: placeholder.
+  "field_max_distance_tiles": 10,
+  // Build a supply structure when free supply is at or below this. Unit: supply. Range: 0 to 40. Source: Core gameplay loop (Opening: build supply); placeholder.
+  "supply_buffer": 3,
+  // Wait before re-trying a structure whose last attempt did not appear. Unit: seconds. Range: 1 to 60. Source: placeholder.
+  "build_retry_seconds": 5,
+  // Innermost Chebyshev ring around the HQ tile searched for a building site. Unit: tiles. Range: 1 to 20. Source: placeholder.
+  "build_ring_min_tiles": 3,
+  // Outermost Chebyshev ring around the HQ tile searched for a building site. Unit: tiles. Range: build_ring_min_tiles to 30. Source: placeholder.
+  "build_ring_max_tiles": 10,
+  // No structure is placed within this Chebyshev distance of a resource field tile, so worker paths stay open. Unit: tiles. Range: 0 to 10. Source: placeholder.
+  "field_clearance_tiles": 2,
+  // Massing army waits this far from the HQ toward the attack target. Unit: tiles. Range: 0 to 20. Source: placeholder.
+  "rally_distance_tiles": 4,
+  // Army supply at which the AI attacks, before jitter. Unit: supply. Range: 1 to 200. Source: placeholder.
+  "attack_army_supply": 16,
+  // Extra supply drawn 0 to this from the AI's own generator for each attack wave. Unit: supply. Range: 0 to 40. Source: placeholder.
+  "attack_supply_jitter": 4,
+  // Retreat when the army falls below this share of its supply at the start of the attack. Unit: fraction. Range: 0 to 1. Source: placeholder.
+  "retreat_army_fraction": 0.5,
+  // Retreat when the army's power (supply x health fraction, summed) is below this multiple of the power of the visible armed enemies within engagement_radius_tiles of any army unit. Unit: ratio. Range: 0 to 2. Source: placeholder.
+  "retreat_power_ratio": 0.8,
+  // Radius used for the retreat power test (visible armed enemies this close to any army unit) and the siege test (no enemy army this close to the enemy HQ). Unit: tiles. Range: 4 to 40. Source: placeholder.
+  "engagement_radius_tiles": 10,
+  // The attacking army first gathers this far short of the target, toward the own HQ, so fast and slow units arrive together; 0 attacks straight away. Unit: tiles. Range: 0 to 40. Source: placeholder.
+  "stage_distance_tiles": 14,
+  // Army units within this distance of the staging point count as gathered. Unit: tiles. Range: 1 to 20. Source: placeholder.
+  "stage_radius_tiles": 5,
+  // The army pushes from the staging point once this share of its supply has gathered there. Unit: fraction. Range: 0 to 1. Source: placeholder.
+  "stage_gather_fraction": 0.8,
+  // The army pushes anyway this long after the attack started. Unit: seconds. Range: 0 to 120. Source: placeholder.
+  "stage_timeout_seconds": 30,
+  // Focus fire reach: an army unit in a fight attacks the nearest visible enemy army unit within this distance (army first, buildings after); 0 turns focus fire off. Unit: tiles. Range: 0 to 20. Source: placeholder.
+  "focus_radius_tiles": 8,
+  // Visible enemy army units this close to an own structure or HQ are a threat. Unit: tiles. Range: 4 to 40. Source: placeholder.
+  "defend_radius_tiles": 16,
+  // Visible threat supply that recalls an attacking army home. Unit: supply. Range: 1 to 100. Source: placeholder.
+  "defend_recall_supply": 4,
+  // How long a hit on an own unit inside the base counts as a threat. Unit: seconds. Range: 0 to 30. Source: placeholder.
+  "damage_memory_seconds": 3,
+  // Time after a retreat before the next attack may start. Unit: seconds. Range: 0 to 120. Source: placeholder.
+  "regroup_seconds": 20,
+  // Go all in once no field within field_max_distance_tiles has resources left: attack with any army, ignore the tide window, never retreat. Unit: boolean. Range: true or false. Source: Economy (fields run out); placeholder.
+  "all_in_when_mined_out": true,
+  // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
+  "factions": {
+    "skai": {
+      // Worker the Great Aerie trains. Unit: unit ID. Range: a skai unit with can_gather. Source: Factions / Skai Riders.
+      "worker_unit": "skai.fledgling",
+      // Structure built when free supply runs low. Unit: unit ID. Range: a skai structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
+      "supply_building": "skai.roost",
+      // Build order: keep at least count of structure once supply used reaches at_supply_used (strict order). Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: Core gameplay loop (Opening: first production building); placeholder.
+      "build_order": [
+        { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
+        { "structure": "skai.roost", "count": 2, "at_supply_used": 6 },
+        { "structure": "skai.windspire", "count": 1, "at_supply_used": 10 },
+        { "structure": "skai.windspire", "count": 2, "at_supply_used": 16 }
+      ],
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Skai Riders / Unit concepts; placeholder (common-cost units only: the main bases hold no rare field).
+      "composition": { "skai.windrunner": 3, "skai.talon_archer": 1 },
+      // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (Skai strike at low tide); placeholder.
+      "attack_tide_min": 0,
+      // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups (Skai strike at low tide); placeholder.
+      "attack_tide_max": 0.5,
+      // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
+      "attack_tide_override_supply": 20
+    },
+    "water": {
+      // Worker the Grand Shell trains. Unit: unit ID. Range: a water unit with can_gather. Source: Factions / Water faction.
+      "worker_unit": "water.tender",
+      // Structure built when free supply runs low. Unit: unit ID. Range: a water structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
+      "supply_building": "water.tidepool",
+      // Build order: keep at least count of structure once supply used reaches at_supply_used (strict order). Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: Core gameplay loop (Opening: first production building); placeholder.
+      "build_order": [
+        { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
+        { "structure": "water.tidepool", "count": 2, "at_supply_used": 6 },
+        { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
+        { "structure": "water.shell_forge", "count": 2, "at_supply_used": 16 }
+      ],
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; placeholder (common-cost units only).
+      "composition": { "water.grasper": 3, "water.shellback": 1 },
+      // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (the water player times attacks for high tide); placeholder.
+      "attack_tide_min": 0.5,
+      // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups; placeholder.
+      "attack_tide_max": 1,
+      // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
+      "attack_tide_override_supply": 20
+    }
+  }
+}

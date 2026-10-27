@@ -676,6 +676,33 @@ namespace Rts.Sim.Tests.Factions
             Assert.That(StatusTestWorld.EventsOf<WaveCastEvent>(sim).Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// The wave floods under an enemy HQ but does not shove it while it is Rooted (movement-locked); the same HQ left Uprooted is
+        /// shoved like any unit, and an ordinary enemy walker beside it is pushed either way.
+        /// </summary>
+        [Test]
+        public void Wave_DoesNotPushARootedHq()
+        {
+            // Position of the HQ after the wave, for an HQ forced Rooted or left in its spawn state (Uprooted: no resource field on the flat map).
+            FixVec2 AfterWave(bool rooted)
+            {
+                Simulation sim = WaveMatch();
+                // Enemy HQ inside the strip, on the row below the walker at (5.5, 5.5); it is unit 3.
+                StatusTestWorld.Spawn(sim, 0, 2, TestWorld.HqId, P1, StatusTestWorld.Centre(5, 4));
+                if (rooted)
+                {
+                    StatusTestWorld.Run(sim, 1, 3, s => StatusTestWorld.UnitOf(s, 3).SetHqState(HqState.Rooted, 0));
+                }
+                sim.Submit(new CastWaveCommand(5, P0, 0, new EntityId(1), StatusTestWorld.Centre(10, 5)));
+                StatusTestWorld.StepThrough(sim, 5);
+                Assert.That(StatusTestWorld.UnitOf(sim, 3).HqState, Is.EqualTo(rooted ? HqState.Rooted : HqState.Uprooted));
+                Assert.That(StatusTestWorld.UnitOf(sim, 2).Position, Is.EqualTo(StatusTestWorld.Centre(7, 5)), "the walker is pushed either way");
+                return StatusTestWorld.UnitOf(sim, 3).Position;
+            }
+            Assert.That(AfterWave(true), Is.EqualTo(StatusTestWorld.Centre(5, 4)), "a Rooted HQ stays put");
+            Assert.That(AfterWave(false), Is.EqualTo(StatusTestWorld.Centre(7, 4)), "an Uprooted HQ is shoved two tiles east");
+        }
+
         /// <summary>Rejection reason of one cast command run alone on tick 1 of a fresh wave match, or "accepted". (Tick 0 would apply the player's command before the script's spawns: commands run in (issuer, sequence) order and the script issuer sorts last.)</summary>
         private static string CastResult(PlayerId issuer, uint caster, FixVec2 target)
         {
@@ -891,13 +918,34 @@ namespace Rts.Sim.Tests.Factions
         {
             string json = "{ \"$schema_version\": 1, \"seed\": 1, \"ticks\": 10, \"players\": [ { \"id\": 0, \"team\": 0, \"faction\": \"water\", \"name\": \"A\" } ], "
                 + "\"commands\": [ { \"tick\": 3, \"issuer\": 0, \"sequence\": 0, \"type\": \"cast_wave\", \"unit\": 4, \"x\": \"10.5\", \"y\": 7 } ] }";
-            CommandScript script = CommandScript.Parse(json, "scripts/test.json");
+            CommandScript script = CommandScript.Parse(json, "scripts/test.json", BuiltInMechanics.ScriptParsers);
             Assert.That(script.Commands.Count, Is.EqualTo(1));
             Assert.That(script.Commands[0], Is.InstanceOf<CastWaveCommand>());
             CastWaveCommand command = (CastWaveCommand)script.Commands[0];
             Assert.That(command.Caster, Is.EqualTo(new EntityId(4)));
             Assert.That(command.Target, Is.EqualTo(new FixVec2(Fix64.Parse("10.5"), Fix64.FromInt(7))));
             Assert.That(command.Tick, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Without the built-in script parsers cast_wave is an unknown type and the error lists only the core kinds; with them the
+        /// error for a truly unknown type lists cast_wave too, and a bad cast_wave key is rejected naming the file.
+        /// </summary>
+        [Test]
+        public void Script_ExtraParsers_AreListedInTheUnknownTypeError()
+        {
+            string json = "{ \"$schema_version\": 1, \"seed\": 1, \"ticks\": 10, \"players\": [ { \"id\": 0, \"team\": 0, \"faction\": \"water\", \"name\": \"A\" } ], "
+                + "\"commands\": [ { \"tick\": 3, \"issuer\": 0, \"sequence\": 0, \"type\": \"cast_wave\", \"unit\": 4, \"x\": \"10.5\", \"y\": 7 } ] }";
+            DataValidationException without = Expect.Throws<DataValidationException>(() => CommandScript.Parse(json, "scripts/test.json"));
+            Assert.That(without.Message, Does.Contain("scripts/test.json"));
+            Assert.That(without.Message, Does.Not.Contain("\"cast_wave\" "), "the core list does not name the wave");
+            DataValidationException unknown = Expect.Throws<DataValidationException>(() =>
+                CommandScript.Parse(json.Replace("cast_wave", "no_such_command"), "scripts/test.json", BuiltInMechanics.ScriptParsers));
+            Assert.That(unknown.Message, Does.Contain("\"cast_wave\""));
+            Assert.That(unknown.Message, Does.Contain("\"no_such_command\""));
+            DataValidationException badKey = Expect.Throws<DataValidationException>(() =>
+                CommandScript.Parse(json.Replace("\"unit\"", "\"caster\""), "scripts/test.json", BuiltInMechanics.ScriptParsers));
+            Assert.That(badKey.Message, Does.Contain("scripts/test.json"));
         }
 
         // ------------------------------------------------------------------ the shipped smoke script
@@ -917,7 +965,7 @@ namespace Rts.Sim.Tests.Factions
             for (int run = 0; run < 2; run++)
             {
                 string path = System.IO.Path.Combine(TestData.FindDataDirectory(), "scripts", "flood_smoke.json");
-                CommandScript script = CommandScript.Parse(System.IO.File.ReadAllText(path), "scripts/flood_smoke.json");
+                CommandScript script = CommandScript.Parse(System.IO.File.ReadAllText(path), "scripts/flood_smoke.json", BuiltInMechanics.ScriptParsers);
                 SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(script.Seed),
                     data.Content, script.Players, BuiltInMechanics.CreateRegistry(), data.Tuning, data.RequireMap(script.MapId));
                 Simulation sim = new Simulation(config);

@@ -121,6 +121,41 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(Get(sim, hqId).Position.X, Is.GreaterThan(before.X));
         }
 
+        /// <summary>A Rooted HQ accepts attack_unit for a target already in weapon range and focuses it from where it stands; an Uprooting HQ (weapon off) still refuses.</summary>
+        [Test]
+        public void RootedHq_AcceptsAttackUnitInRange_AndFocusesThatTarget()
+        {
+            Simulation sim = TestWorld.StartedEconomy();
+            EntityId hqId = Spawn(sim, TestWorld.HqId, P0, 12, 12);
+            // Two enemies in reach (weapon range 5 plus radii): the nearer one is what the HQ would pick on its own.
+            EntityId near = Spawn(sim, TestWorld.TankId, P1, 14, 12);
+            EntityId farther = Spawn(sim, TestWorld.TankId, P1, 16, 12);
+            FixVec2 start = Get(sim, hqId).Position;
+            // The HQ may already have hit the nearer tank on its own while the other tank spawned; only hits after the order count.
+            Fix64 nearBefore = Get(sim, near).Health;
+            List<SimEvent> events = Do(sim, new AttackUnitCommand(sim.Clock.Tick, P0, Seq(), hqId, farther));
+            Assert.That(Reasons(events), Is.Empty);
+            Unit hq = Get(sim, hqId);
+            Assert.That(hq.AttackTarget, Is.EqualTo(farther));
+            Assert.That(hq.HasMoveTarget, Is.False, "a locked HQ never gets a move target");
+            events.AddRange(StepCollect(sim, 40));
+            Assert.That(Get(sim, hqId).Position, Is.EqualTo(start));
+            // The HQ's hits all land on the ordered target, none on the nearer tank.
+            foreach (UnitDamagedEvent hit in Of<UnitDamagedEvent>(events))
+            {
+                if (hit.Attacker == hqId)
+                {
+                    Assert.That(hit.Target, Is.EqualTo(farther));
+                }
+            }
+            Assert.That(Get(sim, near).Health, Is.EqualTo(nearBefore));
+            Assert.That(Get(sim, farther).Health, Is.LessThan(Fix64.FromInt(100)));
+
+            // While Uprooting the weapon is off, so the order is refused.
+            AssertAccepted(sim, new UprootHqCommand(sim.Clock.Tick, P0, Seq(), hqId));
+            AssertRejected(sim, new AttackUnitCommand(sim.Clock.Tick, P0, Seq(), hqId, near), "hq_rooted");
+        }
+
         /// <summary>The weapon fires only while Rooted; the armour type is the rooted one only while Rooted.</summary>
         [Test]
         public void HqWeapon_OnlyWhileRooted_ArmourFollowsState()

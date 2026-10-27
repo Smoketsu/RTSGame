@@ -5,16 +5,23 @@
 // <data>/scripts/smoke.json, the same file the Unity SimulationHost plays. Exit code 0 on success, 1 on any error (message on stderr). Part of
 // Rts.Tools.BalanceHarness. Phase 0 proves determinism and the data pipeline in CI; Phase 2 grows this into the
 // AI-versus-AI balance harness (see README.md). This tool does the file IO the simulation assembly may not.
+// Skirmish AI (Phase 1, rts/src/Ai): a script player entry with "ai": "<profile>" or the option --ai <slot>:<profile> attaches a
+// SkirmishAiController to that slot; before every step the controllers think in ascending slot order and submit their commands
+// for the current tick (AiHost.ThinkAll). In a match with two or more teams the run stops early once MatchOutcome is decided,
+// and every run prints "OUTCOME winner=<team number or draw> tick=<n>" (or "OUTCOME undecided tick=<n>") before STATE_HASH,
+// where n is the last tick stepped.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Rts.Ai;
 using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
+using Rts.Sim.Teams;
 
 namespace Rts.Tools.BalanceHarness
 {
@@ -43,7 +50,7 @@ namespace Rts.Tools.BalanceHarness
                 {
                     throw new HarnessException("script file not found: " + scriptPath);
                 }
-                CommandScript script = CommandScript.Parse(File.ReadAllText(scriptPath), scriptPath.Replace('\\', '/'));
+                CommandScript script = CommandScript.Parse(File.ReadAllText(scriptPath), scriptPath.Replace('\\', '/'), BuiltInMechanics.ScriptParsers);
                 // Seed and length: the command line wins over the script.
                 ulong seed = options.SeedOverride ?? script.Seed;
                 int ticks = options.TicksOverride ?? script.Ticks;
@@ -61,8 +68,19 @@ namespace Rts.Tools.BalanceHarness
                     }
                     sim.Submit(command);
                 }
+                // AI controllers for the script's "ai" slots and the --ai options, in ascending slot order.
+                List<IPlayerController> controllers = CreateControllers(data, script, options);
+                AiHost.StartAll(sim, controllers);
+                // True when the match has at least two teams, so a decided outcome can end the run early.
+                bool canDecide = sim.Players.TeamCount >= 2;
+                // Outcome after the last step run; undecided until a team is left standing.
+                MatchOutcome outcome = MatchOutcome.Evaluate(sim.Players);
+                // Last tick stepped. Unit: ticks. Range: -1 before the first step.
+                int lastTick = -1;
                 for (int i = 0; i < ticks; i++)
                 {
+                    AiHost.ThinkAll(sim, controllers);
+                    lastTick = sim.Clock.Tick;
                     sim.Step();
                     foreach (SimEvent simEvent in sim.Events.Current)
                     {
@@ -75,7 +93,13 @@ namespace Rts.Tools.BalanceHarness
                             error.Write("warning: tick " + rejected.Tick.ToString(CultureInfo.InvariantCulture) + ": " + rejected.Describe() + "\n");
                         }
                     }
+                    outcome = MatchOutcome.Evaluate(sim.Players);
+                    if (canDecide && outcome.IsDecided)
+                    {
+                        break;
+                    }
                 }
+                output.Write(DescribeOutcome(canDecide, outcome, lastTick) + "\n");
                 output.Write("STATE_HASH=" + sim.ComputeStateHash().ToString("x16", CultureInfo.InvariantCulture) + "\n");
                 output.Flush();
                 return 0;
@@ -87,6 +111,56 @@ namespace Rts.Tools.BalanceHarness
                 error.Flush();
                 return 1;
             }
+        }
+
+        /// <summary>
+        /// One <see cref="SkirmishAiController"/> per AI slot: the script's "ai" entries, overridden or extended by --ai options.
+        /// Throws <see cref="HarnessException"/> for a slot that is not a script player, and DataValidationException for a missing
+        /// or invalid profile file.
+        /// </summary>
+        private static List<IPlayerController> CreateControllers(DataSet data, CommandScript script, HarnessOptions options)
+        {
+            // Profile ID per player slot, in ascending slot order.
+            SortedDictionary<int, string> slots = new SortedDictionary<int, string>();
+            foreach (KeyValuePair<PlayerId, string> pair in script.AiProfiles)
+            {
+                slots[pair.Key.Value] = pair.Value;
+            }
+            foreach (KeyValuePair<int, string> pair in options.AiSlots)
+            {
+                slots[pair.Key] = pair.Value;
+            }
+            List<IPlayerController> controllers = new List<IPlayerController>();
+            foreach (KeyValuePair<int, string> pair in slots)
+            {
+                // True when the script has a player in this slot.
+                bool known = false;
+                foreach (PlayerSetup player in script.Players)
+                {
+                    known |= player.Id.Value == pair.Key;
+                }
+                if (!known)
+                {
+                    throw new HarnessException("--ai names player slot " + pair.Key.ToString(CultureInfo.InvariantCulture) + ", which the script does not have");
+                }
+                controllers.Add(new SkirmishAiController(new PlayerId((byte)pair.Key), AiProfile.FromDataSet(data, pair.Value)));
+            }
+            return controllers;
+        }
+
+        /// <summary>The OUTCOME line: "OUTCOME winner=&lt;team&gt; tick=&lt;n&gt;", "OUTCOME winner=draw tick=&lt;n&gt;" or "OUTCOME undecided tick=&lt;n&gt;".</summary>
+        /// <param name="canDecide">False for a match with fewer than two teams (always reported undecided).</param>
+        /// <param name="outcome">The outcome after the last step.</param>
+        /// <param name="lastTick">Last tick stepped. Unit: ticks. Range: -1 (no step) upward.</param>
+        private static string DescribeOutcome(bool canDecide, MatchOutcome outcome, int lastTick)
+        {
+            // Tick text for the line.
+            string tick = " tick=" + lastTick.ToString(CultureInfo.InvariantCulture);
+            if (!canDecide || !outcome.IsDecided)
+            {
+                return "OUTCOME undecided" + tick;
+            }
+            return outcome.IsDraw ? "OUTCOME winner=draw" + tick : "OUTCOME winner=" + outcome.Winner.Value.ToString(CultureInfo.InvariantCulture) + tick;
         }
 
         /// <summary>Reads every *.json file under the data folder recursively, with data-root-relative forward-slash paths, in ordinal path order.</summary>

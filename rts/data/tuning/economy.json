@@ -21,5 +21,7 @@
   // How close a worker must get to a field or a drop-off (edge distance for a drop-off) to gather or deposit; never less than the movement arrival radius in terrain.json. Unit: tiles. Range: 0.5 to 4. Source: Economy; placeholder.
   "interact_range_tiles": 1.5,
   // Health a structure starts with when placed, as a fraction of its maximum; it gains the rest evenly over its build_seconds. Unit: fraction of max health (0.1 = 10%). Range: 0.01 to 1. Source: Economy (structures are built by workers); placeholder.
-  "construction_start_health_fraction": 0.1
+  "construction_start_health_fraction": 0.1,
+  // How many rings of tiles around a producer are searched for a free tile when a trained unit appears (ring 1 is the eight neighbours). Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.
+  "spawn_search_radius_tiles": 3
 }

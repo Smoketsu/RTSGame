@@ -88,31 +88,55 @@ namespace Rts.Sim.Pathing
         /// <summary>Dijkstra from the goal, then the flow pass.</summary>
         private void Build(TerrainGrid grid, MinHeap heap)
         {
+            // Tile index being reset. Unit: tile index. Range: 0 to tile count - 1.
             for (int i = 0; i < _integration.Length; i++)
             {
                 _integration[i] = Unreachable;
                 _flow[i] = NoDirection;
             }
             heap.Clear();
-            _integration[GoalIndex] = 0;
-            heap.Push(((long)0 << 32) | (uint)GoalIndex);
+            if (grid.IsStandable(GoalIndex, Layer))
+            {
+                _integration[GoalIndex] = 0;
+                heap.Push(((long)0 << 32) | (uint)GoalIndex);
+            }
+            else
+            {
+                // A blocked goal (a structure footprint): the field leads to its standable neighbours at cost 0, in
+                // neighbour order, so units approach the structure and stop beside it (ADR-007 follow-up from review).
+                for (int direction = 0; direction < TerrainGrid.DirectionCount; direction++)
+                {
+                    // Tile index next to the blocked goal in this direction, or -1 off the map. Unit: tile index. Range: -1 or 0 to tile count - 1.
+                    int neighbour = grid.Neighbour(GoalIndex, direction);
+                    if (neighbour >= 0 && grid.IsStandable(neighbour, Layer))
+                    {
+                        _integration[neighbour] = 0;
+                        heap.Push(((long)0 << 32) | (uint)neighbour);
+                    }
+                }
+            }
             while (heap.Count > 0)
             {
                 // Packed (cost, index) of the cheapest pending tile.
                 long key = heap.PopMin();
+                // Integration cost half of the packed key. Unit: cost (CostScale per straight step). Range: 0 to Unreachable - 1.
                 int cost = (int)(key >> 32);
+                // Tile index half of the packed key. Unit: tile index. Range: 0 to tile count - 1.
                 int index = (int)(key & 0xFFFFFFFFL);
                 if (cost != _integration[index])
                 {
                     continue;
                 }
+                // Direction being relaxed. Unit: direction index. Range: 0 to 7 (TerrainGrid.DirectionCount - 1).
                 for (int direction = 0; direction < TerrainGrid.DirectionCount; direction++)
                 {
+                    // Tile index next to the popped tile in this direction, or -1 off the map. Unit: tile index. Range: -1 or 0 to tile count - 1.
                     int neighbour = grid.Neighbour(index, direction);
                     if (neighbour < 0 || !grid.IsStepPassable(neighbour, index, Layer))
                     {
                         continue;
                     }
+                    // Cost of entering the neighbour tile. Unit: cost. Range: 1 upward, int.MaxValue when it cannot be entered.
                     int stepCost = TileCost(grid, neighbour, Layer);
                     if (stepCost == int.MaxValue)
                     {
@@ -131,17 +155,22 @@ namespace Rts.Sim.Pathing
                     }
                 }
             }
+            // Tile whose flow direction is chosen. Unit: tile index. Range: 0 to tile count - 1.
             for (int index = 0; index < _integration.Length; index++)
             {
-                if (_integration[index] == Unreachable || index == GoalIndex)
+                if (_integration[index] == Unreachable || _integration[index] == 0)
                 {
+                    // The goal (or, for a blocked goal, each seeded neighbour) is an end point and points nowhere.
                     continue;
                 }
                 // Best neighbour integration seen so far and its direction; ties keep the earlier direction.
                 int best = _integration[index];
+                // Direction of the cheapest neighbour found so far. Unit: direction index. Range: 0 to 7, or NoDirection.
                 byte bestDirection = NoDirection;
+                // Direction being compared. Unit: direction index. Range: 0 to 7.
                 for (int direction = 0; direction < TerrainGrid.DirectionCount; direction++)
                 {
+                    // Tile index next to this tile in this direction, or -1 off the map. Unit: tile index. Range: -1 or 0 to tile count - 1.
                     int neighbour = grid.Neighbour(index, direction);
                     if (neighbour < 0 || !grid.IsStepPassable(index, neighbour, Layer))
                     {

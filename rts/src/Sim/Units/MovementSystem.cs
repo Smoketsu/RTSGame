@@ -32,10 +32,13 @@ namespace Rts.Sim.Units
         /// <summary>Runs one tick of movement for every unit in <paramref name="sim"/>. Internal: only <see cref="Simulation.Step"/> calls it.</summary>
         internal static void Step(Simulation sim)
         {
+            // The live terrain grid the units walk on. Read-only here.
             TerrainGrid terrain = sim.Terrain;
             // Squared arrival radius, compared against squared distances so no square root is needed.
             Fix64 arrivalRadius = sim.Tuning.Terrain.ArrivalRadiusTiles;
+            // Arrival radius squared. Unit: squared tiles. Range: 0.0025 to 4 (arrival radius 0.05 to 2).
             Fix64 arrivalRadiusSquared = arrivalRadius * arrivalRadius;
+            // Unit being moved, visited in ascending ID order.
             foreach (Unit unit in sim.Units.All)
             {
                 if (!unit.HasMoveTarget)
@@ -60,21 +63,31 @@ namespace Rts.Sim.Units
                 {
                     // Tile containing the goal; the flow field is built for it.
                     int goalTile = terrain.TileOf(goal);
+                    // Flow field leading to the goal tile for this layer, from the cache.
                     FlowField field = sim.Pathing.Get(layer, goalTile);
                     if (!field.IsReachable(currentTile))
                     {
+                        // The goal as ordered, read before the order is cleared.
+                        FixVec2 unreachableGoal = unit.MoveTarget;
                         unit.ClearMoveTarget();
-                        sim.Events.Add(new MoveUnreachableEvent(sim.Clock.Tick, unit.Id, unit.MoveTarget));
+                        sim.Events.Add(new MoveUnreachableEvent(sim.Clock.Tick, unit.Id, unreachableGoal));
                         continue;
                     }
+                    // Direction to the next tile along the field; NoDirection means this tile is an end point: the goal
+                    // tile itself, or a neighbour of a blocked goal (a structure), where the unit stops beside it.
+                    byte direction = field.DirectionAt(currentTile);
                     if (currentTile == goalTile)
                     {
                         next = unit.Position.MoveTowards(goal, stepLength);
                     }
+                    else if (direction == FlowField.NoDirection)
+                    {
+                        unit.ClearMoveTarget();
+                        sim.Events.Add(new UnitArrivedEvent(sim.Clock.Tick, unit.Id, unit.Position));
+                        continue;
+                    }
                     else
                     {
-                        // Direction to the next tile along the field; NoDirection cannot happen on a reachable non-goal tile.
-                        byte direction = field.DirectionAt(currentTile);
                         // Step along the direction's unit vector rather than toward the tile centre, so open-ground
                         // movement stays straight; the no-corner-cutting rule keeps the unit's row and column passable.
                         next = unit.Position + DirectionVectors[direction] * stepLength;
@@ -108,6 +121,7 @@ namespace Rts.Sim.Units
             TeamId team = sim.Players.TryGet(unit.Owner, out Teams.Player? owner) ? owner.Team : TeamId.None;
             // Speed in tiles per second after every multiplier, left to right (truncating multiplication is not associative).
             Fix64 speed = unit.Definition.SpeedTilesPerSecond * sim.Terrain.SpeedMultiplier(tileIndex, layer, team) * unit.StatusSpeedMultiplier;
+            // Speed modifier applied in ascending Id order. Range: any registered modifier.
             foreach (ISpeedModifier modifier in sim.SpeedModifiers)
             {
                 speed = speed * modifier.SpeedMultiplier(sim, unit);

@@ -191,9 +191,17 @@ namespace Rts.Sim
             {
                 throw new InvalidOperationException("Content invalid: " + contentProblem);
             }
+            // Every status duration must convert to at least one tick at this match's tick rate; failing here names the
+            // tuning key at start instead of throwing from inside a step.
+            StatusRates.Validate(Tuning.Status, this);
             // No definition may change once the match is running; the digest below would otherwise go stale.
             Content.Freeze();
-            ContentDigest = Content.ComputeDigest();
+            // Content digest covers definitions, the tuning texts and the map, so mismatched data shows at tick 0.
+            StateHasher digestHasher = new StateHasher();
+            digestHasher.Write(Content.ComputeDigest());
+            digestHasher.Write(Tuning.SourceDigest);
+            Map.WriteHash(digestHasher);
+            ContentDigest = digestHasher.Hash;
             // Mechanic IDs needed, collected in ordinal order so creation order is deterministic.
             SortedSet<string> mechanicIds = new SortedSet<string>(StringComparer.Ordinal);
             foreach (Player player in Players.All)
@@ -446,7 +454,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
-        /// terrain, vision, resource fields, mechanics, damage modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
+        /// terrain, vision, resource fields, mechanics, damage modifier IDs, speed modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
@@ -468,6 +476,11 @@ namespace Rts.Sim
             }
             _hasher.Write(_damageModifiers.Count);
             foreach (IDamageModifier modifier in _damageModifiers)
+            {
+                _hasher.Write(modifier.Id);
+            }
+            _hasher.Write(_speedModifiers.Count);
+            foreach (ISpeedModifier modifier in _speedModifiers)
             {
                 _hasher.Write(modifier.Id);
             }

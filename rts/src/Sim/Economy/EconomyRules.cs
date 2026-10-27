@@ -110,7 +110,7 @@ namespace Rts.Sim.Economy
         }
 
         /// <summary>
-        /// Finds where a new unit appears next to its producer: the first tile in ascending (row, column) order, searching rings 1 to 3
+        /// Finds where a new unit appears next to its producer: the first tile in ascending (row, column) order, searching rings 1 to spawn_search_radius_tiles (tuning/economy.json)
         /// around the producer's tile, that is standable for the new unit's layer and, for ground and water units, on the producer's
         /// height layer (so a unit never appears across a cliff). Air units accept any tile. Returns the tile centre.
         /// </summary>
@@ -125,8 +125,10 @@ namespace Rts.Sim.Economy
             int origin = terrain.TileOf(producerPosition);
             int ox = terrain.XOf(origin);
             int oy = terrain.YOf(origin);
-            // Ring distance from the producer's tile. Unit: tiles. Range: 1 to 3.
-            for (int ring = 1; ring <= 3; ring++)
+            // Outermost ring searched (spawn_search_radius_tiles). Unit: tiles. Range: 1 to 8.
+            int maxRing = sim.Tuning.Economy.SpawnSearchRadiusTiles;
+            // Ring distance from the producer's tile. Unit: tiles. Range: 1 to maxRing.
+            for (int ring = 1; ring <= maxRing; ring++)
             {
                 // Row offset from the producer's tile. Unit: tiles. Range: -ring to ring.
                 for (int dy = -ring; dy <= ring; dy++)

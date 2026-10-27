@@ -106,5 +106,38 @@ namespace Rts.Sim.Tests.Economy
                 TestData.WithEdit("tuning/hq.json", "\"hq_root_max_distance_to_field_tiles\": 6,", string.Empty)));
             Assert.That(noRoot.Message, Does.Contain("tuning/hq.json").And.Contain("hq_root_max_distance_to_field_tiles"));
         }
+
+        /// <summary>A unit with a footprint and a speed above 0 is refused by the loader, naming the file and the footprint field; speed 0 loads.</summary>
+        [Test]
+        public void Loader_RejectsAFootprintOnAMovingUnit()
+        {
+            // The roost is a building (speed 0, footprint 1); giving it speed makes it a walking footprint.
+            DataValidationException ex = Expect.Throws<DataValidationException>(() => DataLoader.Load(
+                TestData.WithEdit("units/skai/roost.json", "\"speed_tiles_per_second\": 0,", "\"speed_tiles_per_second\": 1.5,")));
+            Assert.That(ex.Message, Does.Contain("units/skai/roost.json").And.Contain("footprint").And.Contain("speed_tiles_per_second"));
+            Expect.DoesNotThrow(() => DataLoader.Load(TestData.ReadAll()));
+        }
+
+        /// <summary>spawn_search_radius_tiles loads (shipped value 3), is range checked and is a required key.</summary>
+        [Test]
+        public void SpawnSearchRadius_IsTuningData()
+        {
+            Assert.That(TestData.LoadAll().Tuning.Economy.SpawnSearchRadiusTiles, Is.EqualTo(3));
+            DataValidationException range = Expect.Throws<DataValidationException>(() => DataLoader.Load(
+                TestData.WithEdit("tuning/economy.json", "\"spawn_search_radius_tiles\": 3", "\"spawn_search_radius_tiles\": 0")));
+            Assert.That(range.Message, Does.Contain("tuning/economy.json").And.Contain("spawn_search_radius_tiles"));
+            Assert.That(DataLoader.Load(TestData.WithEdit("tuning/economy.json", "\"spawn_search_radius_tiles\": 3", "\"spawn_search_radius_tiles\": 5")).Tuning.Economy.SpawnSearchRadiusTiles, Is.EqualTo(5));
+        }
+
+        /// <summary>Starting a match checks the status durations at the lowest tick rate and the smallest allowed durations, so a bad value cannot surface mid-step.</summary>
+        [Test]
+        public void Start_AcceptsTheShortestStatusDurationsAtTheSlowestTickRate()
+        {
+            Tuning shortest = DataLoader.Load(TestData.WithEdit("tuning/statuses.json", "\"drench_slow_duration_seconds\": 2,", "\"drench_slow_duration_seconds\": 0.1,")).Tuning;
+            Assert.That(shortest.Status.DrenchSlowDurationTicks(new MatchClock(MatchSettings.MinTicksPerSecond)), Is.GreaterThanOrEqualTo(1));
+            Simulation sim = new Simulation(new SimulationConfig(new MatchSettings(1, MatchSettings.MinTicksPerSecond, 10), TestWorld.Catalog(), TestWorld.TwoPlayers(),
+                Rts.Sim.Factions.BuiltInMechanics.CreateRegistry(), shortest, TestWorld.FlatMap()));
+            Expect.DoesNotThrow(() => sim.Start());
+        }
     }
 }

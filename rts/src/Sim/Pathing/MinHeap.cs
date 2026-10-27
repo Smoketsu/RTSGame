@@ -60,12 +60,14 @@ namespace Rts.Sim.Pathing
             {
                 throw new InvalidOperationException("MinHeap is empty.");
             }
+            // The smallest key, returned. Unit: packed (cost << 32 | tile index).
             long min = _items[0];
             Count--;
             if (Count > 0)
             {
                 // The last key, sifted down from the root.
                 long moving = _items[Count];
+                // Hole position the last key is sifted down from. Unit: heap position. Range: 0 to Count - 1.
                 int index = 0;
                 while (true)
                 {

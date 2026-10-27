@@ -18,6 +18,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+    <!-- The skirmish AI, tested in Ai/SkirmishAiTests.cs. -->
+    <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Data files are copied next to the test binary so tests can load real tuning and unit files. -->

@@ -2,7 +2,10 @@
 // Turns the text of the files under rts/data into a validated DataSet (ADR-002). Part of Rts.Sim.Data.
 // The loader does no file IO: hosts pass DataSourceFile pairs. Files are processed in ordinal path order so the
 // first error reported is the same on every machine. Every error is a DataValidationException that names the file
-// (the first words of the message) and the field. Folder routing: tuning/, units/<faction>/, factions/, maps/, cycles/.
+// (the first words of the message) and the field. Folder routing: tuning/, units/<faction>/, factions/, maps/, cycles/, ai/.
+// The ai/ folder holds skirmish AI profiles (ai/<id>.json): the loader checks only the header and that "id" matches the file
+// name, then hands the parsed tree to DataSet.AiProfiles; the Rts.Ai assembly validates the rest (AiProfile.Parse), because
+// the simulation never reads AI profiles and must not depend on the AI.
 // Exception: the scripts/ folder is skipped. Scripted command streams (the headless harness, the Unity bootstrap and
 // later campaign missions) live there and are parsed by CommandScript, not by this loader. Everything else is strict:
 // unknown folders, unknown keys, missing keys, wrong types, out-of-range values, dangling references and a
@@ -32,6 +35,12 @@ namespace Rts.Sim.Data
         /// <see cref="CommandScript"/> parses them. Range: fixed folder name, "scripts".
         /// </summary>
         public const string ScriptsFolder = "scripts";
+
+        /// <summary>
+        /// Name of the data folder holding skirmish AI profiles (ai/&lt;id&gt;.json). The loader checks each file's header and id and
+        /// stores the parsed tree in <see cref="DataSet.AiProfiles"/>; Rts.Ai.AiProfile.Parse validates the contents. Range: fixed folder name, "ai".
+        /// </summary>
+        public const string AiFolder = "ai";
 
         /// <summary>Largest allowed value of a health, cost or similar unit field. Unit: points or resource units. Range: fixed validation bound, not a tuning value.</summary>
         private const string MaxStatText = "100000";
@@ -73,6 +82,8 @@ namespace Rts.Sim.Data
             SortedDictionary<string, string> unitFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
             // Faction file roots by faction ID, kept for the unit-list reference check.
             SortedDictionary<string, JsonValue> factionRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
+            // Skirmish AI profile roots by profile ID, in ordinal ID order; validated by Rts.Ai, not here.
+            SortedDictionary<string, JsonValue> aiProfiles = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
 
             // Combat tuning, parsed ahead of the main loop because unit files are validated against its armour and damage
             // types. Null when tuning/combat.json was not supplied (reported below as a missing tuning file).
@@ -140,17 +151,33 @@ namespace Rts.Sim.Data
                             cycles.Add(cycle.Id, cycle);
                             break;
                         }
+                    case AiFolder:
+                        {
+                            CheckDepth(path, parts, 2, "ai/<id>.json");
+                            // Profile ID, equal to the file name. Range: lower-case letters, digits and underscores.
+                            string profileId = ReadId(root, StemOf(parts), false);
+                            aiProfiles.Add(profileId, root);
+                            break;
+                        }
                     default:
                         throw new DataValidationException(path, string.Empty,
-                            "is not under a known data folder (tuning/, units/, factions/, maps/, cycles/ or scripts/)");
+                            "is not under a known data folder (tuning/, units/, factions/, maps/, cycles/, ai/ or scripts/)");
                 }
             }
 
             // Typed tuning built from every tuning file together. Range: every tuning file present.
             Tuning tuning = BuildTuning(tuningRoots);
+            // Digest of the tuning texts in ordinal path order, so any tuning edit changes the content digest.
+            StateHasher tuningHasher = new StateHasher();
+            foreach (KeyValuePair<string, JsonValue> pair in tuningRoots)
+            {
+                tuningHasher.Write(pair.Key);
+                tuningHasher.Write(byPath[pair.Key].Text);
+            }
+            tuning.SetSourceDigest(tuningHasher.Hash);
             CheckReferences(content, unitFiles, factionRoots);
             content.SetCombatRules(tuning.Combat.CreateRules());
-            return new DataSet(content, tuning, maps, cycles);
+            return new DataSet(content, tuning, maps, cycles, aiProfiles);
         }
 
         // ---------------------------------------------------------------- shared checks
@@ -319,6 +346,11 @@ namespace Rts.Sim.Data
             // Optional HQ rules and the economy keys (build time, worker, drop-off, trains, defence, footprint, supply provided).
             HqDefinition? hq = UnitSchema.ReadHq(root, combat);
             UnitEconomyDefinition economy = UnitSchema.ReadEconomy(root);
+            if (economy.FootprintTiles > 0 && speed > Fix64.Zero)
+            {
+                // A footprint is a blocker written on the tile where the unit spawns and removed where it dies; a unit that walks would leave it behind.
+                throw root.Require("footprint").Fail("must be 0 for a unit with speed_tiles_per_second above 0 (a footprint is fixed to the tile the unit spawns on)");
+            }
             // Optional flooding keys: flood source output and capacity, wave casting (flooding.md section 2).
             UnitFloodDefinition flood = UnitSchema.ReadFlood(root);
             return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon, hq, economy, airborneSightRange, flood);

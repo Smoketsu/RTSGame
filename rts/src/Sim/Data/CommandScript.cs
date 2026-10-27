@@ -7,7 +7,8 @@
 // assembly: it takes text, never touches the file system (hosts do the file IO), and uses only Fix64 and integers.
 // Parsing reuses JsonReader so scripts get the same comments, exact numbers and file/line/field error messages as game
 // data. Errors are DataValidationException naming the script path and the field. DataLoader skips the scripts/ folder
-// on purpose: scripts are parsed here, not by the loader.
+// on purpose: scripts are parsed here, not by the loader. A player entry may name a skirmish AI profile ("ai": "aggressive");
+// the script only records it (AiProfiles) for hosts that attach AI controllers, it never changes the simulation.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -20,6 +21,16 @@ namespace Rts.Sim.Data
     /// <summary>A parsed command script: who plays, what commands are issued when, how long to run.</summary>
     public sealed class CommandScript
     {
+        /// <summary>No extra command readers; used by the overloads that take none. Range: empty.</summary>
+        private static readonly IReadOnlyList<IScriptCommandParser> NoParsers = new IScriptCommandParser[0];
+
+        /// <summary>The command types the core reader handles itself, in the order the unknown-type error lists them. Range: fixed list of script type names.</summary>
+        private static readonly string[] CoreKinds =
+        {
+            "noop", "spawn_unit", "move_unit", "remove_unit", "attack_move", "attack_unit", "stop", "root_hq", "uproot_hq",
+            "gather", "train_unit", "build_structure", "apply_status",
+        };
+
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
         public const int MaxTicks = 1000000;
 
@@ -38,9 +49,18 @@ namespace Rts.Sim.Data
         /// <summary>Commands in script order; the simulation sorts them by (tick, issuer, sequence) itself.</summary>
         public IReadOnlyList<Command> Commands { get; }
 
+        /// <summary>
+        /// Skirmish AI profile per player slot, from the optional "ai" key of a player entry (for example "aggressive" for
+        /// rts/data/ai/aggressive.json), in ascending slot order. Hosts that run AI controllers (rts/src/Ai) attach one per entry;
+        /// the simulation ignores it. Empty when no player names a profile. Range: profile IDs as written (checked by the host).
+        /// </summary>
+        public IReadOnlyDictionary<PlayerId, string> AiProfiles { get; }
+
         /// <summary>Bundles the parsed pieces.</summary>
-        private CommandScript(ulong seed, int ticks, IReadOnlyList<PlayerSetup> players, IReadOnlyList<Command> commands, string? mapId)
+        private CommandScript(ulong seed, int ticks, IReadOnlyList<PlayerSetup> players, IReadOnlyList<Command> commands, string? mapId,
+            IReadOnlyDictionary<PlayerId, string> aiProfiles)
         {
+            AiProfiles = aiProfiles;
             Seed = seed;
             MapId = mapId;
             Ticks = ticks;
@@ -53,7 +73,16 @@ namespace Rts.Sim.Data
         /// <param name="sourceName">The script path (data-root-relative or full), used in error messages.</param>
         public static CommandScript Parse(string text, string sourceName)
         {
-            return Parse(JsonReader.Parse(text, sourceName), sourceName);
+            return Parse(JsonReader.Parse(text, sourceName), sourceName, NoParsers);
+        }
+
+        /// <summary>Parses script text with extra command readers (for example <c>BuiltInMechanics.ScriptParsers</c>). Throws <see cref="DataValidationException"/> naming <paramref name="sourceName"/> and the field on any problem.</summary>
+        /// <param name="text">The script file's text.</param>
+        /// <param name="sourceName">The script path (data-root-relative or full), used in error messages.</param>
+        /// <param name="extraParsers">Readers for command kinds added by faction mechanics; may be empty. Range: unique Type values that do not shadow a core kind.</param>
+        public static CommandScript Parse(string text, string sourceName, IReadOnlyList<IScriptCommandParser> extraParsers)
+        {
+            return Parse(JsonReader.Parse(text, sourceName), sourceName, extraParsers);
         }
 
         /// <summary>Builds a script from an already parsed JSON tree. Throws <see cref="DataValidationException"/> naming <paramref name="sourceName"/> and the field on any problem.</summary>
@@ -61,6 +90,24 @@ namespace Rts.Sim.Data
         /// <param name="sourceName">The script path, used for problems with the file as a whole (field-level problems name the node's own source and path).</param>
         public static CommandScript Parse(JsonValue root, string sourceName)
         {
+            return Parse(root, sourceName, NoParsers);
+        }
+
+        /// <summary>Builds a script from an already parsed JSON tree with extra command readers. Throws <see cref="DataValidationException"/> naming <paramref name="sourceName"/> and the field on any problem.</summary>
+        /// <param name="root">The parsed top-level node of the script file.</param>
+        /// <param name="sourceName">The script path, used for problems with the file as a whole.</param>
+        /// <param name="extraParsers">Readers for command kinds added by faction mechanics; may be empty. Range: unique Type values that do not shadow a core kind.</param>
+        public static CommandScript Parse(JsonValue root, string sourceName, IReadOnlyList<IScriptCommandParser> extraParsers)
+        {
+            // Extra readers by script type, in ordinal order. Range: one entry per distinct Type.
+            SortedDictionary<string, IScriptCommandParser> extras = new SortedDictionary<string, IScriptCommandParser>(StringComparer.Ordinal);
+            foreach (IScriptCommandParser extra in extraParsers)
+            {
+                if (Array.IndexOf(CoreKinds, extra.Type) >= 0 || !extras.TryAdd(extra.Type, extra))
+                {
+                    throw new ArgumentException("script command type \"" + extra.Type + "\" is registered twice or shadows a core command", nameof(extraParsers));
+                }
+            }
             if (root.Kind != JsonKind.Object)
             {
                 throw new DataValidationException(sourceName, string.Empty, "the top level must be a JSON object (found " + root.Kind.ToString().ToLowerInvariant() + ")");
@@ -79,9 +126,11 @@ namespace Rts.Sim.Data
 
             // Player slots, in script order.
             List<PlayerSetup> players = new List<PlayerSetup>();
+            // AI profile IDs by player slot, from the optional "ai" key. Range: non-empty profile IDs.
+            SortedDictionary<PlayerId, string> aiProfiles = new SortedDictionary<PlayerId, string>();
             foreach (JsonValue node in root.RequireArray("players"))
             {
-                node.RejectUnknownKeys("id", "team", "faction", "name");
+                node.RejectUnknownKeys("id", "team", "faction", "name", "ai");
                 // Player slot index. Unit: slot number. Range: 0 to PlayerId.MaxValue.
                 int id = node.RequireInt("id", 0, PlayerId.MaxValue);
                 // Team index. Unit: team number. Range: 0 to TeamId.MaxValue.
@@ -91,6 +140,16 @@ namespace Rts.Sim.Data
                 // Display name. Range: any string; defaults to "Player <id>" when absent.
                 string name = node.OptionalString("name", "Player " + id.ToString(CultureInfo.InvariantCulture));
                 players.Add(new PlayerSetup(new PlayerId((byte)id), new TeamId((byte)team), faction, name));
+                if (node.TryGetMember("ai", out JsonValue? aiNode))
+                {
+                    // Profile ID of the AI that plays this slot. Range: non-empty text naming a file under rts/data/ai.
+                    string profile = node.RequireNonEmptyString("ai");
+                    if (aiProfiles.ContainsKey(new PlayerId((byte)id)))
+                    {
+                        throw aiNode.Fail("names a second AI for player slot " + id.ToString(CultureInfo.InvariantCulture));
+                    }
+                    aiProfiles.Add(new PlayerId((byte)id), profile);
+                }
             }
             if (players.Count == 0)
             {
@@ -101,15 +160,18 @@ namespace Rts.Sim.Data
             List<Command> commands = new List<Command>();
             foreach (JsonValue node in root.RequireArray("commands"))
             {
-                commands.Add(ReadCommand(node));
+                commands.Add(ReadCommand(node, sourceName, extras));
             }
-            return new CommandScript(seed, ticks, players, commands, mapId);
+            return new CommandScript(seed, ticks, players, commands, mapId, aiProfiles);
         }
 
         /// <summary>Reads one command object.</summary>
-        private static Command ReadCommand(JsonValue node)
+        /// <param name="node">The command object.</param>
+        /// <param name="sourceName">The script path, passed on to extra readers.</param>
+        /// <param name="extras">Extra readers by type, tried when the type is not a core kind.</param>
+        private static Command ReadCommand(JsonValue node, string sourceName, SortedDictionary<string, IScriptCommandParser> extras)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status, cast_wave).
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status, plus the types of the extra readers).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -163,11 +225,21 @@ namespace Rts.Sim.Data
                 case "apply_status":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "status", "multiplier", "seconds", "source");
                     return ReadApplyStatus(node, tick, issuer, sequence);
-                case "cast_wave":
-                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "x", "y");
-                    return new CastWaveCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)), ReadPoint(node));
                 default:
-                    throw node.Require("type").Fail("must be \"noop\", \"spawn_unit\", \"move_unit\", \"remove_unit\", \"attack_move\", \"attack_unit\", \"stop\", \"root_hq\", \"uproot_hq\", \"gather\", \"train_unit\", \"build_structure\" or \"apply_status\" (found \"" + type + "\")");
+                    if (extras.TryGetValue(type, out IScriptCommandParser? parser))
+                    {
+                        return parser.Parse(node, tick, issuer, sequence, sourceName);
+                    }
+                    // Every accepted type, core kinds then extras in ordinal order, for the error text.
+                    List<string> accepted = new List<string>(CoreKinds);
+                    accepted.AddRange(extras.Keys);
+                    // The accepted types as a quoted, comma-separated list ending in "or".
+                    string list = string.Empty;
+                    for (int i = 0; i < accepted.Count; i++)
+                    {
+                        list += (i == 0 ? string.Empty : i == accepted.Count - 1 ? " or " : ", ") + "\"" + accepted[i] + "\"";
+                    }
+                    throw node.Require("type").Fail("must be " + list + " (found \"" + type + "\")");
             }
         }
 
@@ -199,7 +271,7 @@ namespace Rts.Sim.Data
         }
 
         /// <summary>Reads the x and y members, each either decimal text ("20.5") or a JSON number, as a fixed-point point in tiles.</summary>
-        private static FixVec2 ReadPoint(JsonValue node)
+        internal static FixVec2 ReadPoint(JsonValue node)
         {
             return new FixVec2(ReadCoordinate(node.Require("x")), ReadCoordinate(node.Require("y")));
         }

@@ -79,6 +79,7 @@ namespace Rts.Sim.Factions.Water
             Drops = new int[TileCount];
             Team = new int[TileCount];
             NoFlood = new bool[]?[TeamSlots];
+            // Tile index being cleared to NoTeam. Unit: tile index. Range: 0 to TileCount - 1.
             for (int i = 0; i < TileCount; i++)
             {
                 Team[i] = NoTeam;
@@ -104,7 +105,9 @@ namespace Rts.Sim.Factions.Water
         /// <param name="direction">0 = N (x, y+1), 1 = E (x+1, y), 2 = S (x, y-1), 3 = W (x-1, y).</param>
         public int Neighbour(int index, int direction)
         {
+            // Column of the tile. Unit: tiles. Range: 0 to Width - 1.
             int x = index % Width;
+            // Row of the tile. Unit: tiles. Range: 0 to Height - 1.
             int y = index / Width;
             switch (direction)
             {

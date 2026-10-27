@@ -19,7 +19,19 @@ namespace Rts.Sim.Statuses
         /// <summary>Length of the slow one drench hit applies. Unit: ticks. Range: 1 or more.</summary>
         public readonly int DrenchSlowTicks;
 
-        /// <summary>Converts the three durations; a result of 0 ticks is an error because a status must last at least one tick.</summary>
+        /// <summary>
+        /// Checks at match start that all three durations convert to at least one tick. Throws <see cref="InvalidOperationException"/>
+        /// naming the tuning key; <see cref="Simulation.Start"/> calls it so a bad rate never surfaces mid-step.
+        /// </summary>
+        /// <param name="tuning">The statuses tuning.</param>
+        /// <param name="sim">The simulation whose clock sets the tick rate.</param>
+        public static void Validate(StatusTuning tuning, Simulation sim)
+        {
+            // Throwaway conversion; the constructor's checks are the validation.
+            _ = new StatusRates(tuning, sim);
+        }
+
+        /// <summary>Converts the three durations; a result of 0 ticks is an error because a status must last at least one tick. Also a defensive check behind <see cref="Validate"/>.</summary>
         /// <param name="tuning">The statuses tuning.</param>
         /// <param name="sim">The simulation whose clock sets the tick rate.</param>
         public StatusRates(StatusTuning tuning, Simulation sim)
