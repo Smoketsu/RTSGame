@@ -12,5 +12,6 @@ One file per decision, numbered in the order they were made. A record is never e
 | [ADR-005](ADR-005-state-hash.md) | State hash: 64-bit FNV-1a over a canonical byte stream | Accepted |
 | [ADR-006](ADR-006-terrain-model.md) | Terrain: tile grid of layered ground states | Accepted |
 | [ADR-007](ADR-007-pathfinding.md) | Pathfinding: flow fields per movement layer | Accepted |
+| [ADR-009](ADR-009-replays.md) | Replays: applied command stream plus hash checkpoints in a versioned little-endian binary file | Accepted |
 
 Template for new records: Context, Decision, Consequences, Alternatives considered.

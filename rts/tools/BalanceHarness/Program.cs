@@ -10,11 +10,15 @@
 // for the current tick (AiHost.ThinkAll). In a match with two or more teams the run stops early once MatchOutcome is decided,
 // and every run prints "OUTCOME winner=<team number or draw> tick=<n>" (or "OUTCOME undecided tick=<n>") before STATE_HASH,
 // where n is the last tick stepped.
+// Replays (ADR-009): --record <file> routes every command (script and AI) and every step through a ReplayRecorder and, after the
+// final STATE_HASH line, writes the binary replay and prints "REPLAY_RECORDED file=<path> ticks=<n> commands=<n> checkpoints=<n>";
+// tools/ReplayCheck re-simulates that file. Without --record the run is exactly as before.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using Rts.Ai;
+using Rts.Replay;
 using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
@@ -60,16 +64,33 @@ namespace Rts.Tools.BalanceHarness
                 SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry(), data.Tuning, map);
                 Simulation sim = new Simulation(config);
                 sim.Start();
+                // Recorder that captures every command and hash checkpoint when --record is given; null otherwise.
+                ReplayRecorder? recorder = options.RecordPath.Length > 0 ? new ReplayRecorder(sim, script.Players) : null;
                 foreach (Command command in script.Commands)
                 {
                     if (command.Tick >= ticks)
                     {
                         error.Write("warning: " + command + " is scheduled at or after the last tick (" + ticks + ") and will not run\n");
                     }
-                    sim.Submit(command);
+                    if (recorder != null)
+                    {
+                        recorder.Submit(command);
+                    }
+                    else
+                    {
+                        sim.Submit(command);
+                    }
                 }
                 // AI controllers for the script's "ai" slots and the --ai options, in ascending slot order.
                 List<IPlayerController> controllers = CreateControllers(data, script, options);
+                if (recorder != null)
+                {
+                    // Wrap each controller so the commands it submits are recorded too. Index into the controller list.
+                    for (int c = 0; c < controllers.Count; c++)
+                    {
+                        controllers[c] = new RecordingController(controllers[c], recorder);
+                    }
+                }
                 AiHost.StartAll(sim, controllers);
                 // True when the match has at least two teams, so a decided outcome can end the run early.
                 bool canDecide = sim.Players.TeamCount >= 2;
@@ -82,6 +103,7 @@ namespace Rts.Tools.BalanceHarness
                     AiHost.ThinkAll(sim, controllers);
                     lastTick = sim.Clock.Tick;
                     sim.Step();
+                    recorder?.AfterStep();
                     foreach (SimEvent simEvent in sim.Events.Current)
                     {
                         if (simEvent is StateHashedEvent hashed)
@@ -101,10 +123,19 @@ namespace Rts.Tools.BalanceHarness
                 }
                 output.Write(DescribeOutcome(canDecide, outcome, lastTick) + "\n");
                 output.Write("STATE_HASH=" + sim.ComputeStateHash().ToString("x16", CultureInfo.InvariantCulture) + "\n");
+                if (recorder != null)
+                {
+                    // The finished replay: header, applied commands and checkpoints.
+                    ReplayData replay = recorder.Finish();
+                    File.WriteAllBytes(options.RecordPath, ReplayWriter.Write(replay, CommandCodecRegistry.CreateBuiltIn()));
+                    output.Write("REPLAY_RECORDED file=" + options.RecordPath.Replace('\\', '/') + " ticks=" + replay.TickCount.ToString(CultureInfo.InvariantCulture)
+                        + " commands=" + replay.Commands.Count.ToString(CultureInfo.InvariantCulture)
+                        + " checkpoints=" + replay.Checkpoints.Count.ToString(CultureInfo.InvariantCulture) + "\n");
+                }
                 output.Flush();
                 return 0;
             }
-            catch (Exception ex) when (ex is HarnessException || ex is DataValidationException || ex is IOException
+            catch (Exception ex) when (ex is HarnessException || ex is ReplayException || ex is DataValidationException || ex is IOException
                 || ex is UnauthorizedAccessException || ex is InvalidOperationException || ex is ArgumentException)
             {
                 error.Write("error: " + ex.Message + "\n");

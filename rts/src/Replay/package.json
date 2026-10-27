@@ -1,0 +1,15 @@
+{
+  "name": "com.rtsgame.replay",
+  "displayName": "RTS Replays",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "The engine-free replay library (assembly Rts.Replay): records the applied command stream of a match, reads and writes the versioned binary replay format (ADR-009) and re-simulates a replay to verify its state hashes. Depends on com.rtsgame.sim.",
+  "dependencies": {
+    "com.rtsgame.sim": "0.1.0"
+  },
+  "keywords": [
+    "rts",
+    "replay",
+    "deterministic"
+  ]
+}

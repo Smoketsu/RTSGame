@@ -30,7 +30,7 @@ requires the two `STATE_HASH` lines to match. The default script, `rts/data/scri
 `SimulationHost` plays, so the `tick=<n> hash=<hex>` lines can be compared with the Unity Console (see `docs/UNITY_SETUP.md`).
 
 ```
-dotnet run --project rts/tools/BalanceHarness -- --data rts/data [--script <file>] [--ticks N] [--seed S] [--ai <slot>:<profile> ...]
+dotnet run --project rts/tools/BalanceHarness -- --data rts/data [--script <file>] [--ticks N] [--seed S] [--record <replay file>] [--ai <slot>:<profile> ...]
 dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/data/scripts/ai_vs_ai.json --ai 0:aggressive --ai 1:defensive
 ```
 
@@ -41,6 +41,7 @@ dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/da
 | `--ticks N` | Overrides the script's `ticks` | Ticks, 0 to 1 000 000 |
 | `--seed S` | Overrides the script's `seed` | Unsigned integer |
 | `--ai <slot>:<profile>` | Repeatable: an AI plays player slot `<slot>` with `rts/data/ai/<profile>.json` | Slot 0 to 254 (must be a script player); profile file name without `.json` |
+| `--record <file>` | Writes a replay of the run (script and AI commands, hash checkpoints, final hash; ADR-009) after the `STATE_HASH` line and prints `REPLAY_RECORDED file=<path> ticks=<n> commands=<n> checkpoints=<n>`; `tools/ReplayCheck` verifies it | Any writable file path |
 
 ## Script format
 

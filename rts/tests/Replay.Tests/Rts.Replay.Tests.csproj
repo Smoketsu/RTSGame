@@ -1,0 +1,30 @@
+<!-- rts/tests/Replay.Tests/Rts.Replay.Tests.csproj: NUnit tests for the replay library, the ReplayCheck tool and the harness record option. Runs on .NET 8 outside Unity. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Tests run on the current LTS .NET; the library under test is netstandard2.1. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Rts.Replay.Tests</AssemblyName>
+    <RootNamespace>Rts.Replay.Tests</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Same NUnit versions as Rts.Sim.Tests, so the tests build on 4.2.2 (CI) and 4.6 (local). -->
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <Compile Remove="**/*.meta" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+    <ProjectReference Include="../../src/Replay/Rts.Replay.csproj" />
+    <!-- The tools are called through their public Program.Run so the tests cover the real command lines. -->
+    <ProjectReference Include="../../tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj" />
+    <ProjectReference Include="../../tools/ReplayCheck/Rts.Tools.ReplayCheck.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Data files are copied next to the test binary so tests can load the real tuning, units, maps and AI profiles. -->
+    <None Include="../../data/**/*.json" Link="data/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

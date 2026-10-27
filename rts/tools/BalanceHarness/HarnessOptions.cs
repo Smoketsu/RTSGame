@@ -1,5 +1,5 @@
 // rts/tools/BalanceHarness/HarnessOptions.cs
-// Command-line options of the headless harness: --data, --script, --ticks, --seed and the repeatable --ai <slot>:<profile>.
+// Command-line options of the headless harness: --data, --script, --ticks, --seed, --record <file> and the repeatable --ai <slot>:<profile>.
 // Part of Rts.Tools.BalanceHarness.
 // Plain parsing with clear error messages; any problem is a HarnessException that Program turns into exit code 1.
 using System;
@@ -21,7 +21,7 @@ namespace Rts.Tools.BalanceHarness
     public sealed class HarnessOptions
     {
         /// <summary>Usage text printed with command-line errors.</summary>
-        public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> [--script <script.json>] [--ticks N] [--seed S] [--ai <slot>:<profile> ...]";
+        public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> [--script <script.json>] [--ticks N] [--seed S] [--record <replay file>] [--ai <slot>:<profile> ...]";
 
         /// <summary>Script used when --script is omitted, relative to the data folder. Range: fixed path inside rts/data; the Unity host's default is the same file.</summary>
         public const string DefaultScriptRelativePath = "scripts/smoke.json";
@@ -44,6 +44,9 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Seed that overrides the script's "seed", or null to use the script. Range: any ulong.</summary>
         public ulong? SeedOverride { get; private set; }
 
+        /// <summary>Path given with --record, or empty when the option was omitted: the harness then writes a replay of the run to this file (ADR-009). Range: any writable file path.</summary>
+        public string RecordPath { get; private set; } = string.Empty;
+
         /// <summary>
         /// Skirmish AI profile per player slot from repeated --ai &lt;slot&gt;:&lt;profile&gt; options (for example "0:aggressive"), in
         /// ascending slot order. Added to the script's own "ai" entries; an option wins over the script for the same slot.
@@ -60,7 +63,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 // Flag being read; its value is the next argument.
                 string flag = args[i];
-                if (flag != "--data" && flag != "--script" && flag != "--ticks" && flag != "--seed" && flag != "--ai")
+                if (flag != "--data" && flag != "--script" && flag != "--ticks" && flag != "--seed" && flag != "--ai" && flag != "--record")
                 {
                     throw new HarnessException("unknown argument '" + flag + "'. " + Usage);
                 }
@@ -80,6 +83,9 @@ namespace Rts.Tools.BalanceHarness
                         break;
                     case "--ai":
                         options.AddAiSlot(value);
+                        break;
+                    case "--record":
+                        options.RecordPath = value;
                         break;
                     case "--ticks":
                         if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int ticks) || ticks > 1000000)

@@ -1,0 +1,15 @@
+<!-- rts/tools/ReplayCheck/Rts.Tools.ReplayCheck.csproj: headless console tool that re-simulates a replay file against a data folder and compares every hash checkpoint and the final hash (ADR-009). -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Rts.Tools.ReplayCheck</AssemblyName>
+    <RootNamespace>Rts.Tools.ReplayCheck</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+    <!-- The replay reader and the verifier that re-simulates (no double hyphen: XML comments forbid it). -->
+    <ProjectReference Include="../../src/Replay/Rts.Replay.csproj" />
+  </ItemGroup>
+</Project>

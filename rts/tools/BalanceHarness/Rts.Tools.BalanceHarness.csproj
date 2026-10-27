@@ -11,5 +11,7 @@
     <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
     <!-- The skirmish AI controllers attached with the ai option or a script player's "ai" key (no double hyphen: XML comments forbid it). -->
     <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
+    <!-- The replay recorder and writer behind the record option (ADR-009). -->
+    <ProjectReference Include="../../src/Replay/Rts.Replay.csproj" />
   </ItemGroup>
 </Project>
