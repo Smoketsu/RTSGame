@@ -9,7 +9,7 @@ The files in this repository were written without Unity available, so the first 
 
 | Path | Purpose |
 | --- | --- |
-| `rts/src/Sim/package.json`, `Rts.Sim.asmdef`, `Rts.Sim.rsp` | Make the simulation folder a Unity package (`com.rtsgame.sim`, display name "RTS Simulation") with no engine references. See `rts/src/Sim/README.md`. |
+| `rts/src/Sim/package.json`, `Rts.Sim.asmdef`, `csc.rsp` | Make the simulation folder a Unity package (`com.rtsgame.sim`, display name "RTS Simulation") with no engine references. See `rts/src/Sim/README.md`. |
 | `rts/src/Game/Packages/manifest.json` | Project dependencies; `"com.rtsgame.sim": "file:../../Sim"` points at the simulation folder (path is relative to the `Packages` folder: `Packages/../../Sim` = `rts/src/Sim`). |
 | `rts/src/Game/ProjectSettings/ProjectVersion.txt` | Pins the editor version (`6000.6.7f1`, the version the project was first opened and compiled with on 26 Oct 2026). Unity creates every other settings file itself. |
 | `rts/src/Game/Assets/Scripts/Rts.Game.asmdef` | Game-side assembly, references `Rts.Sim` by name. |
@@ -115,7 +115,7 @@ The state hash is a function of the match state only, so Unity and the headless 
 | --- | --- |
 | Console: `[Package Manager Window] Error adding package ... com.rtsgame.sim` or "Cannot find ... Sim" | The `file:` path in `rts/src/Game/Packages/manifest.json` is relative to the `Packages` folder. It must resolve to `rts/src/Sim` (`file:../../Sim`). Check that you added `rts/src/Game` (not another folder) and that `rts/src/Sim/package.json` exists. |
 | Red compile errors in `Rts.Sim` | The simulation must compile as `netstandard2.1` with C# 9 and no engine types. It builds clean with the .NET SDK, so an error here is a Unity-specific incompatibility. Do not patch around it in the Unity project: copy the full error (file, line, message) and report it so the simulation source can be fixed for both builds. |
-| Yellow warnings CS8632 ("annotation for nullable reference types ...") in `Rts.Sim` | `rts/src/Sim/Rts.Sim.rsp` (`-nullable:enable`) is not being applied by your Unity version. Harmless; the alternative is a project-wide `Assets/csc.rsp` with the same line. |
+| Yellow warnings CS8632 ("annotation for nullable reference types ...") in `Rts.Sim` | The response file next to the asmdef must be named `csc.rsp`; Unity ignores any other name (verified in 6000.6.7f1: `Rts.Sim.rsp` was silently ignored and gave 354 warnings). Check that `rts/src/Sim/csc.rsp` exists and holds `-nullable:enable`. |
 | `error CS0246: The type or namespace name 'Rts' could not be found` in `Rts.Game` scripts | `Rts.Game.asmdef` must list `Rts.Sim` under References and the package must have resolved. Reimport the package (Assets > Reimport All) after fixing the manifest. |
 | Console error `[SimulationHost] Could not start the simulation: Data directory not found` | The data folder could not be found. In the editor the repo must keep its layout (`rts/data` three folders above `Assets`); in a build copy `rts/data` to `Assets/StreamingAssets/data`; or set the Inspector override. |
 | `DataValidationException` text such as `units/skai/windrunner.json: field 'speed_tiles_per_second' ...` | A data file is invalid; the message names the file and field. Fix the file in `rts/data` (the harness fails the same way). |

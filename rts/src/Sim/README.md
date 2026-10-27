@@ -21,7 +21,7 @@ The same folder is used three ways:
 
 `Rts.Sim.asmdef` also keeps `allowUnsafeCode` false and `autoReferenced` true (other assemblies in the project may reference `Rts.Sim` by name; the Unity side lists it explicitly in `Rts.Game.asmdef`). The asmdef is JSON, which cannot hold comments, which is why the explanation lives here.
 
-`Rts.Sim.rsp` (one line, `-nullable:enable`) tells the Unity compiler to treat the source as nullable-annotated, as `rts/Directory.Build.props` does for the .NET build. Without it Unity prints harmless CS8632 warnings for every `string?`.
+`csc.rsp` (one line, `-nullable:enable`) tells the Unity compiler to treat the source as nullable-annotated, as `rts/Directory.Build.props` does for the .NET build. Unity reads a response file next to an asmdef only under the name `csc.rsp`. Without it Unity prints harmless CS8632 warnings for every `string?`.
 
 Unity writes a `.meta` file next to every file and folder here when the project first opens. **Commit those `.meta` files**: they hold the GUIDs that references between assets use.
 
