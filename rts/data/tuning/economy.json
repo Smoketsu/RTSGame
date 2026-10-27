@@ -25,5 +25,7 @@
   // How many rings of tiles around a producer are searched for a free tile when a trained unit appears (ring 1 is the eight neighbours). Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.
   "spawn_search_radius_tiles": 3,
   // Workers each player starts with beside the HQ in a standard match start (StandardMatchStart). Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.
-  "starting_worker_count": 4
+  "starting_worker_count": 4,
+  // Outermost Chebyshev ring around a spawn tile searched for the starting workers' tiles (ring 1 is the eight neighbours); the loader also rejects a map whose quake paths touch the spawn tile or these rings. Unit: tiles (Chebyshev distance from the spawn tile). Range: 1 to 8. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER.
+  "starting_worker_search_radius_tiles": 3
 }

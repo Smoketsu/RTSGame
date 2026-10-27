@@ -194,7 +194,7 @@ namespace Rts.Sim.Tests.Cycles
             Assert.That(terrain[CycleWorld.Tile(5, 5)].IsBlocked, Is.False, "the gap opens in a Quake");
             Assert.That(terrain[CycleWorld.Tile(6, 5)].IsBlocked, Is.False);
             Assert.That(terrain[CycleWorld.Tile(9, 9)].Blockers, Is.EqualTo(TileBlockers.Wall), "the bridge closes in a Quake");
-            Assert.That(rig.UnitOf(walker).Position, Is.EqualTo(new FixVec2(Fix64.Parse("8.5"), Fix64.Parse("8.5"))), "ring 1, lowest tile index");
+            Assert.That(rig.UnitOf(walker).Position, Is.EqualTo(new FixVec2(Fix64.Parse("9.5"), Fix64.Parse("8.5"))), "nearest reachable tile centre (distance 1), tie to the spawn side, then lowest index");
             Assert.That(rig.UnitOf(flyer).Position, Is.EqualTo(new FixVec2(Fix64.Parse("9.5"), Fix64.Parse("9.5"))), "a flyer is not moved");
             UnitRelocatedEvent? moved = rig.At<UnitRelocatedEvent>(1200);
             Assert.That(moved, Is.Not.Null);

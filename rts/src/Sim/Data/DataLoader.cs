@@ -183,6 +183,7 @@ namespace Rts.Sim.Data
                 tuningHasher.Write(byPath[pair.Key].Text);
             }
             tuning.SetSourceDigest(tuningHasher.Hash);
+            CheckQuakePathsClearOfSpawns(maps, tuning.Economy.StartingWorkerSearchRadiusTiles);
             CheckReferences(content, unitFiles, factionRoots);
             content.SetCombatRules(tuning.Combat.CreateRules());
             return new DataSet(content, tuning, maps, cycles, aiProfiles);
@@ -772,6 +773,44 @@ namespace Rts.Sim.Data
             return paths;
         }
 
+        /// <summary>
+        /// Rejects a map whose quake path covers a spawn tile or any tile within <paramref name="workerRing"/> Chebyshev rings of one:
+        /// a path closed outside a Quake would wall in the spawn or the starting workers at tick 0, and nothing relocates them then.
+        /// The error names the map file, the path and the tile.
+        /// </summary>
+        /// <param name="maps">Loaded maps by ID.</param>
+        /// <param name="workerRing">Outermost ring searched for starting workers (tuning/economy.json starting_worker_search_radius_tiles). Unit: tiles. Range: 1 to 8.</param>
+        private static void CheckQuakePathsClearOfSpawns(SortedDictionary<string, MapDefinition> maps, int workerRing)
+        {
+            foreach (KeyValuePair<string, MapDefinition> pair in maps)
+            {
+                // Map being checked.
+                MapDefinition map = pair.Value;
+                foreach (QuakePath path in map.QuakePaths)
+                {
+                    foreach (int tile in path.TileIndexes)
+                    {
+                        // Column and row of the path tile. Unit: tiles. Range: inside the map.
+                        int x = tile % map.WidthTiles;
+                        int y = tile / map.WidthTiles;
+                        // Spawn slot number. Unit: slot. Range: 0 to spawn count - 1.
+                        for (int slot = 0; slot < map.Spawns.Count; slot++)
+                        {
+                            // Tile column and row of the spawn point. Unit: tiles.
+                            int spawnX = map.Spawns[slot].X.FloorToInt();
+                            int spawnY = map.Spawns[slot].Y.FloorToInt();
+                            if (Math.Abs(x - spawnX) <= workerRing && Math.Abs(y - spawnY) <= workerRing)
+                            {
+                                throw new DataValidationException("maps/" + map.Id + ".json", "quake_paths",
+                                    "path '" + path.Id + "' covers tile (" + x + ", " + y + "), within " + workerRing + " tiles of the spawn point of slot " + slot
+                                    + " (" + spawnX + ", " + spawnY + "); a path closed outside a Quake would wall in the spawn or its starting workers");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // ---------------------------------------------------------------- cycles
 
         /// <summary>Reads cycles/&lt;id&gt;.json.</summary>
@@ -810,7 +849,7 @@ namespace Rts.Sim.Data
                 node.RequireFix64("air_speed_multiplier", "0.5", "2"),
                 node.RequireFix64("surface_ranged_range_bonus_tiles", "-4", "4"),
                 node.RequireFix64("defence_damage_per_second_fraction", "0", "0.05"),
-                node.RequireFix64("defence_damage_min_health_fraction", "0", "1"),
+                node.RequireFix64("defence_damage_min_health_fraction", "0.01", "1"),
                 node.RequireBool("toggles_quake_paths"),
                 node.RequireFix64("core_damage_multiplier", "1", "3"),
                 node.RequireFix64("core_effect_radius_tiles", "0", "32"));

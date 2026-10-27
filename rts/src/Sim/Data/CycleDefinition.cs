@@ -35,7 +35,7 @@ namespace Rts.Sim.Data
         /// <summary>Damage per second to static defences as a fraction of their maximum health. Unit: fraction of max health per second. Range: 0 to 0.05; 0 means no damage.</summary>
         public Fix64 DefenceDamagePerSecondFraction { get; }
 
-        /// <summary>Cycle damage never takes a defence below this fraction of its maximum health, so a cycle never kills. Unit: fraction of max health. Range: 0 to 1.</summary>
+        /// <summary>Cycle damage never takes a defence below this fraction of its maximum health, so a cycle never kills; the loader rejects 0 and the cycle system also keeps health at least one raw unit above 0. Unit: fraction of max health. Range: 0.01 to 1.</summary>
         public Fix64 DefenceDamageMinHealthFraction { get; }
 
         /// <summary>True when quake paths of the map flip open or closed while this cycle is active. Unit: flag. Range: true or false.</summary>
@@ -47,14 +47,14 @@ namespace Rts.Sim.Data
         /// <summary>Radius around the Core centre in which <see cref="CoreDamageMultiplier"/> applies. Unit: tiles. Range: 0 to 32.</summary>
         public Fix64 CoreEffectRadiusTiles { get; }
 
-        /// <summary>The effects that change nothing: speed 1, range 0, no damage, floor 0.25, no path toggling, damage 1, radius 0.</summary>
-        public static CycleEffects Neutral { get; } = new CycleEffects(Fix64.One, Fix64.Zero, Fix64.Zero, Fix64.Parse("0.25"), false, Fix64.One, Fix64.Zero);
+        /// <summary>The effects that change nothing: speed 1, range 0, no damage, a floor of the whole health (1, so a neutral set could not take health even if it had a rate), no path toggling, damage 1, radius 0. Not a tuning value: it is the identity set for hand-built test cycles.</summary>
+        public static CycleEffects Neutral { get; } = new CycleEffects(Fix64.One, Fix64.Zero, Fix64.Zero, Fix64.One, false, Fix64.One, Fix64.Zero);
 
         /// <summary>Builds the effect set; the loader validates the ranges, tests may pass anything.</summary>
         /// <param name="airSpeedMultiplier">Air speed multiplier. Unit: multiplier. Range: 0.5 to 2.</param>
         /// <param name="surfaceRangedRangeBonusTiles">Range bonus for surface ranged units. Unit: tiles. Range: -4 to 4.</param>
         /// <param name="defenceDamagePerSecondFraction">Defence damage rate. Unit: fraction of max health per second. Range: 0 to 0.05.</param>
-        /// <param name="defenceDamageMinHealthFraction">Floor for cycle damage. Unit: fraction of max health. Range: 0 to 1.</param>
+        /// <param name="defenceDamageMinHealthFraction">Floor for cycle damage. Unit: fraction of max health. Range: 0.01 to 1 (the loader enforces it).</param>
         /// <param name="togglesQuakePaths">True when quake paths flip while active.</param>
         /// <param name="coreDamageMultiplier">Damage multiplier near the Core. Unit: multiplier. Range: 1 to 3.</param>
         /// <param name="coreEffectRadiusTiles">Radius of the Core damage area. Unit: tiles. Range: 0 to 32.</param>

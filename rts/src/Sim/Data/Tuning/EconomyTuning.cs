@@ -49,6 +49,9 @@ namespace Rts.Sim.Data
         /// <summary>Workers each player starts with beside the HQ in a standard match start. Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.</summary>
         public int StartingWorkerCount { get; }
 
+        /// <summary>Outermost Chebyshev ring around a spawn tile searched for the starting workers' tiles (ring 1 is the eight neighbours); map quake paths may not touch these rings. Unit: tiles (Chebyshev distance from the spawn tile). Range: 1 to 8. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER.</summary>
+        public int StartingWorkerSearchRadiusTiles { get; }
+
         /// <summary>Time a worker spends at a field per load, converted from <see cref="GatherSecondsPerTrip"/> to whole simulation ticks (rounded to nearest, ADR-004; at least 1). Unit: ticks. Range: 1 upward.</summary>
         /// <param name="clock">The match clock whose tick rate is used.</param>
         public int GatherTicksPerTrip(MatchClock clock)
@@ -61,7 +64,7 @@ namespace Rts.Sim.Data
         public EconomyTuning(JsonValue root)
         {
             root.RejectUnknownKeys("starting_common", "starting_rare", "base_supply", "gather_amount_per_trip", "gather_seconds_per_trip",
-                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "spawn_search_radius_tiles", "starting_worker_count");
+                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "spawn_search_radius_tiles", "starting_worker_count", "starting_worker_search_radius_tiles");
             StartingCommon = root.RequireInt("starting_common", 0, 100000);
             StartingRare = root.RequireInt("starting_rare", 0, 100000);
             BaseSupply = root.RequireInt("base_supply", 0, 300);
@@ -74,6 +77,7 @@ namespace Rts.Sim.Data
             ConstructionStartHealthFraction = root.RequireFix64("construction_start_health_fraction", "0.01", "1");
             SpawnSearchRadiusTiles = root.RequireInt("spawn_search_radius_tiles", 1, 8);
             StartingWorkerCount = root.RequireInt("starting_worker_count", 0, 20);
+            StartingWorkerSearchRadiusTiles = root.RequireInt("starting_worker_search_radius_tiles", 1, 8);
         }
     }
 }

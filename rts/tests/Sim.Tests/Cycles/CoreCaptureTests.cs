@@ -242,6 +242,72 @@ namespace Rts.Sim.Tests.Cycles
             Assert.That(rig.Sim.Cycles.HoldTicks(CycleWorld.T0), Is.EqualTo(1200));
         }
 
+        // ---------------------------------------------------------------- three teams, and an FFA holder who is eliminated
+
+        [Test]
+        public void ThreeTeamsArrivingAtOnce_ContestUntilOnlyOneIsLeft()
+        {
+            CycleRig rig = new CycleRig(CycleWorld.Players(3));
+            rig.Spawn(0, CycleWorld.ScoutId, CycleWorld.P0, "16.5", "16.5");
+            EntityId second = rig.Spawn(0, CycleWorld.ScoutId, CycleWorld.P1, "15.5", "16.5");
+            EntityId third = rig.Spawn(0, CycleWorld.ScoutId, CycleWorld.P2, "16.5", "15.5");
+            rig.Remove(100, second);
+            rig.Remove(150, third);
+            rig.RunThrough(99);
+            Assert.That(rig.Sim.Cycles.IsContested, Is.True, "three teams in the Core at once");
+            Assert.That(rig.TicksOf<CoreContestedChangedEvent>(e => e.IsContested), Is.EqualTo(new List<int> { 0 }));
+            Assert.That(rig.Of<CoreCaptureStartedEvent>(), Is.Empty, "nobody is alone, so nobody starts");
+            Assert.That(rig.Sim.Cycles.CaptureTeam.IsValid, Is.False);
+            Assert.That(rig.Sim.Cycles.CaptureProgressTicks, Is.EqualTo(0));
+            // One team leaves at 100: two remain, still contested, still nothing started.
+            rig.RunThrough(149);
+            Assert.That(rig.Sim.Cycles.IsContested, Is.True);
+            Assert.That(rig.Of<CoreCaptureStartedEvent>(), Is.Empty);
+            // The second leaves at 150: team 0 is alone and starts from 0 on that tick.
+            rig.RunThrough(560);
+            Assert.That(rig.TicksOf<CoreContestedChangedEvent>(e => !e.IsContested), Is.EqualTo(new List<int> { 150 }));
+            Assert.That(rig.TicksOf<CoreCaptureStartedEvent>(e => e.Team == CycleWorld.T0), Is.EqualTo(new List<int> { 150 }));
+            Assert.That(rig.TicksOf<CoreCapturedEvent>(e => e.Team == CycleWorld.T0), Is.EqualTo(new List<int> { 549 }));
+            Assert.That(rig.Sim.Cycles.Holder, Is.EqualTo(CycleWorld.T0));
+        }
+
+        [Test]
+        public void FfaHolderEliminatedWhileOthersContest_LosesTheCoreAndTheNextLoneTeamCaptures()
+        {
+            CycleRig rig = new CycleRig(CycleWorld.Players(3));
+            rig.Spawn(0, CycleWorld.ScoutId, CycleWorld.P0, "16.5", "16.5");
+            rig.Spawn(500, CycleWorld.ScoutId, CycleWorld.P1, "15.5", "16.5");
+            EntityId rival = rig.Spawn(500, CycleWorld.ScoutId, CycleWorld.P2, "16.5", "15.5");
+            rig.Surrender(600, CycleWorld.P0);
+            rig.Remove(700, rival);
+            rig.RunThrough(499);
+            Assert.That(rig.Sim.Cycles.Holder, Is.EqualTo(CycleWorld.T0));
+            // The capture tick counts as the first hold tick, then 100 more up to tick 499.
+            int heldBeforeContest = rig.Sim.Cycles.HoldTicks(CycleWorld.T0);
+            Assert.That(heldBeforeContest, Is.EqualTo(101));
+            rig.RunThrough(599);
+            Assert.That(rig.Sim.Cycles.IsContested, Is.True);
+            Assert.That(rig.Sim.Cycles.HoldTicks(CycleWorld.T0), Is.EqualTo(heldBeforeContest), "the contest pauses the holder's accrual");
+            Assert.That(rig.Sim.Cycles.Holder, Is.EqualTo(CycleWorld.T0));
+            // Player 0 surrenders on tick 600 while teams 1 and 2 are both in the Core.
+            rig.RunThrough(699);
+            CoreLostEvent? lost = rig.At<CoreLostEvent>(600);
+            Assert.That(lost, Is.Not.Null);
+            Assert.That(lost!.Team, Is.EqualTo(CycleWorld.T0));
+            Assert.That(lost.Reason, Is.EqualTo("holder_out"));
+            Assert.That(rig.Sim.Cycles.Holder.IsValid, Is.False);
+            Assert.That(rig.Sim.Cycles.IsContested, Is.True, "teams 1 and 2 still contest");
+            Assert.That(rig.Sim.Cycles.CaptureTeam.IsValid, Is.False);
+            Assert.That(rig.Sim.Cycles.HoldTicks(CycleWorld.T0), Is.EqualTo(heldBeforeContest), "an eliminated team accrues nothing");
+            Assert.That(rig.Of<CoreWinEvent>(), Is.Empty);
+            // Team 2's scout is removed on 700: team 1 is alone and captures 400 counted ticks later.
+            rig.RunThrough(1100);
+            Assert.That(rig.TicksOf<CoreCaptureStartedEvent>(e => e.Team == CycleWorld.T1), Is.EqualTo(new List<int> { 700 }));
+            Assert.That(rig.TicksOf<CoreCapturedEvent>(e => e.Team == CycleWorld.T1), Is.EqualTo(new List<int> { 1099 }));
+            Assert.That(rig.Sim.Cycles.Holder, Is.EqualTo(CycleWorld.T1));
+            Assert.That(rig.At<CoreCapturedEvent>(1099)!.PreviousHolder.IsValid, Is.False, "the eliminated holder had already lost the Core");
+        }
+
         // ---------------------------------------------------------------- 13. the holder leaves the match
 
         [Test]

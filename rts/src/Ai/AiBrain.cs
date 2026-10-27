@@ -9,7 +9,8 @@
 //   1. HQ: an Uprooted HQ that is not moving and stands next to a field with resources is rooted. Otherwise the HQ is left alone
 //      (Phase 1: the HQ stays Rooted; no relocation).
 //   1b. Cycle (planetary_cycles.md section 5; the spec numbers it rule 9): when the AI's team holds the Core, the next cycle is not
-//      locked yet and the pending pick is not already the AI's choice, pick the first cycle of the faction's cycle_preference that is
+//      locked yet, no pick of the own team or a script is pending and the AI is its team's pick captain (lowest-ID player still in the
+//      match, so two AI teammates never overwrite each other), pick the first cycle of the faction's cycle_preference that is
 //      allowed next (the first allowed cycle when none of the preferences is). With rally_at_core the Massing rally point is the Core
 //      centre while the Core exists and the AI's team does not hold it.
 //   2. Workers gather: each idle worker (no gather loop, no move or attack-move order), ascending ID, goes to the nearest field
@@ -404,6 +405,13 @@ namespace Rts.Ai
                 {
                     return;
                 }
+                // Only the team's pick captain picks, and not again while a pick (its own, a teammate's or a script's) is pending: the
+                // view shows a pending pick only when it belongs to the own team or a script, so two teammates with different
+                // preferences cannot overwrite each other's pick every think.
+                if (!_view.IsTeamPickCaptain || _view.PendingPickId.Length > 0)
+                {
+                    return;
+                }
                 // The cycle the AI wants: the first preference that is allowed next, else the first allowed cycle.
                 string choice = _view.AllowedNextCycleIds[0];
                 foreach (string preferred in _plan.CyclePreference)
@@ -414,10 +422,7 @@ namespace Rts.Ai
                         break;
                     }
                 }
-                if (!string.Equals(_view.PendingPickId, choice, StringComparison.Ordinal))
-                {
-                    Emit(AiIntent.PickCycle(choice));
-                }
+                Emit(AiIntent.PickCycle(choice));
             }
 
             /// <summary>Rule 1: roots an Uprooted, idle HQ that stands next to a field with resources.</summary>

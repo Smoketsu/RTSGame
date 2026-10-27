@@ -156,6 +156,146 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Picks(intents), Is.EqualTo(new List<string> { "quake" }));
         }
 
+        // ---------------------------------------------------------------- the pending pick is private to the holder's team
+
+        /// <summary>A greybox_1v1 simulation (cycles on) in which P0's team has held the Core since tick 399 (a Windrunner at the Core centre).</summary>
+        private Simulation HolderSimulation()
+        {
+            Simulation sim = Greybox(out _);
+            Spawn(sim, "skai.windrunner", P0, "32", "32");
+            while (sim.Clock.Tick < 420)
+            {
+                sim.Step();
+            }
+            Assert.That(sim.Cycles.Holder, Is.EqualTo(new TeamId(0)), "set-up: team 0 holds the Core");
+            return sim;
+        }
+
+        [Test]
+        public void EnemyAi_CannotReadTheHoldersPendingPick()
+        {
+            Simulation sim = HolderSimulation();
+            sim.Submit(new PickCycleCommand(sim.Clock.Tick, P0, 0, "quake"));
+            sim.Step();
+            Assert.That(sim.Cycles.PendingPickId, Is.EqualTo("quake"), "set-up: the pick was accepted");
+            AiWorldView own = AiWorldView.Build(sim, P0);
+            AiWorldView enemy = AiWorldView.Build(sim, P1);
+            Assert.That(own.PendingPickId, Is.EqualTo("quake"), "the holder's own team sees its pick");
+            Assert.That(own.PendingPickTeam, Is.EqualTo(new TeamId(0)));
+            Assert.That(enemy.PendingPickId, Is.Empty, "an enemy AI cannot read it");
+            Assert.That(enemy.PendingPickTeam.IsValid, Is.False);
+            // The Core capture status is public: the enemy sees who holds it.
+            Assert.That(enemy.CoreHolder, Is.EqualTo(new TeamId(0)));
+            Assert.That(enemy.OwnTeamHoldsCore, Is.False);
+            Assert.That(own.OwnTeamHoldsCore, Is.True);
+            // A script pick has no team and is visible to everyone.
+            sim.Submit(new PickCycleCommand(sim.Clock.Tick, PlayerId.None, 0, "core_surge"));
+            sim.Step();
+            Assert.That(sim.Cycles.PendingPickId, Is.EqualTo("core_surge"));
+            Assert.That(AiWorldView.Build(sim, P1).PendingPickId, Is.EqualTo("core_surge"));
+            Assert.That(AiWorldView.Build(sim, P1).PendingPickTeam.IsValid, Is.False);
+        }
+
+        /// <summary>Four AI players: P0 (Skai) and P2 (Water) on team 0, P1 (Water) and P3 (Skai) on team 1, cycles every 60 seconds with no warning, and a Windrunner of P0 at the Core centre.</summary>
+        private Simulation TwoVersusTwo(out List<IPlayerController> controllers)
+        {
+            List<PlayerSetup> players = new List<PlayerSetup>
+            {
+                new PlayerSetup(P0, new TeamId(0), "skai", "Skai A"),
+                new PlayerSetup(P1, new TeamId(1), "water", "Water B"),
+                new PlayerSetup(new PlayerId(2), new TeamId(0), "water", "Water C"),
+                new PlayerSetup(new PlayerId(3), new TeamId(1), "skai", "Skai D"),
+            };
+            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players, BuiltInMechanics.CreateRegistry(),
+                Rts.Sim.Tests.Cycles.CycleWorld.EditedTuning(Rts.Sim.Tests.Cycles.CycleWorld.ShortCycleEdits()), Data.RequireMap("greybox_1v1"), Data.Cycles.Values));
+            sim.Start();
+            Spawn(sim, "skai.great_aerie", P0, "7", "7");
+            Spawn(sim, "water.grand_shell", P1, "57", "57");
+            Spawn(sim, "water.grand_shell", new PlayerId(2), "9", "9");
+            Spawn(sim, "skai.great_aerie", new PlayerId(3), "55", "55");
+            Spawn(sim, "skai.windrunner", P0, "32", "32");
+            controllers = new List<IPlayerController>();
+            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive");
+            foreach (PlayerSetup setup in players)
+            {
+                controllers.Add(new SkirmishAiController(setup.Id, profile));
+            }
+            AiHost.StartAll(sim, controllers);
+            return sim;
+        }
+
+        [Test]
+        public void TwoVersusTwo_TeammatesMakeAtMostOnePickPerLockWindow()
+        {
+            Simulation sim = TwoVersusTwo(out List<IPlayerController> controllers);
+            // Picks emitted per (team, window, hold), where window k covers the ticks from shift k to the tick before shift k + 1 (shifts every 1200 ticks)
+            // and the hold number counts Core captures so far: a new holder legitimately picks again, because a change of holder drops the pending pick.
+            SortedDictionary<string, int> picks = new SortedDictionary<string, int>();
+            // Players that emitted a pick, to prove only the pick captain does.
+            SortedSet<byte> pickers = new SortedSet<byte>();
+            // Ticks on which team 0 held the Core; the test needs it to hold for most of the run for the picks to be meaningful. Unit: ticks.
+            int ticksHeldByTeamZero = 0;
+            // Core captures completed so far. Unit: count. Range: 0 upward.
+            int captures = 0;
+            while (sim.Clock.Tick < 3600)
+            {
+                AiHost.ThinkAll(sim, controllers);
+                foreach (IPlayerController controller in controllers)
+                {
+                    foreach (Command command in ((SkirmishAiController)controller).LastCommands)
+                    {
+                        if (command is PickCycleCommand)
+                        {
+                            // Bucket this pick falls into.
+                            string key = "team " + sim.Players.TeamOf(controller.Player).Value + " window " + (sim.Clock.Tick / 1200) + " hold " + captures;
+                            // Picks already counted in the bucket. Unit: count.
+                            picks.TryGetValue(key, out int seen);
+                            picks[key] = seen + 1;
+                            pickers.Add(controller.Player.Value);
+                        }
+                    }
+                }
+                sim.Step();
+                ticksHeldByTeamZero += sim.Cycles.Holder == new TeamId(0) ? 1 : 0;
+                foreach (SimEvent evt in sim.Events.Current)
+                {
+                    captures += evt is CoreCapturedEvent ? 1 : 0;
+                }
+            }
+            Assert.That(ticksHeldByTeamZero, Is.GreaterThan(1000), "set-up: team 0 held the Core for most of the run");
+            Assert.That(picks.Count, Is.GreaterThanOrEqualTo(1), "the holder did pick");
+            foreach (KeyValuePair<string, int> pair in picks)
+            {
+                Assert.That(pair.Value, Is.EqualTo(1), pair.Key + " made more than one pick");
+            }
+            Assert.That(pickers.Contains(2), Is.False, "the non-captain teammate (player 2) never picks");
+            Assert.That(pickers.Contains(3), Is.False, "the non-captain teammate (player 3) never picks");
+        }
+
+        [Test]
+        public void TwoVersusTwo_OnlyTheCaptainPicksEvenWhenBothThinkOnTheSameTick()
+        {
+            Simulation sim = TwoVersusTwo(out _);
+            while (sim.Clock.Tick < 420)
+            {
+                sim.Step();
+            }
+            Assert.That(sim.Cycles.Holder, Is.EqualTo(new TeamId(0)), "set-up: team 0 holds the Core");
+            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive");
+            AiWorldView captain = AiWorldView.Build(sim, P0);
+            AiWorldView mate = AiWorldView.Build(sim, new PlayerId(2));
+            Assert.That(captain.IsTeamPickCaptain, Is.True);
+            Assert.That(mate.IsTeamPickCaptain, Is.False);
+            Assert.That(Picks(AiBrain.Decide(captain, profile, profile.RequireFaction("skai"), new AiMemory(), new DeterministicRandom(1))), Is.EqualTo(new List<string> { "windstorm" }));
+            Assert.That(Picks(AiBrain.Decide(mate, profile, profile.RequireFaction("water"), new AiMemory(), new DeterministicRandom(1))), Is.Empty);
+            // Once a teammate's pick is in, the captain does not re-pick either.
+            sim.Submit(new PickCycleCommand(sim.Clock.Tick, new PlayerId(2), 0, "core_surge"));
+            sim.Step();
+            AiWorldView afterPick = AiWorldView.Build(sim, P0);
+            Assert.That(afterPick.PendingPickId, Is.EqualTo("core_surge"));
+            Assert.That(Picks(AiBrain.Decide(afterPick, profile, profile.RequireFaction("skai"), new AiMemory(), new DeterministicRandom(1))), Is.Empty);
+        }
+
         // ---------------------------------------------------------------- rally at the Core
 
         /// <summary>The attack-move targets the brain gives the idle Windrunner this think.</summary>

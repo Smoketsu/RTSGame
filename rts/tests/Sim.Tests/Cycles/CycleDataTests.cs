@@ -69,6 +69,19 @@ namespace Rts.Sim.Tests.Cycles
         }
 
         [Test]
+        public void CycleFile_MinHealthFractionOfZero_IsAnError()
+        {
+            // A floor of 0 would let a quake kill a defence nothing then removes; the loader needs it strictly above 0.
+            DataValidationException error = Expect.Throws<DataValidationException>(() => DataLoader.Load(CycleWorld.EditedFiles(
+                "cycles/quake.json", "\"defence_damage_min_health_fraction\": 0.25", "\"defence_damage_min_health_fraction\": 0")));
+            Assert.That(error.File, Is.EqualTo("cycles/quake.json"));
+            Assert.That(error.Field, Is.EqualTo("effects.defence_damage_min_health_fraction"));
+            // The smallest accepted value loads.
+            Assert.That(DataLoader.Load(CycleWorld.EditedFiles("cycles/quake.json", "\"defence_damage_min_health_fraction\": 0.25",
+                "\"defence_damage_min_health_fraction\": 0.01")).Cycles["quake"].Effects.DefenceDamageMinHealthFraction, Is.EqualTo(Fix64.Parse("0.01")));
+        }
+
+        [Test]
         public void CycleFile_UnknownEffectKey_IsAnError()
         {
             DataValidationException error = Expect.Throws<DataValidationException>(() => DataLoader.Load(CycleWorld.EditedFiles(
@@ -151,6 +164,45 @@ namespace Rts.Sim.Tests.Cycles
             // A bad ID.
             Assert.That(Expect.Throws<DataValidationException>(() => DataLoader.Load(WithPaths(
                 "[ { \"id\": \"Bad Id\", \"closed_outside_quake\": true, \"tiles\": [ { \"x\": 20, \"y\": 40 } ] } ]"))).Field, Is.EqualTo("quake_paths[0].id"));
+        }
+
+        [Test]
+        public void QuakePaths_OnASpawnOrItsWorkerRings_NameMapPathAndTile()
+        {
+            // greybox_1v1 spawns are (8, 8) and (56, 56); the shipped worker rings reach 3 tiles.
+            DataValidationException onSpawn = Expect.Throws<DataValidationException>(() => DataLoader.Load(WithPaths(
+                "[ { \"id\": \"walled_in\", \"closed_outside_quake\": true, \"tiles\": [ { \"x\": 8, \"y\": 8 } ] } ]")));
+            Assert.That(onSpawn.File, Is.EqualTo("maps/greybox_1v1.json"));
+            Assert.That(onSpawn.Message, Does.Contain("walled_in").And.Contain("(8, 8)").And.Contain("spawn point of slot 0"));
+            // A tile on the third ring of the second spawn.
+            DataValidationException onRing = Expect.Throws<DataValidationException>(() => DataLoader.Load(WithPaths(
+                "[ { \"id\": \"ring_three\", \"closed_outside_quake\": false, \"tiles\": [ { \"x\": 20, \"y\": 40 }, { \"x\": 53, \"y\": 56 } ] } ]")));
+            Assert.That(onRing.Message, Does.Contain("ring_three").And.Contain("(53, 56)").And.Contain("slot 1"));
+            // One tile further out is fine.
+            Assert.That(DataLoader.Load(WithPaths(
+                "[ { \"id\": \"outside\", \"closed_outside_quake\": true, \"tiles\": [ { \"x\": 12, \"y\": 8 } ] } ]")).Maps["greybox_1v1"].QuakePaths.Count, Is.EqualTo(1));
+            // The ring is data: widening it to 4 rejects that tile.
+            Assert.That(Expect.Throws<DataValidationException>(() => DataLoader.Load(CycleWorld.EditedFiles(
+                "maps/greybox_1v1.json", "\"core\": { \"x\": 32, \"y\": 32, \"radius_tiles\": 4 }",
+                "\"core\": { \"x\": 32, \"y\": 32, \"radius_tiles\": 4 },\n  \"quake_paths\": [ { \"id\": \"outside\", \"closed_outside_quake\": true, \"tiles\": [ { \"x\": 12, \"y\": 8 } ] } ]",
+                "tuning/economy.json", "\"starting_worker_search_radius_tiles\": 3", "\"starting_worker_search_radius_tiles\": 4"))).Message,
+                Does.Contain("outside").And.Contain("(12, 8)"));
+        }
+
+        [Test]
+        public void QuakePath_CopiesTheCallersTileList()
+        {
+            List<int> tiles = new List<int> { CycleWorld.Tile(5, 5), CycleWorld.Tile(6, 5) };
+            QuakePath path = new QuakePath("gap", true, tiles);
+            List<QuakePath> paths = new List<QuakePath> { path };
+            MapDefinition map = CycleWorld.Map(true, paths);
+            // The caller edits its lists after the map was built.
+            tiles[0] = CycleWorld.Tile(1, 1);
+            tiles.Add(CycleWorld.Tile(2, 2));
+            paths.Clear();
+            Assert.That(path.TileIndexes, Is.EqualTo(new List<int> { CycleWorld.Tile(5, 5), CycleWorld.Tile(6, 5) }));
+            Assert.That(map.QuakePaths.Count, Is.EqualTo(1));
+            Assert.That(map.QuakePaths[0].TileIndexes.Count, Is.EqualTo(2));
         }
 
         // ---------------------------------------------------------------- tuning keys

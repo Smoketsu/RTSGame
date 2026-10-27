@@ -18,7 +18,7 @@
     "surface_ranged_range_bonus_tiles": 0,
     // Damage to static defences per second while the cycle is active. Unit: fraction of max health per second. Range: 0 to 0.05. Source: Win condition and twists / Planetary Cycles (Quake: walls and defences take damage); PLACEHOLDER.
     "defence_damage_per_second_fraction": 0.004,
-    // Cycle damage never takes a defence below this share of its maximum health, so a cycle never kills. Unit: fraction of max health. Range: 0 to 1. Source: Win condition and twists / Planetary Cycles (Quake); PLACEHOLDER.
+    // Cycle damage never takes a defence below this share of its maximum health, so a cycle never kills. Unit: fraction of max health. Range: 0.01 to 1 (strictly above 0). Source: Win condition and twists / Planetary Cycles (Quake); PLACEHOLDER.
     "defence_damage_min_health_fraction": 0.25,
     // True when the quake paths of the map flip open or closed while the cycle is active. Unit: flag. Range: true or false. Source: Win condition and twists / Planetary Cycles (Quake: some paths open or close); PLACEHOLDER.
     "toggles_quake_paths": true,

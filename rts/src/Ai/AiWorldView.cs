@@ -8,7 +8,9 @@
 // Differences from the spec's proposed read API: economy is read from Player (Common, Rare, SupplyUsed, SupplyCap), fields from
 // sim.Resources, the HQ state from Unit.HqState, orders from Unit.HasMoveTarget / IsAttackMoving / GatherState, and the tide
 // level is the 0-to-1 triangle of TideClock over tide_cycle_seconds. Phase 2 adds the public Planetary Cycle and Core state
-// (planetary_cycles.md section 5: the active and next cycle, the pending pick, the allowed next cycles, who holds and captures the Core).
+// (planetary_cycles.md section 5: the active and next cycle, the allowed next cycles, who holds and captures the Core). The Core
+// capture status (capture team, contested flag, progress, holder) is PUBLIC because the shared timeline bar shows it to everyone; the
+// holder's pending pick is PRIVATE and is exposed only to the holder's own team (and for script picks).
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
@@ -226,8 +228,24 @@ namespace Rts.Ai
         /// <summary>True from the lock tick to the shift tick; picks are refused meanwhile.</summary>
         public bool IsNextCycleLocked { get; internal set; }
 
-        /// <summary>ID of the accepted pick waiting for the lock, or empty.</summary>
+        /// <summary>
+        /// ID of the accepted pick waiting for the lock, or empty. PRIVATE to the holder: <see cref="Build"/> fills it only when the
+        /// pick was made by the AI's own team (the AI itself or a teammate) or by a script (<see cref="PendingPickTeam"/> None); an enemy
+        /// holder's pending pick is never visible, so the AI cannot react to it before the lock announces it. Range: "" or a cycle ID.
+        /// </summary>
         public string PendingPickId { get; internal set; } = string.Empty;
+
+        /// <summary>
+        /// Team that made the visible pending pick: the AI's own team, or None for a script pick (and for no pick). Never an enemy
+        /// team (see <see cref="PendingPickId"/>). Lets the brain see that a teammate has already picked.
+        /// </summary>
+        public TeamId PendingPickTeam { get; internal set; } = TeamId.None;
+
+        /// <summary>
+        /// True when this AI is its team's pick captain: the lowest-ID player of its team still in the match. Only the captain emits a
+        /// pick, so two AI teammates (2v2) that think on the same tick cannot overwrite each other's pick. Default true (a team of one).
+        /// </summary>
+        public bool IsTeamPickCaptain { get; internal set; } = true;
 
         /// <summary>IDs of the cycles that may start next (no repeated play style), ascending.</summary>
         public IReadOnlyList<string> AllowedNextCycleIds { get; internal set; } = Array.Empty<string>();
@@ -344,13 +362,34 @@ namespace Rts.Ai
             int tideTicks = Math.Max(2, sim.Tuning.Match.TideCycleTicks(sim.Clock));
             view.TideLevel = Fix64.FromInt(TideClock.Triangle(sim.Clock.Tick, tideTicks)) / Fix64.FromInt(tideTicks);
 
-            // Planetary Cycle and Core state: all public information.
+            // Planetary Cycle and Core state. Public (shown on the shared timeline bar): the active cycle, the locked next cycle, the
+            // Core capture status (who holds, who is capturing, progress, contested flag) and the hold totals. Private: the holder's
+            // pending pick, which is exposed only to the holder's own team and for script picks (planetary_cycles.md section 5).
             CycleSystem cycles = sim.Cycles;
             view.HasCycles = cycles.IsEnabled;
             view.ActiveCycleId = cycles.ActiveCycleId;
             view.NextCycleId = cycles.NextCycleId;
             view.IsNextCycleLocked = cycles.IsNextLocked;
-            view.PendingPickId = cycles.PendingPickId;
+            if (cycles.PendingPickId.Length > 0 && (!cycles.PendingPickTeam.IsValid || cycles.PendingPickTeam == self.Team))
+            {
+                view.PendingPickId = cycles.PendingPickId;
+                view.PendingPickTeam = cycles.PendingPickTeam;
+            }
+            // Pick captain: the lowest-ID member of the AI's team who is still in the match.
+            view.IsTeamPickCaptain = true;
+            foreach (PlayerId mate in sim.Players.PlayersOnTeam(self.Team))
+            {
+                if (mate == player)
+                {
+                    break;
+                }
+                // The teammate's player record.
+                if (sim.Players.TryGet(mate, out Player? teammate) && teammate.IsInMatch)
+                {
+                    view.IsTeamPickCaptain = false;
+                    break;
+                }
+            }
             view.NextShiftTick = cycles.NextShiftTick;
             // Allowed next cycle IDs in ascending order.
             List<string> allowedIds = new List<string>();

@@ -95,9 +95,16 @@ namespace Rts.Sim.Data
             {
                 throw new ArgumentException("A quake path needs 1 to " + MaxTiles + " tiles.", nameof(tileIndexes));
             }
+            // Private copy of the caller's tile list, so later edits to the caller's list cannot change the map. Unit: tile indexes.
+            int[] copy = new int[tileIndexes.Count];
+            // Position in the list. Unit: list position. Range: 0 to count - 1.
+            for (int i = 0; i < copy.Length; i++)
+            {
+                copy[i] = tileIndexes[i];
+            }
             Id = id;
             ClosedOutsideQuake = closedOutsideQuake;
-            TileIndexes = tileIndexes;
+            TileIndexes = Array.AsReadOnly(copy);
         }
     }
 
@@ -193,6 +200,8 @@ namespace Rts.Sim.Data
             {
                 throw new ArgumentException("A map holds at most " + QuakePath.MaxPaths + " quake paths.", nameof(quakePaths));
             }
+            // Private copy of the caller's path list, so later edits to the caller's list cannot change the map.
+            List<QuakePath> pathCopy = new List<QuakePath>();
             if (quakePaths != null)
             {
                 foreach (QuakePath path in quakePaths)
@@ -204,9 +213,10 @@ namespace Rts.Sim.Data
                             throw new ArgumentException("Quake path '" + path.Id + "' names a tile outside the map.", nameof(quakePaths));
                         }
                     }
+                    pathCopy.Add(path);
                 }
             }
-            QuakePaths = quakePaths ?? new List<QuakePath>();
+            QuakePaths = pathCopy.AsReadOnly();
         }
 
         /// <summary>Convenience constructor for a flat map with no ramps, fields or Core (tests and the Phase 0 harness map).</summary>

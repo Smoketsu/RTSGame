@@ -50,6 +50,7 @@ namespace Rts.Sim.Commands
             TeamId team = TeamId.None;
             if (Issuer.IsValid)
             {
+                // The issuing player's record (Active, Disconnected, Defeated or Surrendered).
                 if (!sim.Players.TryGet(Issuer, out Player? player) || !player.IsActive)
                 {
                     return CommandResult.Reject("player_out_of_match");

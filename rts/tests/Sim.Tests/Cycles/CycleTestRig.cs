@@ -47,6 +47,9 @@ namespace Rts.Sim.Tests.Cycles
         /// <summary>Static defence: 300 health, speed 0, footprint 1, no weapon.</summary>
         public const string WallId = "test.wall";
 
+        /// <summary>Water-layer unit: 100 health, speed 2, radius 0.5, no weapon.</summary>
+        public const string BoatId = "test.boat";
+
         /// <summary>Player 0.</summary>
         public static readonly PlayerId P0 = new PlayerId(0);
 
@@ -74,6 +77,8 @@ namespace Rts.Sim.Tests.Cycles
                 Fix64.FromInt(100), Fix64.FromInt(2), 1, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null));
             catalog.AddUnit(new UnitDefinition(SkyScoutId, "Sky scout", TestWorld.TestFactionId, MovementLayer.Air,
                 Fix64.FromInt(100), Fix64.FromInt(4), 1, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null));
+            catalog.AddUnit(new UnitDefinition(BoatId, "Boat", TestWorld.TestFactionId, MovementLayer.Water,
+                Fix64.FromInt(100), Fix64.FromInt(2), 1, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null));
             catalog.AddUnit(new UnitDefinition(ArcherId, "Archer", TestWorld.TestFactionId, MovementLayer.Ground,
                 Fix64.FromInt(100), Fix64.FromInt(2), 1, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), range5));
             catalog.AddUnit(new UnitDefinition(StrikerId, "Striker", TestWorld.TestFactionId, MovementLayer.Ground,
@@ -99,10 +104,14 @@ namespace Rts.Sim.Tests.Cycles
         /// <summary>A flat 32 by 32 map, spawns at (4, 4) and (28, 28), a Core at (16, 16) radius 4 and the given quake paths.</summary>
         /// <param name="withCore">False for a map without a Core.</param>
         /// <param name="paths">Quake paths, or null for none.</param>
-        public static MapDefinition Map(bool withCore = true, List<QuakePath>? paths = null)
+        /// <param name="heights">Elevation layer per tile (1024 entries), or null for a flat map.</param>
+        /// <param name="ramps">Ramp flag per tile (1024 entries), or null for none.</param>
+        /// <param name="fields">Resource fields, or null for none.</param>
+        public static MapDefinition Map(bool withCore = true, List<QuakePath>? paths = null, byte[]? heights = null, bool[]? ramps = null,
+            List<ResourceField>? fields = null)
         {
             return new MapDefinition("cycle_test", "Cycle test", 32, 32,
-                new List<FixVec2> { FixVec2.FromInts(4, 4), FixVec2.FromInts(28, 28) }, null, null, null,
+                new List<FixVec2> { FixVec2.FromInts(4, 4), FixVec2.FromInts(28, 28) }, heights, ramps, fields,
                 withCore ? new CoreArea(FixVec2.FromInts(16, 16), Fix64.FromInt(4)) : null, paths);
         }
 

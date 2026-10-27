@@ -156,6 +156,7 @@ namespace Rts.Sim.Cycles
             {
                 return false;
             }
+            // The unit's owner record (Active, Disconnected, Defeated or Surrendered).
             if (!sim.Players.TryGet(unit.Owner, out Player? owner) || !owner.IsInMatch)
             {
                 return false;

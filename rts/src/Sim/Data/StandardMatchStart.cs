@@ -18,13 +18,10 @@ namespace Rts.Sim.Data
         /// <summary>Innermost Chebyshev ring around the spawn tile searched for worker tiles. Unit: tiles. Range: fixed schema bound, 1.</summary>
         private const int FirstRing = 1;
 
-        /// <summary>Outermost Chebyshev ring around the spawn tile searched for worker tiles. Unit: tiles. Range: fixed schema bound, 3.</summary>
-        private const int LastRing = 3;
-
         /// <summary>
         /// For each player in ascending slot order: a <c>spawn_unit</c> of the faction's HQ unit at the map's spawn point for that slot
         /// (exactly as the map gives it), then <c>starting_worker_count</c> workers of the HQ's worker unit at the centres of the first
-        /// tiles on Chebyshev rings 1 to 3 around the spawn tile (ascending tile index per ring) that have the spawn tile's height, no
+        /// tiles on Chebyshev rings 1 to starting_worker_search_radius_tiles (3 in the shipped data) around the spawn tile (ascending tile index per ring) that have the spawn tile's height, no
         /// ramp and no resource field. Commands are issued by <see cref="PlayerId.None"/> at tick 0 with sequences counting up from 0.
         /// </summary>
         /// <param name="data">The loaded data set (units, factions, tuning).</param>
@@ -56,6 +53,8 @@ namespace Rts.Sim.Data
             }
             // Workers each player starts with. Unit: workers. Range: 0 to 20.
             int workerCount = data.Tuning.Economy.StartingWorkerCount;
+            // Outermost Chebyshev ring searched for worker tiles (tuning/economy.json starting_worker_search_radius_tiles). Unit: tiles. Range: 1 to 8.
+            int lastRing = data.Tuning.Economy.StartingWorkerSearchRadiusTiles;
             // Commands built so far, in the order they are returned.
             List<Command> commands = new List<Command>();
             // Next script sequence number. Unit: counter. Range: 0 upward.
@@ -82,11 +81,11 @@ namespace Rts.Sim.Data
                 FixVec2 spawn = map.Spawns[slot];
                 commands.Add(new SpawnUnitCommand(0, PlayerId.None, sequence++, hq.Id, pair.Key, spawn));
                 // Worker tile centres, in ring then index order.
-                List<FixVec2> sites = WorkerSites(map, spawn, workerCount);
+                List<FixVec2> sites = WorkerSites(map, spawn, workerCount, lastRing);
                 if (sites.Count < workerCount)
                 {
                     throw new InvalidOperationException("Map " + map.Id + ", slot " + slot + ": only " + sites.Count + " of " + workerCount
-                        + " worker tiles exist within " + LastRing + " tiles of the spawn point.");
+                        + " worker tiles exist within " + lastRing + " tiles of the spawn point.");
                 }
                 foreach (FixVec2 site in sites)
                 {
@@ -97,13 +96,14 @@ namespace Rts.Sim.Data
         }
 
         /// <summary>
-        /// The centres of up to <paramref name="count"/> tiles on rings 1 to 3 around the tile containing <paramref name="spawn"/>
+        /// The centres of up to <paramref name="count"/> tiles on rings 1 to <paramref name="lastRing"/> around the tile containing <paramref name="spawn"/>
         /// that are on the map, on the spawn tile's height layer, not a ramp and not a resource field. Fewer are returned when fewer exist.
         /// </summary>
         /// <param name="map">The map.</param>
         /// <param name="spawn">The spawn point. Unit: tiles.</param>
         /// <param name="count">Tiles wanted. Unit: tiles. Range: 0 to 20.</param>
-        private static List<FixVec2> WorkerSites(MapDefinition map, FixVec2 spawn, int count)
+        /// <param name="lastRing">Outermost ring searched. Unit: tiles. Range: 1 to 8.</param>
+        private static List<FixVec2> WorkerSites(MapDefinition map, FixVec2 spawn, int count, int lastRing)
         {
             List<FixVec2> sites = new List<FixVec2>();
             // Spawn tile column and row, clamped onto the map like TerrainGrid.TileOf. Unit: tiles.
@@ -111,8 +111,8 @@ namespace Rts.Sim.Data
             int cy = Math.Min(Math.Max(spawn.Y.FloorToInt(), 0), map.HeightTiles - 1);
             // Height layer of the spawn tile. Range: 0 to 7.
             byte height = map.HeightAt(cy * map.WidthTiles + cx);
-            // Ring number (Chebyshev distance). Unit: tiles. Range: 1 to 3.
-            for (int ring = FirstRing; ring <= LastRing && sites.Count < count; ring++)
+            // Ring number (Chebyshev distance). Unit: tiles. Range: 1 to lastRing.
+            for (int ring = FirstRing; ring <= lastRing && sites.Count < count; ring++)
             {
                 // Row, then column: ascending tile index within the ring.
                 for (int y = cy - ring; y <= cy + ring && sites.Count < count; y++)

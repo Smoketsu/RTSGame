@@ -80,11 +80,13 @@ namespace Rts.Sim.Tests
         /// quake_path_relocate_radius_tiles, starting_worker_count) in the tuning text. The loader also hashes line-ending-normalised text
         /// now, so the value is the same on Windows (CRLF) and Unix (LF) checkouts. Re-pinned again when this merged with Phase 2
         /// step 1, whose tuning/online.json keys (input_delay_ticks, catch_up_max_ticks_per_update) are also in the tuning text.
+        /// Re-pinned for the Phase 2 cycles review fixes: tuning/economy.json gained starting_worker_search_radius_tiles (a key and its
+        /// comment are in the tuning text, which is in the content digest). No behaviour of this script changed.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0xa7a4b7d1633db334UL;
+        private const ulong GoldenFinalHash = 0x6386ad6f613a4354UL;
 
         [Test]
         public void GoldenHash_IsPinned()

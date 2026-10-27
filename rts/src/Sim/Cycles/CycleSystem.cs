@@ -210,6 +210,7 @@ namespace Rts.Sim.Cycles
         /// <param name="team">The team to read.</param>
         public int HoldTicks(TeamId team)
         {
+            // The team's stored hold time. Unit: ticks. Range: 0 to WinTicks.
             return _holdTicks.TryGetValue(team, out int ticks) ? ticks : 0;
         }
 
@@ -359,6 +360,7 @@ namespace Rts.Sim.Cycles
         {
             foreach (PlayerId id in _players.PlayersOnTeam(team))
             {
+                // The player record of this ID (Active, Disconnected, Defeated or Surrendered).
                 if (_players.TryGet(id, out Player? player) && player.IsInMatch)
                 {
                     return true;
@@ -379,6 +381,7 @@ namespace Rts.Sim.Cycles
                     presentSet.Add(team);
                 }
             }
+            // The same teams as an ordered list for the capture state machine. Unit: team IDs. Range: 0 to the number of teams, ascending.
             List<TeamId> present = new List<TeamId>(presentSet);
             // True when two or more teams are present.
             bool contested = present.Count >= 2;
@@ -458,9 +461,11 @@ namespace Rts.Sim.Cycles
             List<CycleDefinition> allowed = CycleRules.Allowed(_cycles, ActiveCycle);
             // The pending pick, or null.
             CycleDefinition? pick = Find(PendingPickId);
-            // The cycle chosen, how it was chosen and which team chose it.
+            // The cycle chosen for the coming shift. Range: one of the allowed cycles.
             CycleDefinition next;
+            // How it was chosen. Range: MethodPicked, MethodScripted or MethodRandom.
             string method;
+            // The team that picked it, or None for a script pick or a random choice. Range: a team ID or None.
             TeamId chosenBy = TeamId.None;
             if (pick != null && (!PendingPickTeam.IsValid || PendingPickTeam == _core.Holder) && allowed.Contains(pick))
             {
@@ -530,8 +535,9 @@ namespace Rts.Sim.Cycles
                 }
                 // Damage of one application. Unit: health points. Range: 0 to 5% of max health.
                 Fix64 amount = unit.Definition.MaxHealth * active.Effects.DefenceDamagePerSecondFraction;
-                // Health the cycle never takes the unit below. Unit: health points.
-                Fix64 floor = unit.Definition.MaxHealth * active.Effects.DefenceDamageMinHealthFraction;
+                // Health the cycle never takes the unit below: the min-health share of the maximum, but never less than one raw unit
+                // (Fix64.Epsilon), so a quake can never bring a defence to 0 even if hand-built effects carry a fraction of 0. Unit: health points. Range: Epsilon to max health.
+                Fix64 floor = Fix64.Max(unit.Definition.MaxHealth * active.Effects.DefenceDamageMinHealthFraction, Fix64.Epsilon);
                 if (unit.Health <= floor)
                 {
                     continue;
@@ -548,7 +554,7 @@ namespace Rts.Sim.Cycles
         /// <summary>
         /// Sets every quake path to the state implied by whether the active cycle toggles paths: a path is closed when
         /// <c>closed_outside_quake</c> differs from <paramref name="toggled"/>. Paths are processed in map order. Units standing on a tile
-        /// that is about to close are moved to the nearest standable tile within the relocation radius first.
+        /// that is about to close are moved to the nearest tile they can walk to within the relocation radius first (see <see cref="FindDestination"/>).
         /// </summary>
         /// <param name="sim">The stepping simulation.</param>
         /// <param name="toggled">True while the active cycle flips quake paths.</param>
@@ -587,8 +593,10 @@ namespace Rts.Sim.Cycles
 
         /// <summary>
         /// Opens or closes one path. Opening removes the Wall this system placed. Closing, tile by tile in ascending index, skips a tile
-        /// that already carries a blocker, relocates the ground and water units standing on it (the tile stays open when one of them has
-        /// nowhere to go) and then adds a Wall. Emits <see cref="QuakePathChangedEvent"/>.
+        /// that already carries a blocker, relocates the ground and water units standing on it and then adds a Wall. The tile is left
+        /// open this time (deterministically, and not counted in the event's TilesChanged) when a unit on it cannot move (speed 0, a
+        /// structure, a Rooted, Rooting or Uprooting HQ) or has no reachable legal destination; the next flip that closes the path tries
+        /// again. Emits <see cref="QuakePathChangedEvent"/>.
         /// </summary>
         private void SetPath(Simulation sim, int index, bool closed, bool[] closing)
         {
@@ -630,9 +638,10 @@ namespace Rts.Sim.Cycles
         }
 
         /// <summary>
-        /// Moves every ground or water unit standing on <paramref name="tile"/> to the centre of the first standable tile on Chebyshev
-        /// rings 1 to quake_path_relocate_radius_tiles (ascending tile index per ring) that is not in <paramref name="closing"/>. Returns
-        /// false, moving nobody, when some unit has no such tile.
+        /// Moves every ground or water unit standing on <paramref name="tile"/> to the best tile it can walk to (see
+        /// <see cref="FindDestination"/>). Returns false, moving nobody, when some unit on the tile cannot move at all (speed 0, a
+        /// structure, or an HQ that is Rooted, Rooting or Uprooting) or has no legal destination; the caller then leaves the tile open.
+        /// Flyers are ignored.
         /// </summary>
         private bool RelocateUnitsOff(Simulation sim, int tile, bool[] closing)
         {
@@ -644,8 +653,12 @@ namespace Rts.Sim.Cycles
                 {
                     continue;
                 }
+                if (!CanBeRelocated(unit))
+                {
+                    return false;
+                }
                 // Tile to move the unit to, or -1 when none qualifies.
-                int destination = FindStandableTile(sim, tile, unit.EffectiveLayer, closing);
+                int destination = FindDestination(sim, unit, tile, closing);
                 if (destination < 0)
                 {
                     return false;
@@ -663,36 +676,85 @@ namespace Rts.Sim.Cycles
             return true;
         }
 
-        /// <summary>The first tile on rings 1 to the relocation radius around <paramref name="tile"/> that the layer can stand on and that is not closing, or -1.</summary>
-        private int FindStandableTile(Simulation sim, int tile, MovementLayer layer, bool[] closing)
+        /// <summary>True when a quake may move the unit: it has speed above 0 and, if it is an HQ, is Uprooted (so structures, immobile units and Rooted, Rooting or Uprooting HQs are never moved).</summary>
+        private static bool CanBeRelocated(Unit unit)
         {
-            // Centre tile column and row. Unit: tiles.
-            int cx = sim.Terrain.XOf(tile);
-            int cy = sim.Terrain.YOf(tile);
-            // Largest ring to search. Unit: tiles. Range: 0 to 8.
+            return unit.Definition.SpeedTilesPerSecond > Fix64.Zero && (unit.Definition.Hq == null || unit.HqState == HqState.Uprooted);
+        }
+
+        /// <summary>
+        /// The tile a unit standing on <paramref name="origin"/> is moved to, or -1 when it has none. Candidates are the tiles within
+        /// quake_path_relocate_radius_tiles (Chebyshev) of the origin that the unit can reach from it by passable steps of its own
+        /// movement layer (<see cref="TerrainGrid.IsStepPassable"/>, so the height and ramp rules of ADR-006 apply and a cliff or a
+        /// closed tile is not crossed), never through a tile in <paramref name="closing"/>, and that it can stand on with a positive
+        /// speed (<see cref="TerrainGrid.IsStandable"/> and <see cref="TerrainGrid.SpeedMultiplier(int, MovementLayer)"/>; water units
+        /// may walk on dry ground in this simulation, only slower, so one rule serves every layer). The best candidate has the smallest
+        /// squared distance from the unit's position to the tile centre; ties go to the smaller squared distance from the tile centre
+        /// to the spawn point of the unit's owner (so a tie leans toward the unit's own start, not toward a fixed side of the map; a unit
+        /// whose owner has no spawn point uses its own position, which ties every candidate), then to the lowest tile index.
+        /// </summary>
+        private int FindDestination(Simulation sim, Unit unit, int origin, bool[] closing)
+        {
+            // Terrain shorthand.
+            TerrainGrid terrain = sim.Terrain;
+            // Movement layer the unit walks on.
+            MovementLayer layer = unit.EffectiveLayer;
+            // Largest Chebyshev distance from the origin tile that is searched. Unit: tiles. Range: 0 to 8.
             int radius = _tuning.QuakePathRelocateRadiusTiles;
-            // Ring number (Chebyshev distance). Unit: tiles. Range: 1 to radius.
-            for (int ring = 1; ring <= radius; ring++)
+            // Column of the origin tile. Unit: tiles. Range: 0 to map width - 1.
+            int originX = terrain.XOf(origin);
+            // Row of the origin tile. Unit: tiles. Range: 0 to map height - 1.
+            int originY = terrain.YOf(origin);
+            // Point the tie-break leans toward: the owner's spawn point, or the unit's own position when it has none. Unit: tiles.
+            FixVec2 start = unit.Owner.IsValid && unit.Owner.Value < _map.Spawns.Count ? _map.Spawns[unit.Owner.Value] : unit.Position;
+            // Tiles reached so far in breadth-first order from the origin (neighbour directions in the fixed order of TerrainGrid).
+            List<int> reached = new List<int> { origin };
+            // True per tile index once the tile has been looked at.
+            bool[] seen = new bool[terrain.TileCount];
+            seen[origin] = true;
+            // Best candidate tile so far, or -1 for none.
+            int best = -1;
+            // Squared distance from the unit to the best candidate's centre. Unit: squared tiles. Range: 0 upward.
+            Fix64 bestToUnit = Fix64.Zero;
+            // Squared distance from the start point to the best candidate's centre. Unit: squared tiles. Range: 0 upward.
+            Fix64 bestToStart = Fix64.Zero;
+            // Position in reached of the tile being expanded. Unit: list position. Range: 0 to reached.Count - 1.
+            for (int head = 0; head < reached.Count; head++)
             {
-                // Row, then column: ascending tile index within the ring.
-                for (int y = cy - ring; y <= cy + ring; y++)
+                // Tile being expanded. Unit: tile index.
+                int current = reached[head];
+                // Direction number. Unit: direction. Range: 0 to 7.
+                for (int direction = 0; direction < TerrainGrid.DirectionCount; direction++)
                 {
-                    for (int x = cx - ring; x <= cx + ring; x++)
+                    // Neighbouring tile, or -1 off the map. Unit: tile index.
+                    int next = terrain.Neighbour(current, direction);
+                    if (next < 0 || seen[next] || closing[next]
+                        || Math.Abs(terrain.XOf(next) - originX) > radius || Math.Abs(terrain.YOf(next) - originY) > radius
+                        || !terrain.IsStepPassable(current, next, layer))
                     {
-                        if (!sim.Terrain.Contains(x, y) || (Math.Abs(x - cx) != ring && Math.Abs(y - cy) != ring))
-                        {
-                            continue;
-                        }
-                        // Index of the candidate tile.
-                        int candidate = sim.Terrain.IndexOf(x, y);
-                        if (!closing[candidate] && sim.Terrain.IsStandable(candidate, layer))
-                        {
-                            return candidate;
-                        }
+                        continue;
+                    }
+                    seen[next] = true;
+                    if (!terrain.IsStandable(next, layer) || terrain.SpeedMultiplier(next, layer) <= Fix64.Zero)
+                    {
+                        continue;
+                    }
+                    reached.Add(next);
+                    // Centre of the candidate tile. Unit: tiles.
+                    FixVec2 centre = terrain.CentreOf(next);
+                    // Squared distance from the unit to the candidate centre. Unit: squared tiles. Range: 0 upward.
+                    Fix64 toUnit = (centre - unit.Position).LengthSquared();
+                    // Squared distance from the start point to the candidate centre. Unit: squared tiles. Range: 0 upward.
+                    Fix64 toStart = (centre - start).LengthSquared();
+                    if (best < 0 || toUnit < bestToUnit || (toUnit == bestToUnit && (toStart < bestToStart || (toStart == bestToStart && next < best))))
+                    {
+                        best = next;
+                        bestToUnit = toUnit;
+                        bestToStart = toStart;
                     }
                 }
             }
-            return -1;
+            return best;
         }
 
         // ---------------------------------------------------------------- hash
