@@ -5,6 +5,8 @@
 
 Research notes (checked 2026-10-26): listings were confirmed through web search results that quote the assetstore.unity.com pages. The store pages themselves could not be fetched from this environment, so prices, versions and dates are snapshots and must be re-checked in the editor before buying. Anything marked "unverified" could not be confirmed. "Unity 6 confirmed" means the listing shows a 6000.x original or compatible version; "2022.3+" means the listing shows 2022.3 or newer but no Unity 6 entry.
 
+**Update (Phase 1):** a hand-written RTS camera (`RtsCameraController`) and selection (`SelectionController`, box select, control groups, orders) now exist in `rts/src/Game/Assets/Scripts` as the free fallback, using the legacy Input Manager, so every package below is optional polish rather than a requirement.
+
 ## 1. RTS camera rig (fixed three-quarter top-down)
 
 Free fallback: write a ~100 line camera script yourself (pan on a ground plane, zoom by distance, map bounds clamp, optional edge scroll) using the new Input System. With a fixed angle this is small, and Cinemachine can follow a pivot object if you want smoothing.

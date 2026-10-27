@@ -84,75 +84,62 @@ jobs:
       - name: Build the headless runner (Release)
         run: dotnet build rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj --configuration Release --no-restore
 
-      - name: Run the headless smoke script twice and compare state hashes
+      - name: Run every command script twice and compare state hashes
         shell: bash
         env:
-          # Where the two captured stdout files land. Unit: directory path.
+          # Where the captured stdout files land. Unit: directory path.
           RUN_DIR: ${{ runner.temp }}/determinism
         run: |
           set -euo pipefail
           mkdir -p "$RUN_DIR"
-
-          # run_once <n>: one fresh process; stdout goes to run<n>.out, stderr to run<n>.err.
+          # run_once <script> <n>: one fresh process; stdout goes to <name>.run<n>.out, stderr to <name>.run<n>.err.
           run_once() {
+            local name
+            name="$(basename "$1" .json)"
             dotnet run --no-build \
               --project rts/tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj \
               --configuration Release -- \
               --data rts/data \
-              --script rts/data/scripts/smoke.json \
-              > "$RUN_DIR/run$1.out" 2> "$RUN_DIR/run$1.err"
+              --script "$1" \
+              > "$RUN_DIR/$name.run$2.out" 2> "$RUN_DIR/$name.run$2.err"
           }
-
-          for n in 1 2; do
-            if ! run_once "$n"; then
-              echo "::error title=Headless runner failed::Run $n exited with a non-zero code. stderr follows."
-              cat "$RUN_DIR/run$n.err" >&2
+          # extract_hash <name> <n>: the 16 hex digits of the single STATE_HASH= line, or nothing.
+          extract_hash() {
+            grep -E '^STATE_HASH=[0-9a-f]{16}$' "$RUN_DIR/$1.run$2.out" | sed 's/^STATE_HASH=//' || true
+          }
+          echo "### Determinism" >> "$GITHUB_STEP_SUMMARY"
+          # Every script under rts/data/scripts, in sorted order, run twice in separate processes.
+          for script in $(ls rts/data/scripts/*.json | LC_ALL=C sort); do
+            name="$(basename "$script" .json)"
+            for n in 1 2; do
+              if ! run_once "$script" "$n"; then
+                echo "::error title=Headless runner failed::$name run $n exited with a non-zero code. stderr follows."
+                cat "$RUN_DIR/$name.run$n.err" >&2
+                exit 1
+              fi
+            done
+            hash1="$(extract_hash "$name" 1)"
+            hash2="$(extract_hash "$name" 2)"
+            if [ -z "$hash1" ] || [ -z "$hash2" ] || [ "$(printf '%s\n' "$hash1" | wc -l)" -ne 1 ] || [ "$(printf '%s\n' "$hash2" | wc -l)" -ne 1 ]; then
+              echo "::error title=STATE_HASH missing::$name must print exactly one line 'STATE_HASH=<16 hex digits>'. Run 1: '${hash1}'. Run 2: '${hash2}'."
               exit 1
             fi
+            if ! diff -q "$RUN_DIR/$name.run1.out" "$RUN_DIR/$name.run2.out" > /dev/null; then
+              echo "::error title=Simulation is not deterministic::$name gave STATE_HASH=$hash1 then STATE_HASH=$hash2, or its per-tick lines differ."
+              diff "$RUN_DIR/$name.run1.out" "$RUN_DIR/$name.run2.out" | head -n 20 || true
+              echo "- $name: FAILED (\`$hash1\` vs \`$hash2\`)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            # The outcome line, present on every run (undecided for scripts without a decided match).
+            outcome="$(grep -E '^OUTCOME ' "$RUN_DIR/$name.run1.out" || echo 'OUTCOME (none)')"
+            echo "- $name: \`STATE_HASH=$hash1\` ($outcome)" >> "$GITHUB_STEP_SUMMARY"
+            echo "$name STATE_HASH=$hash1 $outcome"
           done
-
-          # extract_hash <n>: prints the 16 hex digits of the single STATE_HASH= line of run <n>, or nothing.
-          extract_hash() {
-            grep -E '^STATE_HASH=[0-9a-f]{16}$' "$RUN_DIR/run$1.out" | sed 's/^STATE_HASH=//' || true
-          }
-          hash1="$(extract_hash 1)"
-          hash2="$(extract_hash 2)"
-
-          if [ -z "$hash1" ] || [ -z "$hash2" ] || [ "$(printf '%s\n' "$hash1" | wc -l)" -ne 1 ] || [ "$(printf '%s\n' "$hash2" | wc -l)" -ne 1 ]; then
-            echo "::error title=STATE_HASH missing::Each run must print exactly one line 'STATE_HASH=<16 hex digits>'. Run 1 found: '${hash1}'. Run 2 found: '${hash2}'."
-            echo "--- run 1 stdout ---"; cat "$RUN_DIR/run1.out"
-            echo "--- run 2 stdout ---"; cat "$RUN_DIR/run2.out"
+          # The Phase 1 exit criterion: the AI-versus-AI script must reach a decided outcome.
+          if ! grep -qE '^OUTCOME winner=' "$RUN_DIR/ai_vs_ai.run1.out"; then
+            echo "::error title=AI match undecided::rts/data/scripts/ai_vs_ai.json did not reach a decided outcome."
             exit 1
           fi
-
-          if [ "$hash1" != "$hash2" ]; then
-            echo "::error title=Simulation is not deterministic::Same script, same data, same seed gave STATE_HASH=$hash1 then STATE_HASH=$hash2."
-            echo "First differing per-tick lines (tick=<n> hash=<hex>):"
-            diff "$RUN_DIR/run1.out" "$RUN_DIR/run2.out" | head -n 20 || true
-            {
-              echo "### Determinism FAILED"
-              echo "- run 1: \`STATE_HASH=$hash1\`"
-              echo "- run 2: \`STATE_HASH=$hash2\`"
-              echo "See rts/docs/CI.md, section 'Reading a determinism failure'."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-
-          # The per-tick hash lines must agree too, not just the final one.
-          if ! diff -q "$RUN_DIR/run1.out" "$RUN_DIR/run2.out" > /dev/null; then
-            echo "::error title=Per-tick hashes differ::Final hashes match but intermediate tick hashes differ between runs."
-            diff "$RUN_DIR/run1.out" "$RUN_DIR/run2.out" | head -n 20 || true
-            exit 1
-          fi
-
-          ticks="$(grep -cE '^tick=[0-9]+ hash=[0-9a-f]{16}$' "$RUN_DIR/run1.out" || true)"
-          {
-            echo "### Determinism OK"
-            echo "- Two separate runs of \`smoke.json\` printed the same hash."
-            echo "- \`STATE_HASH=$hash1\`"
-            echo "- Per-tick hash lines compared: $ticks"
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "STATE_HASH=$hash1 (both runs)"
 
       - name: Run the NUnit determinism tests
         shell: bash

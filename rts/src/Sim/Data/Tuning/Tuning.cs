@@ -5,7 +5,7 @@ using System;
 
 namespace Rts.Sim.Data
 {
-    /// <summary>The nine tuning files of rts/data/tuning, parsed and validated. Immutable.</summary>
+    /// <summary>The tuning files of rts/data/tuning, parsed and validated. Immutable.</summary>
     public sealed class Tuning
     {
         /// <summary>tuning/match.json: tick rate, hash interval, match length, tides, Planetary Cycles and the Core.</summary>
@@ -35,10 +35,36 @@ namespace Rts.Sim.Data
         /// <summary>tuning/harness.json: balance harness run sizes and hard limits.</summary>
         public HarnessTuning Harness { get; }
 
-        /// <summary>Bundles the nine parsed files; none may be null.</summary>
-        public Tuning(MatchTuning match, HqTuning hq, MomentumTuning momentum, StatusTuning status, FloodTuning flood,
-            SupplyTuning supply, EarthTuning earth, OnlineTuning online, HarnessTuning harness)
+        /// <summary>tuning/terrain.json: per-layer speed multipliers, depth thresholds and pathfinder limits.</summary>
+        public TerrainTuning Terrain { get; }
+
+        /// <summary>
+        /// FNV-1a digest of the text of every tuning file this object was built from, set by the loader; 0 when built
+        /// by hand. Mixed into <see cref="Simulation.ContentDigest"/> so peers with different tuning diverge at tick 0.
+        /// </summary>
+        public ulong SourceDigest { get; private set; }
+
+        /// <summary>Records the source digest once, from the loader.</summary>
+        /// <param name="digest">FNV-1a over the sorted (path, text) pairs of the tuning files.</param>
+        internal void SetSourceDigest(ulong digest)
         {
+            SourceDigest = digest;
+        }
+
+        /// <summary>tuning/combat.json: damage types, armour types, the damage multiplier table and the attack-move acquire bonus.</summary>
+        public CombatTuning Combat { get; }
+
+        /// <summary>tuning/economy.json: starting resources, base supply, gathering trips, queue length, base radius and construction.</summary>
+        public EconomyTuning Economy { get; }
+
+        /// <summary>Bundles the parsed files; none may be null.</summary>
+        public Tuning(MatchTuning match, HqTuning hq, MomentumTuning momentum, StatusTuning status, FloodTuning flood,
+            SupplyTuning supply, EarthTuning earth, OnlineTuning online, HarnessTuning harness, TerrainTuning terrain, CombatTuning combat,
+            EconomyTuning economy)
+        {
+            Economy = economy ?? throw new ArgumentNullException(nameof(economy));
+            Terrain = terrain ?? throw new ArgumentNullException(nameof(terrain));
+            Combat = combat ?? throw new ArgumentNullException(nameof(combat));
             Match = match ?? throw new ArgumentNullException(nameof(match));
             Hq = hq ?? throw new ArgumentNullException(nameof(hq));
             Momentum = momentum ?? throw new ArgumentNullException(nameof(momentum));
@@ -48,6 +74,10 @@ namespace Rts.Sim.Data
             Earth = earth ?? throw new ArgumentNullException(nameof(earth));
             Online = online ?? throw new ArgumentNullException(nameof(online));
             Harness = harness ?? throw new ArgumentNullException(nameof(harness));
+            if (flood.DepthUnitsPerHeightLayer > terrain.MaxWaterDepth)
+            {
+                throw new DataValidationException(FloodTuning.FilePath, "depth_units_per_height_layer", "must not exceed max_water_depth (" + terrain.MaxWaterDepth + ") in " + TerrainTuning.FilePath);
+            }
         }
     }
 }

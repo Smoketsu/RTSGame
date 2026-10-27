@@ -1,0 +1,26 @@
+// rts/data/scripts/flood_smoke.json: Phase 1 flooding smoke script. A scripted command stream for the headless harness (rts/tools/BalanceHarness, pass --script rts/data/scripts/flood_smoke.json) and the Unity host; both parse it with Rts.Sim.Data.CommandScript, so their state hashes are comparable. Water roots a Grand Shell and builds a Tidepool beside its two common fields in the south-east corner of greybox_1v1 (both release water), while a Skai Great Aerie roots just west of the same fields, so the flood must stop four tiles short of the Skai drop-off and of the resource fields near it; 600 ticks (30 seconds). CI runs the harness twice and requires identical STATE_HASH lines.
+{
+  "$schema_version": 1,
+  "$doc": "Flood smoke script: two flood sources (a Rooted Grand Shell and a Tidepool) flood a plateau and its slopes next to an enemy drop-off and enemy-claimed resource fields; 600 ticks (30 seconds) with seed 2468 on greybox_1v1. Entity IDs are listed in the command comments.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md (same seed and commands give the same hash).
+  "seed": 2468,
+  // How many ticks to simulate. Unit: ticks (20 per second, so 600 is 30 seconds). Range: 0 to 1000000. Source: docs/decisions/ADR-004-tick-rate.md.
+  "ticks": 600,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: Phase 1 plan (greybox_1v1).
+  "map": "greybox_1v1",
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. Source: Game modes (any player count, teams explicit).
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: player slot, or 255 for the script itself; sequence: per-issuer counter, unique per issuer. Only spawn_unit is used (script only): the units appear complete. Entity IDs are handed out in the order units appear: 1 the Skai Great Aerie, 2 the Skai Fledgling, 3 the Water Grand Shell, 4 the Water Tidepool, 5 the Water Grasper. Source: Phase 1 command set (rts/src/Sim/Commands).
+  "commands": [
+    // Tick 0: the Great Aerie lands 3.2 tiles from the common field at (53, 59) and starts Rooted, so it is a drop-off and every field within 10 tiles of it (the fields at (53, 59) and (59, 53)) counts as an enemy resource field for Water's floods. A Fledgling stands beside it.
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "50", "y": "60" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "52", "y": "57" },
+    // Tick 0: Water's Grand Shell lands 5.1 tiles from the field at (59, 53) and starts Rooted (a flood source while Rooted); a Tidepool (flood source) stands west of it and a Grasper (water layer, heals on its own water) between them.
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "58", "y": "58" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.tidepool", "owner": 1, "x": "55", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "water.grasper", "owner": 1, "x": "56", "y": "56" }
+  ]
+}

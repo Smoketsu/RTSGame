@@ -1,11 +1,17 @@
 // rts/src/Game/Assets/Scripts/Bootstrap/AutoBootstrap.cs
 // Makes pressing Play in ANY scene show the simulation: after the first scene has loaded it adds a
-// SimulationHost, a camera, a directional light and a ground plane if the scene does not already have them.
+// SimulationHost, a camera with its RtsCameraController, a directional light, a TerrainView and a SelectionController
+// if the scene does not already have them. The flat grey ground plane of Phase 0 is no longer added (TerrainView draws the
+// real terrain at the same height as layer 0 and the two would overlap); EnsureGround stays available as a fallback.
 // Part of Rts.Game (Unity side, presentation only). Delete this file once a real entry scene exists; the
 // Ensure* helpers are also used by the editor menu item RTS > Create Bootstrap Scene.
 //
-// Camera: a fixed three-quarter top-down view of the 64x64 greybox map, from (32, 40, -10) looking at the
-// map centre (32, 0, 32). Simulation tile (x, y) is Unity world (x, 0, y), one tile = one world unit.
+// Camera: a fixed three-quarter top-down view. The camera object starts at (32, 40, -10) looking at the map centre
+// (32, 0, 32), but RtsCameraController takes over on the first frame (55 degree pitch, focus on the map centre, pan and zoom).
+// Simulation tile (x, y) is Unity world (x, layer height, y), one tile = one world unit.
+using Rts.Game.CameraRig;
+using Rts.Game.TerrainDisplay;
+using Rts.Game.UnitSelection;
 using UnityEngine;
 
 namespace Rts.Game.Bootstrap
@@ -31,8 +37,50 @@ namespace Rts.Game.Bootstrap
         {
             EnsureHost();
             EnsureCamera();
+            EnsureCameraController();
             EnsureLight();
-            EnsureGround();
+            EnsureTerrainView();
+            EnsureSelection();
+        }
+
+        /// <summary>Adds the RTS camera controller (pan, zoom, bounds) to the scene's camera unless it already has one.</summary>
+        /// <returns>The existing or new controller.</returns>
+        public static RtsCameraController EnsureCameraController()
+        {
+            // The scene's camera (created first if there is none).
+            Camera camera = EnsureCamera();
+            RtsCameraController existing = camera.GetComponent<RtsCameraController>();
+            if (existing != null)
+            {
+                return existing;
+            }
+            return camera.gameObject.AddComponent<RtsCameraController>();
+        }
+
+        /// <summary>Creates the "Terrain View" object with a TerrainView component unless one is already in a loaded scene.</summary>
+        /// <returns>The existing or new terrain view.</returns>
+        public static TerrainView EnsureTerrainView()
+        {
+            TerrainView existing = Object.FindFirstObjectByType<TerrainView>();
+            if (existing != null)
+            {
+                return existing;
+            }
+            GameObject terrainObject = new GameObject("Terrain View");
+            return terrainObject.AddComponent<TerrainView>();
+        }
+
+        /// <summary>Creates the "Selection Controller" object with a SelectionController component unless one is already in a loaded scene.</summary>
+        /// <returns>The existing or new selection controller.</returns>
+        public static SelectionController EnsureSelection()
+        {
+            SelectionController existing = Object.FindFirstObjectByType<SelectionController>();
+            if (existing != null)
+            {
+                return existing;
+            }
+            GameObject selectionObject = new GameObject("Selection Controller");
+            return selectionObject.AddComponent<SelectionController>();
         }
 
         /// <summary>Creates the "SimulationHost" object with a SimulationHost component unless one is already in a loaded scene.</summary>
@@ -96,7 +144,8 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Creates a dark ground plane covering the 64x64 map at y = 0 so the cubes have something to sit on.
-        /// Runtime only: it uses an instanced material, so the editor scene creator does not call it.
+        /// Fallback only since Phase 1 (TerrainView draws the terrain); Run no longer calls it. It uses an instanced
+        /// material, so the editor scene creator does not call it either.
         /// </summary>
         public static void EnsureGround()
         {

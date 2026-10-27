@@ -1,0 +1,40 @@
+// combat.json: Damage types, armour types, the damage multiplier table and the attack-move acquire range. Read by the combat system (rts/src/Sim/Combat) every tick. Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a placeholder starting value for playtesting from the Game Design Proposal (26 Oct 2026), not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Damage types and armour types with the multiplier each damage type has against each armour type, the extra tiles an attack-moving unit will chase a target, and the armour type a unit gets when its file names none; read by the combat system.",
+  // Names of the damage types a weapon may deal. Unit: list of text IDs. Range: 1 to 8 distinct lower-case names (letters, digits, underscores); every key of "multipliers" must be listed here. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "damage_types": ["kinetic", "blast", "drench"],
+  // Names of the armour types a unit may wear. Unit: list of text IDs. Range: 1 to 8 distinct lower-case names (letters, digits, underscores); every row of "multipliers" must have one entry per armour type. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "armour_types": ["light", "armoured", "structure"],
+  // Fraction of a weapon's damage that gets through, for each damage type (row) against each armour type (column). Soft counters only: no entry is 0 and none is above 3. Unit: object of damage type to object of armour type to fraction.
+  "multipliers": {
+    "kinetic": {
+      // Kinetic damage against light armour. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "light": 1.0,
+      // Kinetic damage against armoured units. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "armoured": 0.75,
+      // Kinetic damage against structures. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "structure": 0.5
+    },
+    "blast": {
+      // Blast damage against light armour. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "light": 0.75,
+      // Blast damage against armoured units. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "armoured": 1.0,
+      // Blast damage against structures. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "structure": 1.25
+    },
+    "drench": {
+      // Drench damage against light armour. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "light": 1.0,
+      // Drench damage against armoured units. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "armoured": 1.0,
+      // Drench damage against structures. Unit: fraction of base damage. Range: 0 to 3. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+      "structure": 0.25
+    }
+  },
+  // Extra distance beyond weapon range within which an attack-moving unit notices and chases an enemy before shooting. Unit: tiles. Range: 0 to 20. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "acquire_range_bonus_tiles": 2,
+  // Armour type given to a unit whose file has no "armour_type". Unit: armour type name. Range: one of "armour_types". Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "default_armour_type": "light"
+}

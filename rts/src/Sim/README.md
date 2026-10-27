@@ -29,10 +29,15 @@ Unity writes a `.meta` file next to every file and folder here when the project 
 
 1. clear the event log
 2. apply this tick's commands in (issuer, sequence) order
-3. movement
-4. faction mechanics in ascending mechanic ID order
-5. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-6. advance the clock
+3. statuses (`StatusSystem.BeginTick`: Grounded and slow expiry, drench counter reset; units in ascending ID order)
+4. HQ timers (`HqSystem`: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
+5. movement
+6. combat (`CombatSystem`: cooldowns, targeting, damage, deaths; units in ascending ID order)
+7. economy (`EconomySystem`: worker gather loops, production queues, construction, supply; units in ascending ID order)
+8. faction mechanics in ascending mechanic ID order
+9. vision recompute (`VisionSystem.Recompute`: per-team visible and explored grids; `Start` runs it once too, so tick 0 has vision)
+10. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+11. advance the clock
 
 The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, read `Events.Current`, repeat. `Submit` is rejected inside a step and for ticks already played.
 
@@ -52,15 +57,15 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | Folder | What lives there |
 | --- | --- |
 | `Core/` | `Fix64`, `FixVec2`, IDs (`EntityId`, `PlayerId`, `TeamId`), `MatchClock`, `DeterministicRandom`, `StateHasher`, `MatchSettings`, `SimulationConfig`, `ContentCatalog`. |
-| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op). The only way state changes. |
+| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op), the combat commands (attack-move, attack unit, stop), the HQ commands (`root_hq`, `uproot_hq`) and the economy commands (`gather`, `train_unit`, `build_structure`). The only way state changes. |
 | `Teams/` | `PlayerSetup` and `PlayerRegistry`: players, teams, alliances. |
 | `Terrain/` | Placeholder (Phase 1): tile map, cliffs, walls, floods. |
 | `Pathing/` | Placeholder (Phase 1): flow fields per movement layer. |
-| `Vision/` | Placeholder (Phase 1): fog of war and vision. |
-| `Statuses/` | Placeholder (Phase 1): statuses such as Grounded, rooted. |
-| `Units/` | `Unit`, `UnitDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`. |
-| `Combat/` | Placeholder (Phase 1): damage, armour, attacks. |
-| `Economy/` | Placeholder (Phase 1): resources, supply, production. |
+| `Vision/` | Fog of war (`sim.Vision`): per-team visible and explored grids with the high-ground rule, short airborne sight, query API and the combat hook. See `rts/docs/specs/fog_of_war.md`. |
+| `Statuses/` | The shared status system: `UnitStatusSet` (Grounded, slows, drench counter), `StatusSystem` (step 3 and the apply methods), `StatusKind`, `SlowEntry`. See `rts/docs/specs/statuses.md`. |
+| `Units/` | `Unit`, `UnitDefinition`, `WeaponDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`, and the mobile HQ: `HqDefinition`, `HqState`, `HqSystem` (root and uproot countdowns, Last Stand, defeat on HQ death), plus `UnitEconomyDefinition` (build time, worker, drop-off, trains, static defence, footprint, supply provided). A unit file may carry `armour_type`, `sight_range_tiles`, a `weapon` object, an `hq` object and the economy keys; see `rts/data/README.md`. |
+| `Combat/` | `CombatSystem` (targeting, attack-move, cooldowns, damage, death, run after movement each tick), `CombatRules` (damage and armour table from `tuning/combat.json`), `IDamageModifier` (hook for mechanics such as Momentum). |
+| `Economy/` | `EconomySystem` (worker gather loops, production queues, construction, footprints, supply), `EconomyRules` (supply cost, drop-off lookup, spawn tile), `ResourceFields` and `ResourceFieldState` (live field amounts from the map, hashed) and `GatherState`. Per-player stock and supply live on `Teams/Player`. See `Economy/README.md`. |
 | `Factions/` | `IFactionMechanic`, `FactionMechanicRegistry`, `BuiltInMechanics`, and one subfolder per faction (`Skai/`, `Water/`, `Earth/`, `Fire/`). |
 | `Cycles/` | Placeholder (Phase 1): Planetary Cycles on the match clock. |
 | `Events/` | `SimEvent`, `EventLog` and the core events hosts react to (spawned, removed, arrived, rejected, state hashed). |

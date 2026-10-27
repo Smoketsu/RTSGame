@@ -73,12 +73,12 @@ namespace Rts.Sim.Tests
         }
 
         /// <summary>
-        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, pinned on 26 Oct 2026.
+        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, re-pinned on 27 Oct 2026 after the Phase 1 review fixes (content digest covers tuning and map).
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x0685a3602cc02df3UL;
+        private const ulong GoldenFinalHash = 0x11c3d72952f247a4UL;
 
         [Test]
         public void GoldenHash_IsPinned()

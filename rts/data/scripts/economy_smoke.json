@@ -1,0 +1,50 @@
+// rts/data/scripts/economy_smoke.json: Phase 1 economy smoke script. A scripted command stream for the headless harness (rts/tools/BalanceHarness, pass --script rts/data/scripts/economy_smoke.json) and the Unity host; both parse it with Rts.Sim.Data.CommandScript, so their state hashes are comparable. Skai versus Water on greybox_1v1: each side spawns its mobile HQ and two workers on its start plateau beside the common fields at (4, 10) and (10, 4) (and the mirrored ones at (59, 53) and (53, 59)), roots the HQ (Skai walks it into place first), gathers, trains a worker, builds a production building and a static defence, trains an army unit, and finally uproots. CI runs the harness twice and requires identical STATE_HASH lines.
+{
+  "$schema_version": 1,
+  "$doc": "Economy smoke script: HQ root and uproot, gather, train, build; 1500 ticks (75 seconds) with seed 4321 on greybox_1v1. Entity IDs are listed in the command comments.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md (same seed and commands give the same hash).
+  "seed": 4321,
+  // How many ticks to simulate. Unit: ticks (20 per second, so 1500 is 75 seconds). Range: 0 to 1000000. Source: docs/decisions/ADR-004-tick-rate.md.
+  "ticks": 1500,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: Phase 1 plan (greybox_1v1).
+  "map": "greybox_1v1",
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. Source: Game modes (any player count, teams explicit).
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: player slot, or 255 for the script itself; sequence: per-issuer counter, unique per issuer. Types used here: spawn_unit (script only), move_unit, root_hq, uproot_hq, gather (field = index in the map's resource_fields list), train_unit (producer = unit ID), build_structure (unit = the worker, x and y = tile). Entity IDs are handed out in the order units appear: 1 to 6 at tick 0 (the six spawns below, in sequence order), 7 the Tidepool (placed at tick 10), 8 the Water worker trained at tick 5 (appears at tick 244), 9 the Roost (placed at tick 330), 10 the Skai worker trained at tick 330 (appears at tick 569), 11 the Perch Tower (placed at tick 800). Source: Phase 1 command set (rts/src/Sim/Commands).
+  "commands": [
+    // Tick 0: Skai's Great Aerie (unit 1) lands 7.6 tiles from the nearest field, so it starts Uprooted; two Fledglings (units 2, 3) beside the fields. Water's Grand Shell (unit 4) lands within 6 tiles of its fields, so it starts Rooted; two Tenders (units 5, 6) beside them.
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "12", "y": "12" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "7", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "8", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "58", "y": "58" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "57", "y": "56" },
+    { "tick": 0, "issuer": 255, "sequence": 5, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "56", "y": "57" },
+    // Water opens at once: both Tenders gather the common fields at (59, 53) and (53, 59) (fields 2 and 3), the Grand Shell trains a third Tender, and Tender 5 places a Tidepool (production building, +8 supply).
+    { "tick": 5, "issuer": 1, "sequence": 0, "type": "gather", "unit": 5, "field": 2 },
+    { "tick": 5, "issuer": 1, "sequence": 1, "type": "gather", "unit": 6, "field": 3 },
+    { "tick": 5, "issuer": 1, "sequence": 2, "type": "train_unit", "producer": 4, "definition": "water.tender" },
+    { "tick": 10, "issuer": 1, "sequence": 3, "type": "build_structure", "unit": 5, "definition": "water.tidepool", "x": 55, "y": 54 },
+    // Skai walks its Great Aerie next to the fields (flying, 1.5 tiles per second) and roots it: 10 seconds (200 ticks).
+    { "tick": 1, "issuer": 0, "sequence": 0, "type": "move_unit", "unit": 1, "x": "7", "y": "7" },
+    { "tick": 120, "issuer": 0, "sequence": 1, "type": "root_hq", "unit": 1 },
+    // Tick 330: the HQ is Rooted and a drop-off. Both Fledglings gather (fields 0 and 1), the HQ trains a third Fledgling, and Fledgling 2 places a Roost (production building, +8 supply). The 200 starting common pays for the Fledgling (50) and the Roost (150).
+    { "tick": 330, "issuer": 0, "sequence": 2, "type": "gather", "unit": 2, "field": 0 },
+    { "tick": 330, "issuer": 0, "sequence": 3, "type": "gather", "unit": 3, "field": 1 },
+    { "tick": 330, "issuer": 0, "sequence": 4, "type": "train_unit", "producer": 1, "definition": "skai.fledgling" },
+    { "tick": 330, "issuer": 0, "sequence": 5, "type": "build_structure", "unit": 2, "definition": "skai.roost", "x": 9, "y": 9 },
+    // Tick 600: the new Fledgling (unit 10) joins the mining.
+    { "tick": 600, "issuer": 0, "sequence": 6, "type": "gather", "unit": 10, "field": 0 },
+    // Tick 800: with income in, Fledgling 3 places a Perch Tower (static defence, 1 supply, counts against the six-per-base cap) near the Roost.
+    { "tick": 800, "issuer": 0, "sequence": 7, "type": "build_structure", "unit": 3, "definition": "skai.perch_tower", "x": 11, "y": 8 },
+    // Tick 1000: the finished Roost (complete at tick 829) trains a Windrunner.
+    { "tick": 1000, "issuer": 0, "sequence": 8, "type": "train_unit", "producer": 9, "definition": "skai.windrunner" },
+    // Tick 1100: Water trains a Grasper at its finished Tidepool (complete at tick 509).
+    { "tick": 1100, "issuer": 1, "sequence": 4, "type": "train_unit", "producer": 7, "definition": "water.grasper" },
+    // Tick 1300: Skai uproots the Great Aerie to move on; it stops being a drop-off and its weapon turns off. Skai also orders a rooted-HQ move that the simulation rejects (hq_rooted) at tick 1290.
+    { "tick": 1290, "issuer": 0, "sequence": 9, "type": "move_unit", "unit": 1, "x": "20", "y": "20" },
+    { "tick": 1300, "issuer": 0, "sequence": 10, "type": "uproot_hq", "unit": 1 }
+  ]
+}

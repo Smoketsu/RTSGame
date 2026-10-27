@@ -1,0 +1,25 @@
+// terrain.json: Terrain speed multipliers, water depth thresholds and pathfinding limits. Read by the terrain grid (rts/src/Sim/Terrain) and the pathfinding cache (rts/src/Sim/Pathing). Part of rts/data/tuning; loaded by the data loader (rts/src/Sim/Data) at match start. Every value is a starting value for playtesting from the Game Design Proposal (26 Oct 2026) or a documented placeholder.
+{
+  "$schema_version": 1,
+  "$doc": "Per-tile speed multipliers by movement layer and water depth, the depth thresholds that split shallow from deep water, and the limits of the flow-field pathfinder.",
+  // Water depth at or above which a tile counts as deep water; below it (and above 0) is shallow. Unit: depth units (1.0 = one tile of water height). Range: 0.05 to 10. Source: Currents and depth (deep versus shallow); the value is a placeholder.
+  "deep_water_depth_threshold": 0.5,
+  // Most water a tile can hold; flood sources stop adding beyond it. Unit: depth units. Range: 0.5 to 20. Source: not in the design doc; placeholder, open question.
+  "max_water_depth": 4,
+  // Speed multiplier for ground-layer units on dry, unraised, unscorched ground. Unit: multiplier of base speed. Range: 0.1 to 2. Source: Terrain as layered ground states; baseline.
+  "ground_dry_speed_multiplier": 1.0,
+  // Speed multiplier for ground-layer units on raised ground (earth faction, Phase 4). Unit: multiplier of base speed. Range: 0.1 to 2. Source: not in the design doc; placeholder.
+  "ground_raised_speed_multiplier": 1.0,
+  // Speed multiplier for ground-layer units on scorched ground (fire faction, Phase 6; the slow comes with Scorching). Unit: multiplier of base speed. Range: 0.1 to 2. Source: Fire faction / Scorching (damages and slows); placeholder until Phase 6.
+  "ground_scorched_speed_multiplier": 1.0,
+  // Speed multiplier for water-layer units on dry ground. Unit: multiplier of base speed. Range: 0.1 to 2. Source: Water faction (weak on dry land); placeholder.
+  "water_unit_dry_speed_multiplier": 0.85,
+  // Speed multiplier for water-layer units in shallow water. Unit: multiplier of base speed. Range: 0.1 to 2. Source: Flooding with tides and waves (water units move faster on flooded ground); placeholder.
+  "water_unit_shallow_speed_multiplier": 1.15,
+  // Speed multiplier for water-layer units in deep water. Unit: multiplier of base speed. Range: 0.1 to 2. Source: Flooding with tides and waves (water units move faster on flooded ground); placeholder.
+  "water_unit_deep_speed_multiplier": 1.3,
+  // Distance from the goal at which a move order counts as complete. Unit: tiles. Range: 0.05 to 2. Source: not in the design doc; pathfinding placeholder (docs/decisions/ADR-007-pathfinding.md).
+  "arrival_radius_tiles": 0.25,
+  // Most flow fields kept in the pathfinding cache before the oldest is evicted. Unit: fields (count). Range: 1 to 1024. Source: docs/decisions/ADR-007-pathfinding.md; placeholder.
+  "max_cached_flow_fields": 64
+}

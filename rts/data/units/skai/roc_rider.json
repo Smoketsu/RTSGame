@@ -21,5 +21,26 @@
   // Cost in the common resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 50 and 150). Source: placeholder for Phase 1 unit docs.
   "cost_common": 150,
   // Cost in the rare resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 0 and 50). Source: placeholder for Phase 1 unit docs.
-  "cost_rare": 50
+  "cost_rare": 50,
+  // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent; placeholders sit between 10 and 30). Source: Economy; placeholder for Phase 1 unit docs.
+  "build_seconds": 30,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+  "armour_type": "armoured",
+  // How far the unit sees; used by fog of war (rts/src/Sim/Vision) while the unit is on the ground or water layer, or Grounded. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
+  "sight_range_tiles": 10,
+  // How far the unit sees while its effective layer is Air, shorter than sight_range_tiles so flyers get no free vision. Required for air units, rejected for others. Unit: tiles. Range: 1 to 64. Source: Maps / Layout rules ("short sight range when airborne"); placeholder 6 for the Roc Rider.
+  "airborne_sight_range_tiles": 6,
+  // Weapon: omit the whole object for an unarmed unit. Roc Rider: heavy flyer that hits air and ground. Every number is a placeholder for playtesting. Source: placeholder for Phase 1 unit docs.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.
+    "damage": 14,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: one of the damage_types in tuning/combat.json ("kinetic", "blast", "drench"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: placeholder for Phase 1 unit docs.
+    "range_tiles": 5,
+    // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: placeholder for Phase 1 unit docs.
+    "cooldown_seconds": 1.2,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
+    "can_target": ["ground", "water", "air"]
+  }
 }

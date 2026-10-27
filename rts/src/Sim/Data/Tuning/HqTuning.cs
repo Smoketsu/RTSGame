@@ -36,6 +36,9 @@ namespace Rts.Sim.Data
         /// <summary>How many times Last Stand can trigger in one match. Unit: uses per match (count). Range: 0 to 5. Source: Last Stand.</summary>
         public int LastStandUsesPerMatch { get; }
 
+        /// <summary>Farthest an HQ may stand from the centre of a resource field that still holds resources and be allowed to root. Unit: tiles. Range: 0.5 to 64. Source: The mobile HQ unit (Rooted: next to a resource field); placeholder.</summary>
+        public Fix64 HqRootMaxDistanceToFieldTiles { get; }
+
         /// <summary>Time an Uprooted HQ stays hidden in 1v1v1 and FFA before it is revealed to everyone. Unit: seconds. Range: 0 to 120. Source: No hiding.</summary>
         public Fix64 FfaUprootedRevealSeconds { get; }
 
@@ -77,7 +80,7 @@ namespace Rts.Sim.Data
         /// <param name="root">The parsed file (root must be an object).</param>
         public HqTuning(JsonValue root)
         {
-            root.RejectUnknownKeys("root_seconds", "uproot_seconds", "survivability_floor_seconds", "survivability_floor_supply", "last_stand_enabled", "last_stand_health_fraction", "last_stand_invulnerable_seconds", "last_stand_uses_per_match", "ffa_uprooted_reveal_seconds");
+            root.RejectUnknownKeys("root_seconds", "uproot_seconds", "survivability_floor_seconds", "survivability_floor_supply", "last_stand_enabled", "last_stand_health_fraction", "last_stand_invulnerable_seconds", "last_stand_uses_per_match", "hq_root_max_distance_to_field_tiles", "ffa_uprooted_reveal_seconds");
             RootSeconds = root.RequireFix64("root_seconds", "1", "60");
             UprootSeconds = root.RequireFix64("uproot_seconds", "1", "60");
             SurvivabilityFloorSeconds = root.RequireFix64("survivability_floor_seconds", "5", "120");
@@ -86,6 +89,7 @@ namespace Rts.Sim.Data
             LastStandHealthFraction = root.RequireFix64("last_stand_health_fraction", "0.05", "0.5");
             LastStandInvulnerableSeconds = root.RequireFix64("last_stand_invulnerable_seconds", "0", "30");
             LastStandUsesPerMatch = root.RequireInt("last_stand_uses_per_match", 0, 5);
+            HqRootMaxDistanceToFieldTiles = root.RequireFix64("hq_root_max_distance_to_field_tiles", "0.5", "64");
             FfaUprootedRevealSeconds = root.RequireFix64("ffa_uprooted_reveal_seconds", "0", "120");
         }
     }
