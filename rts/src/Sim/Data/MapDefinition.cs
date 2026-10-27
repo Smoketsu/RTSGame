@@ -1,6 +1,6 @@
 // rts/src/Sim/Data/MapDefinition.cs
 // Immutable description of a map from data/maps/<id>.json: size, spawns, elevation layers, ramps, resource
-// fields and the Core. Part of Rts.Sim.Data (ADR-006). TerrainGrid copies the authored heights and ramps at
+// fields, the Core and the optional quake paths. Part of Rts.Sim.Data (ADR-006). TerrainGrid copies the authored heights and ramps at
 // match start; everything else is read in place.
 using System;
 using System.Collections.Generic;
@@ -60,6 +60,47 @@ namespace Rts.Sim.Data
         }
     }
 
+    /// <summary>
+    /// A group of tiles that Planetary Cycles can wall off or open (Quake: "some paths open or close"). Immutable; the live
+    /// open or closed state belongs to <see cref="Rts.Sim.Cycles.CycleSystem"/>. Spec: planetary_cycles.md section 2.
+    /// </summary>
+    public sealed class QuakePath
+    {
+        /// <summary>Most tiles one path may hold. Schema bound, not a tuning value.</summary>
+        public const int MaxTiles = 64;
+
+        /// <summary>Most paths one map may hold. Schema bound, not a tuning value.</summary>
+        public const int MaxPaths = 16;
+
+        /// <summary>Unique snake_case ID within the map, such as "west_gap". Range: lower-case letters, digits and underscores.</summary>
+        public string Id { get; }
+
+        /// <summary>True when the path is walled off outside a Quake and opens during one; false for the reverse. Unit: flag.</summary>
+        public bool ClosedOutsideQuake { get; }
+
+        /// <summary>Tile indexes (y * width + x) of the path, in file order. Unit: tile index. Range: 1 to <see cref="MaxTiles"/> entries, each inside the map, none shared with another path.</summary>
+        public IReadOnlyList<int> TileIndexes { get; }
+
+        /// <summary>Builds a path; the loader validates the ranges and the map overlap rules.</summary>
+        /// <param name="id">Path ID. Not empty.</param>
+        /// <param name="closedOutsideQuake">True when closed outside a Quake.</param>
+        /// <param name="tileIndexes">Tile indexes in file order. 1 to 64 entries.</param>
+        public QuakePath(string id, bool closedOutsideQuake, IReadOnlyList<int> tileIndexes)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                throw new ArgumentException("Quake path id must not be empty.", nameof(id));
+            }
+            if (tileIndexes == null || tileIndexes.Count < 1 || tileIndexes.Count > MaxTiles)
+            {
+                throw new ArgumentException("A quake path needs 1 to " + MaxTiles + " tiles.", nameof(tileIndexes));
+            }
+            Id = id;
+            ClosedOutsideQuake = closedOutsideQuake;
+            TileIndexes = tileIndexes;
+        }
+    }
+
     /// <summary>One map. Never changes during a match; live terrain state lives in TerrainGrid.</summary>
     public sealed class MapDefinition
     {
@@ -96,12 +137,26 @@ namespace Rts.Sim.Data
         /// <summary>The Core, or null for a map without one (test maps only; every shipped map has a Core).</summary>
         public CoreArea? Core { get; }
 
+        /// <summary>Quake paths in file order (path index = position in this list); empty for a map without any. Range: 0 to <see cref="QuakePath.MaxPaths"/> entries.</summary>
+        public IReadOnlyList<QuakePath> QuakePaths { get; }
+
         /// <summary>
         /// Builds a map. <paramref name="heights"/> and <paramref name="ramps"/> may be null for a flat map with no
         /// ramps; otherwise their length must be width × height. The loader validates everything else.
         /// </summary>
         public MapDefinition(string id, string displayName, int widthTiles, int heightTiles, IReadOnlyList<FixVec2> spawns,
             byte[]? heights, bool[]? ramps, IReadOnlyList<ResourceField>? resourceFields, CoreArea? core)
+            : this(id, displayName, widthTiles, heightTiles, spawns, heights, ramps, resourceFields, core, null)
+        {
+        }
+
+        /// <summary>
+        /// Builds a map with quake paths. <paramref name="quakePaths"/> may be null for none. The constructor checks only that
+        /// every tile index is on the map and the path count is at most <see cref="QuakePath.MaxPaths"/>; the loader reports
+        /// the overlap and resource-field rules with file and field names.
+        /// </summary>
+        public MapDefinition(string id, string displayName, int widthTiles, int heightTiles, IReadOnlyList<FixVec2> spawns,
+            byte[]? heights, bool[]? ramps, IReadOnlyList<ResourceField>? resourceFields, CoreArea? core, IReadOnlyList<QuakePath>? quakePaths)
         {
             if (string.IsNullOrEmpty(id))
             {
@@ -134,6 +189,24 @@ namespace Rts.Sim.Data
             _ramps = ramps ?? new bool[tileCount];
             ResourceFields = resourceFields ?? new List<ResourceField>();
             Core = core;
+            if (quakePaths != null && quakePaths.Count > QuakePath.MaxPaths)
+            {
+                throw new ArgumentException("A map holds at most " + QuakePath.MaxPaths + " quake paths.", nameof(quakePaths));
+            }
+            if (quakePaths != null)
+            {
+                foreach (QuakePath path in quakePaths)
+                {
+                    foreach (int tile in path.TileIndexes)
+                    {
+                        if (tile < 0 || tile >= tileCount)
+                        {
+                            throw new ArgumentException("Quake path '" + path.Id + "' names a tile outside the map.", nameof(quakePaths));
+                        }
+                    }
+                }
+            }
+            QuakePaths = quakePaths ?? new List<QuakePath>();
         }
 
         /// <summary>Convenience constructor for a flat map with no ramps, fields or Core (tests and the Phase 0 harness map).</summary>
@@ -144,7 +217,7 @@ namespace Rts.Sim.Data
 
         /// <summary>
         /// Feeds everything that affects simulation (size, spawns, heights, ramps, fields, Core) into a hash in a fixed
-        /// order. Display names are left out. Two maps with the same hash simulate the same.
+        /// order (the quake paths come last). Display names are left out. Two maps with the same hash simulate the same.
         /// </summary>
         public void WriteHash(StateHasher hasher)
         {
@@ -174,6 +247,19 @@ namespace Rts.Sim.Data
             {
                 hasher.Write(Core.Centre);
                 hasher.Write(Core.RadiusTiles);
+            }
+            // Quake paths after the Core: path count, then per path its ID, its closed-outside flag, tile count and each tile's x and y.
+            hasher.Write(QuakePaths.Count);
+            foreach (QuakePath path in QuakePaths)
+            {
+                hasher.Write(path.Id);
+                hasher.Write(path.ClosedOutsideQuake);
+                hasher.Write(path.TileIndexes.Count);
+                foreach (int tile in path.TileIndexes)
+                {
+                    hasher.Write(tile % WidthTiles);
+                    hasher.Write(tile / WidthTiles);
+                }
             }
         }
 

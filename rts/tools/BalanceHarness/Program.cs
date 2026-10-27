@@ -61,7 +61,7 @@ namespace Rts.Tools.BalanceHarness
 
                 // Map named by the script, or the first map in ordinal order.
                 MapDefinition map = data.RequireMap(script.MapId);
-                SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry(), data.Tuning, map);
+                SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry(), data.Tuning, map, data.Cycles.Values);
                 Simulation sim = new Simulation(config);
                 sim.Start();
                 // Recorder that captures every command and hash checkpoint when --record is given; null otherwise.

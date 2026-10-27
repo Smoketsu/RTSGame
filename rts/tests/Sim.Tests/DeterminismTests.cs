@@ -73,12 +73,18 @@ namespace Rts.Sim.Tests
         }
 
         /// <summary>
-        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, re-pinned on 26 Oct 2026 (Phase 2 step 1) when tuning/online.json gained the lockstep keys input_delay_ticks and catch_up_max_ticks_per_update: the content digest covers the tuning text, so the hash moved without any behaviour change.
+        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, re-pinned on 27 Oct 2026 after the Phase 1 review fixes (content digest covers tuning and map).
+        /// Re-pinned once more in Phase 2 (rts/docs/specs/planetary_cycles.md section 2, "This changes every state hash once"): the
+        /// state hash now includes the cycle and Core state (CycleSystem.WriteHash, after the resource fields), the "cycle" speed and damage
+        /// modifier IDs, the quake paths in the map hash, the cycle list in the content digest, and new tuning keys (core_win_min_teams,
+        /// quake_path_relocate_radius_tiles, starting_worker_count) in the tuning text. The loader also hashes line-ending-normalised text
+        /// now, so the value is the same on Windows (CRLF) and Unix (LF) checkouts. Re-pinned again when this merged with Phase 2
+        /// step 1, whose tuning/online.json keys (input_delay_ticks, catch_up_max_ticks_per_update) are also in the tuning text.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0xe9d313745512cd15UL;
+        private const ulong GoldenFinalHash = 0xa7a4b7d1633db334UL;
 
         [Test]
         public void GoldenHash_IsPinned()

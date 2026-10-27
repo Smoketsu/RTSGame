@@ -263,7 +263,8 @@ namespace Rts.Game.Bootstrap
                 // Players come from the script, not from code.
                 // Map named by the script, or the first map in ordinal order.
                 MapDefinition map = dataSet.RequireMap(script.MapId);
-                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, script.Players, BuiltInMechanics.CreateRegistry(), dataSet.Tuning, map);
+                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, script.Players, BuiltInMechanics.CreateRegistry(), dataSet.Tuning, map,
+                    dataSet.Cycles.Values);
                 _sim = new Simulation(config);
                 _sim.Start();
 

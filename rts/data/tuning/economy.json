@@ -23,5 +23,7 @@
   // Health a structure starts with when placed, as a fraction of its maximum; it gains the rest evenly over its build_seconds. Unit: fraction of max health (0.1 = 10%). Range: 0.01 to 1. Source: Economy (structures are built by workers); placeholder.
   "construction_start_health_fraction": 0.1,
   // How many rings of tiles around a producer are searched for a free tile when a trained unit appears (ring 1 is the eight neighbours). Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.
-  "spawn_search_radius_tiles": 3
+  "spawn_search_radius_tiles": 3,
+  // Workers each player starts with beside the HQ in a standard match start (StandardMatchStart). Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.
+  "starting_worker_count": 4
 }

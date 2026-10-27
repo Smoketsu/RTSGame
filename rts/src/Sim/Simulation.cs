@@ -13,9 +13,13 @@
 //   6. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
 //   7. economy (EconomySystem: worker gather loops, production queues, construction, supply; units in ascending ID order)
 //   8. faction mechanics in ascending mechanic ID order
-//   9. vision recompute (VisionSystem.Recompute: per-team visible and explored grids; fog_of_war.md step 7)
-//  10. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-//  11. advance the clock
+//   9. cycles and Core (CycleSystem.Step: holder or capturer that left the match, who stands in the Core, the capture state machine,
+//      hold accrual, the cumulative Core win, lock of the next Planetary Cycle, shift and quake paths, quake damage; planetary_cycles.md
+//      section 4). Reads positions after movement, combat deaths, economy spawns and wave pushes. A cycle that shifts on tick S is
+//      read by movement and combat from tick S + 1; quake damage and path toggles happen on tick S itself.
+//  10. vision recompute (VisionSystem.Recompute: per-team visible and explored grids; fog_of_war.md step 7)
+//  11. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+//  12. advance the clock
 // Start also runs one vision recompute after the mechanics' OnMatchStart, so tick 0 has vision. Combat reads the vision of the
 // previous tick's end (a one-tick delay) plus the sight of units spawned this tick (SpawnUnit stamps them at once, so a new unit
 // can fight on its spawn tick); the hash reads the end of this tick.
@@ -26,6 +30,7 @@ using System.Collections.Generic;
 using Rts.Sim.Combat;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
+using Rts.Sim.Cycles;
 using Rts.Sim.Data;
 using Rts.Sim.Economy;
 using Rts.Sim.Events;
@@ -83,6 +88,9 @@ namespace Rts.Sim
 
         /// <summary>Live resource fields: what each field of the map still holds. Hashed (remaining amounts, ascending field index).</summary>
         public ResourceFields Resources { get; }
+
+        /// <summary>Planetary Cycles, quake paths and Core capture (planetary_cycles.md). Runs as step 9; hashed after the resource fields.</summary>
+        public CycleSystem Cycles { get; }
 
         /// <summary>Flow-field cache for ground and water movement (ADR-007). Not hashed: a pure function of terrain.</summary>
         public FlowFieldCache Pathing { get; }
@@ -172,6 +180,7 @@ namespace Rts.Sim
             Terrain = new TerrainGrid(Map, Tuning.Terrain, Tuning.Flood);
             Vision = new VisionSystem(Terrain, Players, Units);
             Resources = new ResourceFields(Map);
+            Cycles = new CycleSystem(Map, config.Cycles, Clock, Players, Tuning.Match);
             Pathing = new FlowFieldCache(Terrain, Tuning.Terrain.MaxCachedFlowFields);
             _mechanicRegistry = config.Mechanics;
         }
@@ -196,11 +205,17 @@ namespace Rts.Sim
             StatusRates.Validate(Tuning.Status, this);
             // No definition may change once the match is running; the digest below would otherwise go stale.
             Content.Freeze();
-            // Content digest covers definitions, the tuning texts and the map, so mismatched data shows at tick 0.
+            // Content digest covers definitions, the tuning texts, the map and the cycle definitions, so mismatched data shows at tick 0.
             StateHasher digestHasher = new StateHasher();
             digestHasher.Write(Content.ComputeDigest());
             digestHasher.Write(Tuning.SourceDigest);
             Map.WriteHash(digestHasher);
+            // Cycle definitions after the map: the count, then each definition in ascending ID order.
+            digestHasher.Write(Cycles.Definitions.Count);
+            foreach (CycleDefinition cycle in Cycles.Definitions)
+            {
+                cycle.WriteHash(digestHasher);
+            }
             ContentDigest = digestHasher.Hash;
             // Mechanic IDs needed, collected in ordinal order so creation order is deterministic.
             SortedSet<string> mechanicIds = new SortedSet<string>(StringComparer.Ordinal);
@@ -231,6 +246,9 @@ namespace Rts.Sim
                 // Economy: starting stock, first supply figures and the carrying speed modifier.
                 EconomySystem.RegisterModifiers(this);
                 EconomySystem.OnMatchStart(this);
+                // Planetary Cycles: the cycle speed and damage modifiers (always registered), the tick values and the starting quake paths.
+                Cycles.RegisterModifiers(this);
+                Cycles.OnMatchStart(this);
                 // Tick 0 vision: units placed by mechanics at match start already see their surroundings.
                 Vision.Recompute();
             }
@@ -351,7 +369,7 @@ namespace Rts.Sim
             Commands.Enqueue(command);
         }
 
-        /// <summary>Runs one tick: commands, movement, combat, mechanics, hash, then advances the clock.</summary>
+        /// <summary>Runs one tick: commands, statuses, HQ timers, movement, combat, economy, mechanics, cycles and Core, vision, hash, then advances the clock.</summary>
         public void Step()
         {
             if (!IsStarted)
@@ -379,6 +397,7 @@ namespace Rts.Sim
                 {
                     mechanic.OnTick(this);
                 }
+                Cycles.Step(this);
                 Vision.Recompute();
                 if (tick % Settings.StateHashIntervalTicks == 0)
                 {
@@ -454,7 +473,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
-        /// terrain, vision, resource fields, mechanics, damage modifier IDs, speed modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
+        /// terrain, vision, resource fields, cycles and Core, mechanics, damage modifier IDs, speed modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
@@ -468,6 +487,7 @@ namespace Rts.Sim
             Terrain.WriteHash(_hasher);
             Vision.WriteHash(_hasher);
             Resources.WriteHash(_hasher);
+            Cycles.WriteHash(_hasher);
             _hasher.Write(_mechanics.Count);
             foreach (KeyValuePair<string, IFactionMechanic> pair in _mechanics)
             {

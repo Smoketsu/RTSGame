@@ -10,6 +10,9 @@
 // later campaign missions) live there and are parsed by CommandScript, not by this loader. Everything else is strict:
 // unknown folders, unknown keys, missing keys, wrong types, out-of-range values, dangling references and a
 // $schema_version other than 1 are all errors; nothing else is silently ignored.
+// Line endings: every file's text is normalised first (CRLF and a lone CR become LF) and everything after that, including the
+// tuning hash that goes into Simulation.ContentDigest, reads the normalised text. A Windows checkout that turned the data
+// files into CRLF therefore loads, hashes and simulates exactly like the LF original.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -67,7 +70,8 @@ namespace Rts.Sim.Data
                 {
                     throw new DataValidationException(file.Path, string.Empty, "appears twice in the file list");
                 }
-                byPath.Add(file.Path, file);
+                // The file with its text in LF form; the loader and the tuning hash only ever see this copy.
+                byPath.Add(file.Path, new DataSourceFile(file.Path, NormaliseLineEndings(file.Text)));
             }
 
             // Parsed tuning roots by path.
@@ -78,6 +82,8 @@ namespace Rts.Sim.Data
             SortedDictionary<string, MapDefinition> maps = new SortedDictionary<string, MapDefinition>(StringComparer.Ordinal);
             // Cycle definitions by ID, in ordinal ID order.
             SortedDictionary<string, CycleDefinition> cycles = new SortedDictionary<string, CycleDefinition>(StringComparer.Ordinal);
+            // Data file each cycle came from, by cycle ID, for the whole-folder play-style check.
+            SortedDictionary<string, string> cycleFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
             // Unit ID mapped to the data file that defined it, for cross-reference errors.
             SortedDictionary<string, string> unitFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
             // Faction file roots by faction ID, kept for the unit-list reference check.
@@ -149,6 +155,7 @@ namespace Rts.Sim.Data
                             // Cycle definition read from this file. Range: validated by ReadCycle.
                             CycleDefinition cycle = ReadCycle(root, path, parts);
                             cycles.Add(cycle.Id, cycle);
+                            cycleFiles.Add(cycle.Id, path);
                             break;
                         }
                     case AiFolder:
@@ -165,6 +172,7 @@ namespace Rts.Sim.Data
                 }
             }
 
+            CheckCycleSet(cycles, cycleFiles);
             // Typed tuning built from every tuning file together. Range: every tuning file present.
             Tuning tuning = BuildTuning(tuningRoots);
             // Digest of the tuning texts in ordinal path order, so any tuning edit changes the content digest.
@@ -181,6 +189,20 @@ namespace Rts.Sim.Data
         }
 
         // ---------------------------------------------------------------- shared checks
+
+        /// <summary>
+        /// Converts every CRLF pair and every lone CR to LF, so the same data gives the same text (and the same tuning hash) whether
+        /// the checkout used Windows or Unix line endings. Text without a CR is returned as is.
+        /// </summary>
+        /// <param name="text">File text in any line-ending style. Not null.</param>
+        internal static string NormaliseLineEndings(string text)
+        {
+            if (text.IndexOf('\r') < 0)
+            {
+                return text;
+            }
+            return text.Replace("\r\n", "\n").Replace('\r', '\n');
+        }
 
         /// <summary>Checks the root is an object with a supported $schema_version and a non-empty $doc.</summary>
         private static void CheckHeader(JsonValue root)
@@ -486,7 +508,7 @@ namespace Rts.Sim.Data
         private static MapDefinition ReadMap(JsonValue root, string path, string[] parts)
         {
             CheckDepth(path, parts, 2, "maps/<id>.json");
-            root.RejectUnknownKeys("id", "display_name", "width_tiles", "height_tiles", "spawns", "height_rows", "ramp_rows", "resource_fields", "core");
+            root.RejectUnknownKeys("id", "display_name", "width_tiles", "height_tiles", "spawns", "height_rows", "ramp_rows", "resource_fields", "core", "quake_paths");
             // Map ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
             // Map display name. Range: non-empty string.
@@ -526,6 +548,8 @@ namespace Rts.Sim.Data
             List<ResourceField> fields = ReadResourceFields(root, width, height);
             // The Core, or null when absent.
             CoreArea? core = ReadCore(root, width, height);
+            // Quake paths in file order; empty when absent.
+            List<QuakePath> quakePaths = ReadQuakePaths(root, path, width, height, fields);
             // Spawns and fields must sit on unblocked tiles: blockers are not authored in Phase 1, so only bounds apply.
             foreach (FixVec2 spawn in spawns)
             {
@@ -534,7 +558,7 @@ namespace Rts.Sim.Data
                     throw root.Require("spawns").Fail("has a spawn on the far edge (" + spawn + "); spawns must be strictly inside the map");
                 }
             }
-            return new MapDefinition(id, displayName, width, height, spawns, heights, ramps, fields, core);
+            return new MapDefinition(id, displayName, width, height, spawns, heights, ramps, fields, core, quakePaths);
         }
 
         /// <summary>Reads height_rows: one string per row (row 0 is y = 0), one digit 0 to 7 per tile. Returns null when absent.</summary>
@@ -663,13 +687,98 @@ namespace Rts.Sim.Data
             return new CoreArea(new FixVec2(x, y), radius);
         }
 
+        /// <summary>
+        /// Reads quake_paths: up to 16 objects with a unique snake_case id, closed_outside_quake and 1 to 64 tiles. Tiles must lie
+        /// on the map, appear once in the whole list and not sit on a resource field. Empty when the key is absent.
+        /// </summary>
+        /// <param name="root">The map file's root object.</param>
+        /// <param name="mapPath">Data-root-relative path of the map file, for messages that name the map.</param>
+        /// <param name="width">Map width. Unit: tiles. Range: 8 to 1024.</param>
+        /// <param name="height">Map height. Unit: tiles. Range: 8 to 1024.</param>
+        /// <param name="fields">Resource fields of the map, which no path tile may cover.</param>
+        private static List<QuakePath> ReadQuakePaths(JsonValue root, string mapPath, int width, int height, List<ResourceField> fields)
+        {
+            List<QuakePath> paths = new List<QuakePath>();
+            if (!root.TryGetMember("quake_paths", out JsonValue? node))
+            {
+                return paths;
+            }
+            // Path objects in file order. Range: 0 to QuakePath.MaxPaths entries.
+            IReadOnlyList<JsonValue> items = node.Items;
+            if (items.Count > QuakePath.MaxPaths)
+            {
+                throw node.Fail("must list at most " + QuakePath.MaxPaths + " paths (found " + items.Count + ")");
+            }
+            // Path IDs seen so far, to reject duplicates.
+            SortedSet<string> ids = new SortedSet<string>(StringComparer.Ordinal);
+            // Tile indexes already used by an earlier path or an earlier tile of this one.
+            SortedSet<int> used = new SortedSet<int>();
+            // Tile indexes of the resource fields, which no path may cover.
+            SortedSet<int> fieldTiles = new SortedSet<int>();
+            foreach (ResourceField field in fields)
+            {
+                fieldTiles.Add(field.Y * width + field.X);
+            }
+            foreach (JsonValue item in items)
+            {
+                item.RejectUnknownKeys("id", "closed_outside_quake", "tiles");
+                // Path ID as written. Range: lower-case letters, numerals and underscores, unique in the map.
+                string id = item.RequireNonEmptyString("id");
+                // Character index while checking the ID. Unit: characters. Range: 0 to id length - 1.
+                for (int i = 0; i < id.Length; i++)
+                {
+                    // Character being checked.
+                    char c = id[i];
+                    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+                    {
+                        throw item.Require("id").Fail("may only contain lower-case letters, numerals and underscores (found '" + id + "')");
+                    }
+                }
+                if (!ids.Add(id))
+                {
+                    throw item.Require("id").Fail("repeats the path id '" + id + "'");
+                }
+                // True when the path is walled outside a Quake and opens during one.
+                bool closedOutside = item.RequireBool("closed_outside_quake");
+                // Tile objects in file order. Range: 1 to QuakePath.MaxTiles entries.
+                IReadOnlyList<JsonValue> tileNodes = item.RequireArray("tiles");
+                if (tileNodes.Count < 1 || tileNodes.Count > QuakePath.MaxTiles)
+                {
+                    throw item.Require("tiles").Fail("must list 1 to " + QuakePath.MaxTiles + " tiles (found " + tileNodes.Count + ")");
+                }
+                // Tile indexes of this path in file order.
+                List<int> tiles = new List<int>();
+                foreach (JsonValue tileNode in tileNodes)
+                {
+                    tileNode.RejectUnknownKeys("x", "y");
+                    // Tile column. Unit: tiles. Range: 0 to width - 1.
+                    int x = tileNode.RequireInt("x", 0, width - 1);
+                    // Tile row. Unit: tiles. Range: 0 to height - 1.
+                    int y = tileNode.RequireInt("y", 0, height - 1);
+                    // Row-major tile index. Unit: tile index. Range: 0 to width * height - 1.
+                    int index = y * width + x;
+                    if (!used.Add(index))
+                    {
+                        throw tileNode.Fail("repeats the tile (" + x + ", " + y + "), which is already in a quake path");
+                    }
+                    if (fieldTiles.Contains(index))
+                    {
+                        throw tileNode.Fail("covers the resource field at (" + x + ", " + y + "); " + mapPath + " may not wall off a field");
+                    }
+                    tiles.Add(index);
+                }
+                paths.Add(new QuakePath(id, closedOutside, tiles));
+            }
+            return paths;
+        }
+
         // ---------------------------------------------------------------- cycles
 
         /// <summary>Reads cycles/&lt;id&gt;.json.</summary>
         private static CycleDefinition ReadCycle(JsonValue root, string path, string[] parts)
         {
             CheckDepth(path, parts, 2, "cycles/<id>.json");
-            root.RejectUnknownKeys("id", "display_name", "favours", "description");
+            root.RejectUnknownKeys("id", "display_name", "favours", "description", "effects");
             // Cycle ID taken from the file name. Range: lower-case letters, digits and underscores.
             string id = ReadId(root, StemOf(parts), false);
             // Cycle display name. Range: non-empty string.
@@ -688,7 +797,53 @@ namespace Rts.Sim.Data
             }
             // Description text from the file. Range: non-empty string.
             string description = root.RequireNonEmptyString("description");
-            return new CycleDefinition(id, displayName, favours, description);
+            return new CycleDefinition(id, displayName, favours, description, ReadCycleEffects(root.Require("effects")));
+        }
+
+        /// <summary>Reads the effects object of a cycle file; every key is required so a typo cannot hide behind a default.</summary>
+        /// <param name="node">The effects object.</param>
+        private static CycleEffects ReadCycleEffects(JsonValue node)
+        {
+            node.RejectUnknownKeys("air_speed_multiplier", "surface_ranged_range_bonus_tiles", "defence_damage_per_second_fraction",
+                "defence_damage_min_health_fraction", "toggles_quake_paths", "core_damage_multiplier", "core_effect_radius_tiles");
+            return new CycleEffects(
+                node.RequireFix64("air_speed_multiplier", "0.5", "2"),
+                node.RequireFix64("surface_ranged_range_bonus_tiles", "-4", "4"),
+                node.RequireFix64("defence_damage_per_second_fraction", "0", "0.05"),
+                node.RequireFix64("defence_damage_min_health_fraction", "0", "1"),
+                node.RequireBool("toggles_quake_paths"),
+                node.RequireFix64("core_damage_multiplier", "1", "3"),
+                node.RequireFix64("core_effect_radius_tiles", "0", "32"));
+        }
+
+        /// <summary>
+        /// Checks the cycles folder as a whole: when any cycle file exists, at least two distinct favoured play styles must exist,
+        /// so the no-repeat rule can always pick a next cycle. The error names the first cycle file in ordinal path order.
+        /// </summary>
+        /// <param name="cycles">Loaded cycles by ID.</param>
+        /// <param name="cycleFiles">Data file of each cycle, by cycle ID.</param>
+        private static void CheckCycleSet(SortedDictionary<string, CycleDefinition> cycles, SortedDictionary<string, string> cycleFiles)
+        {
+            if (cycles.Count == 0)
+            {
+                return;
+            }
+            // Distinct favoured play styles found. Range: 1 to 3.
+            SortedSet<CycleFavour> styles = new SortedSet<CycleFavour>();
+            // Cycle file path that sorts first in ordinal order (file name equals ID, so IDs sort like paths).
+            string firstFile = string.Empty;
+            foreach (KeyValuePair<string, CycleDefinition> pair in cycles)
+            {
+                styles.Add(pair.Value.Favours);
+                if (firstFile.Length == 0)
+                {
+                    firstFile = cycleFiles[pair.Key];
+                }
+            }
+            if (styles.Count < 2)
+            {
+                throw new DataValidationException(firstFile, string.Empty, "cycles: at least two play styles are needed so the no-repeat rule can always pick");
+            }
         }
     }
 }

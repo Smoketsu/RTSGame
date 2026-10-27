@@ -141,7 +141,7 @@ namespace Rts.Replay.Tests
         {
             // Match inputs from the data set and the script.
             SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(script.Seed), data.Content, script.Players,
-                BuiltInMechanics.CreateRegistry(), data.Tuning, data.RequireMap(script.MapId));
+                BuiltInMechanics.CreateRegistry(), data.Tuning, data.RequireMap(script.MapId), data.Cycles.Values);
             Simulation sim = new Simulation(config);
             sim.Start();
             return sim;

@@ -8,6 +8,10 @@
 //      army units were last seen, mark enemy spawns seen empty, drop old damage reports. (Runs even without an own HQ.)
 //   1. HQ: an Uprooted HQ that is not moving and stands next to a field with resources is rooted. Otherwise the HQ is left alone
 //      (Phase 1: the HQ stays Rooted; no relocation).
+//   1b. Cycle (planetary_cycles.md section 5; the spec numbers it rule 9): when the AI's team holds the Core, the next cycle is not
+//      locked yet and the pending pick is not already the AI's choice, pick the first cycle of the faction's cycle_preference that is
+//      allowed next (the first allowed cycle when none of the preferences is). With rally_at_core the Massing rally point is the Core
+//      centre while the Core exists and the AI's team does not hold it.
 //   2. Workers gather: each idle worker (no gather loop, no move or attack-move order), ascending ID, goes to the nearest field
 //      with resources within field_max_distance_tiles of the HQ that has fewer than workers_per_field workers (else the nearest
 //      such field at all). Only while the HQ is Rooted (it is the drop-off).
@@ -92,6 +96,7 @@ namespace Rts.Ai
             // This think's working state (ledger, reservations, intents).
             Turn turn = new Turn(view, profile, plan, memory, rng, hq, intents);
             turn.RootHq();
+            turn.Cycle();
             turn.Gather();
             turn.Structures();
             turn.TrainWorkers();
@@ -390,6 +395,29 @@ namespace Rts.Ai
                 _common -= definition.CostCommon;
                 _rare -= definition.CostRare;
                 _supplyUsed += _view.SupplyOf(definition);
+            }
+
+            /// <summary>Rule 1b: the Core holder picks the next Planetary Cycle (see the class header).</summary>
+            public void Cycle()
+            {
+                if (!_view.HasCycles || !_view.OwnTeamHoldsCore || _view.IsNextCycleLocked || _view.AllowedNextCycleIds.Count == 0)
+                {
+                    return;
+                }
+                // The cycle the AI wants: the first preference that is allowed next, else the first allowed cycle.
+                string choice = _view.AllowedNextCycleIds[0];
+                foreach (string preferred in _plan.CyclePreference)
+                {
+                    if (Contains(_view.AllowedNextCycleIds, preferred))
+                    {
+                        choice = preferred;
+                        break;
+                    }
+                }
+                if (!string.Equals(_view.PendingPickId, choice, StringComparison.Ordinal))
+                {
+                    Emit(AiIntent.PickCycle(choice));
+                }
             }
 
             /// <summary>Rule 1: roots an Uprooted, idle HQ that stands next to a field with resources.</summary>
@@ -1187,9 +1215,14 @@ namespace Rts.Ai
                 return best >= 0;
             }
 
-            /// <summary>Where the massing army waits: rally_distance_tiles from the HQ toward the attack target (or the HQ itself).</summary>
+            /// <summary>Where the massing army waits: the Core centre when rally_at_core applies, else rally_distance_tiles from the HQ toward the attack target (or the HQ itself).</summary>
             private FixVec2 RallyPoint()
             {
+                if (_profile.RallyAtCore && _view.HasCore && !_view.OwnTeamHoldsCore)
+                {
+                    // Take and hold the Core: the massing army waits at its centre.
+                    return Standable(_view.CoreCentre);
+                }
                 if (!TryChooseTarget(out FixVec2 toward))
                 {
                     return Standable(_hq.Position);

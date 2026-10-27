@@ -428,9 +428,11 @@ namespace Rts.Sim.Tests.Combat
             };
             Simulation sim = new Simulation(new SimulationConfig(new MatchSettings(1, TestWorld.TicksPerSecond, TestWorld.HashInterval), catalog, players, registry, TestWorld.Tuning, TestWorld.FlatMap()));
             sim.Start();
-            Assert.That(sim.DamageModifiers.Count, Is.EqualTo(2));
+            // The cycle system always registers its "cycle" damage modifier (a no-op here: no Core, no cycles), between the two test ones.
+            Assert.That(sim.DamageModifiers.Count, Is.EqualTo(3));
             Assert.That(sim.DamageModifiers[0].Id, Is.EqualTo("a_double"));
-            Assert.That(sim.DamageModifiers[1].Id, Is.EqualTo("z_half_more"));
+            Assert.That(sim.DamageModifiers[1].Id, Is.EqualTo("cycle"));
+            Assert.That(sim.DamageModifiers[2].Id, Is.EqualTo("z_half_more"));
             EntityId victim = Spawn(sim, TestWorld.GlassId, P1, 3, 0);
             EntityId shooter = Spawn(sim, TestWorld.ShooterId, P0, 0, 0);
             // Glass has 15 health and light armour: 10 x 2 x 1.5 = 30 kills it in one hit.

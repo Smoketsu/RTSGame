@@ -89,7 +89,7 @@ namespace Rts.Net.Tests
             CommandScript script = AiVsAi;
             // The simulation under test.
             Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(script.Seed), Data.Content, script.Players,
-                BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap(script.MapId)));
+                BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap(script.MapId), Data.Cycles.Values));
             sim.Start();
             foreach (Command command in script.Commands)
             {

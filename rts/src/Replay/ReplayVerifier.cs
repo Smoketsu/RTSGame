@@ -73,7 +73,7 @@ namespace Rts.Replay
             }
             // Match inputs built from the replay header and the data set.
             SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(replay.Seed), data.Content, replay.Players,
-                BuiltInMechanics.CreateRegistry(), data.Tuning, map);
+                BuiltInMechanics.CreateRegistry(), data.Tuning, map, data.Cycles.Values);
             Simulation sim = new Simulation(config);
             sim.Start();
             return sim;

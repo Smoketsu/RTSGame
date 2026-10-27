@@ -38,7 +38,8 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 
 ## Rules (each think, in this order)
 
-Intel, root an Uprooted HQ next to a field, idle workers to the nearest field under `workers_per_field`, supply structure and build
+Intel, root an Uprooted HQ next to a field, the cycle pick (the Core holder picks the first allowed cycle of the faction's `cycle_preference`
+once per cycle; with `rally_at_core` the massing army rallies at the Core centre while the AI's team does not hold it), idle workers to the nearest field under `workers_per_field`, supply structure and build
 order (cost reserved when due but unaffordable), worker training (ignores reservations), production by largest composition deficit,
 then the army: Defend (visible enemy army or a recent hit inside the base), Massing (rally point, attack at the drawn threshold within
 the tide window), Attack (staging point short of the target, then attack-move; focus fire on visible enemy army units in reach; siege an
@@ -67,6 +68,9 @@ determinism review.
   fire, the siege rule and all-in were needed so AI-versus-AI on `greybox_1v1` (3000 common per side, then the mains are empty) ends
   inside the 6000-tick exit run instead of stalling against the defender's HQ.
 - `AttackUnitCommand` is used (focus fire and siege), only ever on an enemy the team sees on that think.
+- Phase 2 (planetary_cycles.md section 5): the root key `rally_at_core`, the per-faction `cycle_preference` list (every cycle ID, most wanted
+  first; validated against `rts/data/cycles` when the profile comes from `AiProfile.FromDataSet`), the `PickCycle` intent and the cycle and
+  Core fields of `AiWorldView`. Damage with no attacker (a Quake on an own defence) is not recorded as a hit, so it never triggers Defend.
 - Profiles are loaded through the `ai/` route of `DataLoader` (`DataSet.AiProfiles`) and validated here; script player entries may
   name a profile with `"ai"`, and the harness has `--ai <slot>:<profile>`.
 - Tests live in `rts/tests/Sim.Tests/Ai/` (the existing NUnit project references `Rts.Ai`) rather than a separate `Ai.Tests` project.

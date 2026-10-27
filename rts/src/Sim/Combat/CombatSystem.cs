@@ -9,7 +9,8 @@
 //   * Order of work per unit: tick the weapon cooldown down, resolve a target, fire if in range and ready, then
 //     steer an attack-move order.
 //   * Reach: a target is in range when centre distance minus both radii is at most the range, i.e. the centre
-//     distance is at most range + attackerRadius + targetRadius (compared squared).
+//     distance is at most range + attackerRadius + targetRadius (compared squared). The range is the weapon's, changed by
+//     the active Planetary Cycle for surface ranged units (CycleSystem.EffectiveRangeTiles, Windstorm), for both fire and acquire reach.
 //   * Targets: an alive unit of an enemy player (PlayerRegistry.AreEnemies; neutral units are never enemies) on a
 //     movement layer the weapon can hit. Allies are never targeted.
 //   * Acquisition: an unforced target is kept while it stays valid, within range (plus the acquire bonus for
@@ -127,10 +128,12 @@ namespace Rts.Sim.Combat
             {
                 // Extra reach for noticing and keeping targets. Unit: tiles. Range: 0 or the acquire bonus.
                 Fix64 bonus = unit.IsAttackMoving ? rules.AcquireRangeBonusTiles : Fix64.Zero;
-                target = ResolveTarget(sim, unit, weapon, bonus);
+                // Weapon range after the active cycle's effect (Windstorm). Unit: tiles. Range: 1.5 or more for a ranged weapon.
+                Fix64 range = sim.Cycles.EffectiveRangeTiles(unit, weapon);
+                target = ResolveTarget(sim, unit, weapon, range, bonus);
                 if (target != null)
                 {
-                    if (InReach(unit, target, weapon.RangeTiles))
+                    if (InReach(unit, target, range))
                     {
                         if (unit.IsAttackMoving && unit.HasMoveTarget)
                         {
@@ -212,11 +215,12 @@ namespace Rts.Sim.Combat
         /// Keeps the current target while it stays valid and in reach, otherwise acquires the nearest valid enemy
         /// within reach (ties to the lowest ID). Updates <see cref="Unit.AttackTarget"/> and returns the target or null.
         /// </summary>
+        /// <param name="range">The weapon's effective range this tick (after the cycle effect). Unit: tiles. Range: above 0.</param>
         /// <param name="bonus">Extra reach beyond weapon range. Unit: tiles. Range: 0 or the acquire bonus.</param>
-        private static Unit? ResolveTarget(Simulation sim, Unit unit, WeaponDefinition weapon, Fix64 bonus)
+        private static Unit? ResolveTarget(Simulation sim, Unit unit, WeaponDefinition weapon, Fix64 range, Fix64 bonus)
         {
-            // Largest centre-gap-minus-radii distance at which a target is kept or taken. Unit: tiles. Range: weapon range plus bonus.
-            Fix64 acquireRange = weapon.RangeTiles + bonus;
+            // Largest centre-gap-minus-radii distance at which a target is kept or taken. Unit: tiles. Range: effective range plus bonus.
+            Fix64 acquireRange = range + bonus;
             if (unit.AttackTarget.IsValid)
             {
                 if (sim.Units.TryGet(unit.AttackTarget, out Unit? current) && IsValidTarget(sim, unit, weapon, current)

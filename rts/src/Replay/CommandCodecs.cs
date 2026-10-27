@@ -233,6 +233,11 @@ namespace Rts.Replay
                     return new ApplyStatusCommand(tick, issuer, seq, unit, (StatusKind)statusByte, multiplier, duration, r.ReadString());
                 }));
 
+            // pick_cycle: cycle ID string.
+            registry.Register(new CommandCodec<PickCycleCommand>("pick_cycle",
+                (w, c) => w.WriteString(c.CycleId),
+                (r, tick, issuer, seq) => new PickCycleCommand(tick, issuer, seq, r.ReadString())));
+
             // surrender: surrendering player byte.
             registry.Register(new CommandCodec<SurrenderCommand>("surrender",
                 (w, c) => w.WritePlayer(c.Player),

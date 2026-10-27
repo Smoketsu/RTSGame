@@ -1,10 +1,12 @@
-<!-- rts/src/Sim/Cycles/README.md: placeholder for Planetary Cycles, Core capture and the FFA Core win, all on the match clock; not built yet. -->
-# Cycles (Phase 2 placeholder)
+<!-- rts/src/Sim/Cycles/README.md: Planetary Cycles, quake paths, Core capture and the cumulative Core win, all on the match clock (spec: rts/docs/specs/planetary_cycles.md). -->
+# Cycles (`sim.Cycles`)
 
-Not built yet. Phase 2 (Vertical slice, Apr-Jun 2027) adds here:
+Built in Phase 2. One match clock drives everything here (architecture rule 6); all timings are whole ticks converted once at match start from `rts/data/tuning/match.json`.
 
-- Planetary Cycles every 240 s, with a 60 s warning before each one.
-- Core capture, which takes 20 s.
-- FFA Core win at 8 cumulative minutes (480 s) on the match clock.
+- **Planetary Cycles.** The planet shifts every `planetary_cycle_interval_seconds` (240 s = 4800 ticks); the next cycle is locked and announced `planetary_cycle_warning_seconds` (60 s) before each shift. The first cycle starts at tick 4800. The three shipped cycles (`rts/data/cycles`) are Windstorm (flyers faster, surface ranged units lose range), Quake (static defences take damage down to a floor, quake paths flip) and Core surge (attackers near the Core hit harder); their numbers are the `effects` object of each cycle file. The same play style never comes twice in a row.
+- **Core capture.** A team that keeps a mobile unit alone inside the map's Core radius for `core_capture_seconds` (20 s = 400 ticks) becomes the holder. A contest freezes progress, leaving resets it, a different lone team restarts from zero, and the holder blocks everyone while present. The holder (any Active player of the holding team) chooses the next cycle with `pick_cycle` before the lock; with no valid pick the generator chooses (one `Rng.NextInt` per lock).
+- **Core win.** With at least `core_win_min_teams` (3) teams, cumulative uncontested holding for `ffa_core_win_cumulative_seconds` (480 s = 9600 ticks) wins: every player not on the holding team is Defeated with cause `core_held`.
+- **Quake paths.** Optional tile groups in a map file that are walled outside a Quake (or the reverse) and flip while a cycle with `toggles_quake_paths` is active. Units standing on a tile that closes are moved to the nearest standable tile within `quake_path_relocate_radius_tiles`.
+- **Matches without cycles.** `SimulationConfig` takes an optional cycle list (hosts pass `DataSet.Cycles.Values`); without it there are no cycle events and `pick_cycle` is rejected `cycles_disabled`, but Core capture still runs.
 
-All timings run on the match clock, in ticks, not on wall-clock time. Values are in `rts/data/tuning/match.json`.
+Files: `CycleSystem.cs` (state, step, hash, read API for the UI, AI and campaign), `CycleRules.cs` (pure schedule maths, the counting rule and the capture state machine), `CycleModifiers.cs` (the `cycle` speed and damage modifiers). The step runs as step 9 of `Simulation.Step`. Everything that changes later ticks is in `CycleSystem.WriteHash`.

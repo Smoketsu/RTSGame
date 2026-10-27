@@ -7,11 +7,13 @@
 // simulation and changes nothing (no RNG draw, no mutation), so the state hash is unaffected.
 // Differences from the spec's proposed read API: economy is read from Player (Common, Rare, SupplyUsed, SupplyCap), fields from
 // sim.Resources, the HQ state from Unit.HqState, orders from Unit.HasMoveTarget / IsAttackMoving / GatherState, and the tide
-// level is the 0-to-1 triangle of TideClock over tide_cycle_seconds.
+// level is the 0-to-1 triangle of TideClock over tide_cycle_seconds. Phase 2 adds the public Planetary Cycle and Core state
+// (planetary_cycles.md section 5: the active and next cycle, the pending pick, the allowed next cycles, who holds and captures the Core).
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
 using Rts.Sim.Core;
+using Rts.Sim.Cycles;
 using Rts.Sim.Data;
 using Rts.Sim.Economy;
 using Rts.Sim.Teams;
@@ -212,6 +214,57 @@ namespace Rts.Ai
         /// <summary>Tide level: 0 at low tide, 1 at high tide (triangle over tide_cycle_seconds). Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 TideLevel { get; private set; }
 
+        /// <summary>True when the match has Planetary Cycles.</summary>
+        public bool HasCycles { get; internal set; }
+
+        /// <summary>ID of the cycle in force, or empty before the first shift.</summary>
+        public string ActiveCycleId { get; internal set; } = string.Empty;
+
+        /// <summary>ID of the locked next cycle, or empty until the lock tick.</summary>
+        public string NextCycleId { get; internal set; } = string.Empty;
+
+        /// <summary>True from the lock tick to the shift tick; picks are refused meanwhile.</summary>
+        public bool IsNextCycleLocked { get; internal set; }
+
+        /// <summary>ID of the accepted pick waiting for the lock, or empty.</summary>
+        public string PendingPickId { get; internal set; } = string.Empty;
+
+        /// <summary>IDs of the cycles that may start next (no repeated play style), ascending.</summary>
+        public IReadOnlyList<string> AllowedNextCycleIds { get; internal set; } = Array.Empty<string>();
+
+        /// <summary>The next shift that has not happened yet. Unit: ticks. Range: 0 when the match has no cycles.</summary>
+        public int NextShiftTick { get; internal set; }
+
+        /// <summary>True when the map has a Core.</summary>
+        public bool HasCore { get; internal set; }
+
+        /// <summary>Centre of the Core. Unit: tiles. Meaningless without a Core.</summary>
+        public FixVec2 CoreCentre { get; internal set; }
+
+        /// <summary>Capture radius of the Core. Unit: tiles. Range: 1 to 32; meaningless without a Core.</summary>
+        public Fix64 CoreRadiusTiles { get; internal set; }
+
+        /// <summary>The team holding the Core, or None.</summary>
+        public TeamId CoreHolder { get; internal set; } = TeamId.None;
+
+        /// <summary>The team currently capturing the Core, or None.</summary>
+        public TeamId CoreCaptureTeam { get; internal set; } = TeamId.None;
+
+        /// <summary>Counted ticks of the capturing team. Unit: ticks. Range: 0 to capture ticks - 1.</summary>
+        public int CoreCaptureProgressTicks { get; internal set; }
+
+        /// <summary>True while two or more teams stand in the Core.</summary>
+        public bool IsCoreContested { get; internal set; }
+
+        /// <summary>The AI team's cumulative hold time. Unit: ticks. Range: 0 to the win time.</summary>
+        public int OwnHoldTicks { get; internal set; }
+
+        /// <summary>Hold time that wins the match when the Core win is on. Unit: ticks. Range: 1 upward.</summary>
+        public int CoreWinTicks { get; internal set; }
+
+        /// <summary>True when the AI's team is the Core holder.</summary>
+        public bool OwnTeamHoldsCore => Team.IsValid && CoreHolder == Team;
+
         /// <summary>Own units in ascending ID order.</summary>
         public IReadOnlyList<AiUnitView> OwnUnits { get; private set; } = Array.Empty<AiUnitView>();
 
@@ -290,6 +343,37 @@ namespace Rts.Ai
             // Tide cycle length. Unit: ticks. Range: 2 upward.
             int tideTicks = Math.Max(2, sim.Tuning.Match.TideCycleTicks(sim.Clock));
             view.TideLevel = Fix64.FromInt(TideClock.Triangle(sim.Clock.Tick, tideTicks)) / Fix64.FromInt(tideTicks);
+
+            // Planetary Cycle and Core state: all public information.
+            CycleSystem cycles = sim.Cycles;
+            view.HasCycles = cycles.IsEnabled;
+            view.ActiveCycleId = cycles.ActiveCycleId;
+            view.NextCycleId = cycles.NextCycleId;
+            view.IsNextCycleLocked = cycles.IsNextLocked;
+            view.PendingPickId = cycles.PendingPickId;
+            view.NextShiftTick = cycles.NextShiftTick;
+            // Allowed next cycle IDs in ascending order.
+            List<string> allowedIds = new List<string>();
+            if (cycles.IsEnabled)
+            {
+                foreach (CycleDefinition allowed in cycles.AllowedNextCycles())
+                {
+                    allowedIds.Add(allowed.Id);
+                }
+            }
+            view.AllowedNextCycleIds = allowedIds.AsReadOnly();
+            view.HasCore = sim.Map.Core != null;
+            if (sim.Map.Core != null)
+            {
+                view.CoreCentre = sim.Map.Core.Centre;
+                view.CoreRadiusTiles = sim.Map.Core.RadiusTiles;
+            }
+            view.CoreHolder = cycles.Holder;
+            view.CoreCaptureTeam = cycles.CaptureTeam;
+            view.CoreCaptureProgressTicks = cycles.CaptureProgressTicks;
+            view.IsCoreContested = cycles.IsContested;
+            view.OwnHoldTicks = cycles.HoldTicks(self.Team);
+            view.CoreWinTicks = cycles.WinTicks;
 
             // The live terrain grid (read only).
             TerrainGrid terrain = sim.Terrain;

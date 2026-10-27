@@ -35,9 +35,10 @@ Unity writes a `.meta` file next to every file and folder here when the project 
 6. combat (`CombatSystem`: cooldowns, targeting, damage, deaths; units in ascending ID order)
 7. economy (`EconomySystem`: worker gather loops, production queues, construction, supply; units in ascending ID order)
 8. faction mechanics in ascending mechanic ID order
-9. vision recompute (`VisionSystem.Recompute`: per-team visible and explored grids; `Start` runs it once too, so tick 0 has vision)
-10. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-11. advance the clock
+9. cycles and Core (`CycleSystem.Step`: a holder or capturer that left the match, who stands in the Core, the capture state machine, hold accrual, the cumulative Core win, the lock of the next Planetary Cycle, the shift and quake paths, quake damage). A cycle that shifts on tick S is read by movement and combat from tick S + 1.
+10. vision recompute (`VisionSystem.Recompute`: per-team visible and explored grids; `Start` runs it once too, so tick 0 has vision)
+11. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+12. advance the clock
 
 The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, read `Events.Current`, repeat. `Submit` is rejected inside a step and for ticks already played.
 
@@ -67,7 +68,7 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | `Combat/` | `CombatSystem` (targeting, attack-move, cooldowns, damage, death, run after movement each tick), `CombatRules` (damage and armour table from `tuning/combat.json`), `IDamageModifier` (hook for mechanics such as Momentum). |
 | `Economy/` | `EconomySystem` (worker gather loops, production queues, construction, footprints, supply), `EconomyRules` (supply cost, drop-off lookup, spawn tile), `ResourceFields` and `ResourceFieldState` (live field amounts from the map, hashed) and `GatherState`. Per-player stock and supply live on `Teams/Player`. See `Economy/README.md`. |
 | `Factions/` | `IFactionMechanic`, `FactionMechanicRegistry`, `BuiltInMechanics`, and one subfolder per faction (`Skai/`, `Water/`, `Earth/`, `Fire/`). |
-| `Cycles/` | Placeholder (Phase 1): Planetary Cycles on the match clock. |
+| `Cycles/` | Planetary Cycles and Core capture on the match clock (`sim.Cycles`): `CycleSystem` (schedule, lock and shift, quake paths and damage, the capture state machine, hold accrual, the Core win, state hash), `CycleRules` (pure schedule maths and `CaptureStep`) and the `cycle` speed and damage modifiers. See `Cycles/README.md` and `rts/docs/specs/planetary_cycles.md`. |
 | `Events/` | `SimEvent`, `EventLog` and the core events hosts react to (spawned, removed, arrived, rejected, state hashed). |
 | `Data/` | The data loader: `JsonReader`, `JsonValue`, `DataLoader`, `DataSet`, `CommandScript` (the shared command-script parser; scripts live in `rts/data/scripts`, which the loader skips), definitions for maps and cycles, and `Tuning/` (one typed class per `rts/data/tuning` file). Hosts do the file IO and pass `DataSourceFile(relativePath, text)` objects in. |
 

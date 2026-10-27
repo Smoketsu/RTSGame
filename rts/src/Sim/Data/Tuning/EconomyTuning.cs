@@ -46,6 +46,9 @@ namespace Rts.Sim.Data
         /// <summary>How many rings of tiles around a producer are searched for a free tile when a trained unit appears. Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.</summary>
         public int SpawnSearchRadiusTiles { get; }
 
+        /// <summary>Workers each player starts with beside the HQ in a standard match start. Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.</summary>
+        public int StartingWorkerCount { get; }
+
         /// <summary>Time a worker spends at a field per load, converted from <see cref="GatherSecondsPerTrip"/> to whole simulation ticks (rounded to nearest, ADR-004; at least 1). Unit: ticks. Range: 1 upward.</summary>
         /// <param name="clock">The match clock whose tick rate is used.</param>
         public int GatherTicksPerTrip(MatchClock clock)
@@ -58,7 +61,7 @@ namespace Rts.Sim.Data
         public EconomyTuning(JsonValue root)
         {
             root.RejectUnknownKeys("starting_common", "starting_rare", "base_supply", "gather_amount_per_trip", "gather_seconds_per_trip",
-                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "spawn_search_radius_tiles");
+                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "spawn_search_radius_tiles", "starting_worker_count");
             StartingCommon = root.RequireInt("starting_common", 0, 100000);
             StartingRare = root.RequireInt("starting_rare", 0, 100000);
             BaseSupply = root.RequireInt("base_supply", 0, 300);
@@ -70,6 +73,7 @@ namespace Rts.Sim.Data
             InteractRangeTiles = root.RequireFix64("interact_range_tiles", "0.5", "4");
             ConstructionStartHealthFraction = root.RequireFix64("construction_start_health_fraction", "0.01", "1");
             SpawnSearchRadiusTiles = root.RequireInt("spawn_search_radius_tiles", 1, 8);
+            StartingWorkerCount = root.RequireInt("starting_worker_count", 0, 20);
         }
     }
 }

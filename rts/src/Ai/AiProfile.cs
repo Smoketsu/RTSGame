@@ -13,7 +13,10 @@
 //     stage_distance_tiles, stage_radius_tiles, stage_gather_fraction and stage_timeout_seconds (the army gathers short of the
 //     target so fast and slow units arrive together instead of trickling into the defence); focus_radius_tiles (focus fire on
 //     visible enemy army units); and all_in_when_mined_out
-//     (Phase 1 maps hold only the main fields, so a mined-out AI attacks with what it has instead of stalling the match).
+//     (Phase 1 maps hold only the main fields, so a mined-out AI attacks with what it has instead of stalling the match);
+//   * Phase 2 (planetary_cycles.md section 5): the root key rally_at_core (the massing army gathers at the Core while the AI does not
+//     hold it) and, per faction, cycle_preference (every cycle ID, most wanted first; the AI picks the first allowed one when its team
+//     holds the Core).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -74,10 +77,19 @@ namespace Rts.Ai
         /// <summary>Army supply at or above which the tide window is ignored. Unit: supply. Range: 1 to 400.</summary>
         public int AttackTideOverrideSupply { get; }
 
+        /// <summary>
+        /// Planetary Cycle IDs, most wanted first, that the AI picks from when its team holds the Core. Range: distinct cycle IDs; every
+        /// cycle of the data set when the profile was parsed with the cycle list; may be empty for a plan built by hand (the AI then
+        /// picks the first allowed cycle).
+        /// </summary>
+        public IReadOnlyList<string> CyclePreference { get; }
+
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
-            IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply)
+            IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
+            IReadOnlyList<string>? cyclePreference = null)
         {
+            CyclePreference = cyclePreference ?? Array.Empty<string>();
             FactionId = factionId;
             WorkerUnitId = workerUnitId;
             SupplyBuildingId = supplyBuildingId;
@@ -180,6 +192,12 @@ namespace Rts.Ai
         /// </summary>
         public bool AllInWhenMinedOut { get; }
 
+        /// <summary>
+        /// When true, the massing army gathers at the Core centre while the AI's team is not the Core holder, so it takes and holds
+        /// the Core (and with it the pick of the next cycle). Unit: boolean. Range: true or false.
+        /// </summary>
+        public bool RallyAtCore { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -215,6 +233,7 @@ namespace Rts.Ai
             DamageMemorySeconds = root.RequireFix64("damage_memory_seconds", "0", "30");
             RegroupSeconds = root.RequireFix64("regroup_seconds", "0", "120");
             AllInWhenMinedOut = root.RequireBool("all_in_when_mined_out");
+            RallyAtCore = root.RequireBool("rally_at_core");
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -223,7 +242,17 @@ namespace Rts.Ai
         /// <param name="content">Units and factions the IDs are checked against.</param>
         public static AiProfile Parse(string text, string sourceName, ContentCatalog content)
         {
-            return Parse(JsonReader.Parse(text, sourceName), content);
+            return Parse(JsonReader.Parse(text, sourceName), content, null);
+        }
+
+        /// <summary>Parses and validates profile text, also checking cycle_preference against the cycle IDs. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
+        /// <param name="text">The profile file's text (JSON with comments).</param>
+        /// <param name="sourceName">Data-root-relative path, for example "ai/aggressive.json"; the id must match its file name.</param>
+        /// <param name="content">Units and factions the IDs are checked against.</param>
+        /// <param name="cycleIds">IDs of the Planetary Cycles in the data set; every cycle_preference must list exactly these. Null skips that check.</param>
+        public static AiProfile Parse(string text, string sourceName, ContentCatalog content, IReadOnlyCollection<string>? cycleIds)
+        {
+            return Parse(JsonReader.Parse(text, sourceName), content, cycleIds);
         }
 
         /// <summary>
@@ -234,6 +263,18 @@ namespace Rts.Ai
         /// <param name="root">The profile file's root object.</param>
         /// <param name="content">Units and factions the IDs are checked against.</param>
         public static AiProfile Parse(JsonValue root, ContentCatalog content)
+        {
+            return Parse(root, content, null);
+        }
+
+        /// <summary>
+        /// Validates a parsed profile tree like <see cref="Parse(JsonValue, ContentCatalog)"/> and also checks each faction's
+        /// cycle_preference: only known cycle IDs, none twice, and (when <paramref name="cycleIds"/> is given) every cycle listed.
+        /// </summary>
+        /// <param name="root">The profile file's root object.</param>
+        /// <param name="content">Units and factions the IDs are checked against.</param>
+        /// <param name="cycleIds">IDs of the Planetary Cycles in the data set, or null to skip the existence and completeness checks.</param>
+        public static AiProfile Parse(JsonValue root, ContentCatalog content, IReadOnlyCollection<string>? cycleIds)
         {
             if (root == null)
             {
@@ -257,7 +298,7 @@ namespace Rts.Ai
                 "field_clearance_tiles", "rally_distance_tiles", "attack_army_supply", "attack_supply_jitter", "retreat_army_fraction",
                 "retreat_power_ratio", "engagement_radius_tiles", "stage_distance_tiles", "stage_radius_tiles", "stage_gather_fraction",
                 "stage_timeout_seconds", "focus_radius_tiles", "defend_radius_tiles", "defend_recall_supply", "damage_memory_seconds",
-                "regroup_seconds", "all_in_when_mined_out", "factions");
+                "regroup_seconds", "all_in_when_mined_out", "rally_at_core", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
@@ -272,7 +313,7 @@ namespace Rts.Ai
             SortedDictionary<string, AiFactionPlan> plans = new SortedDictionary<string, AiFactionPlan>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonValue> pair in factionsNode.Members)
             {
-                plans.Add(pair.Key, ParseFaction(pair.Key, pair.Value, content));
+                plans.Add(pair.Key, ParseFaction(pair.Key, pair.Value, content, cycleIds));
             }
             if (plans.Count == 0)
             {
@@ -297,7 +338,7 @@ namespace Rts.Ai
             {
                 throw new DataValidationException(DataLoader.AiFolder + "/" + id + ".json", string.Empty, "is not a loaded AI profile");
             }
-            return Parse(root, data.Content);
+            return Parse(root, data.Content, new List<string>(data.Cycles.Keys));
         }
 
         /// <summary>The plan for <paramref name="factionId"/>; throws <see cref="DataValidationException"/> naming this file when it has none.</summary>
@@ -315,7 +356,8 @@ namespace Rts.Ai
         /// <param name="factionId">The key the plan is stored under.</param>
         /// <param name="node">The plan object.</param>
         /// <param name="content">Units and factions to check IDs against.</param>
-        private static AiFactionPlan ParseFaction(string factionId, JsonValue node, ContentCatalog content)
+        /// <param name="cycleIds">IDs of the Planetary Cycles in the data set, or null to skip the existence and completeness checks.</param>
+        private static AiFactionPlan ParseFaction(string factionId, JsonValue node, ContentCatalog content, IReadOnlyCollection<string>? cycleIds)
         {
             if (!content.Factions.TryGetValue(factionId, out FactionDefinition? faction))
             {
@@ -326,7 +368,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply");
+                "attack_tide_override_supply", "cycle_preference");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -393,8 +435,50 @@ namespace Rts.Ai
             {
                 throw node.Require("attack_tide_max").Fail("must be at least attack_tide_min");
             }
+            // Cycle IDs, most wanted first. Range: distinct, known cycle IDs; every cycle of the data set when cycleIds is given.
+            List<string> preference = new List<string>();
+            // Cycle IDs already listed, to reject repeats.
+            SortedSet<string> listed = new SortedSet<string>(StringComparer.Ordinal);
+            JsonValue preferenceNode = node.Require("cycle_preference");
+            foreach (JsonValue item in preferenceNode.Items)
+            {
+                // The cycle ID at this position.
+                string cycleId = item.AsString();
+                if (cycleIds != null && !ContainsId(cycleIds, cycleId))
+                {
+                    throw item.Fail("names an unknown cycle '" + cycleId + "' (no cycles/" + cycleId + ".json)");
+                }
+                if (!listed.Add(cycleId))
+                {
+                    throw item.Fail("lists the cycle '" + cycleId + "' twice");
+                }
+                preference.Add(cycleId);
+            }
+            if (cycleIds != null)
+            {
+                foreach (string cycleId in cycleIds)
+                {
+                    if (!listed.Contains(cycleId))
+                    {
+                        throw preferenceNode.Fail("must list every cycle; '" + cycleId + "' is missing");
+                    }
+                }
+            }
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400));
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly());
+        }
+
+        /// <summary>True when <paramref name="ids"/> holds <paramref name="id"/> (ordinal comparison).</summary>
+        private static bool ContainsId(IReadOnlyCollection<string> ids, string id)
+        {
+            foreach (string known in ids)
+            {
+                if (string.Equals(known, id, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>The unit definition <paramref name="id"/>; fails on <paramref name="node"/> when it is unknown or of another faction.</summary>

@@ -143,6 +143,11 @@ namespace Rts.Ai
                 {
                     continue;
                 }
+                if (!hit.Attacker.IsValid)
+                {
+                    // Damage from the environment (a Quake on a defence) is not an enemy attack and calls for no defence.
+                    continue;
+                }
                 if (!sim.Units.TryGet(hit.Target, out Unit? target) || target.Owner != Player)
                 {
                     continue;

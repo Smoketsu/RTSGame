@@ -30,7 +30,7 @@ namespace Rts.Sim.Data
         /// <summary>Time between Planetary Cycle shifts. Unit: seconds. Range: 60 to 900. Source: Win condition and twists / Planetary Cycles.</summary>
         public Fix64 PlanetaryCycleIntervalSeconds { get; }
 
-        /// <summary>How far ahead of a shift the next Planetary Cycle is shown to players. Unit: seconds. Range: 0 to 120. Source: Win condition and twists / Planetary Cycles.</summary>
+        /// <summary>How far ahead of a shift the next Planetary Cycle is shown to players; must be shorter than planetary_cycle_interval_seconds. Unit: seconds. Range: 0 to 120. Source: Win condition and twists / Planetary Cycles.</summary>
         public Fix64 PlanetaryCycleWarningSeconds { get; }
 
         /// <summary>Uncontested time a unit must spend in the Core radius to become Core holder. Unit: seconds. Range: 5 to 60. Source: Holding the Core.</summary>
@@ -38,6 +38,12 @@ namespace Rts.Sim.Data
 
         /// <summary>Cumulative time a player must hold the Core to win in 1v1v1 and FFA. Unit: seconds. Range: 60 to 1500. Source: Holding the Core.</summary>
         public Fix64 FfaCoreWinCumulativeSeconds { get; }
+
+        /// <summary>Fewest teams a match must start with for the cumulative Core-hold win to be on. Unit: teams (count). Range: 2 to 16. Source: Holding the Core ("in 1v1v1 and FFA"); 3 is the design reading.</summary>
+        public int CoreWinMinTeams { get; }
+
+        /// <summary>How far a unit standing on a closing quake-path tile is moved to find a standable tile. Unit: tiles (Chebyshev rings). Range: 0 to 8. Source: Win condition and twists / Planetary Cycles (Quake); PLACEHOLDER.</summary>
+        public int QuakePathRelocateRadiusTiles { get; }
 
         /// <summary>Shortest target match length, converted from <see cref="MatchTargetMinSeconds"/> to whole simulation ticks (rounded to nearest, ADR-004). Unit: ticks. Range: 300 to 3600 seconds times the tick rate.</summary>
         /// <param name="clock">The match clock whose tick rate is used.</param>
@@ -87,11 +93,12 @@ namespace Rts.Sim.Data
         {
             return clock.SecondsToTicks(FfaCoreWinCumulativeSeconds);
         }
+
         /// <summary>Reads and validates every key of the file. Unknown keys, missing keys, wrong types and out-of-range values throw <see cref="DataValidationException"/> naming the file and key.</summary>
         /// <param name="root">The parsed file (root must be an object).</param>
         public MatchTuning(JsonValue root)
         {
-            root.RejectUnknownKeys("ticks_per_second", "state_hash_interval_ticks", "match_target_min_seconds", "match_target_max_seconds", "tide_cycle_seconds", "planetary_cycle_interval_seconds", "planetary_cycle_warning_seconds", "core_capture_seconds", "ffa_core_win_cumulative_seconds");
+            root.RejectUnknownKeys("ticks_per_second", "state_hash_interval_ticks", "match_target_min_seconds", "match_target_max_seconds", "tide_cycle_seconds", "planetary_cycle_interval_seconds", "planetary_cycle_warning_seconds", "core_capture_seconds", "ffa_core_win_cumulative_seconds", "core_win_min_teams", "quake_path_relocate_radius_tiles");
             TicksPerSecond = root.RequireInt("ticks_per_second", MatchSettings.MinTicksPerSecond, MatchSettings.MaxTicksPerSecond);
             StateHashIntervalTicks = root.RequireInt("state_hash_interval_ticks", MatchSettings.MinStateHashIntervalTicks, MatchSettings.MaxStateHashIntervalTicks);
             MatchTargetMinSeconds = root.RequireFix64("match_target_min_seconds", "300", "3600");
@@ -101,13 +108,16 @@ namespace Rts.Sim.Data
             PlanetaryCycleWarningSeconds = root.RequireFix64("planetary_cycle_warning_seconds", "0", "120");
             CoreCaptureSeconds = root.RequireFix64("core_capture_seconds", "5", "60");
             FfaCoreWinCumulativeSeconds = root.RequireFix64("ffa_core_win_cumulative_seconds", "60", "1500");
+            CoreWinMinTeams = root.RequireInt("core_win_min_teams", 2, 16);
+            QuakePathRelocateRadiusTiles = root.RequireInt("quake_path_relocate_radius_tiles", 0, 8);
             if (!(MatchTargetMinSeconds <= MatchTargetMaxSeconds))
             {
                 throw root.Require("match_target_min_seconds").Fail("must not be greater than match_target_max_seconds");
             }
-            if (!(PlanetaryCycleWarningSeconds <= PlanetaryCycleIntervalSeconds))
+            if (!(PlanetaryCycleWarningSeconds < PlanetaryCycleIntervalSeconds))
             {
-                throw root.Require("planetary_cycle_warning_seconds").Fail("must not be longer than planetary_cycle_interval_seconds");
+                // Strictly shorter, so every lock tick falls after the previous shift (planetary_cycles.md section 2).
+                throw root.Require("planetary_cycle_warning_seconds").Fail("must be shorter than planetary_cycle_interval_seconds");
             }
         }
     }

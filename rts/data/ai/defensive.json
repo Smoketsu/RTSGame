@@ -56,6 +56,8 @@
   "regroup_seconds": 20,
   // Go all in once no field within field_max_distance_tiles has resources left: attack with any army, ignore the tide window, never retreat. Unit: boolean. Range: true or false. Source: Economy (fields run out); placeholder.
   "all_in_when_mined_out": true,
+  // Gather the massing army at the Core centre while the AI's team does not hold the Core, so it takes and holds it (the holder picks the next Planetary Cycle). Unit: boolean. Range: true or false. Source: Win condition and twists / Holding the Core; PLACEHOLDER.
+  "rally_at_core": false,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {
@@ -77,7 +79,9 @@
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups (Skai strike at low tide); placeholder.
       "attack_tide_max": 0.5,
       // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
-      "attack_tide_override_supply": 20
+      "attack_tide_override_supply": 20,
+      // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
+      "cycle_preference": ["windstorm", "core_surge", "quake"]
     },
     "water": {
       // Worker the Grand Shell trains. Unit: unit ID. Range: a water unit with can_gather. Source: Factions / Water faction.
@@ -98,7 +102,9 @@
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups; placeholder.
       "attack_tide_max": 1,
       // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
-      "attack_tide_override_supply": 20
+      "attack_tide_override_supply": 20,
+      // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
+      "cycle_preference": ["core_surge", "quake", "windstorm"]
     }
   }
 }

@@ -27,6 +27,7 @@ namespace Rts.Net.Codecs
             registry.Register(new StopCodec());
             registry.Register(new RootHqCodec());
             registry.Register(new UprootHqCodec());
+            registry.Register(new PickCycleCodec());
             registry.Register(new GatherCodec());
             registry.Register(new TrainUnitCodec());
             registry.Register(new BuildStructureCodec());
@@ -243,6 +244,25 @@ namespace Rts.Net.Codecs
         public Command Decode(NetReader reader, int tick, PlayerId issuer, uint sequence)
         {
             return new UprootHqCommand(tick, issuer, sequence, reader.ReadEntityId());
+        }
+    }
+
+    /// <summary>Codec for <see cref="PickCycleCommand"/>: cycle ID.</summary>
+    public sealed class PickCycleCodec : ICommandCodec
+    {
+        /// <summary>"pick_cycle".</summary>
+        public string Kind => "pick_cycle";
+
+        /// <summary>Writes the cycle ID.</summary>
+        public void Encode(Command command, NetWriter writer)
+        {
+            writer.WriteString(CoreCommandCodecs.Expect<PickCycleCommand>(command, Kind).CycleId);
+        }
+
+        /// <summary>Reads the cycle ID.</summary>
+        public Command Decode(NetReader reader, int tick, PlayerId issuer, uint sequence)
+        {
+            return new PickCycleCommand(tick, issuer, sequence, reader.ReadRequiredString());
         }
     }
 

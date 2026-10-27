@@ -17,16 +17,21 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `tools/ReplayCheck` (`--data`, `--replay`; exit 0 ok, 1 desync, 2 refused) and a BalanceHarness `--record <file>` option. A recorded `ai_vs_ai.json` (4293 ticks, 502 commands) re-simulates to the harness final hash.
 - `Rts.Replay.Tests` (23 tests): codec round trips, AI-match re-simulation, tamper-to-desync, version and digest refusal.
 - Specs `planetary_cycles.md` (three data-driven cycles, 20 s Core capture, holder picks with no repeated play style, 8-minute FFA Core win, new step 9), `balance_harness.md` (parallel batches, Wilson win-rate interval, HQ floor trials, Markdown report, exit codes 0 to 3) and `campaign_scripting.md` (missions as data, headless runner, the first tutorial mission); the spec index adds step 9 and the Core state to the hash order. Effect numbers are PLACEHOLDERs.
+- Planetary Cycles and Core capture (`rts/src/Sim/Cycles`, `CycleSystem` as step 9): a cycle shift every 240 s with a 60 s warning; Windstorm, Quake and Core surge effects from data; Core capture in 20 s uncontested; the holder's `pick_cycle` command with no repeated play style; the 480 s Core win with three or more teams. Optional `quake_paths` in map files wall or open tiles and relocate ground units. `StandardMatchStart` builds the standard HQ and worker spawns. Effect numbers are PLACEHOLDERs.
+- Data: cycle `effects`; tuning `core_win_min_teams`, `quake_path_relocate_radius_tiles`, `starting_worker_count`; AI profile keys `cycle_preference` and `rally_at_core` (the Core holder picks by preference; the massing army can rally at the Core). The loader requires the cycle warning to be shorter than the interval.
+- `pick_cycle` codecs in `Rts.Net` and `Rts.Replay`; the Unity host, the harness, ReplayCheck and the Net tests pass the cycle list to `SimulationConfig`.
+- Tests: 73 new cycle, Core and AI tests (394 in `Rts.Sim.Tests`), including CRLF, lone-CR and LF data giving the same content digest and final hash.
 - Unity project files generated on first open in Unity 6.6 (`6000.6.7f1`): `ProjectSettings/*.asset`, `Packages/packages-lock.json` and the `.meta` file for every asset and folder.
 
 ### Fixed
 
+- `SimulationConfig` takes an optional cycle list; cycle and Core state are hashed (after the resource fields) and cycle definitions are in the content digest, so every state hash changed once; golden final hash re-pinned to `0xa7a4b7d1633db334` after merging with the lockstep tuning keys.
 - Unity scripts now compile: Unity 6.6 added `UnityEngine.EntityId`, which made `EntityId` ambiguous in `SimulationHost.cs` and `SelectionController.cs`; both files alias it to `Rts.Sim.Core.EntityId`.
 - Replaced the obsolete `FindFirstObjectByType` and `FindObjectsByType(FindObjectsSortMode)` calls with `FindAnyObjectByType` and `FindObjectsByType<T>()` (each looks up a single scene object, so order never mattered); the project compiles with no warnings.
 
 ### Changed
 
-- `.gitattributes` forces LF line endings for `rts/data` and `rts/campaign`. The loader hashes tuning file text into the content digest, so a CRLF checkout (Windows with `core.autocrlf`) of identical data gave a different state hash from tick 0 (verified: converting `combat.json` to CRLF changes the `ai_vs_ai` final hash). Normalising line endings in the loader itself is still to do.
+- `.gitattributes` forces LF line endings for `rts/data` and `rts/campaign`. The loader hashes tuning file text into the content digest, so a CRLF checkout (Windows with `core.autocrlf`) of identical data gave a different state hash from tick 0 (verified: converting `combat.json` to CRLF changes the `ai_vs_ai` final hash). The loader now also normalises CRLF and lone CR to LF before parsing and hashing, so the digest no longer depends on the checkout.
 - `UNITY_SETUP.md` pins `6000.6.7f1` and notes the Input System package Unity added to the manifest.
 
 ## Phase 1 Prototype (Skai versus water), merged 26 Oct 2026

@@ -41,6 +41,7 @@ namespace Rts.Replay.Tests
                 new BuildStructureCommand(10, new PlayerId(1), 9, new EntityId(14), "water.pump", -5, 2000000000),
                 new RootHqCommand(11, new PlayerId(0), 10, new EntityId(15)),
                 new UprootHqCommand(12, new PlayerId(0), 11, new EntityId(16)),
+                new PickCycleCommand(14, new PlayerId(0), 13, "quake"),
                 new ApplyStatusCommand(13, Script, 12, new EntityId(17), StatusKind.Slowed, Fix64.FromRaw(0x00000000_80000000L), Fix64.FromRaw(0x00000003_00000000L), "spire.1"),
                 new SurrenderCommand(14, new PlayerId(1), 13, new PlayerId(1)),
                 new SetConnectionStateCommand(15, Script, 14, new PlayerId(1), ConnectionState.Disconnected),

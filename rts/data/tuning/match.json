@@ -14,10 +14,14 @@
   "tide_cycle_seconds": 210,
   // Time between Planetary Cycle shifts. Unit: seconds. Range: 60 to 900. Source: Win condition and twists / Planetary Cycles.
   "planetary_cycle_interval_seconds": 240,
-  // How far ahead of a shift the next Planetary Cycle is shown to players. Unit: seconds. Range: 0 to 120. Source: Win condition and twists / Planetary Cycles.
+  // How far ahead of a shift the next Planetary Cycle is shown to players; must be shorter than planetary_cycle_interval_seconds. Unit: seconds. Range: 0 to 120. Source: Win condition and twists / Planetary Cycles.
   "planetary_cycle_warning_seconds": 60,
   // Uncontested time a unit must spend in the Core radius to become Core holder. Unit: seconds. Range: 5 to 60. Source: Holding the Core.
   "core_capture_seconds": 20,
   // Cumulative time a player must hold the Core to win in 1v1v1 and FFA. Unit: seconds. Range: 60 to 1500. Source: Holding the Core.
-  "ffa_core_win_cumulative_seconds": 480
+  "ffa_core_win_cumulative_seconds": 480,
+  // Fewest teams a match must start with for the cumulative Core-hold win to be on. Unit: teams (count). Range: 2 to 16. Source: Holding the Core ("in 1v1v1 and FFA"); 3 is the design reading, not a placeholder.
+  "core_win_min_teams": 3,
+  // How far a unit standing on a closing quake-path tile is moved to find a standable tile. Unit: tiles (Chebyshev rings). Range: 0 to 8. Source: Win condition and twists / Planetary Cycles (Quake); PLACEHOLDER.
+  "quake_path_relocate_radius_tiles": 3
 }

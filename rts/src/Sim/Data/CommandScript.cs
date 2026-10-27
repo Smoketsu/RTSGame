@@ -28,7 +28,7 @@ namespace Rts.Sim.Data
         private static readonly string[] CoreKinds =
         {
             "noop", "spawn_unit", "move_unit", "remove_unit", "attack_move", "attack_unit", "stop", "root_hq", "uproot_hq",
-            "gather", "train_unit", "build_structure", "apply_status",
+            "gather", "train_unit", "build_structure", "apply_status", "pick_cycle",
         };
 
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
@@ -171,7 +171,7 @@ namespace Rts.Sim.Data
         /// <param name="extras">Extra readers by type, tried when the type is not a core kind.</param>
         private static Command ReadCommand(JsonValue node, string sourceName, SortedDictionary<string, IScriptCommandParser> extras)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status, plus the types of the extra readers).
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -225,6 +225,9 @@ namespace Rts.Sim.Data
                 case "apply_status":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "status", "multiplier", "seconds", "source");
                     return ReadApplyStatus(node, tick, issuer, sequence);
+                case "pick_cycle":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "cycle");
+                    return new PickCycleCommand(tick, issuer, sequence, node.RequireNonEmptyString("cycle"));
                 default:
                     if (extras.TryGetValue(type, out IScriptCommandParser? parser))
                     {

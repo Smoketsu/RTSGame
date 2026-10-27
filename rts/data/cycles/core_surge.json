@@ -1,7 +1,7 @@
-// rts/data/cycles/core_surge.json: Planetary Cycle "Core surge". Part of rts/data/cycles; read by the data loader (rts/src/Sim/Data) into a CycleDefinition. Effect numbers are still to be settled in the systems spec, so only identity and the favoured play style are data for now.
+// rts/data/cycles/core_surge.json: Planetary Cycle "Core surge". Part of rts/data/cycles; read by the data loader (rts/src/Sim/Data) into a CycleDefinition. The effects object holds the numbers applied while the cycle is active (rts/docs/specs/planetary_cycles.md section 2); every one is a placeholder until playtesting.
 {
   "$schema_version": 1,
-  "$doc": "Planetary Cycle Core surge, which favours position play; Phase 0 stores identity and description only.",
+  "$doc": "Planetary Cycle Core surge, which favours position play and applies the numbers in its effects object.",
   // Stable cycle ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "core_surge",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Win condition and twists / Planetary Cycles.
@@ -9,5 +9,22 @@
   // Play style the cycle favours (cycles favour a play style, not a faction). Unit: style name. Range: "air", "attackers" or "position". Source: Win condition and twists / Planetary Cycles (Favours column).
   "favours": "position",
   // What the cycle does, for tooltips. Unit: text. Range: 1 to 200 characters. Source: Win condition and twists / Planetary Cycles (Effect column).
-  "description": "Units near the Core gain damage."
+  "description": "Units near the Core gain damage.",
+  // Effect numbers of this cycle; every key is required (planetary_cycles.md section 2). Source: Win condition and twists / Planetary Cycles.
+  "effects": {
+    // Speed multiplier for units flying (effective layer Air) while the cycle is active. Unit: speed multiplier. Range: 0.5 to 2. Source: Win condition and twists / Planetary Cycles (Windstorm: flyers gain speed); PLACEHOLDER.
+    "air_speed_multiplier": 1,
+    // Weapon range change for mobile non-HQ surface units with a ranged weapon; never takes the range below melee range 1.5. Unit: tiles. Range: -4 to 4. Source: Win condition and twists / Planetary Cycles (Windstorm: ground ranged units lose range); PLACEHOLDER.
+    "surface_ranged_range_bonus_tiles": 0,
+    // Damage to static defences per second while the cycle is active. Unit: fraction of max health per second. Range: 0 to 0.05. Source: Win condition and twists / Planetary Cycles (Quake: walls and defences take damage); PLACEHOLDER.
+    "defence_damage_per_second_fraction": 0,
+    // Cycle damage never takes a defence below this share of its maximum health, so a cycle never kills. Unit: fraction of max health. Range: 0 to 1. Source: Win condition and twists / Planetary Cycles (Quake); PLACEHOLDER.
+    "defence_damage_min_health_fraction": 0.25,
+    // True when the quake paths of the map flip open or closed while the cycle is active. Unit: flag. Range: true or false. Source: Win condition and twists / Planetary Cycles (Quake: some paths open or close); PLACEHOLDER.
+    "toggles_quake_paths": false,
+    // Outgoing damage multiplier for attackers within core_effect_radius_tiles of the Core centre. Unit: damage multiplier. Range: 1 to 3. Source: Win condition and twists / Planetary Cycles (Core surge: units near the Core gain damage); PLACEHOLDER.
+    "core_damage_multiplier": 1.5,
+    // Radius around the Core centre in which core_damage_multiplier applies. Unit: tiles. Range: 0 to 32. Source: Win condition and twists / Planetary Cycles (Core surge); PLACEHOLDER.
+    "core_effect_radius_tiles": 8
+  }
 }

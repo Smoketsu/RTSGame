@@ -32,6 +32,9 @@ namespace Rts.Ai
 
         /// <summary>AttackUnitCommand(unit, target): only ever aimed at an enemy the team sees on this think.</summary>
         AttackUnit = 6,
+
+        /// <summary>PickCycleCommand(cycle id): the AI's team holds the Core and chooses the next Planetary Cycle.</summary>
+        PickCycle = 7,
     }
 
     /// <summary>One decided action. Immutable.</summary>
@@ -46,7 +49,7 @@ namespace Rts.Ai
         /// <summary>Field index for Gather, else -1. Range: -1 to field count - 1.</summary>
         public int Field { get; }
 
-        /// <summary>Definition ID for Train and Build, else empty.</summary>
+        /// <summary>Definition ID for Train and Build, the cycle ID for PickCycle, else empty.</summary>
         public string DefinitionId { get; }
 
         /// <summary>Site tile column for Build. Unit: tiles.</summary>
@@ -95,6 +98,9 @@ namespace Rts.Ai
         /// <summary>Plain move (no stopping to fight) to a point.</summary>
         public static AiIntent Move(EntityId unit, FixVec2 point) => new AiIntent(AiIntentKind.Move, unit, -1, string.Empty, 0, 0, point);
 
+        /// <summary>Pick the next Planetary Cycle (the AI's team holds the Core). The cycle ID travels in <see cref="DefinitionId"/>.</summary>
+        public static AiIntent PickCycle(string cycleId) => new AiIntent(AiIntentKind.PickCycle, EntityId.None, -1, cycleId, 0, 0, FixVec2.Zero);
+
         /// <summary>Order a unit to attack one visible enemy unit.</summary>
         public static AiIntent AttackUnit(EntityId unit, EntityId target) => new AiIntent(AiIntentKind.AttackUnit, unit, -1, string.Empty, 0, 0, FixVec2.Zero, target);
 
@@ -123,6 +129,8 @@ namespace Rts.Ai
                     return new RootHqCommand(tick, issuer, sequence, Unit);
                 case AiIntentKind.AttackUnit:
                     return new AttackUnitCommand(tick, issuer, sequence, Unit, Target);
+                case AiIntentKind.PickCycle:
+                    return new PickCycleCommand(tick, issuer, sequence, DefinitionId);
                 default:
                     throw new InvalidOperationException("Unknown intent kind " + Kind + ".");
             }

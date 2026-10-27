@@ -45,6 +45,7 @@ namespace Rts.Net.Tests
                 new StopCommand(13, P1, 7, new EntityId(47)),
                 new RootHqCommand(14, P0, 8, new EntityId(48)),
                 new UprootHqCommand(15, P1, 9, new EntityId(49)),
+                new PickCycleCommand(15, P0, 9, "quake"),
                 new GatherCommand(16, P0, 10, new EntityId(50), 3),
                 new TrainUnitCommand(17, P1, 11, new EntityId(51), "water.tender"),
                 new BuildStructureCommand(18, P0, 12, new EntityId(52), "skai.roost", 21, 34),
