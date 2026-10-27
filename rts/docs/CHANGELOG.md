@@ -8,6 +8,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 ### Added
 
 - `docs/PHASE2_PLAN.md` build order, ownership and exit test for the vertical slice.
+- `NuGet.config` naming nuget.org, so restore also works with the .NET 8 SDK bundled with Unity (`<Unity>/Editor/Data/DotNetSdk/dotnet.exe`).
 - Unity project files generated on first open in Unity 6.6 (`6000.6.7f1`): `ProjectSettings/*.asset`, `Packages/packages-lock.json` and the `.meta` file for every asset and folder.
 
 ### Fixed
