@@ -42,6 +42,8 @@ using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Units;
 using UnityEngine;
+// Unity 6.6 added UnityEngine.EntityId; this alias makes every EntityId in this file the simulation's entity ID.
+using EntityId = Rts.Sim.Core.EntityId;
 
 namespace Rts.Game.Bootstrap
 {

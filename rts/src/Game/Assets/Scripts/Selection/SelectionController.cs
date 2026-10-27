@@ -29,6 +29,8 @@ using Rts.Sim.Economy;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
 using UnityEngine;
+// Unity 6.6 added UnityEngine.EntityId; this alias makes every EntityId in this file the simulation's entity ID.
+using EntityId = Rts.Sim.Core.EntityId;
 
 namespace Rts.Game.UnitSelection
 {
@@ -243,11 +245,11 @@ namespace Rts.Game.UnitSelection
                 _lastSearchFrame = Time.frameCount;
                 if (_host == null)
                 {
-                    _host = FindFirstObjectByType<SimulationHost>();
+                    _host = FindAnyObjectByType<SimulationHost>();
                 }
                 if (_camera == null)
                 {
-                    _camera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
+                    _camera = Camera.main != null ? Camera.main : FindAnyObjectByType<Camera>();
                 }
             }
             if (_host == null || _host.Match == null || _camera == null)

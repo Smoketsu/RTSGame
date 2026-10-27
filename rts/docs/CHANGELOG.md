@@ -3,7 +3,23 @@
 
 All notable changes to this project are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Unreleased changes go under the [Unreleased] heading, grouped as Added, Changed, Deprecated, Removed, Fixed or Security.
 
-## [Unreleased] - Phase 1 Prototype (Skai versus water)
+## [Unreleased] - Phase 2 Vertical slice
+
+### Added
+
+- `docs/PHASE2_PLAN.md` build order, ownership and exit test for the vertical slice.
+- Unity project files generated on first open in Unity 6.6 (`6000.6.7f1`): `ProjectSettings/*.asset`, `Packages/packages-lock.json` and the `.meta` file for every asset and folder.
+
+### Fixed
+
+- Unity scripts now compile: Unity 6.6 added `UnityEngine.EntityId`, which made `EntityId` ambiguous in `SimulationHost.cs` and `SelectionController.cs`; both files alias it to `Rts.Sim.Core.EntityId`.
+- Replaced the obsolete `FindFirstObjectByType` and `FindObjectsByType(FindObjectsSortMode)` calls with `FindAnyObjectByType` and `FindObjectsByType<T>()` (each looks up a single scene object, so order never mattered); the project compiles with no warnings.
+
+### Changed
+
+- `UNITY_SETUP.md` pins `6000.6.7f1` and notes the Input System package Unity added to the manifest.
+
+## Phase 1 Prototype (Skai versus water), merged 26 Oct 2026
 
 ### Added
 

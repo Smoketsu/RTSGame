@@ -61,7 +61,7 @@ namespace Rts.Game.Bootstrap
         /// <returns>The existing or new terrain view.</returns>
         public static TerrainView EnsureTerrainView()
         {
-            TerrainView existing = Object.FindFirstObjectByType<TerrainView>();
+            TerrainView existing = Object.FindAnyObjectByType<TerrainView>();
             if (existing != null)
             {
                 return existing;
@@ -74,7 +74,7 @@ namespace Rts.Game.Bootstrap
         /// <returns>The existing or new selection controller.</returns>
         public static SelectionController EnsureSelection()
         {
-            SelectionController existing = Object.FindFirstObjectByType<SelectionController>();
+            SelectionController existing = Object.FindAnyObjectByType<SelectionController>();
             if (existing != null)
             {
                 return existing;
@@ -88,7 +88,7 @@ namespace Rts.Game.Bootstrap
         public static SimulationHost EnsureHost()
         {
             // An existing host, for example from the saved Bootstrap scene.
-            SimulationHost existing = Object.FindFirstObjectByType<SimulationHost>();
+            SimulationHost existing = Object.FindAnyObjectByType<SimulationHost>();
             if (existing != null)
             {
                 return existing;
@@ -101,7 +101,7 @@ namespace Rts.Game.Bootstrap
         /// <returns>The existing first camera or the new one.</returns>
         public static Camera EnsureCamera()
         {
-            Camera existing = Object.FindFirstObjectByType<Camera>();
+            Camera existing = Object.FindAnyObjectByType<Camera>();
             if (existing != null)
             {
                 return existing;
@@ -125,7 +125,7 @@ namespace Rts.Game.Bootstrap
         public static Light EnsureLight()
         {
             // Every light in the loaded scenes; order does not matter.
-            Light[] lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            Light[] lights = Object.FindObjectsByType<Light>();
             foreach (Light existing in lights)
             {
                 if (existing.type == LightType.Directional)

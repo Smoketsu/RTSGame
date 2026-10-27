@@ -93,7 +93,7 @@ namespace Rts.Game.TerrainDisplay
         /// <summary>Finds the host, builds the mesh once and starts listening for terrain changes.</summary>
         private void Start()
         {
-            _host = FindFirstObjectByType<SimulationHost>();
+            _host = FindAnyObjectByType<SimulationHost>();
             if (_host == null || _host.Match == null)
             {
                 Debug.LogWarning("[TerrainView] No running SimulationHost, so there is no terrain to draw.");

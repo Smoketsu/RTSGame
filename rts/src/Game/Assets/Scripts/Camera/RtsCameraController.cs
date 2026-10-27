@@ -156,11 +156,11 @@ namespace Rts.Game.CameraRig
         {
             if (_host == null)
             {
-                _host = FindFirstObjectByType<SimulationHost>();
+                _host = FindAnyObjectByType<SimulationHost>();
             }
             if (_selection == null)
             {
-                _selection = FindFirstObjectByType<SelectionController>();
+                _selection = FindAnyObjectByType<SelectionController>();
             }
         }
 

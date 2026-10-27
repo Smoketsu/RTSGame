@@ -1,7 +1,9 @@
 {
   "dependencies": {
     "com.rtsgame.sim": "file:../../Sim",
-    "com.unity.ugui": "2.0.0",
+    "com.unity.inputsystem": "1.20.1",
+    "com.unity.ugui": "2.6.0",
+    "com.unity.modules.adaptiveperformance": "1.0.0",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
     "com.unity.modules.assetbundle": "1.0.0",
@@ -11,9 +13,13 @@
     "com.unity.modules.jsonserialize": "1.0.0",
     "com.unity.modules.particlesystem": "1.0.0",
     "com.unity.modules.physics": "1.0.0",
+    "com.unity.modules.physicscore2d": "1.0.0",
     "com.unity.modules.screencapture": "1.0.0",
+    "com.unity.modules.tetgen": "1.0.0",
+    "com.unity.modules.timelinefoundation": "1.0.0",
     "com.unity.modules.ui": "1.0.0",
     "com.unity.modules.uielements": "1.0.0",
-    "com.unity.modules.unitywebrequest": "1.0.0"
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.unity.modules.vectorgraphics": "1.0.0"
   }
 }
