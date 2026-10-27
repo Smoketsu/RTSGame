@@ -1,0 +1,4 @@
+# .gitattributes: line-ending rules. The loader hashes data file text into the content digest (Simulation.ContentDigest),
+# so data and campaign files must have the same bytes on every machine: always LF, whatever core.autocrlf says.
+rts/data/** text eol=lf
+rts/campaign/** text eol=lf

@@ -24,6 +24,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- `.gitattributes` forces LF line endings for `rts/data` and `rts/campaign`. The loader hashes tuning file text into the content digest, so a CRLF checkout (Windows with `core.autocrlf`) of identical data gave a different state hash from tick 0 (verified: converting `combat.json` to CRLF changes the `ai_vs_ai` final hash). Normalising line endings in the loader itself is still to do.
+
 - `UNITY_SETUP.md` pins `6000.6.7f1` and notes the Input System package Unity added to the manifest.
 
 ## Phase 1 Prototype (Skai versus water), merged 26 Oct 2026
