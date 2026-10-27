@@ -286,7 +286,37 @@ namespace Rts.Replay.Tests
             Assert.That(result.DesyncTick, Is.EqualTo(-1));
         }
 
-        /// <summary>Verify refuses a different data digest at library level, and a recorder refuses a simulation that is not at tick 0.</summary>
+        /// <summary>
+        /// A fault the simulation raises while stepping (here a test command that throws at tick 7) is reported as REPLAY ERROR with
+        /// that tick and exit code 3: neither a refusal (which happens only before any step) nor a desync. A refused digest through
+        /// the same in-memory entry point still exits 2.
+        /// </summary>
+        [Test]
+        public void ASimulationFaultDuringAStepIsAnError()
+        {
+            DataSet data = ReplayTestSupport.LoadData();
+            CommandScript script = ReplayTestSupport.LoadScript("smoke.json");
+            ReplayData replay = ReplayTestSupport.RecordScript(data, script, 40);
+            // The recording with the throwing command added at tick 7, between the checkpoints at ticks 0 and 20.
+            List<Command> faulty = new List<Command>(replay.Commands) { new ThrowingCommand(7) };
+            ReplayData changed = new ReplayData(replay.ContentDigest, replay.Seed, replay.MapId, replay.HashIntervalTicks, replay.TickCount,
+                replay.Players, faulty, replay.Checkpoints, replay.FinalHash);
+            StringWriter output = new StringWriter();
+            StringWriter error = new StringWriter();
+            Assert.That(CheckProgram.Check(changed, data, output, error), Is.EqualTo(CheckProgram.ExitError));
+            Assert.That(output.ToString(), Is.Empty);
+            Assert.That(error.ToString(), Is.EqualTo("REPLAY ERROR tick=7: " + ThrowingCommand.Message + "\n"));
+            // The same entry point still refuses a foreign digest before any step.
+            ReplayData otherDigest = new ReplayData(replay.ContentDigest ^ 1UL, replay.Seed, replay.MapId, replay.HashIntervalTicks, replay.TickCount,
+                replay.Players, faulty, replay.Checkpoints, replay.FinalHash);
+            StringWriter refusedError = new StringWriter();
+            Assert.That(CheckProgram.Check(otherDigest, data, new StringWriter(), refusedError), Is.EqualTo(CheckProgram.ExitRefused));
+            Assert.That(refusedError.ToString(), Does.StartWith("REPLAY REFUSED: ").And.Contain("data digest"));
+            // The unchanged recording verifies.
+            Assert.That(CheckProgram.Check(replay, data, new StringWriter(), new StringWriter()), Is.EqualTo(CheckProgram.ExitOk));
+        }
+
+        /// <summary>Verify refuses a different data digest at library level, and a recorder refuses a simulation that is not at tick 0 or already holds queued commands.</summary>
         [Test]
         public void LibraryGuards()
         {
@@ -302,6 +332,10 @@ namespace Rts.Replay.Tests
             stepped.Step();
             Expect.Throws<InvalidOperationException>(() => ReplayVerifier.Verify(replay, stepped));
             Expect.Throws<InvalidOperationException>(() => new ReplayRecorder(stepped, script.Players));
+            // A simulation with commands already queued cannot be recorded either: the recorder could not see them (review finding 7).
+            Simulation queued = ReplayTestSupport.StartSimulation(data, script);
+            queued.Submit(script.Commands[0]);
+            Expect.Throws<InvalidOperationException>(() => new ReplayRecorder(queued, script.Players));
             // Stepping around the recorder leaves checkpoints missing, which Finish reports instead of writing a replay that cannot verify.
             Simulation direct = ReplayTestSupport.StartSimulation(data, script);
             ReplayRecorder recorder = new ReplayRecorder(direct, script.Players);

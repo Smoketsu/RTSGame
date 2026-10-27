@@ -129,6 +129,15 @@ namespace Rts.Net.Tests
             CommandBundleMessage bundle = new CommandBundleMessage(9, new PeerId(1), new List<Command> { new MoveUnitCommand(9, P0, 3, new EntityId(42), Spot) });
             // The pause announcement reused inside the sync log.
             PauseStartedMessage pause = new PauseStartedMessage(5, P1, new PeerId(1), PauseReason.Disconnect, 300000);
+            // A small sync log: one non-empty bundle, two empty bundles on consecutive ticks and one apart, so both entry kinds are written.
+            SyncLog syncLog = new SyncLog(120, 100, 0xfeedUL,
+                new List<CommandBundleMessage> { bundle, new CommandBundleMessage(10, new PeerId(1), Array.Empty<Command>()), new CommandBundleMessage(11, new PeerId(1), Array.Empty<Command>()), new CommandBundleMessage(13, new PeerId(1), Array.Empty<Command>()) },
+                new List<PauseAccountEntry> { new PauseAccountEntry(P0, 0, 5000), new PauseAccountEntry(P1, 1, 0) },
+                new List<PeerRangesEntry> { new PeerRangesEntry(new PeerId(0), new List<TickRange> { new TickRange(0, int.MaxValue) }), new PeerRangesEntry(new PeerId(1), new List<TickRange> { new TickRange(0, 99) }) },
+                new List<PeerId> { new PeerId(1) }, pause, 6);
+            // The log's parts; a small log is one part.
+            List<SyncLogPartMessage> parts = codec.SplitSyncLog(syncLog);
+            Assert.That(parts.Count, Is.EqualTo(1));
             // One instance of every message kind.
             List<NetMessage> messages = new List<NetMessage>
             {
@@ -142,10 +151,7 @@ namespace Rts.Net.Tests
                 new PeerDroppedMessage(new PeerId(1), 99),
                 new PeerRejoinedMessage(new PeerId(1), 130),
                 new SyncRequestMessage(),
-                new SyncLogMessage(120, 100, 0xfeedUL, new List<CommandBundleMessage> { bundle },
-                    new List<PauseAccountEntry> { new PauseAccountEntry(P0, 0, 5000), new PauseAccountEntry(P1, 1, 0) },
-                    new List<PeerRangesEntry> { new PeerRangesEntry(new PeerId(0), new List<TickRange> { new TickRange(0, int.MaxValue) }), new PeerRangesEntry(new PeerId(1), new List<TickRange> { new TickRange(0, 99) }) },
-                    new List<PeerId> { new PeerId(1) }, pause, 6),
+                parts[0],
                 new SyncDoneMessage(100, 0xfeedUL),
                 new SyncRejectedMessage("hash_mismatch"),
                 new BundleRequestMessage(new PeerId(1), 77),
@@ -161,17 +167,98 @@ namespace Rts.Net.Tests
                 Assert.That(codec.Encode(decoded), Is.EqualTo(codec.Encode(message)), message.Kind + " re-encodes to the same bytes");
             }
             Assert.That(kinds.Count, Is.EqualTo(Enum.GetValues(typeof(MessageKind)).Length), "every MessageKind has a sample");
-            // The decoded sync log, checked field by field.
-            SyncLogMessage log = (SyncLogMessage)codec.Decode(codec.Encode(messages[10]));
+            // The sync log joined back from its decoded part, checked field by field; bundles come back grouped by peer then tick.
+            SyncLog log = codec.JoinSyncLog(new List<SyncLogPartMessage> { (SyncLogPartMessage)codec.Decode(codec.Encode(parts[0])) });
             Assert.That(log.RefereeTick, Is.EqualTo(120));
             Assert.That(log.CheckTick, Is.EqualTo(100));
-            Assert.That(log.Bundles.Count, Is.EqualTo(1));
+            Assert.That(log.Bundles.Count, Is.EqualTo(4));
+            Assert.That(log.Bundles[0].Tick, Is.EqualTo(9));
             Assert.That(log.Bundles[0].Commands.Count, Is.EqualTo(1));
+            Assert.That(log.Bundles[1].Tick, Is.EqualTo(10));
+            Assert.That(log.Bundles[2].Tick, Is.EqualTo(11));
+            Assert.That(log.Bundles[3].Tick, Is.EqualTo(13));
+            Assert.That(log.Bundles[3].Commands, Is.Empty);
             Assert.That(log.Ledger[1].DisconnectPausesUsed, Is.EqualTo(1));
             Assert.That(log.Ranges[1].Ranges[0].To, Is.EqualTo(99));
             Assert.That(log.Dropped, Is.EqualTo(new[] { new PeerId(1) }));
             Assert.That(log.ActivePause!.LimitMs, Is.EqualTo(300000));
             Assert.That(log.NextPauseId, Is.EqualTo(6));
+            Assert.That(codec.SplitSyncLog(log)[0].Bytes, Is.EqualTo(parts[0].Bytes), "the joined log splits to the same bytes");
+        }
+
+        /// <summary>
+        /// Review finding 5: a long match's sync log must fit the transport. A 48,000-tick (40 minutes at 20 ticks per second), 3-peer
+        /// log with a command in every fourth bundle is split into several parts that each stay within TransportLimits.MaxPayloadBytes
+        /// and joins back to the same bundles; the same length of empty bundles for 8 peers folds into one small part.
+        /// </summary>
+        [Test]
+        public void LongMatchSyncLog_SplitsUnderThePayloadCap_AndRoundTrips()
+        {
+            // The codec under test.
+            MessageCodec codec = new MessageCodec(Registry);
+            // Ticks of the long match. Unit: ticks.
+            const int ticks = 48000;
+            // Every (tick, peer) bundle of three peers; every fourth bundle carries one move.
+            List<CommandBundleMessage> bundles = new List<CommandBundleMessage>(ticks * 3);
+            // Expected fingerprint of the bundle at (tick, peer), to compare after the round trip. Keyed (peer << 32) | tick.
+            SortedDictionary<ulong, ulong> expected = new SortedDictionary<ulong, ulong>();
+            for (int tick = 0; tick < ticks; tick++)
+            {
+                for (byte peer = 0; peer < 3; peer++)
+                {
+                    // The commands of this bundle: a move in every fourth bundle, by the peer's own player.
+                    List<Command> commands = new List<Command>();
+                    if ((tick + peer) % 4 == 0)
+                    {
+                        commands.Add(new MoveUnitCommand(tick, new PlayerId(peer), (uint)tick, new EntityId((uint)(tick + 1)), Spot));
+                    }
+                    bundles.Add(new CommandBundleMessage(tick, new PeerId(peer), commands));
+                    expected[((ulong)peer << 32) | (uint)tick] = commands.Count == 0 ? 0 : Fingerprint(commands[0]);
+                }
+            }
+            // The log and its parts.
+            SyncLog log = new SyncLog(ticks, ticks - 20, 0xabcUL, bundles, new List<PauseAccountEntry>(), new List<PeerRangesEntry>(), new List<PeerId>(), null, 1);
+            List<SyncLogPartMessage> parts = codec.SplitSyncLog(log);
+            Assert.That(parts.Count, Is.GreaterThan(1), "a log with 36,000 commands needs more than one part");
+            foreach (SyncLogPartMessage part in parts)
+            {
+                Assert.That(codec.Encode(part).Length, Is.LessThanOrEqualTo(TransportLimits.MaxPayloadBytes), "part " + part.Index + " fits the transport");
+                Assert.That(part.Count, Is.EqualTo(parts.Count));
+            }
+            // The parts as received (decoded) and the log joined from them.
+            List<SyncLogPartMessage> received = new List<SyncLogPartMessage>();
+            foreach (SyncLogPartMessage part in parts)
+            {
+                received.Add((SyncLogPartMessage)codec.Decode(codec.Encode(part)));
+            }
+            SyncLog joined = codec.JoinSyncLog(received);
+            Assert.That(joined.Bundles.Count, Is.EqualTo(bundles.Count));
+            Assert.That(joined.RefereeTick, Is.EqualTo(ticks));
+            foreach (CommandBundleMessage bundle in joined.Bundles)
+            {
+                // Key and fingerprint of the received bundle.
+                ulong key = ((ulong)bundle.Peer.Value << 32) | (uint)bundle.Tick;
+                Assert.That(expected.TryGetValue(key, out ulong fingerprint), Is.True, "bundle " + bundle.Peer + "@" + bundle.Tick + " was sent");
+                Assert.That(bundle.Commands.Count == 0 ? 0 : Fingerprint(bundle.Commands[0]), Is.EqualTo(fingerprint), "bundle " + bundle.Peer + "@" + bundle.Tick + " survives");
+                expected.Remove(key);
+            }
+            Assert.That(expected, Is.Empty, "every bundle came back once");
+            // The same length of empty bundles for eight peers: one run entry per peer, so one small part.
+            List<CommandBundleMessage> empties = new List<CommandBundleMessage>(ticks * 8);
+            for (byte peer = 0; peer < 8; peer++)
+            {
+                for (int tick = 0; tick < ticks; tick++)
+                {
+                    empties.Add(new CommandBundleMessage(tick, new PeerId(peer), Array.Empty<Command>()));
+                }
+            }
+            List<SyncLogPartMessage> emptyParts = codec.SplitSyncLog(new SyncLog(ticks, -1, 0, empties, new List<PauseAccountEntry>(), new List<PeerRangesEntry>(), new List<PeerId>(), null, 1));
+            Assert.That(emptyParts.Count, Is.EqualTo(1));
+            Assert.That(emptyParts[0].Bytes.Length, Is.LessThan(1024), "384,000 empty bundles fold into a few run entries");
+            Assert.That(codec.JoinSyncLog(emptyParts).Bundles.Count, Is.EqualTo(ticks * 8));
+            // Parts out of order or with a mismatched count are protocol errors.
+            Assert.That(() => codec.JoinSyncLog(new List<SyncLogPartMessage> { received[1], received[0] }), Throws.TypeOf<NetProtocolException>(), "out of order");
+            Assert.That(() => codec.JoinSyncLog(new List<SyncLogPartMessage> { received[0] }), Throws.TypeOf<NetProtocolException>(), "incomplete");
         }
 
         /// <summary>Wrong version, unknown kind, truncation, trailing bytes, a bad enum byte and an unknown command kind are protocol errors.</summary>

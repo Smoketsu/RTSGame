@@ -3,8 +3,10 @@
 // kind, immutable, holding exactly the fields that go on the wire; MessageCodec (MessageCodec.cs) is the only place
 // that turns them into bytes and back. Who sends what: every peer sends CommandBundle (one per tick, empty bundles
 // too) and StateHash (one per hash interval); any peer may send PauseRequest, ResumeRequest, BundleRequest and
-// SyncRequest; the referee alone sends PauseStarted, PauseEnded, PeerDropped, PeerRejoined, SyncLog and SyncRejected;
-// a reconnecting peer sends SyncDone. The referee is the lowest live connected peer (LockstepPeer.Referee).
+// SyncRequest; the referee alone sends PauseStarted, PauseEnded, PeerDropped, PeerRejoined, SyncLogPart and
+// SyncRejected; a reconnecting peer sends SyncDone. The referee is the lowest live connected peer (LockstepPeer.Referee).
+// The sync log (SyncLog, not itself a message) can exceed the transport's payload cap, so it travels as a run of
+// SyncLogPart messages that the receiver joins (MessageCodec.SplitSyncLog and JoinSyncLog).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Commands;
@@ -42,8 +44,8 @@ namespace Rts.Net
         /// <summary>A reconnecting peer asks the referee for the command log (<see cref="SyncRequestMessage"/>).</summary>
         SyncRequest = 9,
 
-        /// <summary>The referee's command log and session state for a reconnecting peer (<see cref="SyncLogMessage"/>).</summary>
-        SyncLog = 10,
+        /// <summary>One part of the referee's command log and session state for a reconnecting peer (<see cref="SyncLogPartMessage"/>, joined into a <see cref="SyncLog"/>).</summary>
+        SyncLogPart = 10,
 
         /// <summary>A reconnecting peer reports it replayed the log and the hash it reached (<see cref="SyncDoneMessage"/>).</summary>
         SyncDone = 11,
@@ -313,7 +315,7 @@ namespace Rts.Net
         public override MessageKind Kind => MessageKind.SyncRequest;
     }
 
-    /// <summary>One player's pause accounting as carried in a <see cref="SyncLogMessage"/>.</summary>
+    /// <summary>One player's pause accounting as carried in a <see cref="SyncLog"/>.</summary>
     public readonly struct PauseAccountEntry
     {
         /// <summary>The player.</summary>
@@ -366,7 +368,7 @@ namespace Rts.Net
         public bool IsOpen => To == int.MaxValue;
     }
 
-    /// <summary>The required ranges of one peer as carried in a <see cref="SyncLogMessage"/>.</summary>
+    /// <summary>The required ranges of one peer as carried in a <see cref="SyncLog"/>.</summary>
     public sealed class PeerRangesEntry
     {
         /// <summary>The peer.</summary>
@@ -388,8 +390,9 @@ namespace Rts.Net
     /// <summary>
     /// Everything a reconnecting peer needs to rebuild the session: every bundle the referee holds, the referee's
     /// current tick, the hash to verify against, the pause ledger, the required ranges, the live set and the active pause.
+    /// Not a message itself: it travels as <see cref="SyncLogPartMessage"/>s (see <see cref="MessageCodec.SplitSyncLog"/>).
     /// </summary>
-    public sealed class SyncLogMessage : NetMessage
+    public sealed class SyncLog
     {
         /// <summary>The referee's current tick (the next tick it will step). The joiner replays ticks 0 to this minus 1. Unit: ticks. Range: 0 upward.</summary>
         public int RefereeTick { get; }
@@ -400,7 +403,7 @@ namespace Rts.Net
         /// <summary>The referee's hash at <see cref="CheckTick"/>; 0 when CheckTick is -1. Range: any ulong.</summary>
         public ulong CheckHash { get; }
 
-        /// <summary>Every bundle the referee holds, in ascending (tick, peer) order.</summary>
+        /// <summary>Every bundle the referee holds, at most one per (tick, peer), in any order (the codec regroups them by peer and tick).</summary>
         public IReadOnlyList<CommandBundleMessage> Bundles { get; }
 
         /// <summary>The pause ledger, one entry per player in ascending player order.</summary>
@@ -418,8 +421,8 @@ namespace Rts.Net
         /// <summary>The referee's next pause number, so a joiner that later becomes referee never reuses one. Range: 1 upward.</summary>
         public uint NextPauseId { get; }
 
-        /// <summary>Builds the message.</summary>
-        public SyncLogMessage(int refereeTick, int checkTick, ulong checkHash, IReadOnlyList<CommandBundleMessage> bundles,
+        /// <summary>Builds the log.</summary>
+        public SyncLog(int refereeTick, int checkTick, ulong checkHash, IReadOnlyList<CommandBundleMessage> bundles,
             IReadOnlyList<PauseAccountEntry> ledger, IReadOnlyList<PeerRangesEntry> ranges, IReadOnlyList<PeerId> dropped,
             PauseStartedMessage? activePause, uint nextPauseId)
         {
@@ -437,9 +440,52 @@ namespace Rts.Net
             ActivePause = activePause;
             NextPauseId = nextPauseId;
         }
+    }
 
-        /// <summary><see cref="MessageKind.SyncLog"/>.</summary>
-        public override MessageKind Kind => MessageKind.SyncLog;
+    /// <summary>
+    /// One slice of an encoded <see cref="SyncLog"/>. The referee sends the parts in index order over the ordered transport;
+    /// the joiner concatenates their bytes once it holds all <see cref="Count"/> of them and decodes the log.
+    /// </summary>
+    public sealed class SyncLogPartMessage : NetMessage
+    {
+        /// <summary>This part's position in the run. Range: 0 to <see cref="Count"/> - 1.</summary>
+        public int Index { get; }
+
+        /// <summary>Parts in the run. Range: 1 to <see cref="MessageCodec.MaxSyncLogParts"/>.</summary>
+        public int Count { get; }
+
+        /// <summary>This part's slice of the encoded log. Range: 1 to <see cref="MessageCodec.SyncLogPartMaxBytes"/> bytes (an empty log still has one part of its header bytes).</summary>
+        public byte[] Bytes { get; }
+
+        /// <summary>Builds a part.</summary>
+        /// <param name="index">Position in the run, 0 to count - 1.</param>
+        /// <param name="count">Parts in the run, 1 or more.</param>
+        /// <param name="bytes">The slice; not null, not empty.</param>
+        public SyncLogPartMessage(int index, int count, byte[] bytes)
+        {
+            if (count < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+            if (index < 0 || index >= count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            if (bytes == null)
+            {
+                throw new ArgumentNullException(nameof(bytes));
+            }
+            if (bytes.Length == 0)
+            {
+                throw new ArgumentException("A sync log part carries at least one byte.", nameof(bytes));
+            }
+            Index = index;
+            Count = count;
+            Bytes = bytes;
+        }
+
+        /// <summary><see cref="MessageKind.SyncLogPart"/>.</summary>
+        public override MessageKind Kind => MessageKind.SyncLogPart;
     }
 
     /// <summary>A reconnecting peer has replayed the log up to the referee's tick and reports the hash it reached.</summary>

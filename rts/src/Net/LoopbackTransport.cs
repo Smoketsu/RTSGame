@@ -6,6 +6,8 @@
 // the test. Reorder and drop are off by default; with both off the hub meets the ITransport contract (reliable,
 // ordered). Reorder keeps every message but shuffles arrival within a window; drop makes the hub unreliable and
 // exists only for tests of a future retransmission layer, since the lockstep protocol itself assumes reliability.
+// A per-link latency (SetLinkLatency) models one slow direction between two peers, and a silent disconnect
+// (Disconnect with reportLoss false) models a crash the transport has not noticed when the peer comes back.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -34,6 +36,9 @@ namespace Rts.Net
         /// <summary>Random source for the reorder and drop knobs. Seeded by the constructor.</summary>
         private readonly DeterministicRandom _rng;
 
+        /// <summary>Latency overrides per directed link, keyed (sender id shifted by 8) | receiver id. Unit: host ticks. Range: 0 upward.</summary>
+        private readonly SortedDictionary<int, int> _linkLatency = new SortedDictionary<int, int>();
+
         /// <summary>Next send sequence number. Range: 0 upward.</summary>
         private long _nextSequence;
 
@@ -43,7 +48,7 @@ namespace Rts.Net
         /// <summary>The hub's clock. Unit: host ticks. Range: 0 upward; advanced only by <see cref="Advance"/>.</summary>
         public int Now { get; private set; }
 
-        /// <summary>Delay added to every delivery. Unit: host ticks. Range: 0 upward; default 0 (delivered on the next TryReceive).</summary>
+        /// <summary>Delay added to every delivery (connection events, and messages on links without a <see cref="SetLinkLatency"/> override). Unit: host ticks. Range: 0 upward; default 0 (delivered on the next TryReceive).</summary>
         public int LatencyTicks { get; set; }
 
         /// <summary>Extra random delay of 0 to this many host ticks per message, so messages can overtake each other. Unit: host ticks. Range: 0 (off, default) upward.</summary>
@@ -92,8 +97,8 @@ namespace Rts.Net
                 }
                 other.AddLink(peer);
                 endpoint.AddLink(other.Peer);
-                Enqueue(other, new TransportEvent(TransportEventKind.PeerConnected, peer, null), false);
-                Enqueue(endpoint, new TransportEvent(TransportEventKind.PeerConnected, other.Peer, null), false);
+                Enqueue(other, new TransportEvent(TransportEventKind.PeerConnected, peer, null), false, LatencyTicks);
+                Enqueue(endpoint, new TransportEvent(TransportEventKind.PeerConnected, other.Peer, null), false, LatencyTicks);
             }
             return endpoint;
         }
@@ -102,9 +107,14 @@ namespace Rts.Net
         /// Takes <paramref name="peer"/> offline: its endpoint stops sending and receiving, its undelivered inbox is lost,
         /// and every other online endpoint receives <see cref="TransportEventKind.PeerDisconnected"/> after the latency.
         /// Messages it sent that are still in flight to others are lost too, like a crashed process's unsent reliable data.
+        /// With <paramref name="reportLoss"/> false the others are not told and keep the peer listed as connected (sends to
+        /// it are swallowed): the crash the transport has not detected yet; a later <see cref="Connect"/> of the same peer
+        /// supersedes the dead connection and reports only <see cref="TransportEventKind.PeerConnected"/>, as the ITransport
+        /// contract requires.
         /// </summary>
         /// <param name="peer">A connected peer.</param>
-        public void Disconnect(PeerId peer)
+        /// <param name="reportLoss">True (default) to report the loss to every other peer; false for an undetected crash.</param>
+        public void Disconnect(PeerId peer, bool reportLoss = true)
         {
             if (!_endpoints.TryGetValue(peer, out LoopbackTransport? endpoint) || !endpoint.IsOnline)
             {
@@ -117,10 +127,36 @@ namespace Rts.Net
                 {
                     continue;
                 }
-                other.RemoveLink(peer);
                 InFlightCount -= other.DropInboxFrom(peer);
-                Enqueue(other, new TransportEvent(TransportEventKind.PeerDisconnected, peer, null), false);
+                if (reportLoss)
+                {
+                    other.RemoveLink(peer);
+                    Enqueue(other, new TransportEvent(TransportEventKind.PeerDisconnected, peer, null), false, LatencyTicks);
+                }
             }
+        }
+
+        /// <summary>
+        /// Sets the latency of messages from <paramref name="from"/> to <paramref name="to"/> (one direction), replacing
+        /// <see cref="LatencyTicks"/> for that link. Set it before the peers play: changing it while messages are in flight
+        /// lets later messages overtake earlier ones on that link, which the ITransport contract forbids.
+        /// </summary>
+        /// <param name="from">The sender.</param>
+        /// <param name="to">The receiver.</param>
+        /// <param name="latencyTicks">The link's latency. Unit: host ticks. Range: 0 upward.</param>
+        public void SetLinkLatency(PeerId from, PeerId to, int latencyTicks)
+        {
+            if (latencyTicks < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(latencyTicks));
+            }
+            _linkLatency[LinkKey(from, to)] = latencyTicks;
+        }
+
+        /// <summary>Key of a directed link for <see cref="_linkLatency"/>. Range: 0 to 65535.</summary>
+        private static int LinkKey(PeerId from, PeerId to)
+        {
+            return (from.Value << 8) | to.Value;
         }
 
         /// <summary>Moves the hub clock forward so queued deliveries become due.</summary>
@@ -153,17 +189,18 @@ namespace Rts.Net
             // Private copy so the sender cannot change the bytes after sending.
             byte[] copy = new byte[payload.Length];
             Array.Copy(payload, copy, payload.Length);
-            Enqueue(receiver, new TransportEvent(TransportEventKind.Message, from, copy), true);
+            Enqueue(receiver, new TransportEvent(TransportEventKind.Message, from, copy), true, _linkLatency.TryGetValue(LinkKey(from, to), out int link) ? link : LatencyTicks);
         }
 
         /// <summary>Queues an event into an endpoint's inbox at Now + latency (+ reorder jitter for messages).</summary>
         /// <param name="receiver">The endpoint.</param>
         /// <param name="evt">The event.</param>
         /// <param name="jitter">True to apply the reorder window (messages only; connection events are never reordered).</param>
-        private void Enqueue(LoopbackTransport receiver, TransportEvent evt, bool jitter)
+        /// <param name="latency">Latency of this delivery: the link's override for a message, else <see cref="LatencyTicks"/>. Unit: host ticks.</param>
+        private void Enqueue(LoopbackTransport receiver, TransportEvent evt, bool jitter, int latency)
         {
-            // Delivery tick. Unit: host ticks. Range: Now + LatencyTicks upward.
-            int deliverAt = Now + LatencyTicks;
+            // Delivery tick. Unit: host ticks. Range: Now + latency upward.
+            int deliverAt = Now + latency;
             if (jitter && ReorderWindowTicks > 0)
             {
                 deliverAt += _rng.NextInt(ReorderWindowTicks + 1);
@@ -256,12 +293,16 @@ namespace Rts.Net
                 return IsOnline && _links.Contains(peer);
             }
 
-            /// <summary>Queues the payload for one linked peer; false when not linked or offline.</summary>
+            /// <summary>Queues the payload for one linked peer; false when not linked or offline. A payload over <see cref="TransportLimits.MaxPayloadBytes"/> throws, as the contract allows.</summary>
             public bool Send(PeerId to, byte[] payload)
             {
                 if (payload == null)
                 {
                     throw new ArgumentNullException(nameof(payload));
+                }
+                if (payload.Length > TransportLimits.MaxPayloadBytes)
+                {
+                    throw new ArgumentException("Payload of " + payload.Length + " bytes exceeds the transport limit of " + TransportLimits.MaxPayloadBytes + ".", nameof(payload));
                 }
                 if (!IsConnected(to))
                 {

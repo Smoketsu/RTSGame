@@ -3,7 +3,10 @@
 // version (uint16), message kind (one byte), then the kind's fields in the order its class lists them; lists are an
 // int32 count followed by the items. Commands inside bundles go through the CommandCodecRegistry. A message with a
 // different version, an unknown kind, a bad enum byte, a truncated body or trailing bytes throws NetProtocolException.
-// ProtocolVersion changes whenever any layout here or in a codec changes; peers on different versions cannot play.
+// The sync log is not one message: SplitSyncLog encodes it into a body (bundles grouped by peer, runs of empty bundles
+// written as one run entry) and slices the body into SyncLogPart messages that each fit under the transport's payload
+// cap; JoinSyncLog is the mirror. ProtocolVersion changes whenever any layout here or in a codec changes; peers on
+// different versions cannot play.
 using System;
 using System.Collections.Generic;
 using Rts.Net.Codecs;
@@ -15,17 +18,32 @@ namespace Rts.Net
     /// <summary>Encodes and decodes every <see cref="NetMessage"/>. One instance per peer, holding the command codecs.</summary>
     public sealed class MessageCodec
     {
-        /// <summary>Version written at the start of every message. Range: fixed per build; bump on any wire change.</summary>
-        public const ushort ProtocolVersion = 1;
+        /// <summary>Version written at the start of every message. Range: fixed per build; bump on any wire change. 2: the sync log travels in parts with run-length encoded empty bundles.</summary>
+        public const ushort ProtocolVersion = 2;
 
         /// <summary>Most commands one bundle may carry, a sanity bound against hostile lengths. Unit: commands. Range: fixed protocol limit.</summary>
         public const int MaxCommandsPerBundle = 1 << 14;
 
-        /// <summary>Most bundles a sync log may carry (long matches at 20 ticks per second times many peers stay far below). Unit: bundles. Range: fixed protocol limit.</summary>
+        /// <summary>Most bundles a sync log may carry, runs of empty bundles counted per bundle (long matches at 20 ticks per second times many peers stay far below). Unit: bundles. Range: fixed protocol limit.</summary>
         public const int MaxBundlesPerSync = 1 << 22;
 
         /// <summary>Most entries a list of players, peers or ranges may have. Range: fixed protocol limit.</summary>
         public const int MaxSmallList = 1 << 12;
+
+        /// <summary>Most parts one sync log may be split into (times <see cref="SyncLogPartMaxBytes"/> is far above any log the bundle bound allows). Unit: parts. Range: fixed protocol limit.</summary>
+        public const int MaxSyncLogParts = 1 << 16;
+
+        /// <summary>Bytes of a sync log part message that are not log bytes: version, kind, index, count and the slice length. Unit: bytes. Range: fixed by the wire layout.</summary>
+        public const int SyncLogPartOverheadBytes = 2 + 1 + 4 + 4 + 4;
+
+        /// <summary>Most log bytes one part carries, so the whole part message stays within <see cref="TransportLimits.MaxPayloadBytes"/>. Unit: bytes. Range: fixed protocol limit.</summary>
+        public const int SyncLogPartMaxBytes = TransportLimits.MaxPayloadBytes - SyncLogPartOverheadBytes;
+
+        /// <summary>Entry byte in the sync log body for a run of consecutive empty bundles of one peer. Range: fixed wire value.</summary>
+        private const byte EntryEmptyRun = 0;
+
+        /// <summary>Entry byte in the sync log body for one bundle with commands. Range: fixed wire value.</summary>
+        private const byte EntryBundle = 1;
 
         /// <summary>The command codecs used inside bundles.</summary>
         public CommandCodecRegistry Commands { get; }
@@ -82,8 +100,10 @@ namespace Rts.Net
                     break;
                 case SyncRequestMessage _:
                     break;
-                case SyncLogMessage log:
-                    WriteSyncLog(log, writer);
+                case SyncLogPartMessage part:
+                    writer.WriteInt32(part.Index);
+                    writer.WriteInt32(part.Count);
+                    writer.WriteBytes(part.Bytes);
                     break;
                 case SyncDoneMessage done:
                     writer.WriteInt32(done.CheckTick);
@@ -147,8 +167,8 @@ namespace Rts.Net
                 case MessageKind.SyncRequest:
                     message = new SyncRequestMessage();
                     break;
-                case MessageKind.SyncLog:
-                    message = ReadSyncLog(reader);
+                case MessageKind.SyncLogPart:
+                    message = ReadSyncLogPart(reader);
                     break;
                 case MessageKind.SyncDone:
                     message = new SyncDoneMessage(reader.ReadInt32(), reader.ReadUInt64());
@@ -169,7 +189,7 @@ namespace Rts.Net
         /// <summary>Runs a message constructor, turning its argument checks into protocol errors.</summary>
         /// <typeparam name="T">The message type.</typeparam>
         /// <param name="build">The constructor call.</param>
-        private static T Guard<T>(Func<T> build) where T : NetMessage
+        private static T Guard<T>(Func<T> build) where T : class
         {
             try
             {
@@ -186,8 +206,14 @@ namespace Rts.Net
         {
             writer.WriteInt32(bundle.Tick);
             writer.WritePeerId(bundle.Peer);
-            writer.WriteInt32(bundle.Commands.Count);
-            foreach (Command command in bundle.Commands)
+            WriteCommands(bundle.Commands, writer);
+        }
+
+        /// <summary>Writes a command count then each command through the registry.</summary>
+        private void WriteCommands(IReadOnlyList<Command> commands, NetWriter writer)
+        {
+            writer.WriteInt32(commands.Count);
+            foreach (Command command in commands)
             {
                 Commands.Encode(command, writer);
             }
@@ -199,6 +225,14 @@ namespace Rts.Net
             // Fields in wire order.
             int tick = reader.ReadInt32();
             PeerId peer = reader.ReadPeerId();
+            List<Command> commands = ReadCommands(reader);
+            return Guard(() => new CommandBundleMessage(tick, peer, commands));
+        }
+
+        /// <summary>Reads a command count (bounded by <see cref="MaxCommandsPerBundle"/>) then that many commands.</summary>
+        private List<Command> ReadCommands(NetReader reader)
+        {
+            // The count as written. Range: 0 to MaxCommandsPerBundle.
             int count = reader.ReadInt32();
             if (count < 0 || count > MaxCommandsPerBundle)
             {
@@ -211,7 +245,7 @@ namespace Rts.Net
             {
                 commands.Add(Commands.Decode(reader));
             }
-            return Guard(() => new CommandBundleMessage(tick, peer, commands));
+            return commands;
         }
 
         /// <summary>Writes pause id, player, peer, reason byte and limit.</summary>
@@ -254,16 +288,172 @@ namespace Rts.Net
             return Guard(() => new PauseEndedMessage(id, elapsed, (PauseEnd)end));
         }
 
-        /// <summary>Writes the sync log: scalars, bundles, ledger, ranges, dropped peers, the optional active pause, next pause id.</summary>
-        private void WriteSyncLog(SyncLogMessage log, NetWriter writer)
+        /// <summary>Reads a sync log part; a count or slice beyond the limits is a protocol error.</summary>
+        private static SyncLogPartMessage ReadSyncLogPart(NetReader reader)
+        {
+            // Fields in wire order.
+            int index = reader.ReadInt32();
+            int count = reader.ReadInt32();
+            if (count < 1 || count > MaxSyncLogParts)
+            {
+                throw new NetProtocolException("Bad sync log part count " + count + ".");
+            }
+            // The slice; its length prefix is checked against the part cap.
+            byte[] bytes = reader.ReadBytes();
+            if (bytes.Length > SyncLogPartMaxBytes)
+            {
+                throw new NetProtocolException("Sync log part of " + bytes.Length + " bytes exceeds the part cap of " + SyncLogPartMaxBytes + ".");
+            }
+            return Guard(() => new SyncLogPartMessage(index, count, bytes));
+        }
+
+        // ---------------------------------------------------------------- sync log
+
+        /// <summary>
+        /// Encodes a sync log as the run of part messages to send in index order. Every encoded part stays within
+        /// <see cref="TransportLimits.MaxPayloadBytes"/>; an empty log is one part. The body is the log's scalars, then the
+        /// bundles grouped by peer ascending and tick ascending with consecutive empty bundles folded into one run entry, then
+        /// the ledger, ranges, dropped peers, the optional active pause and the next pause id.
+        /// </summary>
+        /// <param name="log">The log; not null.</param>
+        public List<SyncLogPartMessage> SplitSyncLog(SyncLog log)
+        {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+            // The whole encoded body.
+            NetWriter writer = new NetWriter(1 << 12);
+            WriteSyncLogBody(log, writer);
+            byte[] body = writer.ToArray();
+            // Parts needed. Range: 1 upward.
+            int count = Math.Max(1, (body.Length + SyncLogPartMaxBytes - 1) / SyncLogPartMaxBytes);
+            if (count > MaxSyncLogParts)
+            {
+                throw new NetProtocolException("Sync log of " + body.Length + " bytes needs " + count + " parts, above the limit of " + MaxSyncLogParts + ".");
+            }
+            // The parts in index order.
+            List<SyncLogPartMessage> parts = new List<SyncLogPartMessage>(count);
+            // Index of the part being cut. Range: 0 to count - 1.
+            for (int index = 0; index < count; index++)
+            {
+                // First byte and length of this slice. Unit: bytes.
+                int start = index * SyncLogPartMaxBytes;
+                int length = Math.Min(SyncLogPartMaxBytes, body.Length - start);
+                // A body shorter than one byte (never, the header alone is longer) would still need a non-empty slice.
+                byte[] slice = new byte[Math.Max(1, length)];
+                Array.Copy(body, start, slice, 0, length);
+                parts.Add(new SyncLogPartMessage(index, count, slice));
+            }
+            return parts;
+        }
+
+        /// <summary>
+        /// Decodes the log from a complete run of parts (indices 0 to Count - 1 in order, all with the same Count). A gap,
+        /// a repeated index, a mismatched count or a malformed body is a protocol error.
+        /// </summary>
+        /// <param name="parts">The received parts in index order; not null, not empty.</param>
+        public SyncLog JoinSyncLog(IReadOnlyList<SyncLogPartMessage> parts)
+        {
+            if (parts == null)
+            {
+                throw new ArgumentNullException(nameof(parts));
+            }
+            if (parts.Count == 0)
+            {
+                throw new NetProtocolException("A sync log needs at least one part.");
+            }
+            // The count every part must agree on.
+            int count = parts[0].Count;
+            if (parts.Count != count)
+            {
+                throw new NetProtocolException("Sync log run has " + parts.Count + " parts but each announces " + count + ".");
+            }
+            // Total body length. Unit: bytes.
+            int total = 0;
+            // Index of the part being checked. Range: 0 to count - 1.
+            for (int i = 0; i < count; i++)
+            {
+                if (parts[i].Index != i || parts[i].Count != count)
+                {
+                    throw new NetProtocolException("Sync log part " + parts[i].Index + " of " + parts[i].Count + " arrived where part " + i + " of " + count + " was expected.");
+                }
+                total += parts[i].Bytes.Length;
+            }
+            // The joined body.
+            byte[] body = new byte[total];
+            // Write position in the body. Unit: bytes.
+            int at = 0;
+            foreach (SyncLogPartMessage part in parts)
+            {
+                Array.Copy(part.Bytes, 0, body, at, part.Bytes.Length);
+                at += part.Bytes.Length;
+            }
+            // Reader over the body; it must be consumed exactly.
+            NetReader reader = new NetReader(body);
+            SyncLog log = ReadSyncLogBody(reader);
+            reader.RequireEnd();
+            return log;
+        }
+
+        /// <summary>Writes the sync log body: scalars, bundles grouped by peer with empty runs folded, ledger, ranges, dropped peers, the optional active pause, next pause id.</summary>
+        private void WriteSyncLogBody(SyncLog log, NetWriter writer)
         {
             writer.WriteInt32(log.RefereeTick);
             writer.WriteInt32(log.CheckTick);
             writer.WriteUInt64(log.CheckHash);
-            writer.WriteInt32(log.Bundles.Count);
+            // Bundles by peer (ascending), each list sorted by tick.
+            SortedDictionary<PeerId, List<CommandBundleMessage>> byPeer = new SortedDictionary<PeerId, List<CommandBundleMessage>>();
             foreach (CommandBundleMessage bundle in log.Bundles)
             {
-                WriteBundle(bundle, writer);
+                if (!byPeer.TryGetValue(bundle.Peer, out List<CommandBundleMessage>? list))
+                {
+                    list = new List<CommandBundleMessage>();
+                    byPeer.Add(bundle.Peer, list);
+                }
+                list.Add(bundle);
+            }
+            writer.WriteInt32(byPeer.Count);
+            foreach (KeyValuePair<PeerId, List<CommandBundleMessage>> group in byPeer)
+            {
+                // Ticks are unique per peer (one bundle per (tick, peer)), so this order is total.
+                group.Value.Sort(CompareByTick);
+                writer.WritePeerId(group.Key);
+                // Entries of this peer: one per non-empty bundle, one per run of consecutive empty bundles.
+                List<CommandBundleMessage> bundles = group.Value;
+                // Entry count position is patched after the entries are counted, so write them to a side buffer first.
+                NetWriter entries = new NetWriter(1 << 10);
+                // Entries written. Range: 0 upward.
+                int entryCount = 0;
+                // Index of the bundle being written. Range: 0 to bundles.Count.
+                int i = 0;
+                while (i < bundles.Count)
+                {
+                    // The bundle at i.
+                    CommandBundleMessage bundle = bundles[i];
+                    if (bundle.Commands.Count > 0)
+                    {
+                        entries.WriteByte(EntryBundle);
+                        entries.WriteInt32(bundle.Tick);
+                        WriteCommands(bundle.Commands, entries);
+                        entryCount++;
+                        i++;
+                        continue;
+                    }
+                    // Length of the run of empty bundles on consecutive ticks starting at i. Range: 1 upward.
+                    int run = 1;
+                    while (i + run < bundles.Count && bundles[i + run].Commands.Count == 0 && bundles[i + run].Tick == bundle.Tick + run)
+                    {
+                        run++;
+                    }
+                    entries.WriteByte(EntryEmptyRun);
+                    entries.WriteInt32(bundle.Tick);
+                    entries.WriteInt32(run);
+                    entryCount++;
+                    i += run;
+                }
+                writer.WriteInt32(entryCount);
+                writer.WriteBytes(entries.ToArray());
             }
             writer.WriteInt32(log.Ledger.Count);
             foreach (PauseAccountEntry entry in log.Ledger)
@@ -296,25 +486,77 @@ namespace Rts.Net
             writer.WriteUInt32(log.NextPauseId);
         }
 
-        /// <summary>Reads a sync log written by <see cref="WriteSyncLog"/>.</summary>
-        private SyncLogMessage ReadSyncLog(NetReader reader)
+        /// <summary>Orders bundles of one peer by tick ascending.</summary>
+        private static int CompareByTick(CommandBundleMessage a, CommandBundleMessage b)
+        {
+            return a.Tick.CompareTo(b.Tick);
+        }
+
+        /// <summary>Reads a sync log body written by <see cref="WriteSyncLogBody"/>. The bundles come back grouped by peer and ascending by tick.</summary>
+        private SyncLog ReadSyncLogBody(NetReader reader)
         {
             // Scalars in wire order.
             int refereeTick = reader.ReadInt32();
             int checkTick = reader.ReadInt32();
             ulong checkHash = reader.ReadUInt64();
-            // Bundle count. Range: 0 to MaxBundlesPerSync.
-            int bundleCount = reader.ReadInt32();
-            if (bundleCount < 0 || bundleCount > MaxBundlesPerSync)
+            // Peer group count. Range: 0 to MaxSmallList.
+            int groupCount = ReadSmallCount(reader, "bundle peer");
+            // The bundles, grouped by peer then tick.
+            List<CommandBundleMessage> bundles = new List<CommandBundleMessage>();
+            // Index of the group being read. Range: 0 to groupCount - 1.
+            for (int g = 0; g < groupCount; g++)
             {
-                throw new NetProtocolException("Bad bundle count " + bundleCount + " in a sync log.");
-            }
-            // The bundles in wire order.
-            List<CommandBundleMessage> bundles = new List<CommandBundleMessage>(bundleCount);
-            // Index of the bundle being read. Range: 0 to bundleCount - 1.
-            for (int i = 0; i < bundleCount; i++)
-            {
-                bundles.Add(ReadBundle(reader));
+                // The group's peer and its entries, read from the group's byte block.
+                PeerId peer = reader.ReadPeerId();
+                int entryCount = reader.ReadInt32();
+                if (entryCount < 0 || entryCount > MaxBundlesPerSync)
+                {
+                    throw new NetProtocolException("Bad sync log entry count " + entryCount + " for " + peer + ".");
+                }
+                NetReader entries = new NetReader(reader.ReadBytes());
+                // Tick the next entry must start after, so ticks ascend and never repeat. Range: -1 upward.
+                int lastTick = -1;
+                // Index of the entry being read. Range: 0 to entryCount - 1.
+                for (int e = 0; e < entryCount; e++)
+                {
+                    // Entry kind byte and its first tick.
+                    byte kind = entries.ReadByte();
+                    int tick = entries.ReadInt32();
+                    if (tick <= lastTick)
+                    {
+                        throw new NetProtocolException("Sync log bundles of " + peer + " are not ascending at tick " + tick + ".");
+                    }
+                    if (kind == EntryEmptyRun)
+                    {
+                        // Run length. Range: 1 to the bundle bound, and the run must not overflow the tick range.
+                        int run = entries.ReadInt32();
+                        if (run < 1 || run > MaxBundlesPerSync || run - 1 > int.MaxValue - tick || bundles.Count + run > MaxBundlesPerSync)
+                        {
+                            throw new NetProtocolException("Bad empty bundle run of " + run + " at tick " + tick + " for " + peer + ".");
+                        }
+                        // Tick of the empty bundle being added. Range: tick to tick + run - 1.
+                        for (int t = tick; t < tick + run; t++)
+                        {
+                            bundles.Add(Guard(() => new CommandBundleMessage(t, peer, Array.Empty<Command>())));
+                        }
+                        lastTick = tick + run - 1;
+                    }
+                    else if (kind == EntryBundle)
+                    {
+                        if (bundles.Count + 1 > MaxBundlesPerSync)
+                        {
+                            throw new NetProtocolException("Sync log holds more than " + MaxBundlesPerSync + " bundles.");
+                        }
+                        List<Command> commands = ReadCommands(entries);
+                        bundles.Add(Guard(() => new CommandBundleMessage(tick, peer, commands)));
+                        lastTick = tick;
+                    }
+                    else
+                    {
+                        throw new NetProtocolException("Unknown sync log entry byte " + kind + ".");
+                    }
+                }
+                entries.RequireEnd();
             }
             // Ledger entry count. Range: 0 to MaxSmallList.
             int ledgerCount = ReadSmallCount(reader, "ledger");
@@ -360,7 +602,7 @@ namespace Rts.Net
             PauseStartedMessage? pause = reader.ReadBool() ? ReadPauseStarted(reader) : null;
             // The referee's next pause number.
             uint nextPauseId = reader.ReadUInt32();
-            return Guard(() => new SyncLogMessage(refereeTick, checkTick, checkHash, bundles, ledger, ranges, dropped, pause, nextPauseId));
+            return Guard(() => new SyncLog(refereeTick, checkTick, checkHash, bundles, ledger, ranges, dropped, pause, nextPauseId));
         }
 
         /// <summary>Reads a list count bounded by <see cref="MaxSmallList"/>.</summary>

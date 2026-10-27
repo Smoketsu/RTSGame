@@ -9,6 +9,7 @@ using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Factions;
+using Rts.Sim.Teams;
 
 namespace Rts.Net.Tests
 {
@@ -82,20 +83,49 @@ namespace Rts.Net.Tests
             return files;
         }
 
-        /// <summary>A started simulation of the exit script (greybox_1v1, Skai slot 0 versus Water slot 1) with its setup commands submitted, as the lockstep peers' factory builds it.</summary>
-        public static Simulation CreateAiVsAiSimulation()
+        /// <summary>The exit script's match (greybox_1v1, Skai slot 0 versus Water slot 1) as the lockstep peers' factory builds it: an empty started simulation plus the script's spawns as setup commands.</summary>
+        public static LockstepMatch CreateAiVsAiMatch()
+        {
+            return CreateMatch(2);
+        }
+
+        /// <summary>
+        /// The player slots of an N-player match: the exit script's two AI slots, then idle extra Water slots (no units, no AI) on
+        /// team 1 beside the Water AI. The script's match is won by Water (Skai's HQ falls around tick 4300), so with the idle
+        /// players on the winning side the N-player match is still decided by that fall; an idle player on Skai's team would keep
+        /// team 0 standing for ever.
+        /// </summary>
+        /// <param name="playerCount">Slots wanted. Range: 2 to 255.</param>
+        public static List<PlayerSetup> PlayersFor(int playerCount)
+        {
+            if (playerCount < 2)
+            {
+                throw new ArgumentOutOfRangeException(nameof(playerCount));
+            }
+            // The script's slots, then the extras.
+            List<PlayerSetup> players = new List<PlayerSetup>(AiVsAi.Players);
+            // Slot being added. Range: 2 to playerCount - 1.
+            for (int slot = 2; slot < playerCount; slot++)
+            {
+                players.Add(new PlayerSetup(new PlayerId((byte)slot), new TeamId(1), "water", "Idle " + slot));
+            }
+            return players;
+        }
+
+        /// <summary>
+        /// An N-player match on the exit script's map and seed: the script's two AI players plus <see cref="PlayersFor"/>'s idle
+        /// extras, the script's spawns as setup commands, and nothing queued in the simulation (the peer submits the setup).
+        /// </summary>
+        /// <param name="playerCount">Slots in the match. Range: 2 upward.</param>
+        public static LockstepMatch CreateMatch(int playerCount)
         {
             // The script to play.
             CommandScript script = AiVsAi;
-            // The simulation under test.
-            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(script.Seed), Data.Content, script.Players,
+            // The simulation under test, started and empty.
+            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(script.Seed), Data.Content, PlayersFor(playerCount),
                 BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap(script.MapId), Data.Cycles.Values));
             sim.Start();
-            foreach (Command command in script.Commands)
-            {
-                sim.Submit(command);
-            }
-            return sim;
+            return new LockstepMatch(sim, script.Commands);
         }
     }
 }

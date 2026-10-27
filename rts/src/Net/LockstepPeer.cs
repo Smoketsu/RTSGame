@@ -22,10 +22,17 @@
 // Desynced notice naming that tick.
 //
 // Reconnect. A fresh LockstepPeer instance calls Join: it asks the referee for the SyncLog (every bundle the referee
-// holds, the ledger, the required ranges and the active pause), builds a fresh Simulation through the factory,
-// replays ticks 0 to RefereeTick - 1 at up to CatchUpMaxTicksPerUpdate per Update, reports the hash at the
-// referee's last hash tick, and once the referee verifies it, PeerRejoined names the first tick its bundles are
-// required for again (the referee's tick plus the input delay, which no peer can have stepped yet).
+// holds, the ledger, the required ranges and the active pause; sent as SyncLogPart messages under the transport's
+// payload cap), builds a fresh Simulation through the factory, replays ticks 0 to RefereeTick - 1 at up to
+// CatchUpMaxTicksPerUpdate per Update, reports the hash at the referee's last hash tick, and once the referee verifies
+// it, PeerRejoined names the first tick its bundles are required for again: the referee's NextInputTick, one past the
+// last bundle the referee has sent, which no peer can have stepped because stepping a tick needs the referee's bundle
+// for it. A peer that finds itself past that tick raises Inconsistent. A sync request from a peer the referee still
+// holds live is a restart the transport has not reported: the referee drops it first, then answers.
+//
+// Recording. The match factory returns a LockstepMatch (empty started simulation plus setup commands); the peer raises
+// SimulationCreated before submitting anything, CommandSubmitted for every command it submits (setup and bundles) and
+// Stepped after every step, so a host-side ReplayRecorder (ADR-009) attached in SimulationCreated records the whole match.
 using System;
 using System.Collections.Generic;
 using Rts.Net.Codecs;
@@ -104,8 +111,8 @@ namespace Rts.Net
         /// <summary>The transport messages travel over.</summary>
         private readonly ITransport _transport;
 
-        /// <summary>Builds a fresh, started simulation with the match's setup commands submitted; called at Start and on every reconnect.</summary>
-        private readonly Func<Simulation> _factory;
+        /// <summary>Builds a fresh match (empty started simulation plus setup commands); called at Start and on every reconnect.</summary>
+        private readonly Func<LockstepMatch> _factory;
 
         /// <summary>Encodes and decodes every message.</summary>
         private readonly MessageCodec _codec;
@@ -148,8 +155,8 @@ namespace Rts.Net
         /// <summary>Next hash tick to compare with each peer. Unit: ticks. Range: multiples of the hash interval.</summary>
         private readonly SortedDictionary<PeerId, int> _nextCompareTick = new SortedDictionary<PeerId, int>();
 
-        /// <summary>Bundles already asked from the referee, keyed (peer id shifted by 32) | tick, so each is asked once.</summary>
-        private readonly SortedSet<ulong> _requestedBundles = new SortedSet<ulong>();
+        /// <summary>Bundles asked from the referee, keyed (peer id shifted by 32) | tick, with the referee's highest bundle tick at the time of the ask (a re-ask is allowed once that advances). Unit of the value: ticks.</summary>
+        private readonly SortedDictionary<ulong, int> _requestedBundles = new SortedDictionary<ulong, int>();
 
         /// <summary>Elapsed time not yet turned into steps. Unit: milliseconds times ticks per second (one tick = 1000). Range: 0 to the catch-up cap times 1000.</summary>
         private long _tickAccumulator;
@@ -170,7 +177,10 @@ namespace Rts.Net
         private readonly List<PauseStartedMessage> _pendingPauseStarts = new List<PauseStartedMessage>();
 
         /// <summary>The sync log being replayed, or null.</summary>
-        private SyncLogMessage? _syncLog;
+        private SyncLog? _syncLog;
+
+        /// <summary>Joiner side: sync log parts received so far from the join target, in index order; emptied once joined into <see cref="_syncLog"/>.</summary>
+        private readonly List<SyncLogPartMessage> _syncLogParts = new List<SyncLogPartMessage>();
 
         /// <summary>The peer this joiner asked for the log, or None.</summary>
         private PeerId _joinTarget = PeerId.None;
@@ -251,6 +261,18 @@ namespace Rts.Net
         /// </summary>
         public event Action<LockstepPeer>? BeforeStep;
 
+        /// <summary>
+        /// Raised with each simulation the factory builds (at Start and on every reconnect) before any command is submitted to
+        /// it: a host attaches its replay recorder here. The simulation is started, at tick 0 and holds no command.
+        /// </summary>
+        public event Action<Simulation>? SimulationCreated;
+
+        /// <summary>Raised after every command this peer submits to its simulation (setup commands, then every applied bundle's commands), in submission order: a host's recorder records it.</summary>
+        public event Action<Command>? CommandSubmitted;
+
+        /// <summary>Raised after every simulation step, before the tick's hash is sent, while <see cref="Simulation.Events"/> still holds the tick's events: a host's recorder collects the checkpoint.</summary>
+        public event Action<Simulation>? Stepped;
+
         /// <summary>Every bundle this peer applies or will apply, ascending by (tick, peer): bundles of required ranges only.</summary>
         public IEnumerable<CommandBundleMessage> CommandLog
         {
@@ -273,10 +295,10 @@ namespace Rts.Net
         /// <param name="roster">Who controls which players; must contain <paramref name="localPeer"/>.</param>
         /// <param name="localPeer">This peer's id.</param>
         /// <param name="transport">This peer's transport; its LocalPeer must equal <paramref name="localPeer"/>.</param>
-        /// <param name="simulationFactory">Builds a fresh started simulation with the setup commands submitted.</param>
+        /// <param name="matchFactory">Builds a fresh match: an empty started simulation and the setup commands the peer submits to it.</param>
         /// <param name="codecs">Command codecs for every kind the match can issue.</param>
         /// <param name="settings">The protocol limits.</param>
-        public LockstepPeer(LockstepRoster roster, PeerId localPeer, ITransport transport, Func<Simulation> simulationFactory, CommandCodecRegistry codecs, LockstepSettings settings)
+        public LockstepPeer(LockstepRoster roster, PeerId localPeer, ITransport transport, Func<LockstepMatch> matchFactory, CommandCodecRegistry codecs, LockstepSettings settings)
         {
             Roster = roster ?? throw new ArgumentNullException(nameof(roster));
             if (!roster.Contains(localPeer))
@@ -289,7 +311,7 @@ namespace Rts.Net
                 throw new ArgumentException("The transport belongs to " + transport.LocalPeer + ", not " + localPeer + ".", nameof(transport));
             }
             LocalPeer = localPeer;
-            _factory = simulationFactory ?? throw new ArgumentNullException(nameof(simulationFactory));
+            _factory = matchFactory ?? throw new ArgumentNullException(nameof(matchFactory));
             _codec = new MessageCodec(codecs ?? throw new ArgumentNullException(nameof(codecs)));
             Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             Ledger = new PauseLedger(roster.AllPlayers, settings);
@@ -307,18 +329,29 @@ namespace Rts.Net
 
         // ---------------------------------------------------------------- host entry points
 
-        /// <summary>Starts a fresh match: builds the simulation, takes the transport's connected peers as the session, sends the empty bundles for the first delay ticks.</summary>
+        /// <summary>
+        /// Starts a fresh match: builds the simulation, takes the transport's connected peers as the session, sends the empty
+        /// bundles for the first delay ticks. Every other roster peer must already be connected (the lobby waits for them);
+        /// otherwise this throws rather than start a match that would at once drop the missing peers and spend their only
+        /// disconnect pause.
+        /// </summary>
         public void Start()
         {
             if (Phase != LockstepPhase.Created)
             {
                 throw new InvalidOperationException("Start can only be called once, on a new peer.");
             }
+            foreach (PeerId peer in Roster.Peers)
+            {
+                if (peer != LocalPeer && !_transport.IsConnected(peer))
+                {
+                    throw new InvalidOperationException("Roster peer " + peer + " is not connected; every peer must be connected before Start.");
+                }
+            }
             _sim = CreateSimulation();
             SeedConnected();
             Phase = LockstepPhase.Running;
             SendBundlesUpTo(Settings.InputDelayTicks - 1);
-            ReevaluateReferee();
         }
 
         /// <summary>Reconnects to a running session: asks the lowest connected roster peer for the command log. The simulation exists once the log arrives.</summary>
@@ -485,11 +518,12 @@ namespace Rts.Net
                     }
                     foreach (Command command in entry.Value.Commands)
                     {
-                        Simulation.Submit(command);
+                        SubmitToSimulation(command);
                     }
                 }
             }
             Simulation.Step();
+            Stepped?.Invoke(Simulation);
             foreach (SimEvent evt in Simulation.Events.Current)
             {
                 if (evt is StateHashedEvent hashed)
@@ -524,8 +558,10 @@ namespace Rts.Net
         }
 
         /// <summary>
-        /// Asks the referee once for each required bundle of <paramref name="tick"/> this peer lacks, but only when the referee's own
-        /// bundles show it has already stepped that tick (it then held every bundle the tick needs).
+        /// Asks the referee for each required bundle of <paramref name="tick"/> this peer lacks, but only when the referee's own
+        /// bundles show it has already stepped that tick, so it held every bundle the tick needs: the referee sends its bundle for
+        /// t + delay before checking it can step t, so only its bundle for tick + delay + 1 proves tick was stepped. Each bundle
+        /// is asked for once per value of the referee's highest bundle tick, so an unanswered ask is repeated as the referee advances.
         /// </summary>
         private void RequestMissingBundles(int tick)
         {
@@ -535,7 +571,9 @@ namespace Rts.Net
             {
                 return;
             }
-            if (_highestBundleTick[referee] - Settings.InputDelayTicks < tick)
+            // Highest bundle tick held from the referee. Unit: ticks.
+            int refereeHighest = _highestBundleTick[referee];
+            if (refereeHighest < tick + Settings.InputDelayTicks + 1)
             {
                 return;
             }
@@ -545,12 +583,14 @@ namespace Rts.Net
                 {
                     continue;
                 }
-                // Key of the (peer, tick) pair so each bundle is asked for once.
+                // Key of the (peer, tick) pair, so each bundle is asked for once per referee advance.
                 ulong key = ((ulong)peer.Value << 32) | (uint)tick;
-                if (_requestedBundles.Add(key))
+                if (_requestedBundles.TryGetValue(key, out int askedAt) && askedAt >= refereeHighest)
                 {
-                    _transport.Send(referee, _codec.Encode(new BundleRequestMessage(peer, tick)));
+                    continue;
                 }
+                _requestedBundles[key] = refereeHighest;
+                _transport.Send(referee, _codec.Encode(new BundleRequestMessage(peer, tick)));
             }
         }
 
@@ -558,7 +598,7 @@ namespace Rts.Net
         private void Replay()
         {
             // The log being replayed.
-            SyncLogMessage log = _syncLog!;
+            SyncLog log = _syncLog!;
             // Ticks stepped this update. Unit: ticks. Range: 0 to the cap.
             int stepped = 0;
             while (stepped < Settings.CatchUpMaxTicksPerUpdate && Simulation.Clock.Tick < log.RefereeTick)
@@ -836,20 +876,21 @@ namespace Rts.Net
             }
         }
 
-        /// <summary>Dispatches one decoded message.</summary>
+        /// <summary>
+        /// Dispatches one decoded message. A bundle forwarded by a peer other than its sender is stored whoever forwards it
+        /// (its commands are checked against the bundle's own peer, and the first copy stored wins): the forwarder may have
+        /// answered a request while it was the referee and lost that role before the answer arrived.
+        /// </summary>
         private void HandleMessage(PeerId from, NetMessage message)
         {
             switch (message)
             {
                 case CommandBundleMessage bundle:
-                    if (bundle.Peer != from && from != Referee && from != _joinTarget)
-                    {
-                        throw new NetProtocolException(from + " forwarded a bundle of " + bundle.Peer + " without being the referee.");
-                    }
                     StoreBundle(bundle);
                     break;
                 case StateHashMessage hash:
-                    if (from != LocalPeer && _remoteHashes.TryGetValue(from, out SortedDictionary<int, ulong>? hashes))
+                    // Hashes of a dropped peer are ignored: beyond its cutoff it may have applied its own bundles that the referee never held.
+                    if (from != LocalPeer && !_dropped.Contains(from) && _remoteHashes.TryGetValue(from, out SortedDictionary<int, ulong>? hashes))
                     {
                         hashes[hash.Tick] = hash.Hash;
                         if (_sim != null)
@@ -885,8 +926,8 @@ namespace Rts.Net
                 case SyncRequestMessage _:
                     HandleSyncRequest(from);
                     break;
-                case SyncLogMessage log:
-                    ApplySyncLog(from, log);
+                case SyncLogPartMessage part:
+                    CollectSyncLogPart(from, part);
                     break;
                 case SyncDoneMessage done:
                     HandleSyncDone(from, done);
@@ -944,10 +985,7 @@ namespace Rts.Net
             }
             if (canPause)
             {
-                foreach (PlayerId player in players)
-                {
-                    Ledger.RecordDisconnectPause(player);
-                }
+                // The pause is counted against the players in ApplyPauseStarted, on this peer and on every other peer alike.
                 StartPause(players[0], peer, PauseReason.Disconnect, Settings.DisconnectPauseMaxMs);
                 return;
             }
@@ -960,7 +998,10 @@ namespace Rts.Net
             }
         }
 
-        /// <summary>Applies a drop: closes the peer's open range at the cutoff, discards its later bundles, checks this peer did not already apply any of them.</summary>
+        /// <summary>
+        /// Applies a drop: closes the peer's open range at the cutoff, discards its later bundles and its hashes beyond the cutoff
+        /// (it may have stepped those ticks with bundles the referee never held), checks this peer did not already apply any of them.
+        /// </summary>
         private void ApplyPeerDropped(PeerDroppedMessage dropped)
         {
             if (!Roster.Contains(dropped.Peer) || _dropped.Contains(dropped.Peer))
@@ -968,6 +1009,22 @@ namespace Rts.Net
                 return;
             }
             _dropped.Add(dropped.Peer);
+            if (_remoteHashes.TryGetValue(dropped.Peer, out SortedDictionary<int, ulong>? hashes))
+            {
+                // Hash ticks beyond the cutoff, collected first because the dictionary cannot change while enumerated.
+                List<int> stale = new List<int>();
+                foreach (int hashTick in hashes.Keys)
+                {
+                    if (hashTick > dropped.LastTick)
+                    {
+                        stale.Add(hashTick);
+                    }
+                }
+                foreach (int hashTick in stale)
+                {
+                    hashes.Remove(hashTick);
+                }
+            }
             // The peer's ranges; the last one is open.
             List<TickRange> ranges = _ranges[dropped.Peer];
             // The open range being closed.
@@ -996,7 +1053,11 @@ namespace Rts.Net
             }
         }
 
-        /// <summary>Applies a rejoin: opens a new required range from the given tick and resets hash comparison from there.</summary>
+        /// <summary>
+        /// Applies a rejoin: opens a new required range from the given tick and resets hash comparison from there. A joiner still
+        /// waiting for its log only notes the change (the log it gets was written after this decision and carries it). A live peer
+        /// that already stepped past the tick raises Inconsistent: it applied an empty bundle where the others apply the joiner's.
+        /// </summary>
         private void ApplyPeerRejoined(PeerRejoinedMessage rejoined)
         {
             if (!Roster.Contains(rejoined.Peer) || !_dropped.Contains(rejoined.Peer))
@@ -1005,6 +1066,17 @@ namespace Rts.Net
             }
             _dropped.Remove(rejoined.Peer);
             _ranges[rejoined.Peer].Add(new TickRange(rejoined.FromTick, int.MaxValue));
+            if (_sim == null)
+            {
+                Raise(NoticeKind.PeerRejoined, rejoined.FromTick, rejoined.Peer, PlayerId.None, "rejoined");
+                return;
+            }
+            if (rejoined.Peer != LocalPeer && IsLive && Simulation.Clock.Tick > rejoined.FromTick)
+            {
+                Phase = LockstepPhase.Failed;
+                Raise(NoticeKind.Inconsistent, rejoined.FromTick, rejoined.Peer, PlayerId.None, "stepped_past_rejoin_tick");
+                return;
+            }
             if (rejoined.Peer == LocalPeer)
             {
                 _lastSentTick = rejoined.FromTick - 1;
@@ -1058,7 +1130,11 @@ namespace Rts.Net
             Raise(NoticeKind.SyncRejected, -1, from, PlayerId.None, rejected.Reason);
         }
 
-        /// <summary>Referee: answers a dropped peer's sync request with the log, opening a resync pause first when nothing is paused.</summary>
+        /// <summary>
+        /// Referee: answers a dropped peer's sync request with the log (in parts), opening a resync pause first when nothing is
+        /// paused. A request from a peer still held live is a restart the transport has not reported (the old connection died
+        /// unseen): the peer is dropped first, with the pause rules of any drop, and then answered.
+        /// </summary>
         private void HandleSyncRequest(PeerId from)
         {
             if (!IsReferee)
@@ -1068,8 +1144,7 @@ namespace Rts.Net
             }
             if (!_dropped.Contains(from))
             {
-                _transport.Send(from, _codec.Encode(new SyncRejectedMessage("not_dropped")));
-                return;
+                DropPeer(from);
             }
             if (_pause == null)
             {
@@ -1105,11 +1180,36 @@ namespace Rts.Net
             {
                 ranges.Add(new PeerRangesEntry(pair.Key, new List<TickRange>(pair.Value)));
             }
-            // The log sent to the joiner.
-            SyncLogMessage log = new SyncLogMessage(Simulation.Clock.Tick, checkTick, checkTick >= 0 ? _ownHashes[checkTick] : 0, bundles,
+            // The log sent to the joiner, in parts that each fit the transport's payload cap.
+            SyncLog log = new SyncLog(Simulation.Clock.Tick, checkTick, checkTick >= 0 ? _ownHashes[checkTick] : 0, bundles,
                 Ledger.Snapshot(), ranges, new List<PeerId>(_dropped), _pause?.Start, _nextPauseId);
             _syncing[from] = checkTick;
-            _transport.Send(from, _codec.Encode(log));
+            foreach (SyncLogPartMessage part in _codec.SplitSyncLog(log))
+            {
+                _transport.Send(from, _codec.Encode(part));
+            }
+        }
+
+        /// <summary>Joiner: collects one part of the log from the join target; once the run is complete, joins it and installs the log.</summary>
+        private void CollectSyncLogPart(PeerId from, SyncLogPartMessage part)
+        {
+            if (Phase != LockstepPhase.Joining || from != _joinTarget || _syncLog != null || _sim != null)
+            {
+                return;
+            }
+            if (part.Index != _syncLogParts.Count || (_syncLogParts.Count > 0 && part.Count != _syncLogParts[0].Count))
+            {
+                throw new NetProtocolException("Sync log part " + part.Index + " of " + part.Count + " from " + from + " arrived where part " + _syncLogParts.Count + " was expected.");
+            }
+            _syncLogParts.Add(part);
+            if (_syncLogParts.Count < part.Count)
+            {
+                return;
+            }
+            // The complete log.
+            SyncLog log = _codec.JoinSyncLog(_syncLogParts);
+            _syncLogParts.Clear();
+            ApplySyncLog(from, log);
         }
 
         /// <summary>The highest hash tick this peer has stepped, or -1. Unit: ticks.</summary>
@@ -1125,7 +1225,7 @@ namespace Rts.Net
         }
 
         /// <summary>Joiner: installs the log, builds a fresh simulation and starts replaying.</summary>
-        private void ApplySyncLog(PeerId from, SyncLogMessage log)
+        private void ApplySyncLog(PeerId from, SyncLog log)
         {
             if (Phase != LockstepPhase.Joining || from != _joinTarget || _syncLog != null)
             {
@@ -1159,7 +1259,10 @@ namespace Rts.Net
             Raise(NoticeKind.SyncStarted, log.RefereeTick, from, PlayerId.None, log.Bundles.Count + " bundles");
         }
 
-        /// <summary>Referee: verifies a joiner's hash, then rejoins it from the current tick plus the delay and ends the pause held for it.</summary>
+        /// <summary>
+        /// Referee: verifies a joiner's hash, then rejoins it from this peer's next input tick (one past the last bundle it sent,
+        /// which no peer can have stepped since stepping needs the referee's bundle) and ends the pause held for it.
+        /// </summary>
         private void HandleSyncDone(PeerId from, SyncDoneMessage done)
         {
             if (!IsReferee || !_syncing.TryGetValue(from, out int checkTick))
@@ -1179,8 +1282,8 @@ namespace Rts.Net
                 }
                 return;
             }
-            // The decision, applied here and announced.
-            PeerRejoinedMessage rejoined = new PeerRejoinedMessage(from, Simulation.Clock.Tick + Settings.InputDelayTicks);
+            // The decision, applied here and announced before any further bundle of this peer goes out, so the ordered transport delivers it first.
+            PeerRejoinedMessage rejoined = new PeerRejoinedMessage(from, NextInputTick);
             ApplyPeerRejoined(rejoined);
             Announce(rejoined);
             foreach (PlayerId player in Roster.PlayersOf(from))
@@ -1254,7 +1357,11 @@ namespace Rts.Net
             Announce(ended);
         }
 
-        /// <summary>Applies a pause start: stops stepping; a start arriving during another pause waits its turn.</summary>
+        /// <summary>
+        /// Applies a pause start: stops stepping; a start arriving during another pause waits its turn. A disconnect pause is
+        /// counted against every player of the dropped peer here, on the referee and on every other peer alike, so the ledgers
+        /// agree after a referee handover and a joiner inherits the right count through the log.
+        /// </summary>
         private void ApplyPauseStarted(PauseStartedMessage started)
         {
             if (_pause != null)
@@ -1266,6 +1373,13 @@ namespace Rts.Net
                 return;
             }
             _pause = new PauseState(started);
+            if (started.Reason == PauseReason.Disconnect && started.Peer.IsValid && Roster.Contains(started.Peer))
+            {
+                foreach (PlayerId player in Roster.PlayersOf(started.Peer))
+                {
+                    Ledger.RecordDisconnectPause(player);
+                }
+            }
             if (started.PauseId >= _nextPauseId)
             {
                 _nextPauseId = started.PauseId + 1;
@@ -1322,15 +1436,16 @@ namespace Rts.Net
 
         // ---------------------------------------------------------------- helpers
 
-        /// <summary>Builds a simulation through the factory and checks the roster covers exactly its players.</summary>
+        /// <summary>
+        /// Builds a match through the factory, checks the roster covers exactly its players, raises <see cref="SimulationCreated"/>
+        /// on the still-empty simulation and then submits the setup commands through <see cref="SubmitToSimulation"/>.
+        /// </summary>
         private Simulation CreateSimulation()
         {
+            // The new match: an empty started simulation and its setup commands.
+            LockstepMatch match = _factory() ?? throw new InvalidOperationException("The match factory returned null.");
             // The new simulation.
-            Simulation sim = _factory() ?? throw new InvalidOperationException("The simulation factory returned null.");
-            if (!sim.IsStarted)
-            {
-                throw new InvalidOperationException("The simulation factory must return a started simulation.");
-            }
+            Simulation sim = match.Simulation;
             foreach (Player player in sim.Players.All)
             {
                 if (!Roster.PeerOf(player.Id).IsValid)
@@ -1345,7 +1460,21 @@ namespace Rts.Net
                     throw new InvalidOperationException("Roster player " + player + " is not in the match.");
                 }
             }
+            SimulationCreated?.Invoke(sim);
+            foreach (Command command in match.SetupCommands)
+            {
+                sim.Submit(command);
+                CommandSubmitted?.Invoke(command);
+            }
             return sim;
+        }
+
+        /// <summary>Submits a command to the simulation and reports it through <see cref="CommandSubmitted"/>.</summary>
+        /// <param name="command">The command, at or after the current tick.</param>
+        private void SubmitToSimulation(Command command)
+        {
+            Simulation.Submit(command);
+            CommandSubmitted?.Invoke(command);
         }
 
         /// <summary>The current tick, or -1 before a simulation exists (a joiner waiting for the log). Unit: ticks.</summary>

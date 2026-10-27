@@ -28,6 +28,37 @@ namespace Rts.Replay.Tests
 #pragma warning restore 618
     }
 
+    /// <summary>
+    /// A test-only command whose Apply throws, standing in for a simulation fault during a step (no shipped command throws on any
+    /// input: they reject with a reason). Never written to a file: it is handed to ReplayCheck's in-memory Check.
+    /// </summary>
+    public sealed class ThrowingCommand : Command
+    {
+        /// <summary>The message the fault carries. Range: fixed text.</summary>
+        public const string Message = "test fault inside a step";
+
+        /// <summary>Builds the command for a tick.</summary>
+        /// <param name="tick">The tick it throws on. Unit: ticks. Range: 0 upward.</param>
+        public ThrowingCommand(int tick) : base(tick, PlayerId.None, 99)
+        {
+        }
+
+        /// <summary>Machine-readable kind name: "test_throw".</summary>
+        public override string Kind => "test_throw";
+
+        /// <summary>Throws instead of applying.</summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            throw new InvalidOperationException(Message);
+        }
+
+        /// <summary>Feeds the kind into the hash.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+        }
+    }
+
     /// <summary>Helpers that locate the data folder and build simulations for the tests.</summary>
     public static class ReplayTestSupport
     {

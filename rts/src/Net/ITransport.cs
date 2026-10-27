@@ -1,14 +1,26 @@
 // rts/src/Net/ITransport.cs
 // The transport contract the lockstep protocol runs over, and the events a transport reports. Part of Rts.Net (ADR-008).
 // The protocol never names Steam: the Unity project adapts Steam networking sockets to this interface, and the tests
-// use LoopbackTransport. The contract is reliable, ordered delivery per (sender, receiver) pair, and a connection
-// report for every peer that appears or vanishes; the protocol does no retransmission and no timing-based
-// disconnect detection of its own. Delivery is pull-based (TryReceive) so the protocol stays single-threaded: the
-// host drains the transport inside LockstepPeer.Update on its own thread.
+// use LoopbackTransport. The contract is reliable, ordered delivery per (sender, receiver) pair of payloads no longer
+// than TransportLimits.MaxPayloadBytes, and a connection report for every peer that appears or vanishes; the protocol
+// does no retransmission and no timing-based disconnect detection of its own. Delivery is pull-based (TryReceive) so
+// the protocol stays single-threaded: the host drains the transport inside LockstepPeer.Update on its own thread.
 using System.Collections.Generic;
 
 namespace Rts.Net
 {
+    /// <summary>The size limits every transport honours and the protocol stays under.</summary>
+    public static class TransportLimits
+    {
+        /// <summary>
+        /// Longest payload one <see cref="ITransport.Send"/> or <see cref="ITransport.Broadcast"/> may carry. The value is the
+        /// Steamworks SDK's reliable message cap, k_cbMaxSteamNetworkingSocketsMessageSizeSend in steamnetworkingtypes.h (512 KiB);
+        /// the protocol splits its one large message, the sync log, into parts under it (MessageCodec.SplitSyncLog) and every
+        /// other message is far smaller. Unit: bytes. Range: fixed protocol limit.
+        /// </summary>
+        public const int MaxPayloadBytes = 512 * 1024;
+    }
+
     /// <summary>What one pulled transport event is.</summary>
     public enum TransportEventKind : byte
     {
@@ -31,7 +43,7 @@ namespace Rts.Net
         /// <summary>The sender of a message, or the peer that connected or disconnected.</summary>
         public readonly PeerId Peer;
 
-        /// <summary>The message bytes for <see cref="TransportEventKind.Message"/>; null for connection events. Range: any length, owned by the receiver.</summary>
+        /// <summary>The message bytes for <see cref="TransportEventKind.Message"/>; null for connection events. Range: 0 to <see cref="TransportLimits.MaxPayloadBytes"/> bytes, owned by the receiver.</summary>
         public readonly byte[]? Payload;
 
         /// <summary>Builds an event.</summary>
@@ -50,7 +62,11 @@ namespace Rts.Net
     /// Reliable, ordered, peer-to-peer message delivery. One instance per local peer. Implementations must deliver every
     /// payload sent between two connected peers exactly once and in the order sent, report <see cref="TransportEventKind.PeerConnected"/>
     /// and <see cref="TransportEventKind.PeerDisconnected"/> for every change, and never call back into the protocol:
-    /// everything is pulled with <see cref="TryReceive"/>.
+    /// everything is pulled with <see cref="TryReceive"/>. Payloads are at most <see cref="TransportLimits.MaxPayloadBytes"/>;
+    /// an implementation may throw ArgumentException for a longer one. A peer has one connection at a time: when a peer
+    /// reconnects before the transport noticed its old connection die, the transport reports the new connection and never
+    /// reports the stale loss afterwards (the protocol treats a sync request from a peer it still holds live as proof of a
+    /// restart, so no report is needed for it).
     /// </summary>
     public interface ITransport
     {

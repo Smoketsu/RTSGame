@@ -15,6 +15,8 @@ Engine-free (`netstandard2.1`, no file access, no floating point) library for ve
 
 Recording from a host:
 
+The recorder refuses a simulation that already has queued commands, because the simulation cannot list them: attach it straight after `Start` and submit every setup command through it. Online, `LockstepPeer` raises `SimulationCreated`, `CommandSubmitted` and `Stepped` so a host records an online match the same way.
+
 ```csharp
 ReplayRecorder recorder = new ReplayRecorder(sim, players);   // sim started, still at tick 0
 recorder.Submit(command);                                      // instead of sim.Submit; AI sinks forward here too

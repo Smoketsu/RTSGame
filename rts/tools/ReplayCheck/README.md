@@ -11,7 +11,8 @@ dotnet run --project rts/tools/ReplayCheck -- --data rts/data --replay <file>
 | --- | --- | --- |
 | `REPLAY OK final=<16 hex>` | 0 | Every checkpoint and the final hash matched |
 | `REPLAY DESYNC tick=<n> expected=<16 hex> actual=<16 hex>` | 1 | First tick whose hash differs (the tick count if only the final hash differs) |
-| `REPLAY REFUSED: <reason>` on stderr | 2 | Different format version or data digest, unknown map, damaged or missing file, unloadable data folder, or bad command line |
+| `REPLAY REFUSED: <reason>` on stderr | 2 | Different format version or data digest, unknown map, damaged or missing file, unloadable data folder, or bad command line; always found before any simulation step |
+| `REPLAY ERROR tick=<n>: <message>` on stderr | 3 | The simulation threw while stepping tick `n` (a command or system faulted on this input); neither a refusal nor a desync |
 
 Record a replay with the harness: `dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/data/scripts/ai_vs_ai.json --record ai.rtsreplay`.
 

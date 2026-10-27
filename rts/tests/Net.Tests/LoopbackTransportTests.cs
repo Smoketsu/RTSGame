@@ -136,5 +136,73 @@ namespace Rts.Net.Tests
             }
             Assert.That(received, Is.EqualTo(6));
         }
+
+        /// <summary>Review finding 5: a payload over the transport cap is refused as the contract allows; one exactly at the cap goes through.</summary>
+        [Test]
+        public void PayloadOverTheCap_IsRefused()
+        {
+            // The hub under test.
+            LoopbackNetwork network = new LoopbackNetwork();
+            // The two endpoints.
+            ITransport a = network.Connect(N0);
+            ITransport b = network.Connect(N1);
+            Assert.That(() => a.Send(N1, new byte[TransportLimits.MaxPayloadBytes + 1]), Throws.ArgumentException);
+            Assert.That(a.Send(N1, new byte[TransportLimits.MaxPayloadBytes]), Is.True);
+            Assert.That(network.InFlightCount, Is.EqualTo(1));
+            // Events b receives: the connection report and the one message.
+            List<TransportEvent> events = Drain(b);
+            Assert.That(events.Count, Is.EqualTo(2));
+            Assert.That(events[1].Payload!.Length, Is.EqualTo(TransportLimits.MaxPayloadBytes));
+        }
+
+        /// <summary>Review finding 10: an unreported crash leaves the others thinking the peer is connected; the peer's return reports only the new connection, never the stale loss.</summary>
+        [Test]
+        public void SilentDisconnect_ReportsOnlyTheReconnect()
+        {
+            // The hub under test.
+            LoopbackNetwork network = new LoopbackNetwork();
+            // The two endpoints.
+            ITransport a = network.Connect(N0);
+            ITransport b = network.Connect(N1);
+            Drain(a);
+            Drain(b);
+            network.Disconnect(N1, reportLoss: false);
+            Assert.That(a.IsConnected(N1), Is.True, "a has not noticed");
+            Assert.That(a.Send(N1, new byte[] { 1 }), Is.True, "the send is swallowed");
+            Assert.That(Drain(a), Is.Empty, "no loss reported");
+            // The replacement endpoint.
+            ITransport b2 = network.Connect(N1);
+            Assert.That(b2.IsConnected(N0), Is.True);
+            // Events a receives: only the new connection.
+            List<TransportEvent> events = Drain(a);
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events[0].Kind, Is.EqualTo(TransportEventKind.PeerConnected));
+            Assert.That(Drain(b2), Is.Not.Empty, "the fresh endpoint sees a");
+            Assert.That(b.Send(N0, new byte[] { 2 }), Is.False, "the dead endpoint stays dead");
+        }
+
+        /// <summary>Review finding 6's test knob: a per-link latency applies to one direction only; the other direction and connection events keep the hub latency.</summary>
+        [Test]
+        public void LinkLatency_AppliesPerDirection()
+        {
+            // The hub under test.
+            LoopbackNetwork network = new LoopbackNetwork { LatencyTicks = 1 };
+            network.SetLinkLatency(N0, N1, 3);
+            // The two endpoints.
+            ITransport a = network.Connect(N0);
+            ITransport b = network.Connect(N1);
+            a.Send(N1, new byte[] { 1 });
+            b.Send(N0, new byte[] { 2 });
+            network.Advance(1);
+            // Events after one tick: both connection reports, and b's message at a; a's message to b is still in flight.
+            Assert.That(Drain(a).Count, Is.EqualTo(2), "connection report and the fast message");
+            Assert.That(Drain(b).Count, Is.EqualTo(1), "connection report only");
+            network.Advance(2);
+            // The slow message, arriving after its link's latency.
+            List<TransportEvent> late = Drain(b);
+            Assert.That(late.Count, Is.EqualTo(1));
+            Assert.That(late[0].Payload, Is.EqualTo(new byte[] { 1 }));
+            Assert.That(() => network.SetLinkLatency(N0, N1, -1), Throws.TypeOf<System.ArgumentOutOfRangeException>());
+        }
     }
 }

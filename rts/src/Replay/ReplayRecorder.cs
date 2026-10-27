@@ -4,7 +4,10 @@
 // step through it. The simulation exposes no "command applied" hook (events out, never in), so the recorder sits on the host side:
 // Submit records the command and forwards it to Simulation.Submit, and Step steps the simulation and reads the StateHashedEvent
 // checkpoints. Commands from the AI, the network or a campaign script are recorded the same way because they all arrive through
-// Submit. Host-side only: the recorder never runs inside Simulation.Step and never changes simulation state except through Submit and Step.
+// Submit. The simulation cannot enumerate commands already queued, so the recorder refuses a simulation that holds any: a host
+// must attach it before the setup commands go in (a lockstep peer raises SimulationCreated for exactly that moment, then
+// reports every command it submits through CommandSubmitted, which the host passes to Record). Host-side only: the recorder
+// never runs inside Simulation.Step and never changes simulation state except through Submit and Step.
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
@@ -32,8 +35,8 @@ namespace Rts.Replay
         /// <summary>Number of commands recorded so far (including any scheduled beyond the last tick that <see cref="Finish"/> will drop). Range: 0 upward.</summary>
         public int CommandCount => _commands.Count;
 
-        /// <summary>Attaches to a started simulation that has not stepped yet.</summary>
-        /// <param name="sim">The simulation: started, at tick 0.</param>
+        /// <summary>Attaches to a started simulation that has not stepped yet and holds no queued command (a queued command could not be recorded and the replay would desync).</summary>
+        /// <param name="sim">The simulation: started, at tick 0, nothing queued.</param>
         /// <param name="players">The player setup the simulation was built with. Range: at least one player.</param>
         public ReplayRecorder(Simulation sim, IReadOnlyList<PlayerSetup> players)
         {
@@ -49,6 +52,11 @@ namespace Rts.Replay
             if (sim.Clock.Tick != 0)
             {
                 throw new InvalidOperationException("A replay records a match from tick 0; the simulation is already at tick " + sim.Clock.Tick + ".");
+            }
+            if (sim.Commands.PendingCount != 0)
+            {
+                throw new InvalidOperationException("The simulation already holds " + sim.Commands.PendingCount
+                    + " queued commands the recorder cannot see; attach the recorder before submitting the setup commands and submit them through it.");
             }
             _players = new List<PlayerSetup>(players);
         }
