@@ -296,6 +296,25 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Picks(AiBrain.Decide(afterPick, profile, profile.RequireFaction("skai"), new AiMemory(), new DeterministicRandom(1))), Is.Empty);
         }
 
+        [Test]
+        public void TwoVersusTwo_DisconnectedCaptain_PassesThePickToTheNextActiveTeammate()
+        {
+            // Re-review finding 1: the captain was the lowest-ID teammate still in the match, but pick_cycle rejects a
+            // Disconnected issuer, so a disconnected captain left the team unable to pick. Fails with IsInMatch.
+            Simulation sim = TwoVersusTwo(out _);
+            sim.Submit(new SetConnectionStateCommand(sim.Clock.Tick, PlayerId.None, 0, P0, ConnectionState.Disconnected));
+            while (sim.Clock.Tick < 420)
+            {
+                sim.Step();
+            }
+            Assert.That(sim.Cycles.Holder, Is.EqualTo(new TeamId(0)), "set-up: team 0 holds the Core");
+            // The disconnected player 0's view, then the view of its Active teammate, player 2.
+            AiWorldView disconnected = AiWorldView.Build(sim, P0);
+            AiWorldView mate = AiWorldView.Build(sim, new PlayerId(2));
+            Assert.That(disconnected.IsTeamPickCaptain, Is.False);
+            Assert.That(mate.IsTeamPickCaptain, Is.True);
+        }
+
         // ---------------------------------------------------------------- rally at the Core
 
         /// <summary>The attack-move targets the brain gives the idle Windrunner this think.</summary>

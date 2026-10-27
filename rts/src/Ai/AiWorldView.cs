@@ -375,8 +375,9 @@ namespace Rts.Ai
                 view.PendingPickId = cycles.PendingPickId;
                 view.PendingPickTeam = cycles.PendingPickTeam;
             }
-            // Pick captain: the lowest-ID member of the AI's team who is still in the match.
-            view.IsTeamPickCaptain = true;
+            // Pick captain: the lowest-ID Active member of the AI's team (so never a Disconnected AI itself). Active, not merely in the match, because
+            // PickCycleCommand rejects a Disconnected issuer; a disconnected captain would otherwise block the team's pick.
+            view.IsTeamPickCaptain = self.IsActive;
             foreach (PlayerId mate in sim.Players.PlayersOnTeam(self.Team))
             {
                 if (mate == player)
@@ -384,7 +385,7 @@ namespace Rts.Ai
                     break;
                 }
                 // The teammate's player record.
-                if (sim.Players.TryGet(mate, out Player? teammate) && teammate.IsInMatch)
+                if (sim.Players.TryGet(mate, out Player? teammate) && teammate.IsActive)
                 {
                     view.IsTeamPickCaptain = false;
                     break;
