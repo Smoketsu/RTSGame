@@ -1,7 +1,7 @@
 // rts/src/Replay/ReplayData.cs
 // The in-memory form of a replay and the constants of the binary format. Part of Rts.Replay. A replay holds everything needed to
 // re-simulate a match from tick 0 without the AI, the network or the player: format version, seed, map, players, the content digest
-// of the data set, the tick count, every command that was applied in (tick, issuer, sequence) order, a hash checkpoint at every
+// of the data set, the tick count, whether the match ran with the Planetary Cycle list, every command that was applied in (tick, issuer, sequence) order, a hash checkpoint at every
 // hash interval and the final hash (ADR-009). Immutable once built.
 using System;
 using System.Collections.Generic;
@@ -16,11 +16,17 @@ namespace Rts.Replay
         /// <summary>The 8 bytes every replay file starts with: ASCII "RTSREPLY". Range: fixed.</summary>
         public static readonly byte[] Magic = { 0x52, 0x54, 0x53, 0x52, 0x45, 0x50, 0x4C, 0x59 };
 
-        /// <summary>The format version this build writes and reads. Unit: format version. Range: 1 upward; raised whenever the layout or the meaning of a field changes.</summary>
-        public const uint CurrentVersion = 1;
+        /// <summary>The format version this build writes and reads. Unit: format version. Range: 1 upward; raised whenever the layout or the meaning of a field changes. 2: command payloads use the shared Rts.Sim.Commands.Codec encoding, and the header gained a flags byte (cycles enabled).</summary>
+        public const uint CurrentVersion = 2;
 
         /// <summary>Largest string a replay may hold. Unit: UTF-8 bytes. Range: fixed at 65535; keeps a corrupt length from allocating gigabytes.</summary>
         public const int MaxStringBytes = 65535;
+
+        /// <summary>Header flag bit 0: the match ran with the Planetary Cycle list (SimulationConfig.Cycles non-empty). Unit: bit mask. Range: fixed at 1.</summary>
+        public const byte FlagCyclesEnabled = 1;
+
+        /// <summary>Header flag bits this format defines; any other bit set in a file is rejected. Unit: bit mask. Range: fixed at 1.</summary>
+        public const byte KnownFlags = FlagCyclesEnabled;
 
         /// <summary>Bytes of the trailing checksum (a 64-bit FNV-1a over every earlier byte). Unit: bytes. Range: fixed at 8.</summary>
         public const int ChecksumBytes = 8;
@@ -72,6 +78,9 @@ namespace Rts.Replay
         /// <summary>ID of the map that was played, for example "greybox_1v1". Range: non-empty, an ID under rts/data/maps.</summary>
         public string MapId { get; }
 
+        /// <summary>True when the match ran with the data set's Planetary Cycle list, false when it ran without (SimulationConfig.Cycles empty). The verifier passes the list only when this is set. Stored in the header flags.</summary>
+        public bool CyclesEnabled { get; }
+
         /// <summary>Ticks between state hashes (the match's state_hash_interval_ticks). Unit: ticks. Range: 1 upward.</summary>
         public int HashIntervalTicks { get; }
 
@@ -103,8 +112,9 @@ namespace Rts.Replay
         /// <param name="commands">Applied commands in any order; each must have Tick below <paramref name="tickCount"/>.</param>
         /// <param name="checkpoints">Hash checkpoints in ascending tick order, each below <paramref name="tickCount"/>.</param>
         /// <param name="finalHash">Hash after the last step. Range: any ulong.</param>
+        /// <param name="cyclesEnabled">Whether the match ran with the Planetary Cycle list. Default true, the setting of every match before the flag existed.</param>
         public ReplayData(ulong contentDigest, ulong seed, string mapId, int hashIntervalTicks, int tickCount, IReadOnlyList<PlayerSetup> players,
-            IReadOnlyList<Command> commands, IReadOnlyList<ReplayCheckpoint> checkpoints, ulong finalHash)
+            IReadOnlyList<Command> commands, IReadOnlyList<ReplayCheckpoint> checkpoints, ulong finalHash, bool cyclesEnabled = true)
         {
             if (string.IsNullOrEmpty(mapId))
             {
@@ -170,6 +180,7 @@ namespace Rts.Replay
             Commands = sorted;
             Checkpoints = new List<ReplayCheckpoint>(checkpoints);
             FinalHash = finalHash;
+            CyclesEnabled = cyclesEnabled;
         }
 
         /// <summary>Orders (arrival index, command) pairs by tick, issuer slot, sequence, then arrival index. The same key the simulation applies commands in.</summary>

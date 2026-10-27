@@ -11,8 +11,10 @@ using NUnit.Framework;
 using Rts.Replay;
 using Rts.Sim;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
+using Rts.Sim.Factions;
 using HarnessProgram = Rts.Tools.BalanceHarness.Program;
 using CheckProgram = Rts.Tools.ReplayCheck.Program;
 
@@ -90,7 +92,7 @@ namespace Rts.Replay.Tests
         /// <summary>Reads the fixture's AI replay.</summary>
         private ReplayData ReadAiReplay()
         {
-            return ReplayReader.Read(File.ReadAllBytes(_aiReplayPath), CommandCodecRegistry.CreateBuiltIn());
+            return ReplayReader.Read(File.ReadAllBytes(_aiReplayPath), BuiltInMechanics.CreateCodecRegistry());
         }
 
         /// <summary>Writes a replay to a new file in the fixture folder and returns the path.</summary>
@@ -98,7 +100,7 @@ namespace Rts.Replay.Tests
         {
             // Destination path in the fixture folder.
             string path = Path.Combine(_folder, name);
-            File.WriteAllBytes(path, ReplayWriter.Write(replay, CommandCodecRegistry.CreateBuiltIn()));
+            File.WriteAllBytes(path, ReplayWriter.Write(replay, BuiltInMechanics.CreateCodecRegistry()));
             return path;
         }
 
@@ -200,7 +202,7 @@ namespace Rts.Replay.Tests
             File.WriteAllBytes(path, bytes);
             Assert.That(Check(path, _dataDir, out string output, out string error), Is.EqualTo(2));
             Assert.That(output, Is.Empty);
-            Assert.That(error, Does.StartWith("REPLAY REFUSED: ").And.Contain("format version 9").And.Contain("reads version 1"));
+            Assert.That(error, Does.StartWith("REPLAY REFUSED: ").And.Contain("format version 9").And.Contain("reads version 2"));
         }
 
         /// <summary>A replay with a different content digest is refused before any step runs, and the message names both digests.</summary>
@@ -278,7 +280,7 @@ namespace Rts.Replay.Tests
             CommandScript script = ReplayTestSupport.LoadScript("smoke.json");
             ReplayData first = ReplayTestSupport.RecordScript(data, script, 300);
             ReplayData second = ReplayTestSupport.RecordScript(data, script, 300);
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             Assert.That(ReplayWriter.Write(second, registry), Is.EqualTo(ReplayWriter.Write(first, registry)));
             ReplayVerification result = ReplayVerifier.Verify(first, ReplayVerifier.CreateSimulation(first, data));
             Assert.That(result.IsMatch, Is.True);
@@ -314,6 +316,90 @@ namespace Rts.Replay.Tests
             Assert.That(refusedError.ToString(), Does.StartWith("REPLAY REFUSED: ").And.Contain("data digest"));
             // The unchanged recording verifies.
             Assert.That(CheckProgram.Check(replay, data, new StringWriter(), new StringWriter()), Is.EqualTo(CheckProgram.ExitOk));
+        }
+
+        /// <summary>
+        /// Review finding 6: the header records whether the match ran with the cycle list. A match without cycles records the flag as off,
+        /// verifies (CreateSimulation passes no cycles for it), and the same replay with the flag turned on is refused because the
+        /// content digest covers the cycle list; a match with cycles records the flag on.
+        /// </summary>
+        [Test]
+        public void CyclesFlagDecidesWhetherTheVerifierPassesTheCycleList()
+        {
+            DataSet data = ReplayTestSupport.LoadData();
+            CommandScript script = ReplayTestSupport.LoadScript("smoke.json");
+            // A match that ran with the cycle list (the default of every host).
+            ReplayData withCycles = ReplayTestSupport.RecordScript(data, script, 60);
+            Assert.That(withCycles.CyclesEnabled, Is.True);
+            Assert.That(ReplayVerifier.CreateSimulation(withCycles, data).Cycles.IsEnabled, Is.True);
+            Assert.That(ReplayVerifier.Verify(withCycles, ReplayVerifier.CreateSimulation(withCycles, data)).IsMatch, Is.True);
+            // The same script played with no cycle list, recorded through the library.
+            SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(script.Seed), data.Content, script.Players,
+                BuiltInMechanics.CreateRegistry(), data.Tuning, data.RequireMap(script.MapId));
+            Simulation plain = new Simulation(config);
+            plain.Start();
+            ReplayRecorder recorder = new ReplayRecorder(plain, script.Players);
+            foreach (Command command in script.Commands)
+            {
+                recorder.Submit(command);
+            }
+            // Step counter. Unit: ticks. Range: 0 to 59.
+            for (int i = 0; i < 60; i++)
+            {
+                recorder.Step();
+            }
+            ReplayData withoutCycles = recorder.Finish();
+            Assert.That(withoutCycles.CyclesEnabled, Is.False);
+            Assert.That(withoutCycles.ContentDigest, Is.Not.EqualTo(withCycles.ContentDigest), "the digest covers the cycle list");
+            // Through a file, the flag survives and the verifier builds a cycle-less simulation that reproduces the recording.
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
+            ReplayData reread = ReplayReader.Read(ReplayWriter.Write(withoutCycles, registry), registry);
+            Assert.That(reread.CyclesEnabled, Is.False);
+            Simulation rebuilt = ReplayVerifier.CreateSimulation(reread, data);
+            Assert.That(rebuilt.Cycles.IsEnabled, Is.False);
+            ReplayVerification result = ReplayVerifier.Verify(reread, rebuilt);
+            Assert.That(result.IsMatch, Is.True);
+            Assert.That(result.FinalHash, Is.EqualTo(withoutCycles.FinalHash));
+            // The same replay claiming cycles is refused: the rebuilt simulation has a different digest.
+            ReplayData lying = new ReplayData(withoutCycles.ContentDigest, withoutCycles.Seed, withoutCycles.MapId, withoutCycles.HashIntervalTicks,
+                withoutCycles.TickCount, withoutCycles.Players, withoutCycles.Commands, withoutCycles.Checkpoints, withoutCycles.FinalHash, true);
+            Expect.Throws<ReplayRefusedException>(() => ReplayVerifier.Verify(lying, ReplayVerifier.CreateSimulation(lying, data)));
+        }
+
+        /// <summary>
+        /// Validation point: a local command whose strings break the shared encoding rules (over 65,535 UTF-8 bytes, a lone surrogate) is
+        /// rejected by ReplayRecorder.Submit and Record before it is queued or recorded, instead of making ReplayWriter throw at match end.
+        /// </summary>
+        [Test]
+        public void RecorderRejectsCommandsThatCannotBeEncoded()
+        {
+            DataSet data = ReplayTestSupport.LoadData();
+            CommandScript script = ReplayTestSupport.LoadScript("smoke.json");
+            Simulation sim = ReplayTestSupport.StartSimulation(data, script);
+            ReplayRecorder recorder = new ReplayRecorder(sim, script.Players);
+            // A cycle ID one byte over the limit, one at the limit, and one with a lone surrogate.
+            PickCycleCommand tooLong = new PickCycleCommand(5, new PlayerId(0), 1, new string('a', 65536));
+            PickCycleCommand atLimit = new PickCycleCommand(5, new PlayerId(0), 2, new string('a', 65535));
+            PickCycleCommand surrogate = new PickCycleCommand(5, new PlayerId(0), 3, "quake\uD800");
+            Expect.Throws<ArgumentException>(() => recorder.Submit(tooLong));
+            Expect.Throws<ArgumentException>(() => recorder.Submit(surrogate));
+            Expect.Throws<ArgumentException>(() => recorder.Record(tooLong));
+            Expect.Throws<ArgumentException>(() => recorder.Record(surrogate));
+            Assert.That(recorder.CommandCount, Is.EqualTo(0), "nothing was recorded");
+            Assert.That(sim.Commands.PendingCount, Is.EqualTo(0), "nothing was queued");
+            // A command with no codec is refused the same way.
+            Expect.Throws<ArgumentException>(() => recorder.Submit(new ThrowingCommand(6)));
+            // The command at the limit is accepted, recorded and written without error.
+            recorder.Submit(atLimit);
+            Assert.That(recorder.CommandCount, Is.EqualTo(1));
+            // Step counter. Unit: ticks. Range: 0 to 19.
+            for (int i = 0; i < 20; i++)
+            {
+                recorder.Step();
+            }
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
+            ReplayData copy = ReplayReader.Read(ReplayWriter.Write(recorder.Finish(), registry), registry);
+            Assert.That(((PickCycleCommand)copy.Commands[0]).CycleId.Length, Is.EqualTo(65535));
         }
 
         /// <summary>Verify refuses a different data digest at library level, and a recorder refuses a simulation that is not at tick 0 or already holds queued commands.</summary>

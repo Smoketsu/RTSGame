@@ -1,7 +1,8 @@
 // rts/tests/Replay.Tests/CodecTests.cs
-// Tests of the replay binary format and the per-command codecs: a round trip for every command type (checked against the full list of
-// Command subclasses in the simulation assembly so a new command cannot ship without a codec), the file header, corruption, truncation,
-// version refusal and plug-in codec registration. Part of Rts.Replay.Tests.
+// Tests of the replay binary format on top of the shared command codecs (Rts.Sim.Commands.Codec; the per-command round trips and string
+// rules are tested in Sim.Tests): every command type through a whole replay file, the header flags (cycles enabled), corruption,
+// truncation, version refusal and plug-in codec registration. Part of Rts.Replay.Tests.
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +10,9 @@ using NUnit.Framework;
 using Rts.Replay;
 using Rts.Sim;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
+using Rts.Sim.Factions;
 using Rts.Sim.Factions.Water;
 using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
@@ -82,16 +85,13 @@ namespace Rts.Replay.Tests
         public void EveryCommandTypeRoundTrips()
         {
             // Registry with all built-in codecs.
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             foreach (Command original in SampleCommands())
             {
-                Assert.That(registry.TryGet(original.Kind, out ICommandCodec? codec), Is.True, original.Kind + " has no codec");
-                // Payload written by the codec, then read back.
-                ReplayBinaryWriter writer = new ReplayBinaryWriter();
-                codec!.Write(writer, original);
-                ReplayBinaryReader reader = new ReplayBinaryReader(writer.ToArray());
-                Command copy = codec.Read(reader, original.Tick, original.Issuer, original.Sequence);
-                Assert.That(reader.Remaining, Is.EqualTo(0), original.Kind + " left payload bytes unread");
+                Assert.That(registry.Contains(original.Kind), Is.True, original.Kind + " has no codec");
+                // Payload written by the shared codec, then read back (DecodePayload rejects unread bytes).
+                byte[] payload = registry.EncodePayload(original);
+                Command copy = registry.DecodePayload(original.Kind, original.Tick, original.Issuer, original.Sequence, payload);
                 Assert.That(copy.GetType(), Is.EqualTo(original.GetType()));
                 Assert.That(Fingerprint(copy), Is.EqualTo(Fingerprint(original)), original.Kind + " changed in the round trip");
             }
@@ -114,10 +114,10 @@ namespace Rts.Replay.Tests
             SortedSet<string> sampled = new SortedSet<string>(SampleCommands().Select(c => c.GetType().FullName!), StringComparer.Ordinal);
             Assert.That(sampled, Is.EqualTo(found), "a command class exists without a codec round-trip sample");
             // Kinds with a built-in codec.
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             foreach (Command command in SampleCommands())
             {
-                Assert.That(registry.TryGet(command.Kind, out _), Is.True, command.Kind);
+                Assert.That(registry.Contains(command.Kind), Is.True, command.Kind);
             }
             Assert.That(registry.Kinds.Count(), Is.EqualTo(found.Count));
         }
@@ -126,7 +126,7 @@ namespace Rts.Replay.Tests
         [Test]
         public void WholeReplayRoundTrips()
         {
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             ReplayData original = SampleReplay();
             ReplayData copy = ReplayReader.Read(ReplayWriter.Write(original, registry), registry);
             Assert.That(copy.FormatVersion, Is.EqualTo(ReplayFormat.CurrentVersion));
@@ -153,12 +153,12 @@ namespace Rts.Replay.Tests
         [Test]
         public void EncodingIsStableAndLittleEndian()
         {
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             byte[] first = ReplayWriter.Write(SampleReplay(), registry);
             byte[] second = ReplayWriter.Write(SampleReplay(), registry);
             Assert.That(second, Is.EqualTo(first));
             Assert.That(System.Text.Encoding.ASCII.GetString(first, 0, 8), Is.EqualTo("RTSREPLY"));
-            Assert.That(first.Skip(8).Take(4).ToArray(), Is.EqualTo(new byte[] { 1, 0, 0, 0 }), "format version 1, least significant byte first");
+            Assert.That(first.Skip(8).Take(4).ToArray(), Is.EqualTo(new byte[] { 2, 0, 0, 0 }), "format version 2, least significant byte first");
             Assert.That(first.Skip(12).Take(8).ToArray(), Is.EqualTo(new byte[] { 0x11, 0x00, 0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA }), "content digest, least significant byte first");
         }
 
@@ -192,7 +192,7 @@ namespace Rts.Replay.Tests
         [Test]
         public void WrongMagicIsRejected()
         {
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             byte[] bytes = ReplayWriter.Write(SampleReplay(), registry);
             bytes[0] = (byte)'X';
             ReplayFormatException ex = Expect.Throws<ReplayFormatException>(() => ReplayReader.Read(bytes, registry));
@@ -204,18 +204,21 @@ namespace Rts.Replay.Tests
         [Test]
         public void ADifferentVersionIsRefused()
         {
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             byte[] bytes = ReplayWriter.Write(SampleReplay(), registry);
-            bytes[8] = 2;
+            bytes[8] = 3;
             ReplayRefusedException ex = Expect.Throws<ReplayRefusedException>(() => ReplayReader.Read(bytes, registry));
-            Assert.That(ex.Message, Does.Contain("format version 2").And.Contain("reads version 1"));
+            Assert.That(ex.Message, Does.Contain("format version 3").And.Contain("reads version 2"));
+            // A version 1 file (the old per-assembly command encoding) is refused the same way.
+            bytes[8] = 1;
+            Assert.That(Expect.Throws<ReplayRefusedException>(() => ReplayReader.Read(bytes, registry)).Message, Does.Contain("format version 1"));
         }
 
         /// <summary>Changing any byte after the header breaks the checksum, and cutting the file short is a clear truncation error.</summary>
         [Test]
         public void CorruptAndTruncatedFilesAreRejected()
         {
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
             byte[] bytes = ReplayWriter.Write(SampleReplay(), registry);
             byte[] flipped = (byte[])bytes.Clone();
             flipped[40] ^= 0x01;
@@ -233,10 +236,10 @@ namespace Rts.Replay.Tests
         [Test]
         public void UnknownKindsAreReportedByName()
         {
-            CommandCodecRegistry builtIn = CommandCodecRegistry.CreateBuiltIn();
+            CommandCodecRegistry builtIn = BuiltInMechanics.CreateCodecRegistry();
             CommandCodecRegistry empty = new CommandCodecRegistry();
             ReplayFormatException writing = Expect.Throws<ReplayFormatException>(() => ReplayWriter.Write(SampleReplay(), empty));
-            Assert.That(writing.Message, Does.Contain("no replay codec"));
+            Assert.That(writing.Message, Does.Contain("No codec registered for command type"));
             byte[] bytes = ReplayWriter.Write(SampleReplay(), builtIn);
             ReplayFormatException reading = Expect.Throws<ReplayFormatException>(() => ReplayReader.Read(bytes, empty));
             Assert.That(reading.Message, Does.Contain("no codec"));
@@ -246,15 +249,65 @@ namespace Rts.Replay.Tests
         [Test]
         public void PlugInCodecsRegisterByKind()
         {
-            CommandCodecRegistry registry = CommandCodecRegistry.CreateBuiltIn();
-            registry.Register(new CommandCodec<PlugInCommand>("plug_in_test",
-                (w, c) => w.WriteI32(c.Amount),
-                (r, tick, issuer, seq) => new PlugInCommand(tick, issuer, seq, r.ReadI32())));
-            Expect.Throws<ArgumentException>(() => registry.Register(new CommandCodec<PlugInCommand>("plug_in_test", (w, c) => { }, (r, t, i, s) => new PlugInCommand(t, i, s, 0))));
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
+            registry.Register(new PlugInCodec());
+            Expect.Throws<InvalidOperationException>(() => registry.Register(new PlugInCodec()));
             List<PlayerSetup> players = new List<PlayerSetup> { new PlayerSetup(new PlayerId(0), new TeamId(0), "skai", "A") };
             ReplayData replay = new ReplayData(1, 1, "m", 20, 10, players, new List<Command> { new PlugInCommand(3, Script, 0, -77) }, new List<ReplayCheckpoint>(), 1);
             ReplayData copy = ReplayReader.Read(ReplayWriter.Write(replay, registry), registry);
             Assert.That(((PlugInCommand)copy.Commands[0]).Amount, Is.EqualTo(-77));
+        }
+
+        /// <summary>The codec of <see cref="PlugInCommand"/>, registered by the test the way a faction registers its own.</summary>
+        private sealed class PlugInCodec : CommandCodec<PlugInCommand>
+        {
+            /// <summary>"plug_in_test".</summary>
+            public override string Kind => "plug_in_test";
+
+            /// <summary>Writes the amount.</summary>
+            protected override void Write(PlugInCommand command, CommandWriter writer)
+            {
+                writer.WriteInt32(command.Amount);
+            }
+
+            /// <summary>Reads the amount.</summary>
+            protected override PlugInCommand Read(CommandReader reader, int tick, PlayerId issuer, uint sequence)
+            {
+                return new PlugInCommand(tick, issuer, sequence, reader.ReadInt32());
+            }
+        }
+
+        /// <summary>The cycles flag is stored in the header: both settings survive a file round trip, and a header with an unknown flag bit is rejected.</summary>
+        [Test]
+        public void CyclesFlagRoundTripsAndUnknownFlagBitsAreRejected()
+        {
+            CommandCodecRegistry registry = BuiltInMechanics.CreateCodecRegistry();
+            ReplayData with = SampleReplay();
+            Assert.That(with.CyclesEnabled, Is.True, "default matches every match recorded before the flag existed");
+            ReplayData without = new ReplayData(with.ContentDigest, with.Seed, with.MapId, with.HashIntervalTicks, with.TickCount, with.Players, with.Commands, with.Checkpoints, with.FinalHash, false);
+            Assert.That(ReplayReader.Read(ReplayWriter.Write(with, registry), registry).CyclesEnabled, Is.True);
+            Assert.That(ReplayReader.Read(ReplayWriter.Write(without, registry), registry).CyclesEnabled, Is.False);
+            // Only the flags byte differs between the two files (8 magic + 4 version + 8 digest + 8 seed + 4 interval + 4 tick count = offset 36).
+            byte[] withBytes = ReplayWriter.Write(with, registry);
+            byte[] withoutBytes = ReplayWriter.Write(without, registry);
+            Assert.That(withBytes[36], Is.EqualTo(1));
+            Assert.That(withoutBytes[36], Is.EqualTo(0));
+            // A set unknown bit, with the checksum recomputed so only the flag check can reject it.
+            byte[] unknown = (byte[])withBytes.Clone();
+            unknown[36] = 3;
+            // Hasher over every byte before the checksum, the same FNV-1a the writer uses.
+            StateHasher hasher = new StateHasher();
+            for (int i = 0; i < unknown.Length - ReplayFormat.ChecksumBytes; i++)
+            {
+                hasher.Write(unknown[i]);
+            }
+            ulong checksum = hasher.Hash;
+            // Byte index within the checksum. Range: 0 (least significant) to 7.
+            for (int i = 0; i < 8; i++)
+            {
+                unknown[unknown.Length - 8 + i] = (byte)(checksum >> (8 * i));
+            }
+            Assert.That(Expect.Throws<ReplayFormatException>(() => ReplayReader.Read(unknown, registry)).Message, Does.Contain("unknown flag"));
         }
 
         /// <summary>A command that only exists in this test, standing in for a faction plug-in's command.</summary>

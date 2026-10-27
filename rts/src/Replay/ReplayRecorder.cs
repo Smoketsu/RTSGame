@@ -7,12 +7,16 @@
 // Submit. The simulation cannot enumerate commands already queued, so the recorder refuses a simulation that holds any: a host
 // must attach it before the setup commands go in (a lockstep peer raises SimulationCreated for exactly that moment, then
 // reports every command it submits through CommandSubmitted, which the host passes to Record). Host-side only: the recorder
-// never runs inside Simulation.Step and never changes simulation state except through Submit and Step.
+// never runs inside Simulation.Step and never changes simulation state except through Submit and Step. Every command is checked
+// against the shared command codec (Rts.Sim.Commands.Codec) before it is queued or recorded, so a command whose strings break the
+// encoding rules or that has no codec is refused at once instead of making the writer throw at match end.
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Events;
+using Rts.Sim.Factions;
 using Rts.Sim.Teams;
 
 namespace Rts.Replay
@@ -22,6 +26,9 @@ namespace Rts.Replay
     {
         /// <summary>The simulation being recorded.</summary>
         private readonly Simulation _sim;
+
+        /// <summary>The shared command codecs used to check every command before it is recorded.</summary>
+        private readonly CommandCodecRegistry _codecs;
 
         /// <summary>The player setup the match was built with, copied at construction.</summary>
         private readonly List<PlayerSetup> _players;
@@ -38,8 +45,10 @@ namespace Rts.Replay
         /// <summary>Attaches to a started simulation that has not stepped yet and holds no queued command (a queued command could not be recorded and the replay would desync).</summary>
         /// <param name="sim">The simulation: started, at tick 0, nothing queued.</param>
         /// <param name="players">The player setup the simulation was built with. Range: at least one player.</param>
-        public ReplayRecorder(Simulation sim, IReadOnlyList<PlayerSetup> players)
+        /// <param name="codecs">The command codecs commands are checked against; null means <c>BuiltInMechanics.CreateCodecRegistry()</c>. Pass the registry that will write the file when plug-ins add commands.</param>
+        public ReplayRecorder(Simulation sim, IReadOnlyList<PlayerSetup> players, CommandCodecRegistry? codecs = null)
         {
+            _codecs = codecs ?? BuiltInMechanics.CreateCodecRegistry();
             _sim = sim ?? throw new ArgumentNullException(nameof(sim));
             if (players == null)
             {
@@ -61,17 +70,23 @@ namespace Rts.Replay
             _players = new List<PlayerSetup>(players);
         }
 
-        /// <summary>Records the command, then queues it in the simulation with <see cref="Simulation.Submit"/> (which throws for a tick in the past; nothing is recorded then).</summary>
+        /// <summary>
+        /// Checks the command against the codecs, queues it in the simulation with <see cref="Simulation.Submit"/> (which throws for a tick in the
+        /// past) and records it. Throws <see cref="ArgumentException"/> before anything is queued or recorded when the command cannot be encoded
+        /// (no codec, a string over 65,535 UTF-8 bytes, a lone surrogate).
+        /// </summary>
         /// <param name="command">The command; not null.</param>
         public void Submit(Command command)
         {
+            Validate(command);
             _sim.Submit(command);
             _commands.Add(command);
         }
 
         /// <summary>
         /// Records a command the host has already queued itself (for example through a lockstep layer that calls Simulation.Submit directly).
-        /// Throws when the command's tick is already behind the clock, because it can no longer have been applied.
+        /// Throws when the command's tick is already behind the clock, because it can no longer have been applied, and ArgumentException when
+        /// the command cannot be encoded (see <see cref="Submit"/>).
         /// </summary>
         /// <param name="command">The command; not null.</param>
         public void Record(Command command)
@@ -84,7 +99,26 @@ namespace Rts.Replay
             {
                 throw new InvalidOperationException("Command " + command + " is behind the clock (tick " + _sim.Clock.Tick + ") and cannot be recorded.");
             }
+            Validate(command);
             _commands.Add(command);
+        }
+
+        /// <summary>Throws <see cref="ArgumentException"/> unless the shared codec can encode the command.</summary>
+        /// <param name="command">The command; not null.</param>
+        private void Validate(Command command)
+        {
+            if (command == null)
+            {
+                throw new ArgumentNullException(nameof(command));
+            }
+            try
+            {
+                _codecs.Validate(command);
+            }
+            catch (CommandCodecException ex)
+            {
+                throw new ArgumentException("Command " + command + " cannot be recorded: " + ex.Message, nameof(command), ex);
+            }
         }
 
         /// <summary>Steps the simulation one tick and collects the tick's hash checkpoint, if it has one.</summary>
@@ -136,7 +170,7 @@ namespace Rts.Replay
                 }
             }
             return new ReplayData(_sim.ContentDigest, _sim.Settings.Seed, _sim.Map.Id, _sim.Settings.StateHashIntervalTicks, tickCount,
-                _players, applied, _checkpoints, _sim.ComputeStateHash());
+                _players, applied, _checkpoints, _sim.ComputeStateHash(), _sim.Cycles.IsEnabled);
         }
     }
 }

@@ -1,5 +1,5 @@
 // rts/src/Replay/ReplayBinary.cs
-// The little-endian byte writer and reader used by the replay format and by every command codec. Part of Rts.Replay.
+// The little-endian byte writer and reader used by the replay file framing (header, players, checkpoints, command records). Part of Rts.Replay. Command parameters are NOT encoded here: they use Rts.Sim.Commands.Codec, shared with the lockstep protocol.
 // Every multi-byte value is written least significant byte first, explicitly, so the layout does not depend on the machine
 // (ADR-009). Strings are a 32-bit byte count followed by UTF-8 bytes. The reader never trusts a length: every read checks the
 // bytes are really there and throws ReplayFormatException otherwise. In memory only; hosts and tools do the file IO.
@@ -282,6 +282,18 @@ namespace Rts.Replay
         public PlayerId ReadPlayer()
         {
             return new PlayerId(ReadU8());
+        }
+
+        /// <summary>Copies the next <paramref name="length"/> bytes out and moves this reader past them.</summary>
+        /// <param name="length">Block size. Unit: bytes. Range: 0 up to <see cref="Remaining"/>, else ReplayFormatException.</param>
+        public byte[] ReadBlock(uint length)
+        {
+            Need(length);
+            // The copied bytes. Unit: bytes.
+            byte[] block = new byte[length];
+            Array.Copy(_buffer, _position, block, 0, (int)length);
+            _position += (int)length;
+            return block;
         }
 
         /// <summary>Returns a reader over the next <paramref name="length"/> bytes and moves this reader past them.</summary>

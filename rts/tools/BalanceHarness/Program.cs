@@ -127,7 +127,7 @@ namespace Rts.Tools.BalanceHarness
                 {
                     // The finished replay: header, applied commands and checkpoints.
                     ReplayData replay = recorder.Finish();
-                    File.WriteAllBytes(options.RecordPath, ReplayWriter.Write(replay, CommandCodecRegistry.CreateBuiltIn()));
+                    File.WriteAllBytes(options.RecordPath, ReplayWriter.Write(replay, BuiltInMechanics.CreateCodecRegistry()));
                     output.Write("REPLAY_RECORDED file=" + options.RecordPath.Replace('\\', '/') + " ticks=" + replay.TickCount.ToString(CultureInfo.InvariantCulture)
                         + " commands=" + replay.Commands.Count.ToString(CultureInfo.InvariantCulture)
                         + " checkpoints=" + replay.Checkpoints.Count.ToString(CultureInfo.InvariantCulture) + "\n");

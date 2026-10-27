@@ -2,11 +2,14 @@
 // Turns a ReplayData into the bytes of a replay file (ADR-009). Part of Rts.Replay. In memory only: the host writes the returned
 // bytes to disk. The layout, in order, all little-endian:
 //   magic (8 bytes "RTSREPLY"), format version u32, content digest u64, seed u64, hash interval u32, tick count u32,
+//   flags u8 (bit 0: the match ran with the Planetary Cycle list; all other bits must be 0),
 //   map ID string, player count u32 then per player (id u8, team u8, faction string, name string),
 //   command count u32 then per command (tick i32, issuer u8, sequence u32, kind string, payload length u32, payload bytes),
+//   where the payload is the command's parameters as encoded by Rts.Sim.Commands.Codec (the same encoding the lockstep protocol uses),
 //   checkpoint count u32 then per checkpoint (tick i32, hash u64), final hash u64, checksum u64 (FNV-1a over every earlier byte).
 using System;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
 using Rts.Sim.Teams;
 
@@ -17,10 +20,10 @@ namespace Rts.Replay
     {
         /// <summary>
         /// Encodes <paramref name="replay"/>. Throws <see cref="ReplayFormatException"/> when a command has no codec in <paramref name="codecs"/>
-        /// (a faction plug-in forgot to register one).
+        /// (a faction plug-in forgot to register one) or cannot be encoded (a string over 65,535 UTF-8 bytes or with a lone surrogate).
         /// </summary>
         /// <param name="replay">The replay to encode.</param>
-        /// <param name="codecs">Codecs by command kind; use <see cref="CommandCodecRegistry.CreateBuiltIn"/> plus any plug-in codecs.</param>
+        /// <param name="codecs">The shared command codecs; use <c>BuiltInMechanics.CreateCodecRegistry()</c> plus any plug-in codecs.</param>
         public static byte[] Write(ReplayData replay, CommandCodecRegistry codecs)
         {
             if (replay == null)
@@ -39,6 +42,7 @@ namespace Rts.Replay
             writer.WriteU64(replay.Seed);
             writer.WriteU32((uint)replay.HashIntervalTicks);
             writer.WriteU32((uint)replay.TickCount);
+            writer.WriteU8(replay.CyclesEnabled ? ReplayFormat.FlagCyclesEnabled : (byte)0);
             writer.WriteString(replay.MapId);
 
             writer.WriteU32((uint)replay.Players.Count);
@@ -53,19 +57,22 @@ namespace Rts.Replay
             writer.WriteU32((uint)replay.Commands.Count);
             foreach (Command command in replay.Commands)
             {
-                if (!codecs.TryGet(command.Kind, out ICommandCodec? codec) || codec == null)
+                // The command's parameter bytes from the shared codec, so their length can be written before them.
+                byte[] payload;
+                try
                 {
-                    throw new ReplayFormatException("no replay codec is registered for command kind '" + command.Kind + "'");
+                    payload = codecs.EncodePayload(command);
                 }
-                // Payload buffer, so its length can be written before it.
-                ReplayBinaryWriter payload = new ReplayBinaryWriter();
-                codec.Write(payload, command);
+                catch (CommandCodecException ex)
+                {
+                    throw new ReplayFormatException("cannot write command " + command + ": " + ex.Message);
+                }
                 writer.WriteI32(command.Tick);
                 writer.WritePlayer(command.Issuer);
                 writer.WriteU32(command.Sequence);
                 writer.WriteString(command.Kind);
                 writer.WriteU32((uint)payload.Length);
-                writer.WriteRaw(payload.ToArray());
+                writer.WriteRaw(payload);
             }
 
             writer.WriteU32((uint)replay.Checkpoints.Count);

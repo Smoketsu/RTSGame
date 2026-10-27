@@ -8,7 +8,8 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Rts.Ai;
-using Rts.Net.Codecs;
+using Rts.Sim.Commands.Codec;
+using Rts.Sim.Factions;
 using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
@@ -188,7 +189,7 @@ namespace Rts.Net.Tests
         public LockstepSettings Settings { get; }
 
         /// <summary>The codec registry every peer uses.</summary>
-        public CommandCodecRegistry Codecs { get; } = BuiltInCodecs.CreateRegistry();
+        public CommandCodecRegistry Codecs { get; } = BuiltInMechanics.CreateCodecRegistry();
 
         /// <summary>Peers by id; a reconnected peer replaces its entry.</summary>
         public SortedDictionary<PeerId, SessionPeer> Peers { get; } = new SortedDictionary<PeerId, SessionPeer>();

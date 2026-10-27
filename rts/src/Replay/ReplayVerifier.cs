@@ -53,7 +53,7 @@ namespace Rts.Replay
     {
         /// <summary>
         /// Builds and starts the simulation a replay was recorded from: the replay's seed, map and players, the built-in faction mechanics
-        /// and the data set's content and tuning. Throws <see cref="ReplayRefusedException"/> when the replay's map is not in the data set.
+        /// and the data set's content and tuning. The Planetary Cycle list is passed only when the replay's CyclesEnabled flag is set, because a match without it hashes differently. Throws <see cref="ReplayRefusedException"/> when the replay's map is not in the data set.
         /// </summary>
         /// <param name="replay">The replay.</param>
         /// <param name="data">The loaded data set.</param>
@@ -73,7 +73,7 @@ namespace Rts.Replay
             }
             // Match inputs built from the replay header and the data set.
             SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(replay.Seed), data.Content, replay.Players,
-                BuiltInMechanics.CreateRegistry(), data.Tuning, map, data.Cycles.Values);
+                BuiltInMechanics.CreateRegistry(), data.Tuning, map, replay.CyclesEnabled ? data.Cycles.Values : null);
             Simulation sim = new Simulation(config);
             sim.Start();
             return sim;

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
 using Rts.Sim.Teams;
 
@@ -20,7 +21,7 @@ namespace Rts.Replay
         /// for anything else wrong with the bytes (not a replay, truncated, checksum mismatch, unknown command kind, field out of range).
         /// </summary>
         /// <param name="bytes">The whole file. Range: not null.</param>
-        /// <param name="codecs">Codecs by command kind; use <see cref="CommandCodecRegistry.CreateBuiltIn"/> plus any plug-in codecs.</param>
+        /// <param name="codecs">The shared command codecs; use <c>BuiltInMechanics.CreateCodecRegistry()</c> plus any plug-in codecs.</param>
         public static ReplayData Read(byte[] bytes, CommandCodecRegistry codecs)
         {
             if (bytes == null)
@@ -76,6 +77,13 @@ namespace Rts.Replay
             {
                 throw new ReplayFormatException("the replay header holds an impossible hash interval (" + hashInterval + ") or tick count (" + tickCount + ")");
             }
+            // Header flags. Range: only ReplayFormat.KnownFlags bits may be set.
+            byte flags = fields.ReadU8();
+            if ((flags & ~ReplayFormat.KnownFlags) != 0)
+            {
+                throw new ReplayFormatException("the replay header holds the unknown flag bits 0x" + flags.ToString("x2", CultureInfo.InvariantCulture));
+            }
+            bool cyclesEnabled = (flags & ReplayFormat.FlagCyclesEnabled) != 0;
             string mapId = fields.ReadString();
 
             // Player count and the players, in file order. Range: 1 upward.
@@ -120,7 +128,7 @@ namespace Rts.Replay
             }
             try
             {
-                return new ReplayData(contentDigest, seed, mapId, (int)hashInterval, (int)tickCount, players, commands, checkpoints, finalHash);
+                return new ReplayData(contentDigest, seed, mapId, (int)hashInterval, (int)tickCount, players, commands, checkpoints, finalHash, cyclesEnabled);
             }
             catch (ArgumentException ex)
             {
@@ -130,7 +138,7 @@ namespace Rts.Replay
 
         /// <summary>Reads one command record: tick, issuer, sequence, kind, payload length and payload.</summary>
         /// <param name="reader">Reader positioned at the record.</param>
-        /// <param name="codecs">Codecs by kind.</param>
+        /// <param name="codecs">The shared command codecs.</param>
         private static Command ReadCommand(ReplayBinaryReader reader, CommandCodecRegistry codecs)
         {
             // Scheduling fields of the record. Tick: ticks, 0 upward. Issuer: slot or 255. Sequence: 0 upward.
@@ -138,27 +146,21 @@ namespace Rts.Replay
             PlayerId issuer = reader.ReadPlayer();
             uint sequence = reader.ReadU32();
             string kind = reader.ReadString();
-            // Reader over exactly this command's payload.
-            ReplayBinaryReader payload = reader.ReadSlice(reader.ReadU32());
+            // Exactly this command's payload bytes.
+            byte[] payload = reader.ReadBlock(reader.ReadU32());
             if (tick < 0)
             {
                 throw new ReplayFormatException("a '" + kind + "' command has the negative tick " + tick);
             }
-            if (!codecs.TryGet(kind, out ICommandCodec? codec) || codec == null)
+            if (!codecs.Contains(kind))
             {
                 throw new ReplayFormatException("the replay holds a command of kind '" + kind + "' that this build has no codec for");
             }
             try
             {
-                // The decoded command.
-                Command command = codec.Read(payload, tick, issuer, sequence);
-                if (payload.Remaining != 0)
-                {
-                    throw new ReplayFormatException("a '" + kind + "' command has " + payload.Remaining + " unread payload bytes");
-                }
-                return command;
+                return codecs.DecodePayload(kind, tick, issuer, sequence, payload);
             }
-            catch (ArgumentException ex)
+            catch (CommandCodecException ex)
             {
                 throw new ReplayFormatException("a '" + kind + "' command is invalid: " + ex.Message);
             }

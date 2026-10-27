@@ -14,6 +14,7 @@ using System.IO;
 using Rts.Replay;
 using Rts.Sim;
 using Rts.Sim.Data;
+using Rts.Sim.Factions;
 
 namespace Rts.Tools.ReplayCheck
 {
@@ -52,7 +53,7 @@ namespace Rts.Tools.ReplayCheck
                     throw new ReplayCheckException("replay file not found: " + options.ReplayPath);
                 }
                 // The parsed replay; the version and format checks happen here, before any data is loaded.
-                ReplayData replay = ReplayReader.Read(File.ReadAllBytes(options.ReplayPath), CommandCodecRegistry.CreateBuiltIn());
+                ReplayData replay = ReplayReader.Read(File.ReadAllBytes(options.ReplayPath), BuiltInMechanics.CreateCodecRegistry());
                 DataSet data = DataLoader.Load(ReadDataFolder(options.DataDirectory));
                 return Check(replay, data, output, error);
             }

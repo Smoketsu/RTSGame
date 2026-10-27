@@ -58,7 +58,7 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | Folder | What lives there |
 | --- | --- |
 | `Core/` | `Fix64`, `FixVec2`, IDs (`EntityId`, `PlayerId`, `TeamId`), `MatchClock`, `DeterministicRandom`, `StateHasher`, `MatchSettings`, `SimulationConfig`, `ContentCatalog`. |
-| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op), the combat commands (attack-move, attack unit, stop), the HQ commands (`root_hq`, `uproot_hq`) and the economy commands (`gather`, `train_unit`, `build_structure`). The only way state changes. |
+| `Commands/` | The `Command` base class, `CommandQueue` and the core commands (spawn, move, remove, no-op), the combat commands (attack-move, attack unit, stop), the HQ commands (`root_hq`, `uproot_hq`) and the economy commands (`gather`, `train_unit`, `build_structure`). The only way state changes. `Commands/Codec/` is the one binary encoding of commands (`CommandWriter`/`CommandReader`, `ICommandCodec`, `CommandCodecRegistry`, `CoreCommandCodecs`) shared by the lockstep protocol and the replay files; a faction's codec lives with the faction and is registered by `BuiltInMechanics.CreateCodecRegistry()`. |
 | `Teams/` | `PlayerSetup` and `PlayerRegistry`: players, teams, alliances. |
 | `Terrain/` | Placeholder (Phase 1): tile map, cliffs, walls, floods. |
 | `Pathing/` | Placeholder (Phase 1): flow fields per movement layer. |

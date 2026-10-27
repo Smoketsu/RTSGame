@@ -1,7 +1,7 @@
 // rts/src/Net/MessageCodec.cs
 // Turns protocol messages into bytes and back. Part of Rts.Net (ADR-008). Wire layout of every message: protocol
 // version (uint16), message kind (one byte), then the kind's fields in the order its class lists them; lists are an
-// int32 count followed by the items. Commands inside bundles go through the CommandCodecRegistry. A message with a
+// int32 count followed by the items. Commands inside bundles are framed here (kind, tick, issuer, sequence, length-prefixed payload) and their payload is encoded by the shared Rts.Sim.Commands.Codec registry. A message with a
 // different version, an unknown kind, a bad enum byte, a truncated body or trailing bytes throws NetProtocolException.
 // The sync log is not one message: SplitSyncLog encodes it into a body (bundles grouped by peer, runs of empty bundles
 // written as one run entry) and slices the body into SyncLogPart messages that each fit under the transport's payload
@@ -9,8 +9,8 @@
 // different versions cannot play.
 using System;
 using System.Collections.Generic;
-using Rts.Net.Codecs;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
 
 namespace Rts.Net
@@ -18,8 +18,8 @@ namespace Rts.Net
     /// <summary>Encodes and decodes every <see cref="NetMessage"/>. One instance per peer, holding the command codecs.</summary>
     public sealed class MessageCodec
     {
-        /// <summary>Version written at the start of every message. Range: fixed per build; bump on any wire change. 2: the sync log travels in parts with run-length encoded empty bundles.</summary>
-        public const ushort ProtocolVersion = 2;
+        /// <summary>Version written at the start of every message. Range: fixed per build; bump on any wire change. 2: the sync log travels in parts with run-length encoded empty bundles. 3: commands use the shared Rts.Sim.Commands.Codec encoding (strict UTF-8 strings with a uint16 byte length) as a length-prefixed payload.</summary>
+        public const ushort ProtocolVersion = 3;
 
         /// <summary>Most commands one bundle may carry, a sanity bound against hostile lengths. Unit: commands. Range: fixed protocol limit.</summary>
         public const int MaxCommandsPerBundle = 1 << 14;
@@ -215,7 +215,53 @@ namespace Rts.Net
             writer.WriteInt32(commands.Count);
             foreach (Command command in commands)
             {
-                Commands.Encode(command, writer);
+                WriteCommand(command, writer);
+            }
+        }
+
+        /// <summary>
+        /// Writes one command: kind (string), tick (int32), issuer (player id byte), sequence (uint32), then the parameter payload as a
+        /// length-prefixed byte block produced by the shared codec (Rts.Sim.Commands.Codec). Throws <see cref="NetProtocolException"/>
+        /// for a command the registry cannot encode (no codec, or a string that breaks the encoding rules).
+        /// </summary>
+        /// <param name="command">The command to send.</param>
+        /// <param name="writer">The message being built.</param>
+        private void WriteCommand(Command command, NetWriter writer)
+        {
+            // The parameter bytes, encoded before anything is written so a failure leaves the message untouched.
+            byte[] payload;
+            try
+            {
+                payload = Commands.EncodePayload(command);
+            }
+            catch (CommandCodecException ex)
+            {
+                throw new NetProtocolException("Cannot encode command " + command + ": " + ex.Message, ex);
+            }
+            writer.WriteString(command.Kind);
+            writer.WriteInt32(command.Tick);
+            writer.WritePlayerId(command.Issuer);
+            writer.WriteUInt32(command.Sequence);
+            writer.WriteBytes(payload);
+        }
+
+        /// <summary>Reads one command written by <see cref="WriteCommand"/>. Any codec error becomes a <see cref="NetProtocolException"/>.</summary>
+        /// <param name="reader">Positioned at the kind string.</param>
+        private Command ReadCommand(NetReader reader)
+        {
+            // Framing fields in wire order.
+            string kind = reader.ReadRequiredString();
+            int tick = reader.ReadInt32();
+            PlayerId issuer = reader.ReadPlayerId();
+            uint sequence = reader.ReadUInt32();
+            byte[] payload = reader.ReadBytes();
+            try
+            {
+                return Commands.DecodePayload(kind, tick, issuer, sequence, payload);
+            }
+            catch (CommandCodecException ex)
+            {
+                throw new NetProtocolException("Command '" + kind + "' rejected: " + ex.Message, ex);
             }
         }
 
@@ -243,7 +289,7 @@ namespace Rts.Net
             // Index of the command being read. Range: 0 to count - 1.
             for (int i = 0; i < count; i++)
             {
-                commands.Add(Commands.Decode(reader));
+                commands.Add(ReadCommand(reader));
             }
             return commands;
         }

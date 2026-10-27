@@ -1,14 +1,16 @@
 // rts/tests/Net.Tests/CodecTests.cs
-// Round-trip tests for the command codecs (one sample of every Command subclass in the simulation assembly, found by
-// reflection so a new command without a codec fails here) and for every protocol message kind, plus the malformed
-// input the decoder must reject. Part of Rts.Net.Tests.
+// Round-trip tests for commands carried in bundles through the shared codec (Rts.Sim.Commands.Codec; the per-command
+// and string-rule tests live in Sim.Tests) and for every protocol message kind, plus the malformed input the decoder
+// must reject. Part of Rts.Net.Tests.
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
-using Rts.Net.Codecs;
+using Rts.Sim;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
+using Rts.Sim.Factions;
 using Rts.Sim.Factions.Water;
 using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
@@ -29,7 +31,7 @@ namespace Rts.Net.Tests
         private static readonly FixVec2 Spot = new FixVec2(Fix64.Parse("12.75"), Fix64.Parse("-3.5"));
 
         /// <summary>The registry under test, with every built-in codec.</summary>
-        private static CommandCodecRegistry Registry => BuiltInCodecs.CreateRegistry();
+        private static CommandCodecRegistry Registry => BuiltInMechanics.CreateCodecRegistry();
 
         /// <summary>One sample of every command kind the game can issue, with distinctive field values.</summary>
         private static List<Command> Samples()
@@ -76,11 +78,12 @@ namespace Rts.Net.Tests
             CommandCodecRegistry registry = Registry;
             foreach (Command sample in Samples())
             {
-                // Encoded bytes of the sample.
-                NetWriter writer = new NetWriter();
-                registry.Encode(sample, writer);
+                // A one-command bundle for the sample's tick, encoded then decoded by the message codec.
+                MessageCodec codec = new MessageCodec(registry);
+                CommandBundleMessage received = (CommandBundleMessage)codec.Decode(codec.Encode(new CommandBundleMessage(sample.Tick, new PeerId(1), new List<Command> { sample })));
+                Assert.That(received.Commands.Count, Is.EqualTo(1));
                 // The decoded copy.
-                Command decoded = registry.Decode(new NetReader(writer.ToArray()));
+                Command decoded = received.Commands[0];
                 Assert.That(decoded.GetType(), Is.EqualTo(sample.GetType()), sample.Kind);
                 Assert.That(decoded.Kind, Is.EqualTo(sample.Kind));
                 Assert.That(Fingerprint(decoded), Is.EqualTo(Fingerprint(sample)), sample.Kind + " fields survive the round trip");
@@ -280,15 +283,66 @@ namespace Rts.Net.Tests
             byte[] trailing = new byte[good.Length + 1];
             Array.Copy(good, trailing, good.Length);
             Assert.That(() => codec.Decode(trailing), Throws.TypeOf<NetProtocolException>(), "trailing");
-            // A command of a kind the registry does not know.
-            NetWriter writer = new NetWriter();
-            writer.WriteString("teleport");
-            Assert.That(() => Registry.Decode(new NetReader(writer.ToArray())), Throws.TypeOf<NetProtocolException>(), "unknown command kind");
+            // A command of a kind the receiving registry does not know: the sender knows a test kind, the receiver does not.
+            CommandCodecRegistry sender = Registry;
+            sender.Register(new TeleportCodec());
+            // The sender's bundle, decoded by a codec with the standard registry.
+            byte[] teleport = new MessageCodec(sender).Encode(new CommandBundleMessage(4, new PeerId(1), new List<Command> { new TeleportCommand(4, P0, 1) }));
+            Assert.That(() => codec.Decode(teleport), Throws.TypeOf<NetProtocolException>().With.Message.Contains("teleport"), "unknown command kind");
             // A registry without the Water codec cannot encode cast_wave.
             CommandCodecRegistry core = new CommandCodecRegistry();
             CoreCommandCodecs.RegisterAll(core);
-            Assert.That(() => core.Encode(new CastWaveCommand(1, P1, 1, new EntityId(1), Spot), new NetWriter()), Throws.TypeOf<NetProtocolException>());
+            Assert.That(() => new MessageCodec(core).Encode(new CommandBundleMessage(1, new PeerId(1), new List<Command> { new CastWaveCommand(1, P1, 1, new EntityId(1), Spot) })), Throws.TypeOf<NetProtocolException>());
             Assert.That(() => core.Register(new NoOpCodec()), Throws.InvalidOperationException, "duplicate kind");
+            // A command payload that is not valid UTF-8 is a protocol error, not a replaced character: take a pick_cycle bundle and break the text byte.
+            byte[] pick = codec.Encode(new CommandBundleMessage(4, new PeerId(1), new List<Command> { new PickCycleCommand(4, P0, 1, "quake") }));
+            // The text "quake" sits at the end of the payload, after its uint16 length; 0xFF is never valid UTF-8.
+            byte[] broken = Corrupt(pick, pick.Length - 1, 0xFF);
+            Assert.That(() => codec.Decode(broken), Throws.TypeOf<NetProtocolException>().With.Message.Contains("UTF-8"), "invalid UTF-8");
+            // The wire format changed (shared command encoding), so the protocol version moved on from 2.
+            Assert.That(MessageCodec.ProtocolVersion, Is.EqualTo(3), "the shared command encoding changed the wire format");
+        }
+
+        /// <summary>A command kind only this test knows, standing in for a plug-in command the receiving peer lacks.</summary>
+        private sealed class TeleportCommand : Command
+        {
+            /// <summary>Builds the command.</summary>
+            public TeleportCommand(int tick, PlayerId issuer, uint sequence) : base(tick, issuer, sequence)
+            {
+            }
+
+            /// <summary>"teleport".</summary>
+            public override string Kind => "teleport";
+
+            /// <summary>Does nothing.</summary>
+            public override CommandResult Apply(Simulation sim)
+            {
+                return CommandResult.Ok;
+            }
+
+            /// <summary>Hashes the kind.</summary>
+            public override void WriteHash(StateHasher hasher)
+            {
+                hasher.Write(Kind);
+            }
+        }
+
+        /// <summary>Codec for <see cref="TeleportCommand"/>: no parameters.</summary>
+        private sealed class TeleportCodec : CommandCodec<TeleportCommand>
+        {
+            /// <summary>"teleport".</summary>
+            public override string Kind => "teleport";
+
+            /// <summary>Writes nothing.</summary>
+            protected override void Write(TeleportCommand command, CommandWriter writer)
+            {
+            }
+
+            /// <summary>Builds the command from the scheduling fields.</summary>
+            protected override TeleportCommand Read(CommandReader reader, int tick, PlayerId issuer, uint sequence)
+            {
+                return new TeleportCommand(tick, issuer, sequence);
+            }
         }
 
         /// <summary>A copy of <paramref name="bytes"/> with one byte replaced.</summary>

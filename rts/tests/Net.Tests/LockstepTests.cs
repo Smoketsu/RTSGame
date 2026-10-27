@@ -345,5 +345,39 @@ namespace Rts.Net.Tests
             Assert.That(carried, Is.True, "the command travelled in the bundle for its tick");
             session.AssertNoDesync();
         }
+
+        /// <summary>
+        /// Validation point: a local command whose strings break the shared encoding rules is refused by SubmitLocal with an
+        /// ArgumentException before it is queued, so it never reaches a bundle (where the sender could not encode it) or a replay.
+        /// A string of exactly 65,535 UTF-8 bytes is still accepted and travels.
+        /// </summary>
+        [Test]
+        public void LocalInput_RejectsCommandsThatCannotBeEncoded()
+        {
+            // The session under test.
+            LockstepSession session = new LockstepSession(ai: false);
+            session.Start();
+            // The peer under test and the tick its next command would run on.
+            LockstepPeer peer = session[N0].Peer;
+            int tick = peer.NextInputTick;
+            Assert.That(() => peer.SubmitLocal(new PickCycleCommand(tick, P0, 1, new string('a', 65536))), Throws.ArgumentException, "one byte over the limit");
+            Assert.That(() => peer.SubmitLocal(new PickCycleCommand(tick, P0, 2, "quake\uD800")), Throws.ArgumentException, "lone surrogate");
+            // 21,846 three-byte characters are 65,538 bytes: over the limit although far fewer than 65,535 characters.
+            Assert.That(() => peer.SubmitLocal(new PickCycleCommand(tick, P0, 3, new string('€', 21846))), Throws.ArgumentException, "multi-byte characters over the byte limit");
+            // The longest legal string, counted in bytes: 21,845 three-byte characters are exactly 65,535 bytes.
+            peer.SubmitLocal(new PickCycleCommand(tick, P0, 4, new string('€', 21845)));
+            session.RunToTick(10);
+            // Commands carried in N0's bundle for the tick, counted in the other peer's log.
+            int carried = 0;
+            foreach (CommandBundleMessage bundle in session[N1].Peer.CommandLog)
+            {
+                if (bundle.Peer == N0 && bundle.Tick == tick)
+                {
+                    carried += bundle.Commands.Count;
+                }
+            }
+            Assert.That(carried, Is.EqualTo(1), "only the legal command travelled");
+            session.AssertNoDesync();
+        }
     }
 }

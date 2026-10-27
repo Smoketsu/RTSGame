@@ -35,9 +35,9 @@
 // Stepped after every step, so a host-side ReplayRecorder (ADR-009) attached in SimulationCreated records the whole match.
 using System;
 using System.Collections.Generic;
-using Rts.Net.Codecs;
 using Rts.Sim;
 using Rts.Sim.Commands;
+using Rts.Sim.Commands.Codec;
 using Rts.Sim.Core;
 using Rts.Sim.Events;
 using Rts.Sim.Teams;
@@ -383,7 +383,7 @@ namespace Rts.Net
 
         /// <summary>
         /// Queues a local command. Its issuer must be one of this peer's players and its tick at least <see cref="NextInputTick"/>
-        /// (hosts stamp commands with that tick). Allowed while running or paused, not while joining.
+        /// (hosts stamp commands with that tick). Its strings must obey the shared command encoding (strict UTF-8, at most 65,535 bytes), else ArgumentException. Allowed while running or paused, not while joining.
         /// </summary>
         /// <param name="command">The command.</param>
         public void SubmitLocal(Command command)
@@ -399,6 +399,16 @@ namespace Rts.Net
             if (Roster.PeerOf(command.Issuer) != LocalPeer)
             {
                 throw new ArgumentException("Command " + command + " is not issued by a player of " + LocalPeer + ".", nameof(command));
+            }
+            try
+            {
+                // Rejects a command the shared codec cannot encode (no codec, a string over 65,535 UTF-8 bytes, a lone surrogate) before
+                // it is queued, so it can never reach a bundle, a peer's decoder or the replay writer.
+                _codec.Commands.Validate(command);
+            }
+            catch (CommandCodecException ex)
+            {
+                throw new ArgumentException("Command " + command + " cannot be sent: " + ex.Message, nameof(command), ex);
             }
             QueueLocal(command);
         }

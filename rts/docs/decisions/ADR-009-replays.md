@@ -11,16 +11,16 @@ The simulation is deterministic and everything is a command (CLAUDE.md, architec
 
 ### What a replay holds
 
-1. **Format version** (u32, currently 1).
-2. **Content digest** of the data set: `Simulation.ContentDigest`, the FNV-1a digest of every unit and faction definition, the tuning file texts and the map, computed by `Simulation.Start` and already part of every state hash. It changes when any of that data changes. Planetary Cycle definitions and AI profiles are not part of it today; cycles will have to be mixed into `ContentDigest` when they enter the simulation (Phase 2 step 4), and until then a changed cycle file shows up as a hash desync instead of a refusal. AI profiles are not needed to play a replay because the AI's output is already in the command stream.
-3. **Seed** (u64), **map ID**, **hash interval** (`state_hash_interval_ticks`), **tick count** (steps run) and the **player setup** (slot, team, faction ID, display name).
+1. **Format version** (u32, currently 2; 2 moved command payloads to the shared `Rts.Sim.Commands.Codec` encoding and added the header flags byte).
+2. **Content digest** of the data set: `Simulation.ContentDigest`, the FNV-1a digest of every unit and faction definition, the tuning file texts and the map, computed by `Simulation.Start` and already part of every state hash. It changes when any of that data changes. The Planetary Cycle definitions in play are part of it (the digest hashes the cycle list the match was built with), so a changed cycle file is a refusal. AI profiles are not needed to play a replay because the AI's output is already in the command stream.
+3. **Seed** (u64), **flags** (u8, bit 0: the match ran with the Planetary Cycle list; the verifier passes `DataSet.Cycles` to the rebuilt simulation only when it is set, so a match played without cycles verifies without them; unknown bits are rejected), **map ID**, **hash interval** (`state_hash_interval_ticks`), **tick count** (steps run) and the **player setup** (slot, team, faction ID, display name).
 4. **The full applied command stream** in (tick, issuer, sequence) order, the order the simulation applies them in. "Applied" means every command that reached a stepped tick, accepted or rejected, whoever submitted it: the match script, a human, the AI, a network peer. Commands scheduled at or after the tick count never ran and are not stored. Rejected commands are kept because a rejection is a deterministic outcome of the state and a replay is a record of inputs, not outcomes.
 5. **Hash checkpoints**: the `StateHashedEvent` hash at every multiple of the hash interval below the tick count (ADR-005).
 6. **Final hash**: `Simulation.ComputeStateHash()` after the last step (clock at the tick count).
 
 ### Binary layout
 
-Little-endian throughout; every field written explicitly in this order (no reflection, no `BinaryWriter`, no struct dumps). A string is a u32 byte length then UTF-8 bytes (at most 65 535 bytes, strict UTF-8). Fix64 and FixVec2 are their raw i64 values; entity IDs are u32; player and team IDs are one byte (255 = none).
+Little-endian throughout; every field written explicitly in this order (no reflection, no `BinaryWriter`, no struct dumps). A string in the file framing (map ID, faction, display name, command kind) is a u32 byte length then UTF-8 bytes (at most 65 535 bytes, strict UTF-8). Fix64 and FixVec2 are their raw i64 values; entity IDs are u32; player and team IDs are one byte (255 = none).
 
 ```
 magic            8 bytes   ASCII "RTSREPLY"
@@ -29,6 +29,7 @@ content digest   u64
 seed             u64
 hash interval    u32       ticks
 tick count       u32       ticks
+flags            u8        bit 0: cycles enabled; other bits must be 0
 map ID           string
 player count     u32
   per player:    id u8, team u8, faction string, display name string
@@ -40,7 +41,7 @@ final hash       u64
 checksum         u64       FNV-1a (ADR-005 hasher) over every byte before it
 ```
 
-The payload of a command is written by the codec registered for its kind (`CommandCodecRegistry` in `Rts.Replay`): one explicit codec per command class, fields in a fixed order, no field omitted. The length prefix lets a reader report an unknown kind or an under- or over-read payload precisely. Faction plug-ins add the codec for their own kinds by registering it by kind, the same way they register their mechanic; the Water `cast_wave` codec ships built in. A new command class without a codec fails a test that enumerates every `Command` subclass in the simulation assembly.
+The payload of a command is encoded by the shared command codec, `Rts.Sim.Commands.Codec` in the simulation assembly (`CommandCodecRegistry`, `CommandWriter`, `CommandReader`), the same encoding the lockstep protocol uses (ADR-008): one explicit codec per command class, fields in a fixed order, no field omitted, strings as strict UTF-8 with a u16 byte length (at most 65 535 bytes; a lone surrogate or invalid UTF-8 is an error). `Rts.Replay` keeps only its own framing (header, players, command records, checkpoints, checksum) and no per-command code. The length prefix lets a reader report an unknown kind or an under- or over-read payload precisely. A faction's codec lives with the faction (the Water `cast_wave` codec is `Factions/Water/CastWaveCodec.cs`) and is registered by `BuiltInMechanics.CreateCodecRegistry()`, the composition root, so neither `Rts.Replay` nor the core names a faction. A new command class without a codec fails a Sim.Tests test that enumerates every `Command` subclass in the simulation assembly. `ReplayRecorder.Submit` and `Record` check each command against the registry first, so a command with a bad string or no codec is refused when it is submitted and cannot make `ReplayWriter` throw at match end.
 
 ### Compatibility rule
 
@@ -61,7 +62,7 @@ The simulation has no "command applied" hook (events go out, never in), so recor
 
 - A 4 300-tick AI match with 500 commands is about 23 kB, so replays can be kept for every match and attached to bug reports.
 - ReplayCheck doubles as a determinism regression test across code changes: a replay recorded before a change must still verify after it unless the change was meant to alter the rules, in which case the data digest or the format version moves with it.
-- The replay codec is self-contained in `Rts.Replay`. The lockstep network layer (ADR-008) has its own command codec; both encode the same command objects and should be unified into one shared codec later, with the replay payloads kept byte-compatible or the version bumped.
+- The command encoding is shared with the lockstep network layer (ADR-008) in `Rts.Sim.Commands.Codec`; format version 2 is that unification (version 1 files are refused, not converted). A change to any command's parameters or to the codec's primitives is a format version bump here and a protocol version bump there.
 - Cycle definitions are not in `ContentDigest` yet (see above).
 - Replays do not store the AI profiles or the script, so a replay cannot say why a command was issued, only that it was.
 
