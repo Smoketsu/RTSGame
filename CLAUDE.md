@@ -78,6 +78,17 @@ dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 - Warnings are errors (`TreatWarningsAsErrors`), and the code uses C# 9 with nullable reference types on. Fix every warning rather than suppressing it.
 - The harness reads its command script from `rts/data/scripts/smoke.json` unless `--script <path>` is given; the Unity `SimulationHost` plays the same file (parsed by `Rts.Sim.Data.CommandScript`), so their state hashes are comparable. If the script file is missing the run fails with a file error.
 
+## Unity editor (Funplay MCP)
+
+- The Unity editor is driven through the Funplay MCP server (`funplay-game`, package `com.gamebooom.unity.mcp`, editor-only, never shipped). Its workflow rules are in `rts/src/Game/CLAUDE.md` and its skills in `rts/src/Game/.claude/skills/`. Both load only after a session reads a file under `rts/src/Game/`, so read `rts/src/Game/CLAUDE.md` before any Unity editor work.
+- The server runs only while the Unity editor has `rts/src/Game` open, and Claude Code connects MCP servers when a session starts. Open Unity first. If the Funplay tools are missing, start a new session; never fall back to editing scenes by hand.
+- Never edit `.unity`, `.prefab` or `.asset` files with text tools or patches. Use Funplay tools or Editor APIs, then save only the assets you meant to change and read the values back.
+- Funplay regenerates the block between its markers in `rts/src/Game/CLAUDE.md`, and everything under `rts/src/Game/.claude/skills/` and `rts/src/Game/.funplay/`, on each sync. Do not edit those; put project rules in this file. They are third-party generated files and are exempt from the documentation standard.
+- The architecture rules outrank Funplay's guidance:
+  - Unity only renders. Never use `execute_code` or component edits to put game rules, tuning numbers or simulation state into scenes, prefabs or MonoBehaviours; those belong in `rts/src/Sim` and `rts/data`.
+  - In Play Mode, drive the match through input (`simulate_key_press`, `simulate_mouse_click`, `simulate_mouse_drag`) so it reaches the simulation as commands. Never change simulation state from `execute_code`: that bypasses `Simulation.Submit` and invalidates state hashes.
+- The `funplay-unity-ui-composition` skill is written for mobile portrait screens (fallback reference resolution 1080 x 2340, safe areas, phone cutouts). This is a PC game: use a landscape reference resolution (1920 x 1080 unless the design proposal sets one) and skip the phone-specific checks.
+
 ## Subagents (`.claude/agents`)
 
 - `docs-writer` (Haiku): file headers, READMEs, changelog entries and tuning comments. Never changes logic.

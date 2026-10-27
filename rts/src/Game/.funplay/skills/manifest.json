@@ -1,0 +1,16 @@
+{
+    "platforms": [
+        "claude"
+    ],
+    "optionalSkills": [],
+    "skillVersions": [
+        {
+            "id": "unity-mcp-workflow",
+            "version": "1.0.7"
+        },
+        {
+            "id": "unity-ui-composition",
+            "version": "1.0.9"
+        }
+    ]
+}
