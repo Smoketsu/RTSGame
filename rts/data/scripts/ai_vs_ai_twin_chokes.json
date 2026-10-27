@@ -1,0 +1,29 @@
+// rts/data/scripts/ai_vs_ai_twin_chokes.json: the AI-versus-AI script of ai_vs_ai.json replayed on the twin_chokes map (Phase 2 map set). A scripted command stream for the headless harness (rts/tools/BalanceHarness, pass --script rts/data/scripts/ai_vs_ai_twin_chokes.json) and the Unity host; both parse it with Rts.Sim.Data.CommandScript. Skai (slot 0, AI profile "aggressive") versus Water (slot 1, AI profile "defensive") on twin_chokes: the script only places each side's mobile HQ (Rooted, because it lands within 6 tiles of its main common fields) and four workers at tick 0; the two skirmish AI controllers (rts/src/Ai) play everything after that. The harness stops early when MatchOutcome is decided and prints OUTCOME before STATE_HASH; CI runs it twice and requires identical lines (the exit test in rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs does the same).
+{
+  "$schema_version": 1,
+  "$doc": "AI versus AI exit script: Skai (aggressive AI) against Water (defensive AI) on twin_chokes, seed 1234, at most 6000 ticks (300 seconds). Entity IDs: 1 Great Aerie, 2 to 5 Fledglings, 6 Grand Shell, 7 to 10 Tenders.",
+  // Seed for the simulation's one random number generator; the AI generators are derived from it and the player slot. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md; rts/docs/specs/skirmish_ai.md section 3.
+  "seed": 1234,
+  // Most ticks to simulate; the harness stops earlier once one team is left standing. Unit: ticks (20 per second, so 6000 is 300 seconds). Range: 0 to 1000000. Source: Phase 1 plan (AI-versus-AI exit criterion).
+  "ticks": 6000,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: Phase 2 plan step 7 (two more 1v1 maps).
+  "map": "twin_chokes",
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text; ai: the skirmish AI profile (a file under rts/data/ai) that plays the slot, overridable with the harness option --ai <slot>:<profile>. Source: Game modes (any player count, teams explicit); rts/docs/specs/skirmish_ai.md section 6.
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai AI", "ai": "aggressive" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water AI", "ai": "defensive" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter. Only spawn_unit is used: each HQ lands 4.1 to 5.4 tiles from both of its main common fields (fields 0 and 1 at (4, 59) and (9, 60); fields 2 and 3 at (59, 4) and (54, 3)), within hq_root_max_distance_to_field_tiles (6), so it starts Rooted; four workers stand beside it. Source: Phase 1 command set (rts/src/Sim/Commands); Core gameplay loop (Opening: spawn with the mobile HQ and a few workers).
+  "commands": [
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "8", "y": "56" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "10", "y": "58" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "7", "y": "54" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "10", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 5, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "56", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 6, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "58", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 7, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "54", "y": "6" },
+    { "tick": 0, "issuer": 255, "sequence": 8, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "57", "y": "10" },
+    { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "54", "y": "9" }
+  ]
+}

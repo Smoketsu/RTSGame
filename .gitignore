@@ -30,3 +30,5 @@ rts/src/Game/Assets/StreamingAssets/data.meta
 sysinfo.txt
 # Local test results
 TestResults/
+# Git worktrees that Claude Code subagents create for isolated work; never commit them
+.claude/worktrees/

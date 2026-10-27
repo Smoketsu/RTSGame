@@ -9,6 +9,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 - `docs/PHASE2_PLAN.md` build order, ownership and exit test for the vertical slice.
 - `NuGet.config` naming nuget.org, so restore also works with the .NET 8 SDK bundled with Unity (`<Unity>/Editor/Data/DotNetSdk/dotnet.exe`).
+- Map checklist test (`MapChecklistTests`): every map under `rts/data/maps` is checked for at least 3 layers with the lowest at most 35%, two separate ground routes between spawns, Skai cliff spots within ground-fire reach, rare fields on the flanks and outside the Core, and a reachable Core; synthetic bad maps prove each rule can fail. Thresholds are PLACEHOLDER constants in the fixture because the loader rejects unknown tuning files.
+- Two new 1v1 maps, `long_lowland` (long layer-0 channel, wide flanks) and `twin_chokes` (one choke ramp per plateau, exposed Core), both passing the checklist, with AI-versus-AI scripts `ai_vs_ai_long_lowland.json` (decided at tick 5175) and `ai_vs_ai_twin_chokes.json` (undecided at 6000 ticks with the default profiles); hashes match across runs.
 - Unity project files generated on first open in Unity 6.6 (`6000.6.7f1`): `ProjectSettings/*.asset`, `Packages/packages-lock.json` and the `.meta` file for every asset and folder.
 
 ### Fixed
