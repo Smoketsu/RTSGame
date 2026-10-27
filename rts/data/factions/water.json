@@ -1,17 +1,25 @@
 // rts/data/factions/water.json: Water faction (name TBD) definition. Part of rts/data/factions; read by the data loader (rts/src/Sim/Data) into a FactionDefinition at match start.
 {
   "$schema_version": 1,
-  "$doc": "Water faction (name TBD): octopus and mollusk people whose signature mechanic is Flooding; lists the units available in the Phase 0 content set.",
+  "$doc": "Water faction (name TBD): octopus and mollusk people whose signature mechanic is Flooding; lists the units, HQ and buildings available in the Phase 1 content set.",
   // Stable faction ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction (name TBD).
   "display_name": "Water",
   // Signature mechanic plug-in the simulation instantiates for this faction. Unit: mechanic ID. Range: an ID registered in BuiltInMechanics ("momentum", "flooding") or "none". Source: Factions / Water faction / Signature mechanic: Flooding with tides and waves.
   "mechanic_id": "flooding",
-  // Units the faction can field, in menu order. Unit: list of unit IDs. Range: IDs of files under rts/data/units/water, no duplicates. Source: Factions / Water faction / Unit concepts (Phase 0 subset: worker, anti-air and melee).
+  // The faction's mobile HQ unit: the unit a host or script spawns for each player at match start. Unit: unit ID. Range: a unit of this faction whose file has an hq object. Required for a faction that lists units. Source: The mobile HQ unit (one per player).
+  "hq_unit": "water.grand_shell",
+  // Units the faction can field, in menu order. Unit: list of unit IDs. Range: IDs of files under rts/data/units/water, no duplicates. Source: Factions / Water faction / Unit concepts (Phase 1: worker, units, HQ, production building and static defence).
   "units": [
     "water.tender",
     "water.spoutling",
-    "water.grasper"
+    "water.grasper",
+    "water.shellback",
+    "water.ink_lobber",
+    "water.grand_shell",
+    "water.tidepool",
+    "water.shell_forge",
+    "water.coral_turret"
   ]
 }

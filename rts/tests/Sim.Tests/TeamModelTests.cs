@@ -50,7 +50,9 @@ namespace Rts.Sim.Tests
                 new MatchSettings(1234, TestWorld.TicksPerSecond, TestWorld.HashInterval),
                 TestWorld.Catalog(),
                 setups,
-                BuiltInMechanics.CreateRegistry());
+                BuiltInMechanics.CreateRegistry(),
+                TestWorld.Tuning,
+                TestWorld.FlatMap());
             // The simulation under test.
             Simulation sim = new Simulation(config);
             if (policy != null)

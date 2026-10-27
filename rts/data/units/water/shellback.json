@@ -1,0 +1,46 @@
+// rts/data/units/water/shellback.json: Shellback, the Water armoured defender. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Shellback unit definition for the water faction (armoured defender with high health and short-range kinetic shots, trained at the Shell Forge); placeholder numbers until the Phase 1 unit docs are written.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.shellback",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Shellback).
+  "display_name": "Shellback",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
+  "kind": "unit",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: placeholder choice; the design does not name the Shellback's layer, so it matches the other water combat units.
+  "layer": "water",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: Factions / Water faction / Unit concepts (armoured defender, highest combat health); placeholder.
+  "max_health": 220,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder.
+  "speed_tiles_per_second": 1.8,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Source: placeholder.
+  "supply": 3,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder.
+  "radius_tiles": 0.6,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder; its toughness is paid for here.
+  "cost_common": 175,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder; rare cost is kept to capstone-ish units.
+  "cost_rare": 0,
+  // Time to train this unit at a producer. Unit: seconds. Range: 0.05 to 3600. Source: Economy; placeholder.
+  "build_seconds": 28,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: Factions / Water faction / Unit concepts (armoured defender); placeholder.
+  "armour_type": "armoured",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder.
+  "sight_range_tiles": 8,
+  // Weapon: short-range kinetic strike that hits ground and water only (air is the Spoutling's job). Every number is a placeholder for playtesting.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder.
+    "damage": 10,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: "kinetic", "blast" or "drench" (names in tuning/combat.json). Source: Factions / Water faction / Unit concepts; placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: Factions / Water faction / Unit concepts (short range); placeholder.
+    "range_tiles": 2,
+    // Time between two hits. Unit: seconds. Range: 0.05 to 60. Source: placeholder.
+    "cooldown_seconds": 1.0,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder.
+    "can_target": ["ground", "water"]
+  }
+}

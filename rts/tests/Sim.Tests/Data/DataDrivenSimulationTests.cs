@@ -33,7 +33,7 @@ namespace Rts.Sim.Tests.Data
                 new PlayerSetup(Skai, new TeamId(0), "skai", "Skai player"),
                 new PlayerSetup(Water, new TeamId(1), "water", "Water player"),
             };
-            SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, players, BuiltInMechanics.CreateRegistry());
+            SimulationConfig config = new SimulationConfig(data.CreateMatchSettings(seed), data.Content, players, BuiltInMechanics.CreateRegistry(), data.Tuning, data.RequireMap("greybox_1v1"));
             Simulation sim = new Simulation(config);
             sim.Start();
             return sim;
@@ -48,7 +48,7 @@ namespace Rts.Sim.Tests.Data
             Fix64 speed = data.Content.Units["skai.windrunner"].SpeedTilesPerSecond;
             Assert.That(speed, Is.EqualTo(Fix64.Parse("3.5")));
 
-            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.windrunner", Skai, FixVec2.FromInts(4, 4)));
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.windrunner", Skai, FixVec2.FromInts(20, 4)));
             sim.Step();
             Unit? unit = null;
             foreach (Unit candidate in sim.Units.All)
@@ -57,12 +57,13 @@ namespace Rts.Sim.Tests.Data
             }
             Assert.That(unit, Is.Not.Null);
             Assert.That(unit!.Definition.Id, Is.EqualTo("skai.windrunner"));
-            Assert.That(unit.Position, Is.EqualTo(FixVec2.FromInts(4, 4)));
+            Assert.That(unit.Position, Is.EqualTo(FixVec2.FromInts(20, 4)));
 
             // Move 35 tiles east, starting on tick 1; after exactly one second (20 ticks) it has covered 'speed' tiles.
-            sim.Submit(new MoveUnitCommand(1, Skai, 1, unit.Id, FixVec2.FromInts(39, 4)));
+            // Row y = 4 from x = 20 to 55 lies on one elevation layer of greybox_1v1, so the flow field runs straight east.
+            sim.Submit(new MoveUnitCommand(1, Skai, 1, unit.Id, FixVec2.FromInts(55, 4)));
             sim.Step(sim.Clock.TicksPerSecond);
-            Fix64 travelled = unit.Position.X - Fix64.FromInt(4);
+            Fix64 travelled = unit.Position.X - Fix64.FromInt(20);
             Fix64 error = (travelled - speed).Abs();
             // Per-tick division and the vector length truncate by a few raw units (2^-32 tiles) each tick; 0.000001 tiles is far above that and far below any real speed difference.
             Assert.That(error, Is.LessThan(Fix64.Parse("0.000001")));
@@ -75,10 +76,11 @@ namespace Rts.Sim.Tests.Data
         {
             DataSet data = TestData.LoadAll();
             Simulation sim = Build(data, 5UL);
-            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.windrunner", Skai, FixVec2.FromInts(4, 4)));
+            sim.Submit(new SpawnUnitCommand(0, PlayerId.None, 0, "skai.windrunner", Skai, FixVec2.FromInts(20, 4)));
             sim.Step();
-            // 7 tiles at 3.5 tiles per second is 2 seconds, 40 ticks at 20 ticks per second.
-            sim.Submit(new MoveUnitCommand(1, Skai, 1, new EntityId(1), FixVec2.FromInts(11, 4)));
+            // 7 tiles at 3.5 tiles per second is 2 seconds, 40 ticks at 20 ticks per second; the move completes up to
+            // one tick early because a unit within arrival_radius_tiles (0.25) of the goal counts as arrived (ADR-007).
+            sim.Submit(new MoveUnitCommand(1, Skai, 1, new EntityId(1), FixVec2.FromInts(27, 4)));
             int arrivedTick = -1;
             for (int i = 0; i < 60 && arrivedTick < 0; i++)
             {
@@ -91,7 +93,7 @@ namespace Rts.Sim.Tests.Data
                     }
                 }
             }
-            Assert.That(arrivedTick, Is.InRange(40, 42));
+            Assert.That(arrivedTick, Is.InRange(38, 42));
         }
 
         /// <summary>Units of both factions spawn from data, and the same data and seed give the same hash.</summary>

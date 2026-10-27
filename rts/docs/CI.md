@@ -21,7 +21,7 @@ Restores, builds and tests `rts/RtsGame.sln` in Release configuration.
 
 Proves the Phase 0 exit criterion: the same inputs always give the same simulation.
 
-- **Headless double run.** The balance harness plays `rts/data/scripts/smoke.json` (also its default script, and the one the Unity host plays) against `rts/data` in two separate processes. Each prints one `tick=<n> hash=<16 hex>` line per state-hash interval and a final `STATE_HASH=<16 hex>` line. The job fails if either run exits non-zero, if a run does not print exactly one `STATE_HASH=` line, if the two final hashes differ, or if any per-tick line differs. On success the hash appears in the job summary.
+- **Headless double runs.** The balance harness plays every command script under `rts/data/scripts/` (smoke, combat, economy, flood and the AI-versus-AI exit script) against `rts/data` in two separate processes each. Each run prints one `tick=<n> hash=<16 hex>` line per state-hash interval, an `OUTCOME` line and a final `STATE_HASH=<16 hex>` line. The job fails if a run exits non-zero, if a run does not print exactly one `STATE_HASH=` line, if the two outputs differ in any line, or if `ai_vs_ai.json` does not reach a decided outcome (the Phase 1 exit criterion). Every script and hash appears in the job summary.
 - **NUnit determinism tests.** `dotnet test` with the filter `FullyQualifiedName~DeterminismTests` runs on its own as a named step, and fails if the filter matches no test.
 
 ### 3. `data-files`

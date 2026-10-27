@@ -7,18 +7,35 @@
 // Step order (fixed, documented here and in rts/src/Sim/README.md):
 //   1. clear the event log
 //   2. apply this tick's commands in (issuer, sequence) order
-//   3. movement
-//   4. faction mechanics in ascending mechanic ID order
-//   5. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
-//   6. advance the clock
+//   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
+//   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
+//   5. movement
+//   6. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
+//   7. economy (EconomySystem: worker gather loops, production queues, construction, supply; units in ascending ID order)
+//   8. faction mechanics in ascending mechanic ID order
+//   9. vision recompute (VisionSystem.Recompute: per-team visible and explored grids; fog_of_war.md step 7)
+//  10. state hash every StateHashIntervalTicks (reported as StateHashedEvent)
+//  11. advance the clock
+// Start also runs one vision recompute after the mechanics' OnMatchStart, so tick 0 has vision. Combat reads the vision of the
+// previous tick's end (a one-tick delay) plus the sight of units spawned this tick (SpawnUnit stamps them at once, so a new unit
+// can fight on its spawn tick); the hash reads the end of this tick.
+// Spawn and removal hooks (SpawnUnit, RemoveUnit) also run the HQ and economy bookkeeping: a new HQ picks Rooted or Uprooted, a
+// structure's footprint blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
 using System;
 using System.Collections.Generic;
+using Rts.Sim.Combat;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
+using Rts.Sim.Data;
+using Rts.Sim.Economy;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
+using Rts.Sim.Pathing;
+using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
+using Rts.Sim.Terrain;
 using Rts.Sim.Units;
+using Rts.Sim.Vision;
 
 namespace Rts.Sim
 {
@@ -52,6 +69,33 @@ namespace Rts.Sim
         /// <summary>Live units.</summary>
         public UnitRegistry Units { get; }
 
+        /// <summary>Every tuning file. Systems read the part they own.</summary>
+        public Tuning Tuning { get; }
+
+        /// <summary>The map being played (spawns, resource fields, Core). Static for the match.</summary>
+        public MapDefinition Map { get; }
+
+        /// <summary>Live terrain: heights, water, surfaces, blockers (ADR-006). Hashed every tile.</summary>
+        public TerrainGrid Terrain { get; }
+
+        /// <summary>Per-team fog of war: visible-now and explored-ever grids and the query API (fog_of_war.md). Recomputed at step 9; both grids are hashed after the terrain.</summary>
+        public VisionSystem Vision { get; }
+
+        /// <summary>Live resource fields: what each field of the map still holds. Hashed (remaining amounts, ascending field index).</summary>
+        public ResourceFields Resources { get; }
+
+        /// <summary>Flow-field cache for ground and water movement (ADR-007). Not hashed: a pure function of terrain.</summary>
+        public FlowFieldCache Pathing { get; }
+
+        /// <summary>
+        /// Speed modifiers registered by mechanics at <see cref="IFactionMechanic.OnMatchStart"/>, kept sorted by
+        /// <see cref="ISpeedModifier.Id"/> (ordinal). <see cref="MovementSystem"/> multiplies a unit's speed by each in this order.
+        /// </summary>
+        public IReadOnlyList<ISpeedModifier> SpeedModifiers => _speedModifiers;
+
+        /// <summary>Backing store for <see cref="SpeedModifiers"/>, kept sorted by Id.</summary>
+        private readonly List<ISpeedModifier> _speedModifiers = new List<ISpeedModifier>();
+
         /// <summary>Mechanic instances active in this match, keyed by mechanic ID in ordinal order. Filled by <see cref="Start"/>.</summary>
         public IReadOnlyDictionary<string, IFactionMechanic> Mechanics => _mechanics;
 
@@ -84,6 +128,18 @@ namespace Rts.Sim
         /// </summary>
         public ulong ContentDigest { get; private set; }
 
+        /// <summary>
+        /// Damage modifiers registered by mechanics at <see cref="IFactionMechanic.OnMatchStart"/>, in ascending
+        /// <see cref="IDamageModifier.Id"/> (ordinal) order. <see cref="CombatSystem"/> multiplies a hit's damage by each in this order.
+        /// </summary>
+        public IReadOnlyList<IDamageModifier> DamageModifiers => _damageModifiers;
+
+        /// <summary>Backing store for <see cref="DamageModifiers"/>, kept sorted by Id.</summary>
+        private readonly List<IDamageModifier> _damageModifiers = new List<IDamageModifier>();
+
+        /// <summary>True only while mechanics run <see cref="IFactionMechanic.OnMatchStart"/>, the one time modifiers may be registered.</summary>
+        private bool _modifierRegistrationOpen;
+
         /// <summary>Backing store for <see cref="Mechanics"/>.</summary>
         private readonly SortedDictionary<string, IFactionMechanic> _mechanics = new SortedDictionary<string, IFactionMechanic>(StringComparer.Ordinal);
 
@@ -111,6 +167,12 @@ namespace Rts.Sim
             Events = new EventLog();
             Players = new PlayerRegistry(config.Players);
             Units = new UnitRegistry();
+            Tuning = config.Tuning;
+            Map = config.Map;
+            Terrain = new TerrainGrid(Map, Tuning.Terrain, Tuning.Flood);
+            Vision = new VisionSystem(Terrain, Players, Units);
+            Resources = new ResourceFields(Map);
+            Pathing = new FlowFieldCache(Terrain, Tuning.Terrain.MaxCachedFlowFields);
             _mechanicRegistry = config.Mechanics;
         }
 
@@ -129,9 +191,17 @@ namespace Rts.Sim
             {
                 throw new InvalidOperationException("Content invalid: " + contentProblem);
             }
+            // Every status duration must convert to at least one tick at this match's tick rate; failing here names the
+            // tuning key at start instead of throwing from inside a step.
+            StatusRates.Validate(Tuning.Status, this);
             // No definition may change once the match is running; the digest below would otherwise go stale.
             Content.Freeze();
-            ContentDigest = Content.ComputeDigest();
+            // Content digest covers definitions, the tuning texts and the map, so mismatched data shows at tick 0.
+            StateHasher digestHasher = new StateHasher();
+            digestHasher.Write(Content.ComputeDigest());
+            digestHasher.Write(Tuning.SourceDigest);
+            Map.WriteHash(digestHasher);
+            ContentDigest = digestHasher.Hash;
             // Mechanic IDs needed, collected in ordinal order so creation order is deterministic.
             SortedSet<string> mechanicIds = new SortedSet<string>(StringComparer.Ordinal);
             foreach (Player player in Players.All)
@@ -151,18 +221,102 @@ namespace Rts.Sim
             Events.Add(new MatchStartedEvent(Clock.Tick, Players.Count, Settings.Seed));
             IsStepping = true;
             Rng.SetLocked(false);
+            _modifierRegistrationOpen = true;
             try
             {
                 foreach (IFactionMechanic mechanic in _mechanics.Values)
                 {
                     mechanic.OnMatchStart(this);
                 }
+                // Economy: starting stock, first supply figures and the carrying speed modifier.
+                EconomySystem.RegisterModifiers(this);
+                EconomySystem.OnMatchStart(this);
+                // Tick 0 vision: units placed by mechanics at match start already see their surroundings.
+                Vision.Recompute();
             }
             finally
             {
+                _modifierRegistrationOpen = false;
                 Rng.SetLocked(true);
                 IsStepping = false;
             }
+        }
+
+        /// <summary>
+        /// Adds a speed modifier. Same rules as <see cref="RegisterDamageModifier"/>: only from
+        /// <see cref="IFactionMechanic.OnMatchStart"/>, sorted by Id, duplicate Ids throw.
+        /// </summary>
+        /// <param name="modifier">The modifier; its Id must be non-empty.</param>
+        public void RegisterSpeedModifier(ISpeedModifier modifier)
+        {
+            if (modifier == null)
+            {
+                throw new ArgumentNullException(nameof(modifier));
+            }
+            if (!_modifierRegistrationOpen)
+            {
+                throw new InvalidOperationException("Speed modifiers can only be registered from IFactionMechanic.OnMatchStart.");
+            }
+            if (string.IsNullOrEmpty(modifier.Id))
+            {
+                throw new ArgumentException("A speed modifier needs a non-empty Id.", nameof(modifier));
+            }
+            // Insertion index keeping the list sorted by Id. Unit: list position. Range: 0 to Count.
+            int index = 0;
+            while (index < _speedModifiers.Count)
+            {
+                // Comparison of the existing Id with the new one: negative when the existing one sorts first.
+                int order = string.CompareOrdinal(_speedModifiers[index].Id, modifier.Id);
+                if (order == 0)
+                {
+                    throw new InvalidOperationException("A speed modifier with id '" + modifier.Id + "' is already registered.");
+                }
+                if (order > 0)
+                {
+                    break;
+                }
+                index++;
+            }
+            _speedModifiers.Insert(index, modifier);
+        }
+
+        /// <summary>
+        /// Adds a damage modifier. Only allowed from <see cref="IFactionMechanic.OnMatchStart"/>; the list is kept sorted by
+        /// <see cref="IDamageModifier.Id"/> (ordinal) so the multiplication order never depends on mechanic creation order.
+        /// A second modifier with the same Id throws.
+        /// </summary>
+        /// <param name="modifier">The modifier; its Id must be non-empty.</param>
+        public void RegisterDamageModifier(IDamageModifier modifier)
+        {
+            if (modifier == null)
+            {
+                throw new ArgumentNullException(nameof(modifier));
+            }
+            if (!_modifierRegistrationOpen)
+            {
+                throw new InvalidOperationException("Damage modifiers can only be registered from IFactionMechanic.OnMatchStart.");
+            }
+            if (string.IsNullOrEmpty(modifier.Id))
+            {
+                throw new ArgumentException("A damage modifier needs a non-empty Id.", nameof(modifier));
+            }
+            // Insertion index keeping the list sorted by Id. Unit: list position. Range: 0 to Count.
+            int index = 0;
+            while (index < _damageModifiers.Count)
+            {
+                // Comparison of the existing Id with the new one: negative when the existing one sorts first.
+                int order = string.CompareOrdinal(_damageModifiers[index].Id, modifier.Id);
+                if (order == 0)
+                {
+                    throw new InvalidOperationException("A damage modifier with id '" + modifier.Id + "' is already registered.");
+                }
+                if (order > 0)
+                {
+                    break;
+                }
+                index++;
+            }
+            _damageModifiers.Insert(index, modifier);
         }
 
         /// <summary>Replaces the <see cref="HandOverPolicy"/>. Only allowed before <see cref="Start"/>, so one policy rules the whole match.</summary>
@@ -197,7 +351,7 @@ namespace Rts.Sim
             Commands.Enqueue(command);
         }
 
-        /// <summary>Runs one tick: commands, movement, mechanics, hash, then advances the clock.</summary>
+        /// <summary>Runs one tick: commands, movement, combat, mechanics, hash, then advances the clock.</summary>
         public void Step()
         {
             if (!IsStarted)
@@ -216,11 +370,16 @@ namespace Rts.Sim
                 int tick = Clock.Tick;
                 Events.Clear();
                 ApplyCommands(tick);
+                StatusSystem.BeginTick(this);
+                HqSystem.Step(this);
                 MovementSystem.Step(this);
+                CombatSystem.Step(this);
+                EconomySystem.Step(this);
                 foreach (IFactionMechanic mechanic in _mechanics.Values)
                 {
                     mechanic.OnTick(this);
                 }
+                Vision.Recompute();
                 if (tick % Settings.StateHashIntervalTicks == 0)
                 {
                     // State hash of the whole simulation at this tick. Unit: 64-bit hash value. Range: any ulong except 0.
@@ -295,7 +454,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
-        /// mechanics, hand-over policy. Safe to call between steps; the result is never 0.
+        /// terrain, vision, resource fields, mechanics, damage modifier IDs, speed modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
         {
@@ -306,11 +465,24 @@ namespace Rts.Sim
             EntityIds.WriteHash(_hasher);
             Players.WriteHash(_hasher);
             Units.WriteHash(_hasher);
+            Terrain.WriteHash(_hasher);
+            Vision.WriteHash(_hasher);
+            Resources.WriteHash(_hasher);
             _hasher.Write(_mechanics.Count);
             foreach (KeyValuePair<string, IFactionMechanic> pair in _mechanics)
             {
                 _hasher.Write(pair.Key);
                 pair.Value.WriteHash(_hasher);
+            }
+            _hasher.Write(_damageModifiers.Count);
+            foreach (IDamageModifier modifier in _damageModifiers)
+            {
+                _hasher.Write(modifier.Id);
+            }
+            _hasher.Write(_speedModifiers.Count);
+            foreach (ISpeedModifier modifier in _speedModifiers)
+            {
+                _hasher.Write(modifier.Id);
             }
             _hasher.Write(HandOverPolicy.Id);
             HandOverPolicy.WriteHash(_hasher);
@@ -334,7 +506,11 @@ namespace Rts.Sim
             // The unit just created, with its ID allocated here. Range: ID from 1 up.
             Unit unit = new Unit(EntityIds.Allocate(), owner, definition, position, Clock.Tick);
             Units.Add(unit);
+            // The new unit sees at once (not only after the step's vision recompute), so it can fight on its spawn tick.
+            Vision.OnUnitSpawned(unit);
             Events.Add(new UnitSpawnedEvent(Clock.Tick, unit.Id, owner, definition.Id, position));
+            HqSystem.OnUnitSpawned(this, unit);
+            EconomySystem.OnUnitSpawned(this, unit);
             return unit;
         }
 
@@ -344,11 +520,14 @@ namespace Rts.Sim
         public bool RemoveUnit(EntityId id, string reason)
         {
             RequireStepping();
-            if (!Units.Remove(id))
+            if (!Units.TryGet(id, out Unit? removed))
             {
                 return false;
             }
+            Units.Remove(id);
             Events.Add(new UnitRemovedEvent(Clock.Tick, id, reason));
+            EconomySystem.OnUnitRemoved(this, removed);
+            HqSystem.OnUnitRemoved(this, removed);
             return true;
         }
 

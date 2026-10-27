@@ -1,0 +1,46 @@
+// rts/data/units/water/ink_lobber.json: Ink Lobber, the Water ranged artillery unit that cannot hit air. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Ink Lobber unit definition for the water faction (ranged artillery with blast ink shots at long range and a slow cooldown; cannot target air); placeholder numbers until the Phase 1 unit docs are written.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.ink_lobber",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Ink Lobber).
+  "display_name": "Ink Lobber",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
+  "kind": "unit",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: placeholder choice; the design does not name the Ink Lobber's layer, so it matches the other water combat units.
+  "layer": "water",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder.
+  "max_health": 100,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder.
+  "speed_tiles_per_second": 2.0,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Source: placeholder.
+  "supply": 2,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder.
+  "radius_tiles": 0.5,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder.
+  "cost_common": 150,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: Factions / Water faction / Unit concepts (rare cost only on capstone-ish units); placeholder.
+  "cost_rare": 40,
+  // Time to train this unit at a producer. Unit: seconds. Range: 0.05 to 3600. Source: Economy; placeholder.
+  "build_seconds": 30,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: placeholder.
+  "armour_type": "light",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder.
+  "sight_range_tiles": 10,
+  // Weapon: slow, heavy blast artillery at long range. Its can_target lists only ground and water, so it cannot hit air. Every number is a placeholder for playtesting.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder.
+    "damage": 36,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: "kinetic", "blast" or "drench" (names in tuning/combat.json). Source: Factions / Water faction / Unit concepts (ranged artillery); placeholder.
+    "damage_type": "blast",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: Factions / Water faction / Unit concepts (ranged artillery); placeholder.
+    "range_tiles": 7,
+    // Time between two hits. Unit: seconds. Range: 0.05 to 60. Source: placeholder.
+    "cooldown_seconds": 3.0,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder.
+    "can_target": ["ground", "water"]
+  }
+}

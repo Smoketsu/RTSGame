@@ -17,20 +17,30 @@ balance / Balance philosophy").
    `error: <message>` to stderr, where data and script errors start with the file path and name the field, and exits with 1.
    Commands the simulation rejects (for example moving a unit that does not exist) print a `warning:` on stderr and do not change the exit code.
 
+5. Skirmish AI (Phase 1, `rts/src/Ai`): a player entry with `"ai": "<profile>"` in the script, or the repeatable option
+   `--ai <slot>:<profile>`, attaches a `SkirmishAiController` playing that slot by `rts/data/ai/<profile>.json` (an option
+   wins over the script for the same slot). Before every step the controllers think in ascending slot order and submit
+   ordinary commands for that tick. In a match with two or more teams the run stops as soon as `MatchOutcome` is decided.
+   Every run prints `OUTCOME winner=<team number> tick=<n>` (or `OUTCOME winner=draw tick=<n>`, or `OUTCOME undecided tick=<n>`
+   when the tick limit is reached first; n is the last tick stepped) just before `STATE_HASH`.
+   `rts/data/scripts/ai_vs_ai.json` is the Phase 1 exit script: Skai (aggressive AI) against Water (defensive AI) on `greybox_1v1`.
+
 Same data, script, seed and tick count always give the same output, on any machine. CI runs the smoke script twice and
 requires the two `STATE_HASH` lines to match. The default script, `rts/data/scripts/smoke.json`, is also what the Unity
 `SimulationHost` plays, so the `tick=<n> hash=<hex>` lines can be compared with the Unity Console (see `docs/UNITY_SETUP.md`).
 
 ```
-dotnet run --project rts/tools/BalanceHarness -- --data rts/data [--script <file>] [--ticks N] [--seed S]
+dotnet run --project rts/tools/BalanceHarness -- --data rts/data [--script <file>] [--ticks N] [--seed S] [--ai <slot>:<profile> ...]
+dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/data/scripts/ai_vs_ai.json --ai 0:aggressive --ai 1:defensive
 ```
 
 | Option | Meaning | Unit and range |
 | --- | --- | --- |
-| `--data <folder>` | Data folder with `tuning/`, `units/`, `factions/`, `maps/`, `cycles/`, `scripts/` | Required |
+| `--data <folder>` | Data folder with `tuning/`, `units/`, `factions/`, `maps/`, `cycles/`, `ai/`, `scripts/` | Required |
 | `--script <file>` | Script JSON (comments allowed) | Optional; default `<data folder>/scripts/smoke.json` |
 | `--ticks N` | Overrides the script's `ticks` | Ticks, 0 to 1 000 000 |
 | `--seed S` | Overrides the script's `seed` | Unsigned integer |
+| `--ai <slot>:<profile>` | Repeatable: an AI plays player slot `<slot>` with `rts/data/ai/<profile>.json` | Slot 0 to 254 (must be a script player); profile file name without `.json` |
 
 ## Script format
 
@@ -47,6 +57,7 @@ Scripts live in `rts/data/scripts/` (the data loader skips that folder; `Rts.Sim
 ```
 
 - `issuer` 255 means "the script itself" (no player). `x` and `y` are tiles, written as decimal text or as numbers.
+- Command `type` values: `noop`, `spawn_unit` (`definition`, `owner`, `x`, `y`; script issuer only), `move_unit` (`unit`, `x`, `y`), `remove_unit` (`unit`), `attack_move` (`unit`, `x`, `y`), `attack_unit` (`unit`, `target`), `stop` (`unit`), `root_hq` and `uproot_hq` (`unit`), `gather` (`unit`, `field`: index in the map's `resource_fields`), `train_unit` (`producer`, `definition`) and `build_structure` (`unit`: the worker, `definition`, `x` and `y` as whole tile numbers). `cast_wave` (`unit`: the caster, `x`, `y`: the point the wave heads towards) casts the Water wave; `rts/data/scripts/flood_smoke.json` exercises flood sources and the flood limits. `rts/data/scripts/economy_smoke.json` exercises the HQ and economy commands on `greybox_1v1`.
 - Entity IDs start at 1 and are handed out in the order spawn commands are applied: by tick, then issuer, then sequence.
 - Commands scheduled at or after the last tick never run; the tool warns about them on stderr.
 - Unknown keys, missing keys and wrong types are errors that name the script path and the field.

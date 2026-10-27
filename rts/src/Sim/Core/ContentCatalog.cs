@@ -4,6 +4,7 @@
 // code. The simulation only reads it.
 using System;
 using System.Collections.Generic;
+using Rts.Sim.Combat;
 using Rts.Sim.Factions;
 using Rts.Sim.Units;
 
@@ -17,6 +18,9 @@ namespace Rts.Sim.Core
 
         /// <summary>Faction definitions by ID, ordinal order.</summary>
         private readonly SortedDictionary<string, FactionDefinition> _factions = new SortedDictionary<string, FactionDefinition>(StringComparer.Ordinal);
+
+        /// <summary>Rules the combat system plays by (damage table, acquire bonus). Defaults to <see cref="CombatRules.Neutral"/>; the data loader sets the rules from tuning/combat.json.</summary>
+        public CombatRules Combat { get; private set; } = CombatRules.Neutral;
 
         /// <summary>True once <see cref="Freeze"/> has run (at <see cref="Simulation.Start"/>); Add methods then throw.</summary>
         public bool IsFrozen { get; private set; }
@@ -57,6 +61,14 @@ namespace Rts.Sim.Core
             _factions.Add(definition.Id, definition);
         }
 
+        /// <summary>Replaces the combat rules. Only allowed before the catalog is frozen at <see cref="Simulation.Start"/>.</summary>
+        /// <param name="rules">The rules for this match; not null.</param>
+        public void SetCombatRules(CombatRules rules)
+        {
+            RequireNotFrozen();
+            Combat = rules ?? throw new ArgumentNullException(nameof(rules));
+        }
+
         /// <summary>Makes the catalog read-only. Internal: called by <see cref="Simulation.Start"/>.</summary>
         internal void Freeze()
         {
@@ -73,7 +85,7 @@ namespace Rts.Sim.Core
         }
 
         /// <summary>
-        /// FNV-1a digest of every definition that affects simulation (IDs, layers, stats, costs, mechanic IDs and unit
+        /// FNV-1a digest of every definition that affects simulation (IDs, layers, stats, costs, armour, sight, weapons, HQ and economy rules, the combat rules, mechanic IDs, HQ unit IDs and unit
         /// lists), in ordinal ID order. Display names are left out. Two catalogs with the same digest simulate the same.
         /// </summary>
         public ulong ComputeDigest()
@@ -92,24 +104,47 @@ namespace Rts.Sim.Core
                 hasher.Write(unit.Radius);
                 hasher.Write(unit.CostCommon);
                 hasher.Write(unit.CostRare);
+                hasher.Write(unit.ArmourType);
+                hasher.Write(unit.SightRangeTiles);
+                hasher.Write(unit.AirborneSightRangeTiles);
+                hasher.Write(unit.Weapon != null);
+                if (unit.Weapon != null)
+                {
+                    unit.Weapon.WriteHash(hasher);
+                }
+                hasher.Write(unit.Hq != null);
+                if (unit.Hq != null)
+                {
+                    unit.Hq.WriteHash(hasher);
+                }
+                unit.Economy.WriteHash(hasher);
+                unit.Flood.WriteHash(hasher);
             }
             hasher.Write(_factions.Count);
             foreach (FactionDefinition faction in _factions.Values)
             {
                 hasher.Write(faction.Id);
                 hasher.Write(faction.MechanicId);
+                hasher.Write(faction.HqUnitId);
                 hasher.Write(faction.UnitIds.Count);
                 foreach (string unitId in faction.UnitIds)
                 {
                     hasher.Write(unitId);
                 }
             }
+            Combat.WriteHash(hasher);
             return hasher.Hash;
         }
 
-        /// <summary>Checks every faction's unit list names a known unit. Returns the first problem or null.</summary>
+        /// <summary>Checks every faction's unit list names a known unit and every unit's armour and damage types exist in the combat rules. Returns the first problem or null.</summary>
         public string? Validate()
         {
+            // Combat problem found, if any (unknown armour or damage type).
+            string? combatProblem = Combat.Validate(_units.Values);
+            if (combatProblem != null)
+            {
+                return combatProblem;
+            }
             foreach (FactionDefinition faction in _factions.Values)
             {
                 foreach (string unitId in faction.UnitIds)
@@ -118,6 +153,24 @@ namespace Rts.Sim.Core
                     {
                         return "Faction '" + faction.Id + "' lists unknown unit '" + unitId + "'.";
                     }
+                }
+                if (faction.HqUnitId != null && (!_units.TryGetValue(faction.HqUnitId, out UnitDefinition? hq) || hq.Hq == null))
+                {
+                    return "Faction '" + faction.Id + "' names '" + faction.HqUnitId + "' as its HQ unit, which is unknown or has no HQ rules.";
+                }
+            }
+            foreach (UnitDefinition unit in _units.Values)
+            {
+                foreach (string trained in unit.Economy.Trains)
+                {
+                    if (!_units.ContainsKey(trained))
+                    {
+                        return "Unit '" + unit.Id + "' trains unknown unit '" + trained + "'.";
+                    }
+                }
+                if (unit.Hq != null && !_units.ContainsKey(unit.Hq.WorkerUnitId))
+                {
+                    return "Unit '" + unit.Id + "' has HQ worker '" + unit.Hq.WorkerUnitId + "', which is unknown.";
                 }
             }
             return null;

@@ -1,0 +1,16 @@
+{
+  "name": "Rts.Ai",
+  "rootNamespace": "Rts.Ai",
+  "references": [
+    "Rts.Sim"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

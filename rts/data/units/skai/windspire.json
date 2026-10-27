@@ -1,0 +1,39 @@
+// rts/data/units/skai/windspire.json: Windspire, the Skai production building for Talon Archers and Stormcallers. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Windspire building definition for the skai faction (trains Talon Archers and Stormcallers and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "skai.windspire",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Buildings (placeholder).
+  "display_name": "Windspire",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "skai",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
+  "kind": "building",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders / Buildings (placeholder).
+  "layer": "ground",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder.
+  "max_health": 400,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder.
+  "speed_tiles_per_second": 0,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Buildings use no supply. Source: placeholder.
+  "supply": 0,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder.
+  "radius_tiles": 0.5,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder.
+  "cost_common": 150,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder.
+  "cost_rare": 0,
+  // Time to construct this building. Unit: seconds. Range: 0.05 to 3600. Source: Economy; placeholder.
+  "build_seconds": 25,
+  // Units this building can train, in menu order. Unit: list of unit IDs. Range: IDs of existing units, no duplicates. Source: Economy (production buildings); placeholder.
+  "trains": ["skai.talon_archer", "skai.stormcaller"],
+  // Tiles the unit blocks to ground and water movement while it stands. Unit: tiles. Range: 0 or 1 (1 is the only structure size in Phase 1). Source: Economy (building footprints); placeholder.
+  "footprint": 1,
+  // Supply this building adds to its owner's supply cap while it stands complete. Unit: supply. Range: 0 to 100. Source: Economy / Supply cap; placeholder.
+  "provides_supply": 8,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: placeholder.
+  "armour_type": "structure",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder.
+  "sight_range_tiles": 8
+}

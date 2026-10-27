@@ -18,6 +18,8 @@
   "last_stand_invulnerable_seconds": 5,
   // How many times Last Stand can trigger in one match. Unit: uses per match (count). Range: 0 to 5. Source: Last Stand.
   "last_stand_uses_per_match": 1,
+  // Farthest an HQ may stand from the centre of a resource field that still holds resources and be allowed to root. Unit: tiles. Range: 0.5 to 64. Source: The mobile HQ unit (Rooted: next to a resource field); placeholder.
+  "hq_root_max_distance_to_field_tiles": 6,
   // Time an Uprooted HQ stays hidden in 1v1v1 and FFA before it is revealed to everyone. Unit: seconds. Range: 0 to 120. Source: No hiding.
   "ffa_uprooted_reveal_seconds": 30
 }

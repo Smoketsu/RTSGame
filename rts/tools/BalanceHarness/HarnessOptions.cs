@@ -1,7 +1,9 @@
 // rts/tools/BalanceHarness/HarnessOptions.cs
-// Command-line options of the headless harness: --data, --script, --ticks, --seed. Part of Rts.Tools.BalanceHarness.
+// Command-line options of the headless harness: --data, --script, --ticks, --seed and the repeatable --ai <slot>:<profile>.
+// Part of Rts.Tools.BalanceHarness.
 // Plain parsing with clear error messages; any problem is a HarnessException that Program turns into exit code 1.
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Rts.Tools.BalanceHarness
@@ -19,7 +21,7 @@ namespace Rts.Tools.BalanceHarness
     public sealed class HarnessOptions
     {
         /// <summary>Usage text printed with command-line errors.</summary>
-        public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> [--script <script.json>] [--ticks N] [--seed S]";
+        public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> [--script <script.json>] [--ticks N] [--seed S] [--ai <slot>:<profile> ...]";
 
         /// <summary>Script used when --script is omitted, relative to the data folder. Range: fixed path inside rts/data; the Unity host's default is the same file.</summary>
         public const string DefaultScriptRelativePath = "scripts/smoke.json";
@@ -42,6 +44,13 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Seed that overrides the script's "seed", or null to use the script. Range: any ulong.</summary>
         public ulong? SeedOverride { get; private set; }
 
+        /// <summary>
+        /// Skirmish AI profile per player slot from repeated --ai &lt;slot&gt;:&lt;profile&gt; options (for example "0:aggressive"), in
+        /// ascending slot order. Added to the script's own "ai" entries; an option wins over the script for the same slot.
+        /// Range: slot 0 to 254, profile a non-empty file name under rts/data/ai without ".json".
+        /// </summary>
+        public SortedDictionary<int, string> AiSlots { get; } = new SortedDictionary<int, string>();
+
         /// <summary>Parses the arguments; throws <see cref="HarnessException"/> on anything unexpected.</summary>
         /// <param name="args">The arguments after the program name.</param>
         public static HarnessOptions Parse(string[] args)
@@ -51,7 +60,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 // Flag being read; its value is the next argument.
                 string flag = args[i];
-                if (flag != "--data" && flag != "--script" && flag != "--ticks" && flag != "--seed")
+                if (flag != "--data" && flag != "--script" && flag != "--ticks" && flag != "--seed" && flag != "--ai")
                 {
                     throw new HarnessException("unknown argument '" + flag + "'. " + Usage);
                 }
@@ -68,6 +77,9 @@ namespace Rts.Tools.BalanceHarness
                         break;
                     case "--script":
                         options.ScriptPath = value;
+                        break;
+                    case "--ai":
+                        options.AddAiSlot(value);
                         break;
                     case "--ticks":
                         if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int ticks) || ticks > 1000000)
@@ -90,6 +102,26 @@ namespace Rts.Tools.BalanceHarness
                 throw new HarnessException("--data is required. " + Usage);
             }
             return options;
+        }
+
+        /// <summary>Parses one --ai value "&lt;slot&gt;:&lt;profile&gt;" into <see cref="AiSlots"/>; throws <see cref="HarnessException"/> when malformed or repeated.</summary>
+        /// <param name="value">The option's value, for example "1:defensive".</param>
+        private void AddAiSlot(string value)
+        {
+            // Position of the separator between slot and profile. Range: -1 when missing.
+            int colon = value.IndexOf(':');
+            // Player slot parsed from the text before the colon. Unit: slot number. Range: 0 to 254.
+            int slot = -1;
+            if (colon <= 0 || colon == value.Length - 1
+                || !int.TryParse(value.Substring(0, colon), NumberStyles.None, CultureInfo.InvariantCulture, out slot) || slot > 254)
+            {
+                throw new HarnessException("--ai must be <slot>:<profile> with a slot from 0 to 254, for example 0:aggressive (found '" + value + "')");
+            }
+            if (AiSlots.ContainsKey(slot))
+            {
+                throw new HarnessException("--ai names player slot " + slot.ToString(CultureInfo.InvariantCulture) + " twice");
+            }
+            AiSlots.Add(slot, value.Substring(colon + 1));
         }
     }
 }

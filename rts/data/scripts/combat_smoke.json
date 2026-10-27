@@ -1,0 +1,30 @@
+// rts/data/scripts/combat_smoke.json: Phase 1 combat smoke script. A scripted command stream for the headless harness (--script rts/data/scripts/combat_smoke.json) that exercises attack_move, attack_unit and stop on the real unit data. Parsed by Rts.Sim.Data.CommandScript like smoke.json. Placeholder scenario for determinism checks, not a balance test.
+{
+  "$schema_version": 1,
+  "$doc": "Combat smoke script: Skai and Water each field two armed units a few tiles apart on the grey-box map; attack-move, attack-unit and stop orders produce hits and kills; 400 ticks (20 seconds) with seed 77.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md.
+  "seed": 77,
+  // How many ticks to simulate. Unit: ticks (20 per second). Range: 0 to 1000000. Source: docs/decisions/ADR-004-tick-rate.md.
+  "ticks": 400,
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. Source: Game modes (any player count, teams explicit).
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water" }
+  ],
+  // Commands. Units get IDs 1 to 4 in spawn order. attack_move: unit + x, y goal; attack_unit: unit + target unit ID; stop: unit. Source: rts/src/Sim/Commands/CombatCommands.cs.
+  "commands": [
+    // Tick 0: Skai Windrunner (unit 1) and Roc Rider (unit 2) at the left; Water Spoutling (unit 3) and Grasper (unit 4) twelve tiles to the right.
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "20", "y": "20" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.roc_rider", "owner": 0, "x": "20", "y": "24" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "32", "y": "20" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.grasper", "owner": 1, "x": "32", "y": "24" },
+    // Tick 5: Skai attack-moves the Windrunner past the Water units and orders the Roc Rider to attack the Grasper.
+    { "tick": 5, "issuer": 0, "sequence": 0, "type": "attack_move", "unit": 1, "x": "40", "y": "20" },
+    { "tick": 5, "issuer": 0, "sequence": 1, "type": "attack_unit", "unit": 2, "target": 4 },
+    // Tick 10: Water attack-moves both units toward the Skai corner.
+    { "tick": 10, "issuer": 1, "sequence": 0, "type": "attack_move", "unit": 3, "x": "20", "y": "20" },
+    { "tick": 10, "issuer": 1, "sequence": 1, "type": "attack_move", "unit": 4, "x": "20", "y": "24" },
+    // Tick 200: Skai stops the Windrunner if it is still alive.
+    { "tick": 200, "issuer": 0, "sequence": 2, "type": "stop", "unit": 1 }
+  ]
+}
