@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
-    <!-- The skirmish AI controllers attached with --ai or a script player's "ai" key. -->
+    <!-- The skirmish AI controllers attached with the ai option or a script player's "ai" key (no double hyphen: XML comments forbid it). -->
     <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
   </ItemGroup>
 </Project>
