@@ -1,0 +1,16 @@
+{
+  "name": "com.rtsgame.net",
+  "displayName": "RTS Lockstep Networking",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "The engine-free lockstep networking protocol (assembly Rts.Net, ADR-008): transport-agnostic peers exchange per-tick command bundles and state hashes, detect desyncs, pause on disconnects and reconnect by replaying the command log. The Steam transport adapter lives in the Unity project. Depends on com.rtsgame.sim.",
+  "dependencies": {
+    "com.rtsgame.sim": "0.1.0"
+  },
+  "keywords": [
+    "rts",
+    "lockstep",
+    "networking",
+    "deterministic"
+  ]
+}

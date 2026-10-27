@@ -1,0 +1,29 @@
+<!-- rts/tests/Net.Tests/Rts.Net.Tests.csproj: NUnit tests for the lockstep networking library (Rts.Net, ADR-008): codec round trips, the loopback transport, and two peers playing the AI-versus-AI script through the protocol with desync, pause, budget and reconnect cases. Runs on .NET 8 outside Unity. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Tests run on the current LTS .NET; the libraries under test are netstandard2.1. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Rts.Net.Tests</AssemblyName>
+    <RootNamespace>Rts.Net.Tests</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Same test stack as Rts.Sim.Tests so the tests are portable to Unity's Test Runner. -->
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <Compile Remove="**/*.meta" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Net/Rts.Net.csproj" />
+    <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+    <!-- The skirmish AI plays each side of the lockstep match. -->
+    <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Data files are copied next to the test binary so tests can load the real tuning, units, maps and scripts. -->
+    <None Include="../../data/**/*.json" Link="data/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

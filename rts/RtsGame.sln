@@ -14,6 +14,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rts.Tools.ReplayCheck", "tools\ReplayCheck\Rts.Tools.ReplayCheck.csproj", "{A1B2C3D4-0021-4000-8000-000000000021}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rts.Replay.Tests", "tests\Replay.Tests\Rts.Replay.Tests.csproj", "{A1B2C3D4-0022-4000-8000-000000000022}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rts.Net", "src\Net\Rts.Net.csproj", "{A1B2C3D4-0005-4000-8000-000000000005}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rts.Net.Tests", "tests\Net.Tests\Rts.Net.Tests.csproj", "{A1B2C3D4-0006-4000-8000-000000000006}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -49,5 +52,13 @@ Global
 		{A1B2C3D4-0022-4000-8000-000000000022}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-0022-4000-8000-000000000022}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-0022-4000-8000-000000000022}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0005-4000-8000-000000000005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0005-4000-8000-000000000005}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0005-4000-8000-000000000005}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0005-4000-8000-000000000005}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-0006-4000-8000-000000000006}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-0006-4000-8000-000000000006}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-0006-4000-8000-000000000006}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-0006-4000-8000-000000000006}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

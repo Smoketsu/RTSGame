@@ -1,0 +1,25 @@
+<!-- rts/src/Net/Rts.Net.csproj: the engine-free lockstep networking library (assembly Rts.Net, ADR-008). Transport-agnostic peer model, command bundles, hash exchange, desync detection, pauses and reconnect. Targets netstandard2.1 so the same source compiles inside Unity 6 (via Rts.Net.asmdef) and in the plain .NET test projects. No engine references, no floating point, no clock reads, no threads. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- netstandard2.1 is the newest standard Unity 6 fully supports; same as Rts.Sim. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <!-- Assembly and root namespace match the Unity assembly definition name. -->
+    <AssemblyName>Rts.Net</AssemblyName>
+    <RootNamespace>Rts.Net</RootNamespace>
+    <!-- No implicit usings: every file lists what it uses, same as inside Unity. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- XML doc generation is off; the documentation standard is enforced by review, not by CS1591. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Unity package metadata and asmdef files live beside the source but are not compiled. -->
+    <None Remove="package.json" />
+    <None Remove="Rts.Net.asmdef" />
+    <!-- Unity writes .meta files next to every asset; they are not source. -->
+    <Compile Remove="**/*.meta" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The protocol wraps a Simulation and encodes its Command objects; it never reaches past the public API. -->
+    <ProjectReference Include="../Sim/Rts.Sim.csproj" />
+  </ItemGroup>
+</Project>

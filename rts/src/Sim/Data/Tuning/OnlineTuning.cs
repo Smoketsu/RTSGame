@@ -24,6 +24,12 @@ namespace Rts.Sim.Data
         /// <summary>Matches a player must finish before ranked mode unlocks. Unit: matches (count). Range: 0 to 100. Source: Game modes.</summary>
         public int RankedUnlockMatches { get; }
 
+        /// <summary>Lockstep input delay: a command issued at tick t is applied at tick t + this, so every peer's command bundle for a tick can arrive before the tick is stepped (ADR-008). Unit: ticks (3 ticks is 150 ms at 20 ticks per second). Range: 0 to 20. Source: PLACEHOLDER, docs/decisions/ADR-008-lockstep.md (the design doc gives no number).</summary>
+        public int InputDelayTicks { get; }
+
+        /// <summary>Most simulation ticks a lockstep peer steps in one host update while catching up (after a stall, or replaying the command log on reconnect). Unit: ticks per host update. Range: 1 to 10000. Source: PLACEHOLDER, docs/decisions/ADR-008-lockstep.md (the design doc gives no number).</summary>
+        public int CatchUpMaxTicksPerUpdate { get; }
+
         /// <summary>Longest a single disconnect pause may last, converted from <see cref="DisconnectPauseMaxSeconds"/> to whole simulation ticks (rounded to nearest, ADR-004). Unit: ticks. Range: 30 to 600 seconds times the tick rate.</summary>
         /// <param name="clock">The match clock whose tick rate is used.</param>
         public int DisconnectPauseMaxTicks(MatchClock clock)
@@ -34,11 +40,14 @@ namespace Rts.Sim.Data
         /// <param name="root">The parsed file (root must be an object).</param>
         public OnlineTuning(JsonValue root)
         {
-            root.RejectUnknownKeys("disconnect_pause_max_seconds", "disconnect_pauses_per_player", "pause_budget_seconds_per_player", "ranked_unlock_matches");
+            root.RejectUnknownKeys("disconnect_pause_max_seconds", "disconnect_pauses_per_player", "pause_budget_seconds_per_player", "ranked_unlock_matches",
+                "input_delay_ticks", "catch_up_max_ticks_per_update");
             DisconnectPauseMaxSeconds = root.RequireFix64("disconnect_pause_max_seconds", "30", "600");
             DisconnectPausesPerPlayer = root.RequireInt("disconnect_pauses_per_player", 0, 5);
             PauseBudgetSecondsPerPlayer = root.RequireFix64("pause_budget_seconds_per_player", "0", "600");
             RankedUnlockMatches = root.RequireInt("ranked_unlock_matches", 0, 100);
+            InputDelayTicks = root.RequireInt("input_delay_ticks", 0, 20);
+            CatchUpMaxTicksPerUpdate = root.RequireInt("catch_up_max_ticks_per_update", 1, 10000);
         }
     }
 }

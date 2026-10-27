@@ -73,12 +73,12 @@ namespace Rts.Sim.Tests
         }
 
         /// <summary>
-        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, re-pinned on 27 Oct 2026 after the Phase 1 review fixes (content digest covers tuning and map).
+        /// Final hash of <see cref="Script"/> with seed 777 after <see cref="MatchTicks"/> ticks, re-pinned on 26 Oct 2026 (Phase 2 step 1) when tuning/online.json gained the lockstep keys input_delay_ticks and catch_up_max_ticks_per_update: the content digest covers the tuning text, so the hash moved without any behaviour change.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x11c3d72952f247a4UL;
+        private const ulong GoldenFinalHash = 0xe9d313745512cd15UL;
 
         [Test]
         public void GoldenHash_IsPinned()

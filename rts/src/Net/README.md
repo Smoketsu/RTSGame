@@ -1,10 +1,45 @@
-<!-- rts/src/Net/README.md: placeholder for lockstep networking over Steam, desync detection and disconnect pauses; not built yet. -->
-# Net (Phase 2 placeholder)
+<!-- rts/src/Net/README.md: what the lockstep networking assembly (Rts.Net) is, how a host runs a peer, the file map, and the determinism rules it follows. -->
+# Net (lockstep networking, assembly `Rts.Net`)
 
-Not built yet. Phase 2 (Vertical slice, Apr-Jun 2027) adds lockstep networking over Steam here.
+The lockstep protocol of ADR-008 (`rts/docs/decisions/ADR-008-lockstep.md`): peers exchange one command bundle per tick and one state hash per hash interval, a tick is stepped only when every live peer's bundle for it is in, a mismatching hash names the first wrong tick, a disconnect pauses the match (once per player, up to 5 minutes), voluntary pauses draw on a 120 s budget per player, and a reconnecting peer rebuilds its simulation by replaying the command log. Nothing here names Steam: the Unity project adapts Steam networking sockets to `ITransport`; tests use the in-process `LoopbackTransport`.
 
-- Desync detection by comparing state hashes between peers (ADR-005).
-- Disconnect pause: one pause of up to 5 minutes (300 s) per player.
-- Pause budget: 120 s of total pause time per player.
+- Engine-free C# 9, `netstandard2.1`, references only `Rts.Sim` (`Rts.Net.csproj`, and `Rts.Net.asmdef` with `noEngineReferences`; `package.json` makes it the local Unity package `com.rtsgame.net`).
+- Same determinism rules as the simulation: no floating point, no clock reads (the host passes elapsed milliseconds in), no threads, no file or socket access, sorted collections only. Everything that must agree between peers is decided by one peer (the referee) and announced.
+- Limits are data in `rts/data/tuning/online.json` (`OnlineTuning`): `input_delay_ticks`, `disconnect_pause_max_seconds`, `disconnect_pauses_per_player`, `pause_budget_seconds_per_player`, `catch_up_max_ticks_per_update`.
 
-Limits are data in `rts/data/tuning/online.json`.
+## Host loop
+
+```
+LockstepRoster roster = new LockstepRoster(); roster.Add(new PeerId(0), new PlayerId(0)); roster.Add(new PeerId(1), new PlayerId(1));
+LockstepPeer peer = new LockstepPeer(roster, myPeerId, transport, CreateStartedSimulation, BuiltInCodecs.CreateRegistry(), LockstepSettings.FromTuning(data.Tuning.Online));
+peer.BeforeStep += p => { /* flush player input or run the AI: commands stamped with p.NextInputTick, p.SubmitLocal(command) */ };
+peer.NoticeRaised += notice => hud.Show(notice);
+peer.Start();                      // or peer.Join() on a fresh instance to reconnect
+while (running) { peer.Update(elapsedMs); render(peer.Simulation); }
+```
+
+`CreateStartedSimulation` builds a `Simulation` from the same seed, data, map and setup commands on every peer and calls `Start`; the peer calls it at `Start` and again on every reconnect. `peer.Simulation` is the live simulation (a new object after a reconnect). `RequestPause` / `RequestResume` drive voluntary pauses. `Phase` is `Running`, `Paused`, `Joining`, `Desynced` or `Failed`; `Notices` (or the event) report desyncs, pauses, drops, rejoins and injected commands.
+
+## Files
+
+| File | Role |
+| --- | --- |
+| `PeerId.cs` | `PeerId` (0 to 254, `None` 255) |
+| `ITransport.cs` | `ITransport`, `TransportEvent`, `TransportEventKind`: reliable ordered delivery plus connection reports, pulled |
+| `LoopbackTransport.cs` | `LoopbackNetwork` hub with latency in host ticks, reorder and drop knobs (off by default), and its endpoints |
+| `NetWriter.cs`, `NetReader.cs` | Explicit little-endian primitives; strings as UTF-16 code units; bounds-checked reads |
+| `NetProtocolException.cs` | The one exception for malformed or protocol-breaking input |
+| `Messages.cs` | Every message type, `PauseReason`, `PauseEnd`, `TickRange`, ledger and range entries |
+| `MessageCodec.cs` | Version header, kind byte, fields; `ProtocolVersion` bumps on any wire change |
+| `Codecs/ICommandCodec.cs` | `ICommandCodec` and `CommandCodecRegistry` (kind, tick, issuer, sequence, parameters) |
+| `Codecs/CoreCommandCodecs.cs` | One codec per faction-neutral command kind |
+| `Codecs/CastWaveCodec.cs`, `Codecs/BuiltInCodecs.cs` | The Water `cast_wave` codec and the composition root that registers it (the only file naming a faction) |
+| `LockstepSettings.cs` | The limits in ticks and milliseconds, from `OnlineTuning` |
+| `LockstepRoster.cs` | Peer to players map |
+| `PauseLedger.cs` | Per-player disconnect pauses used and budget spent |
+| `LockstepNotice.cs` | What the peer reports to the host |
+| `LockstepPeer.cs` | The protocol: bundles, stepping, hashes, referee decisions, pauses, drops, rejoins, reconnect |
+
+## Tests
+
+`rts/tests/Net.Tests`: codec round trips for every `Command` subclass (found by reflection) and every message kind; the loopback hub; two peers playing `rts/data/scripts/ai_vs_ai.json` through the protocol to a decided outcome with matching hashes; an injected divergence reported at the first hash tick after it; a disconnect pause and a reconnect that replays the log; the expired disconnect pause; the once-only disconnect pause and the resync pause; the per-player pause budget; a reordering transport. `LockstepSession.cs` there is the reference host loop with AI controllers attached through `BeforeStep`.

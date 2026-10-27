@@ -9,5 +9,9 @@
   // Total voluntary pause time each player may use in a match; separate from the disconnect pause above, which has its own limit. Unit: seconds per player per match. Range: 0 to 600. Source: Surrender and disconnects.
   "pause_budget_seconds_per_player": 120,
   // Matches a player must finish before ranked mode unlocks. Unit: matches (count). Range: 0 to 100. Source: Game modes.
-  "ranked_unlock_matches": 10
+  "ranked_unlock_matches": 10,
+  // Lockstep input delay: a command issued at tick t is applied at tick t + this, so every peer's command bundle for a tick can arrive before the tick is stepped (ADR-008). Unit: ticks (3 ticks is 150 ms at 20 ticks per second). Range: 0 to 20. Source: PLACEHOLDER, docs/decisions/ADR-008-lockstep.md (the design doc gives no number).
+  "input_delay_ticks": 3,
+  // Most simulation ticks a lockstep peer steps in one host update while catching up (after a stall, or replaying the command log on reconnect). Unit: ticks per host update. Range: 1 to 10000. Source: PLACEHOLDER, docs/decisions/ADR-008-lockstep.md (the design doc gives no number).
+  "catch_up_max_ticks_per_update": 200
 }
