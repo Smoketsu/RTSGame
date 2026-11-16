@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- `data/maps/prototype_1v1.json`: a rare node (600) at every spot except the starting bases, asked for by the developer on 16 Nov 2026: beside each natural (30, 13), flank shelf (18, 66) and low basin (40, 18), each with its 180-degree image; 22 fields in all, appended after the earlier ones so indices are unchanged. The AI's expected natural depot tiles move to (27, 13) and (68, 82), still exact mirrors.
+
 - Skirmish AI v2, packages A and B (spec `docs/specs/skirmish_ai_v2.md`), AI code reviewed by the sim-reviewer; no `src/Sim` change:
   - Data: new drop-off buildings `skai.perch_depot` and `water.pearl_depot`; common fields doubled to 3000; the three grey-box maps gain a natural pair and a flank field per side; `greybox_1v1` made 180-degree symmetric; map layout tests for every 2-spawn map.
   - AI: fields are served from any drop-off; depots are built at the natural (by clock or when served fields run low); workers are rebalanced and gather rare; the HQ relocates when the main runs dry (new `UprootHq` intent), never ends stuck uprooted, skips destinations that failed or are nearly empty; field amounts come from what the team has seen; reservations hold only with income; all-in only when no field on the map has resources. Roc Rider and Brinecaster join the compositions.
