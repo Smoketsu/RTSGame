@@ -7,6 +7,14 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Skirmish AI v2, package C (army), spec `docs/specs/skirmish_ai_v2.md`, reviewed by the sim-reviewer:
+  - Production buys one unit at a time: the composition unit with the largest deficit goes to the lowest-ID free producer and its cost is held when unaffordable. Cause of the old skew, confirmed by a failing test: producers were served in ID order and a Roost (or Tidepool) spent the bank on the only unit it can make before the Windspire (or Shell Forge) got a turn.
+  - Massing units rally at the HQ, not the Core; only the group that began an attack is ordered, later units rally at home; with `rally_at_core` the group stages at the Core.
+  - Defend holds for `defend_hold_seconds` after the last threat; the attack threshold is redrawn only when an attack ends.
+  - Kill mode: an enemy HQ seen within `kill_seen_within_seconds` at or below `kill_hq_health_fraction` is attacked with `kill_min_army_supply` or more, without staging or retreat. Dead units are dropped from the attack group each think.
+  - An extra production building is built when the bank reaches `extra_producer_bank_common` with every producer busy (up to `max_producers`).
+  - Not yet done: rare-cost units in the mix, and four `PACKAGE B HOOK` places in `AiBrain.cs` (home position during a relocation, income-gated reservations, all-in definition).
+
 - P-003 package B (movement), spec `docs/specs/p003_rules.md`, reviewed by the sim-reviewer:
   - Units on the same layer push apart instead of stacking (step 5c, new `Units/UnitSeparation.cs`): pushes come from a position snapshot with exact fixed-point sums and a uniform-grid neighbour search, so the result does not depend on visiting order or cell size.
   - A keep-right sidestep lets units pass head-on; a moving unit near its goal that touches a stopped, pushable unit nearer the goal ends its move (crowd arrival).
