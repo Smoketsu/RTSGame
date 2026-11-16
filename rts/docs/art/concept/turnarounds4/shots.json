@@ -1,0 +1,54 @@
+// rts/docs/art/concept/turnarounds4/shots.json: shot list for the fourth set of model sheets, a revision of five sheets after the second developer review of 16 Nov 2026 (Marksman, Pummeler, Water Worker, Roc Rider, Thunderhead), read by rts/tools/ConceptArt/generate.py. Each shot lists the previous sheet of the unit (plus the original line-up images for the Roc Rider and Thunderhead) as references.
+{
+  "style": "Orthographic character model sheet for a 3D modeller, science fiction strategy game unit rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single unit in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view facing away. The unit stands still in a neutral symmetric pose. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  "shots": [
+    {
+      "id": "skai_marksman_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": [
+        "rts/docs/art/concept/turnarounds2/skai_marksman_sheet.jpg"
+      ],
+      "prompt": "The reference image is the existing three-view model sheet of the Talon Marksman (heron trooper). Draw the same single heron, same design, colours and proportions, apart from ONE change: how he holds the rifle. CHANGE: he holds the very long charcoal and yellow energy rifle like a real rifle, in a proper shouldered firing hold: the rifle stock rests against his shoulder, one hand grips the pistol grip close to his body, the other hand supports the barrel further forward under the handguard, the barrel is perfectly level and points straight ahead in the exact direction his beak faces. It is NOT held at the waist, NOT one-handed, NOT hanging, NOT held across the body. In the front view the muzzle points at the viewer (the stock is hidden behind it at the shoulder); in the side view facing left the stock is at his shoulder on the right and the muzzle points left, level; in the back view the rifle points away from the viewer, with the stock at the shoulder and both hands visible. The rifle never points backward. Same palette (storm charcoal, white, electric yellow), flat plain light-grey backdrop. No effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    },
+    {
+      "id": "water_pummeler_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": [
+        "rts/docs/art/concept/turnarounds2/water_pummeler_sheet.jpg"
+      ],
+      "prompt": "The reference image is the existing three-view model sheet of the Pummeler (mantis shrimp melee fighter). Draw the same single unit, same design, pose logic and EXACTLY the same rose-coral colour as the reference (the developer approved that coral; copy it exactly), apart from ONE change: the two club arms are much bigger and heavier. CHANGE: thick, massively muscled upper arms and oversized barrel club fists each roughly the size of the torso, with rose-coral bands and turquoise hexagon ends, hanging low and heavy at its sides in front, like a heavyweight brawler; the arms dominate the silhouette and look very heavy. The clubs point forward and are never behind the body in the front view; both arms identical, left and right mirror each other. Face and eyes face the same way as the body in every view. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    },
+    {
+      "id": "water_worker_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": [
+        "rts/docs/art/concept/turnarounds2/water_worker_sheet.jpg"
+      ],
+      "prompt": "The reference image is the existing three-view model sheet of the small octopus worker (Tender). Draw the same single unit, same design, colours, backpack, tentacles and claws, apart from ONE change: the face. CHANGE: the previous model lost the face because it was drawn behind glass. Now there is NO glass and nothing transparent anywhere: the head is an opaque sea-green sculpted head, and the face is solid sculpted geometry on the FRONT of the head: two large raised turquoise eyes with solid brow ridges above them, and a clearly visible mouth and siphon below, all as solid faceted shapes standing out from the head. The head is framed by a solid coral helmet ring (rose-coral, the same dusty coral as the reference) that is only a ring around the face, not a bubble. The face is on the front in the front view, in profile with the eyes and brow sticking out forward in the side view (facing left), and absent on the back view (back of the head only, with the backpack). Rest unchanged. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    },
+    {
+      "id": "skai_roc_rider_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": [
+        "rts/docs/art/concept/round9/skai_air_units.jpg",
+        "rts/docs/art/concept/turnarounds3/skai_roc_rider_sheet.jpg"
+      ],
+      "prompt": "The first reference image is the original approved line-up of two units; the second is the latest three-view model sheet of the Roc Rider. Draw ONLY the Roc Rider (left unit of the first image), same design, palette, rider, metal-blade feathers and cooling vents as the second image, apart from these changes. Do not draw the flying-wing aircraft. 1. SCALE: the mechanical raptor is much BIGGER relative to the rider: the rider is small, seated on its back, and the raptor's huge wingspan and body dominate the picture. 2. LEGS: natural for a flying bird of prey: the two legs are tucked up against the belly, folded, with the talons curled, NOT hanging straight down like stilts; same in all three views. 3. CRYSTALS: restore the crystal emitters of the original (look at the first image): the same yellow crystals mounted under the wings, a row of faceted yellow crystals on the underside of each wing, symmetrical left and right, clearly visible in the front view (below the wings) and in the side view. Rider: armoured charcoal and yellow bird-person with a white crest seated upright holding the handlebar. Palette storm charcoal, white, electric yellow. Hovering still in level flight, wings spread level, perfectly symmetrical. Draw the three views LARGE, filling most of the sheet height and width (wings may be slightly shortened to fit side by side without overlapping). BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    },
+    {
+      "id": "skai_thunderhead_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": [
+        "rts/docs/art/concept/round9/skai_air_units.jpg",
+        "rts/docs/art/concept/round7/skai_thunderhead.jpg",
+        "rts/docs/art/concept/turnarounds3/skai_thunderhead_sheet.jpg"
+      ],
+      "prompt": "The first two reference images are the original approved Thunderhead (the right unit of the first image, and the second image alone); the third is the latest three-view model sheet. Draw ONLY the Thunderhead flying-wing bomber, same design and colours as the third image, apart from ONE change: restore its BIRD-LIKE HEAD at the nose from the originals: at the front tip of the flying wing, a sculpted bird head with a hooked beak and two eyes, charcoal and grey with yellow trim, exactly as in the first two images. The head must be clearly visible in all three views: from the front, from the side in profile (beak pointing left), and in the bottom view as the beak and head at the nose tip (nose pointing up in the image). KEEP from the third image: the underwing missile pods with yellow-ringed tubes and the forward-pointing gun barrels, symmetrical, on the wings; the two long tail spikes, wing-tip hooks, white feathers on the trailing edge. The three views are FRONT (left), SIDE facing left (middle) and BOTTOM looking straight up at the underside with the nose up in the image (right), all at the same scale, evenly spaced, not overlapping. No rider. Hovering still, level and symmetrical. Palette storm charcoal, white, electric yellow. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    }
+  ]
+}
