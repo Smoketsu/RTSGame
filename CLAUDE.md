@@ -1,7 +1,7 @@
 <!-- CLAUDE.md: standing instructions for Claude Code in this repository: architecture and determinism rules, documentation standard, layout, model tiers, build and test, and the subagents in .claude/agents. -->
 # CLAUDE.md
 
-Standing instructions for Claude Code sessions in this repository. The game design is in the Game Design Proposal (26 Oct 2026). The architecture decisions are in `rts/docs/decisions/`. Before changing simulation code, read the header of `rts/src/Sim/Simulation.cs`.
+Standing instructions for Claude Code sessions in this repository. **Read `rts/docs/STATUS.md` first**: it says which branch is current (`main`), which phases are done and what is being built now. The game design is in the Game Design Proposal (26 Oct 2026). The architecture decisions are in `rts/docs/decisions/`. Before changing simulation code, read the header of `rts/src/Sim/Simulation.cs`.
 
 ## Architecture rules (non-negotiable)
 
@@ -99,5 +99,7 @@ dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 
 ## Branches
 
-- `main` is the working branch for every session (decided by the developer, 16 Nov 2026). Before starting, run `git ls-remote --heads origin` and build on `main`; do not assume the branch a session was started on is current.
-- The session on the developer's PC owns `rts/src/Game` and anything that needs the Unity Editor (through the Funplay connector). Cloud sessions own plans, specs, art and `rts/src/Sim` work. Pull `main` before starting.
+- `main` is the working branch for every session (decided by the developer, 16 Nov 2026). Before starting, run `git ls-remote --heads origin` and `git log -1 origin/main`; if you were started on any other branch, or on one behind `main`, switch to `main` first. Do not trust the phase a branch's own documents claim.
+- The repository's default branch on GitHub was still `phase-0/foundations` on 16 Nov 2026, so a new cloud session can start on Phase 0 code. A session did that on 16 Nov and rebuilt part of Phase 1 before noticing. `rts/docs/STATUS.md` lists every branch and what it is.
+- The session on the developer's PC owns `rts/src/Game` and anything that needs the Unity Editor (through the Funplay connector). Cloud sessions own plans, specs, art and work in `rts/src/Sim`, `rts/src/Net` and `rts/src/Replay`. Pull `main` before starting.
+- A session that finishes or starts a plan step updates `rts/docs/STATUS.md` in the same commit.

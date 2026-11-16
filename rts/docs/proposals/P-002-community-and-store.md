@@ -1,6 +1,8 @@
 <!-- rts/docs/proposals/P-002-community-and-store.md: proposal to move the Steam registration, store page and first playtest earlier than revision 1 of the plan; feeds the community and store track in DEVELOPMENT_PLAN.md. -->
 # P-002: Community and store timing
 
+**Status, 16 Nov 2026:** parked by the developer ("don't worry about P-02 for now"). Read with care: this was written by a session that believed the project was at Phase 0. Lockstep networking is already built (Phase 2 step 1, on the loopback transport), so the reasoning about when a Steam app ID is needed should be redone against `docs/STATUS.md` before this is decided.
+
 **Decision needed:** approve registering on Steamworks by February 2027, a store page at the vertical slice gate, and a closed playtest in July 2027.
 
 ## Problem

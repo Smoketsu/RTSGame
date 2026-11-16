@@ -1,6 +1,8 @@
 <!-- rts/docs/proposals/P-001-art-pipeline.md: proposal for how the game's art is directed and produced by a solo developer; feeds the art and audio track in DEVELOPMENT_PLAN.md. -->
 # P-001: Art direction and asset pipeline
 
+**Status, 16 Nov 2026:** approved by the developer ("We can generate the art assets with tripo for now"). The three-model trial below was run the same day; results are in `docs/art/models/trial` and `trial2`, and the route that worked (a front, side and back sheet into Tripo3D's multi-view endpoint) is recorded in `docs/art/CONCEPT_BRIEF.md`. This text was written by a session that believed the project was at Phase 0; its phase references are out of date, see `docs/STATUS.md`.
+
 **Decision needed:** approve generated 3D models as the main route for units and buildings, starting with a three-model trial in December 2026.
 
 ## Problem

@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/STATUS.md`: the first file a new session reads: `main` is the working branch, every other branch and what it is, the state of each phase and each Phase 2 step, what was checked on 16 Nov 2026 and what comes next. CLAUDE.md, the root README and `docs/README.md` point to it; `docs/README.md` now indexes the plans, specs, proposals and art, and lists ADR-001 to ADR-009.
 - Art direction (16 Nov 2026): `docs/art/CONCEPT_BRIEF.md` with the table of approved designs, and concept art rounds 1 to 22 under `docs/art/concept/`. Settled by the developer's marks: a science-fiction setting; a matte low-poly rendering style; Skai in storm charcoal, white and electric yellow with a different bird species per unit; water in sea-green and rose-coral with a different sea creature per unit; earth as living constructs of cream stone and lapis built from hexagons; HQ units and seven buildings for each of the three factions; a dry 1v1 map; two in-game engagement mock-ups with a HUD.
 - `rts/tools/ConceptArt/generate.py` (image generation from a shot list, with reference images and per-shot quality) and `rts/tools/Models3D/tripo.py` (Tripo3D image-to-model and multi-view-to-model); `docs/art/models/trial` and `trial2` record the 3D trials (about 5,000 triangles, 110 credits and 90 seconds per model from a front, side and back sheet).
 - `docs/proposals/`: P-001 art pipeline (approved: generate 3D assets with Tripo3D for now), P-002 community and store timing (parked by the developer), P-003 decisions from 16 Nov 2026 still to apply to the code on main.
@@ -76,7 +77,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - CI: the determinism job runs every script under `rts/data/scripts/` twice and requires the AI match to be decided; `docs/CI.md` updated.
 - Tests: 300 in total (structure attacks, per-field hash coverage, stepping guards, AI); golden final hash re-pinned.
 
-## [Unreleased] - Phase 0 Foundations
+## Phase 0 Foundations, merged 26 Oct 2026
 
 ### Added
 

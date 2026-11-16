@@ -3,6 +3,10 @@
 
 A competitive 3D real-time strategy game built in Unity 6. Three asymmetric factions at launch, Skai Riders, water and earth, with fire to follow later. Each player controls one mobile HQ that can be rooted in place and uprooted again. Matches are shaped by Planetary Cycles, timed events on the match clock, and by the Core, which players capture. Early access, planned for late summer 2027, offers Skai Riders against water.
 
+## Status
+
+Phases 0 and 1 are done; Phase 2 (vertical slice) is in progress. All work happens on the `main` branch. [rts/docs/STATUS.md](rts/docs/STATUS.md) has the current state and what comes next.
+
 ## Folder layout
 
 All code and data sit under `rts/`:
