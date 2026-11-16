@@ -13,7 +13,8 @@ namespace Rts.Tools.BalanceHarness
     {
         /// <summary>Usage text printed with command-line errors.</summary>
         public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> --batch [--ci | --games N] [--jobs J] [--maps a,b] [--matchups x_vs_y,...] "
-            + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]";
+            + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]"
+            + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>]";
 
         /// <summary>Fault switch value that makes a re-run (verification) worker perturb the seed of its first game. Test use only.</summary>
         public const string FaultPerturb = "perturb";
@@ -60,6 +61,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>True when --report-only was given: a failed hard limit still exits 0.</summary>
         public bool ReportOnly { get; private set; }
 
+        /// <summary>True when --trace was given: play one game and write its timeline (see <see cref="GameTrace"/>); needs --map and --matchup.</summary>
+        public bool Trace { get; private set; }
+
+        /// <summary>Trace: game index within the cell from --game; 0 is the game a batch plays first. Unit: games. Range: 0 upward.</summary>
+        public int TraceGame { get; private set; }
+
         /// <summary>Worker: map ID of the cell.</summary>
         public string WorkerMap { get; private set; } = string.Empty;
 
@@ -85,7 +92,7 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="args">Command-line arguments.</param>
         public static bool IsBatchMode(string[] args)
         {
-            return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0;
+            return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0 || Array.IndexOf(args, "--trace") >= 0;
         }
 
         /// <summary>Parses the arguments; throws <see cref="HarnessException"/> on anything unexpected.</summary>
@@ -106,6 +113,9 @@ namespace Rts.Tools.BalanceHarness
                 {
                     case "--batch":
                     case "--worker":
+                        continue;
+                    case "--trace":
+                        options.Trace = true;
                         continue;
                     case "--ci":
                         options.Ci = true;
@@ -128,6 +138,7 @@ namespace Rts.Tools.BalanceHarness
                     case "--map":
                     case "--matchup":
                     case "--first":
+                    case "--game":
                     case "--count":
                     case "--hq-floor":
                     case "--test-fault":
@@ -180,6 +191,9 @@ namespace Rts.Tools.BalanceHarness
                     case "--matchup":
                         options.WorkerMatchup = value;
                         break;
+                    case "--game":
+                        options.TraceGame = ParseInt(flag, value, 0, int.MaxValue);
+                        break;
                     case "--first":
                         options.WorkerFirst = ParseInt(flag, value, 0, int.MaxValue);
                         break;
@@ -201,6 +215,10 @@ namespace Rts.Tools.BalanceHarness
             if (options.Ci && options.Games != null)
             {
                 throw new HarnessException("--ci and --games cannot be combined. " + Usage);
+            }
+            if (options.Trace && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0))
+            {
+                throw new HarnessException("--trace needs --map and --matchup. " + Usage);
             }
             if (options.IsWorker && options.WorkerHqFloor.Length == 0 && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0 || options.WorkerCount == 0))
             {

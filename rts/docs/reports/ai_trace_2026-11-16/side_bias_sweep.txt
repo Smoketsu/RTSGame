@@ -1,0 +1,78 @@
+# rts/docs/reports/ai_trace_2026-11-16/side_bias_sweep.txt
+# Results of the extra runs behind README section 5 (spawn side). Produced with the --trace mode (record line only), base seed 20261026, 2400 s cap, AI profile aggressive.
+# Part A: games 0 to 5 of every map and matchup as a batch would play them (game g uses the seed derived from map, matchup and g; odd games of skai_vs_water swap the factions).
+# Part B: the same games with the two spawn entries of the map file swapped in a copy of rts/data (slot 0 starts where slot 1 normally starts), games listed in the header of each line.
+# columns: map | matchup | game | slot0 faction | slot1 faction | result | end tick (20 ticks per second)
+
+## Part A: normal spawns
+greybox_1v1 | skai_vs_skai | 0 | skai | skai | undecided | 47999
+greybox_1v1 | skai_vs_skai | 1 | skai | skai | slot1 | 6103
+greybox_1v1 | skai_vs_skai | 2 | skai | skai | slot0 | 5730
+greybox_1v1 | skai_vs_skai | 3 | skai | skai | slot1 | 6103
+greybox_1v1 | skai_vs_skai | 4 | skai | skai | slot1 | 6103
+greybox_1v1 | skai_vs_skai | 5 | skai | skai | slot0 | 5730
+greybox_1v1 | skai_vs_water | 0 | skai | water | undecided | 47999
+greybox_1v1 | skai_vs_water | 1 | water | skai | slot0 | 4715
+greybox_1v1 | skai_vs_water | 2 | skai | water | undecided | 47999
+greybox_1v1 | skai_vs_water | 3 | water | skai | undecided | 47999
+greybox_1v1 | skai_vs_water | 4 | skai | water | undecided | 47999
+greybox_1v1 | skai_vs_water | 5 | water | skai | slot0 | 4715
+greybox_1v1 | water_vs_water | 0 | water | water | slot0 | 5018
+greybox_1v1 | water_vs_water | 1 | water | water | slot0 | 5018
+greybox_1v1 | water_vs_water | 2 | water | water | slot0 | 5018
+greybox_1v1 | water_vs_water | 3 | water | water | slot0 | 5259
+greybox_1v1 | water_vs_water | 4 | water | water | slot0 | 5018
+greybox_1v1 | water_vs_water | 5 | water | water | slot0 | 5018
+long_lowland | skai_vs_skai | 0 | skai | skai | undecided | 47999
+long_lowland | skai_vs_skai | 1 | skai | skai | undecided | 47999
+long_lowland | skai_vs_skai | 2 | skai | skai | undecided | 47999
+long_lowland | skai_vs_skai | 3 | skai | skai | undecided | 47999
+long_lowland | skai_vs_skai | 4 | skai | skai | slot0 | 6096
+long_lowland | skai_vs_skai | 5 | skai | skai | undecided | 47999
+long_lowland | skai_vs_water | 0 | skai | water | slot1 | 5137
+long_lowland | skai_vs_water | 1 | water | skai | slot1 | 5162
+long_lowland | skai_vs_water | 2 | skai | water | slot1 | 5137
+long_lowland | skai_vs_water | 3 | water | skai | slot1 | 5162
+long_lowland | skai_vs_water | 4 | skai | water | slot1 | 5274
+long_lowland | skai_vs_water | 5 | water | skai | slot0 | 6019
+long_lowland | water_vs_water | 0 | water | water | slot1 | 5354
+long_lowland | water_vs_water | 1 | water | water | slot1 | 5168
+long_lowland | water_vs_water | 2 | water | water | slot1 | 5168
+long_lowland | water_vs_water | 3 | water | water | slot1 | 5354
+long_lowland | water_vs_water | 4 | water | water | slot1 | 5354
+long_lowland | water_vs_water | 5 | water | water | slot1 | 5168
+twin_chokes | skai_vs_skai | 0 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_skai | 1 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_skai | 2 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_skai | 3 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_skai | 4 | skai | skai | slot1 | 7265
+twin_chokes | skai_vs_skai | 5 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_water | 0 | skai | water | undecided | 47999
+twin_chokes | skai_vs_water | 1 | water | skai | undecided | 47999
+twin_chokes | skai_vs_water | 2 | skai | water | undecided | 47999
+twin_chokes | skai_vs_water | 3 | water | skai | undecided | 47999
+twin_chokes | skai_vs_water | 4 | skai | water | undecided | 47999
+twin_chokes | skai_vs_water | 5 | water | skai | undecided | 47999
+twin_chokes | water_vs_water | 0 | water | water | undecided | 47999
+twin_chokes | water_vs_water | 1 | water | water | undecided | 47999
+twin_chokes | water_vs_water | 2 | water | water | undecided | 47999
+twin_chokes | water_vs_water | 3 | water | water | undecided | 47999
+twin_chokes | water_vs_water | 4 | water | water | undecided | 47999
+twin_chokes | water_vs_water | 5 | water | water | undecided | 47999
+
+## Part B: spawn entries swapped (slot 0 at the position slot 1 normally holds)
+greybox_1v1 | skai_vs_skai | 1 | skai | skai | undecided | 47999
+greybox_1v1 | skai_vs_skai | 2 | skai | skai | undecided | 47999
+greybox_1v1 | skai_vs_water | 0 | skai | water | slot1 | 4959
+greybox_1v1 | skai_vs_water | 1 | water | skai | slot0 | 5165
+greybox_1v1 | water_vs_water | 0 | water | water | slot1 | 4836
+long_lowland | skai_vs_skai | 1 | skai | skai | undecided | 47999
+long_lowland | skai_vs_skai | 2 | skai | skai | undecided | 47999
+long_lowland | skai_vs_water | 0 | skai | water | slot0 | 4931
+long_lowland | skai_vs_water | 1 | water | skai | slot1 | 4486
+long_lowland | water_vs_water | 0 | water | water | slot0 | 5353
+twin_chokes | skai_vs_skai | 1 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_skai | 2 | skai | skai | undecided | 47999
+twin_chokes | skai_vs_water | 0 | skai | water | slot1 | 8643
+twin_chokes | skai_vs_water | 1 | water | skai | undecided | 47999
+twin_chokes | water_vs_water | 0 | water | water | undecided | 47999

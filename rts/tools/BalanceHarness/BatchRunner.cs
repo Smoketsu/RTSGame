@@ -24,7 +24,37 @@ namespace Rts.Tools.BalanceHarness
         public static int Run(BatchOptions options, TextWriter output, TextWriter error)
         {
             DataSet data = DataLoader.Load(Program.ReadDataFolder(options.DataDirectory));
+            if (options.Trace)
+            {
+                return RunTrace(options, data, output);
+            }
             return options.IsWorker ? RunWorker(options, data, output, error) : RunCoordinator(options, data, output, error);
+        }
+
+        // ------------------------------------------------------------------ trace
+
+        /// <summary>
+        /// --trace: plays the one game a batch would play for this map, matchup, base seed and game index (same seed derivation, AI profile and cap as
+        /// <see cref="RunWorker"/>) and writes its timeline to --out (a file) or to <paramref name="output"/>.
+        /// </summary>
+        private static int RunTrace(BatchOptions options, DataSet data, TextWriter output)
+        {
+            HarnessBatchTuning batch = data.Tuning.HarnessBatch;
+            // Base seed and tick limit after the command-line overrides, as in a batch.
+            ulong baseSeed = options.Seed ?? (ulong)batch.BaseSeed;
+            int maxSeconds = options.MaxGameSeconds ?? batch.MaxGameSeconds;
+            // Seed of the game, derived exactly as the batch workers do.
+            ulong seed = SeedDerivation.GameSeed(baseSeed, options.WorkerMap, options.WorkerMatchup, options.TraceGame);
+            // The file written when --out names one; otherwise the timeline goes to <paramref name="output"/>. Not the default batch folder.
+            bool toFile = options.OutDirectory != BatchOptions.DefaultOutDirectory;
+            using (TextWriter text = toFile ? new StreamWriter(options.OutDirectory) : TextWriter.Null)
+            {
+                GameTrace trace = new GameTrace(toFile ? text : output, GameTrace.DefaultIntervalSeconds);
+                GameRecord record = GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, batch.AiProfile, maxSeconds, trace);
+                output.Write(record.ToJsonLine() + "\n");
+            }
+            output.Flush();
+            return 0;
         }
 
         // ------------------------------------------------------------------ worker

@@ -89,3 +89,18 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --ba
 
 Exit codes: 0 every hard limit passed or deferred (or `--report-only`), 1 error, 2 a hard limit failed, 3 the determinism spot check failed.
 The report never depends on `--jobs`. The single-run mode above is unchanged.
+
+## Trace mode
+
+`--trace` plays the one AI-versus-AI game a batch would play for a map, matchup, base seed and game index (same seed derivation, AI profile and cap),
+and writes a readable timeline: every 30 game-seconds one line per player (bank, income, supply, workers, structures, army, trained and lost,
+HQ, commands by kind, rejected commands by reason, attack state, army distance to the enemy HQ), then a summary with totals, first ticks, stance
+changes and each player's last 20 commands. It only reads events and state, so the final state hash equals the untraced game's.
+
+```
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --trace --map greybox_1v1 --matchup skai_vs_water --seed 20261026
+    [--game N] [--max-game-seconds T] [--out <file>]
+```
+
+Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
+`rts/docs/reports/ai_trace_2026-11-16/`.
