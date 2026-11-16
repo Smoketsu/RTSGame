@@ -1,6 +1,9 @@
 {
   "dependencies": {
+    "com.gamebooom.unity.mcp": "https://github.com/FunplayAI/funplay-unity-mcp.git",
     "com.rtsgame.sim": "file:../../Sim",
+    "com.unity.ai.assistant": "2.21.0-pre.2",
+    "com.unity.ai.inference": "2.6.1",
     "com.unity.inputsystem": "1.20.1",
     "com.unity.ugui": "2.6.0",
     "com.unity.modules.adaptiveperformance": "1.0.0",

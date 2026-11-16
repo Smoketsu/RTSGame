@@ -32,3 +32,5 @@ sysinfo.txt
 TestResults/
 # Git worktrees that Claude Code subagents create for isolated work; never commit them
 .claude/worktrees/
+# Local vendored copy of Funplay MCP for Unity; the project takes it by git URL in Packages/manifest.json
+rts/src/Game/Packages/com.gamebooom.unity.mcp/
