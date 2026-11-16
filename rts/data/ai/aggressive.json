@@ -56,8 +56,18 @@
   "regroup_seconds": 10,
   // Go all in once no field within field_max_distance_tiles has resources left: attack with any army, ignore the tide window, never retreat. Unit: boolean. Range: true or false. Source: Economy (fields run out); placeholder.
   "all_in_when_mined_out": true,
-  // Gather the massing army at the Core centre while the AI's team does not hold the Core, so it takes and holds it (the holder picks the next Planetary Cycle). Unit: boolean. Range: true or false. Source: Win condition and twists / Holding the Core; PLACEHOLDER.
+  // When true and the own team does not hold the Core, the attack group stages at the Core centre instead of short of the target (the massing army always rallies at home). Unit: boolean. Range: true or false. Source: Win condition and twists / Holding the Core; PLACEHOLDER (skirmish_ai_v2.md C.2 rule G).
   "rally_at_core": true,
+  // Stay in Defend this long after the last threat before massing again, so a threat that flickers in and out of sight does not flip the stance. Unit: seconds. Range: 0 to 60. Source: skirmish_ai_v2.md C.2 rule D; placeholder.
+  "defend_hold_seconds": 5,
+  // A known enemy HQ last seen at or below this share of its health is finished off by a small army (rule K). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md C.2 rule K; placeholder.
+  "kill_hq_health_fraction": 0.35,
+  // Army supply the kill rule needs to start (ignores the attack threshold, the tide window and the regroup timer). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v2.md C.2 rule K; placeholder.
+  "kill_min_army_supply": 4,
+  // Bank (after this think's spending and reservations) at which rule X builds one more production building when every producer is busy. Unit: resource units. Range: 0 to 100000. Source: skirmish_ai_v2.md C.2 rule X; placeholder.
+  "extra_producer_bank_common": 400,
+  // Most own structures that train a composition unit (complete or under construction). Unit: structures. Range: 1 to 30. Source: skirmish_ai_v2.md C.2 rule X; placeholder.
+  "max_producers": 8,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

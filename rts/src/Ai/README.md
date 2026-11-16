@@ -39,10 +39,10 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 ## Rules (each think, in this order)
 
 Intel, root an Uprooted HQ next to a field, the cycle pick (the Core holder picks the first allowed cycle of the faction's `cycle_preference`
-once per cycle; with `rally_at_core` the massing army rallies at the Core centre while the AI's team does not hold it), idle workers to the nearest field under `workers_per_field`, supply structure and build
-order (cost reserved when due but unaffordable), worker training (ignores reservations), production by largest composition deficit,
-then the army: Defend (visible enemy army or a recent hit inside the base), Massing (rally point, attack at the drawn threshold within
-the tide window), Attack (staging point short of the target, then attack-move; focus fire on visible enemy army units in reach; siege an
+once per cycle), idle workers to the nearest field under `workers_per_field`, supply structure and build
+order (cost reserved when due but unaffordable), worker training (ignores reservations), production (one purchase at a time: the unit with the largest composition deficit, its cost held when it cannot be paid yet), an extra production building
+when money piles up, then the army: Defend (visible enemy army or a recent hit inside the base; held for `defend_hold_seconds` after the last threat), Massing (home rally point, attack at the drawn threshold within
+the tide window, or at once against a known enemy HQ at or below `kill_hq_health_fraction`), Attack (only the attack group; staging at the Core centre with `rally_at_core` while the team does not hold it, else short of the target; then attack-move; focus fire on visible enemy army units in reach; siege an
 undefended visible HQ; retreat on losses), Retreat (move home, regroup timer). All in once the base is mined out. Details and every
 number: the header of `AiBrain.cs` and the profile files.
 
