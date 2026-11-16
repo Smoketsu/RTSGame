@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Kept by the developer on 16 Nov 2026: Talon Marksman (`skai_marksman_v3`) and Roc Rider (`skai_roc_rider_v2`) models. `docs/art/concept/turnarounds7/`: Thunderhead sheet with a back view and box missile pods; new model `skai_thunderhead_v5` and `_v6` (same model with the hull grey darkened in the texture), awaiting the developer's mark. 1,790 Tripo credits left.
+
 - Models kept by the developer on 16 Nov 2026 (`docs/art/models/batch1/`): Skai worker, Stormcaller (`skai_stormcaller_v4`), Spoutling, Pummeler (`water_pummeler_v2`), water worker (`water_worker_v2`), Tidecaller, Leviathan. Awaiting marks: Talon Marksman (`skai_marksman_v3`, two hands), Roc Rider (`skai_roc_rider_v2`, wings flat for rigging), Thunderhead (`skai_thunderhead_v4`, greys darkened in the texture). `docs/art/concept/turnarounds6/` holds the two sheets behind the first two. `tripo.py --texture-text` describes a texture in words when re-texturing. 1,900 Tripo credits left.
 
 - `tools/Models3D/tripo.py --retexture <task id>`: keeps an earlier model's geometry and regenerates only its texture from one image or front/left/back views (Tripo `POST /models/texture`, 10 credits against 110 for a new model). Used for the Stormcaller (its texture came out grey) and the Thunderhead's top. New models in `docs/art/models/batch1/`: Talon Marksman, Roc Rider, Stormcaller, water worker with a beak (2,130 Tripo credits left).

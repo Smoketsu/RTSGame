@@ -1,0 +1,22 @@
+// rts/docs/art/concept/turnarounds7/shots.json: shot list for the seventh set of model sheets, one redraw of the Thunderhead sheet (front, side, back; boxy missile pods) after the developer's 3D model review of 16 Nov 2026, read by rts/tools/ConceptArt/generate.py.
+{
+  // Style text shared by every shot, identical to turnarounds4. Unit: prompt text.
+  "style": "Orthographic character model sheet for a 3D modeller, science fiction strategy game unit rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single unit in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view facing away. The unit stands still in a neutral symmetric pose. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  // Shots to generate.
+  "shots": [
+    {
+      // Output file name without extension. Unit: identifier.
+      "id": "skai_thunderhead_sheet",
+      // Requested image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images, paths relative to the repository root. Unit: file paths.
+      "references": [
+        "rts/docs/art/concept/turnarounds4/skai_thunderhead_sheet.jpg"
+      ],
+      // Prompt text appended after the style text. Unit: prompt text.
+      "prompt": "The reference image is the approved model sheet of the Thunderhead flying-wing bomber with a bird head at the nose. Draw the same single aircraft, same design, bird head, wings, tail spikes, wing-tip hooks and proportions, apart from the changes below. CHANGE 1, VIEWS: the three views are FRONT (left), SIDE facing left (middle) and BACK (right, seen from directly behind, level with the aircraft, the tail end facing the viewer), all at the same scale. No top view and no view from below. CHANGE 2, MISSILE PODS: exactly one pod under each wing, each a short, squat, closed rectangular box about as long as it is wide, hugging the underside of the wing on a short pylon. Its flat FRONT face shows a 2 x 3 grid of six round missile-tip holes (two columns, three rows). Its REAR face is a plain, closed, flat wall with nothing sticking out (clearly visible in the back view, no tubes at the back). The pods must NOT look like bundles of pipes or barrels; nothing on a pod is longer than the box itself. CHANGE 3, GUNS: exactly two thin gun barrels in total, one on each side close to the body, clearly separate from the pods, much thinner than the pods, pointing forward. No other barrels anywhere. COLOURS: dark storm-charcoal hull; the pods and the guns also dark charcoal (not white); electric-yellow panel lines; white trailing-edge feather blades; white beak; yellow eyes. Left and right perfectly symmetrical. The bird head at the nose is clearly visible in the front and side views. No rider. Hovering still and level. RETRY NOTES: in the previous attempt the BACK view was drawn from above like a top view (the whole upper hull and the long tail spike seen from above). The BACK view must be a true elevation seen from directly behind at the aircraft's own height, exactly like the FRONT view but from the other side: the same wing span and the same height as the front view, wings seen almost edge-on as a thin shallow V line, the rear of the hull as a low narrow shape in the middle, the two wing-tip hooks up at the ends, the white trailing-edge feather blades as a row along the back edge of the wings, the flat plain rear faces of both pods hanging below the wings. No bird head is visible from behind, and nothing is seen from above. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    }
+  ]
+}
