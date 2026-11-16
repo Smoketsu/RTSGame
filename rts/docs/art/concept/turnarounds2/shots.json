@@ -1,0 +1,127 @@
+// rts/docs/art/concept/turnarounds2/shots.json: shot list for the second set of three-view model sheets (front, side, back; front, side, top for the Thunderhead) used as multi-view input for 3D generation, read by rts/tools/ConceptArt/generate.py. Ten approved Skai and water units, same pattern as turnarounds1. Each shot has an id (the output file name), a size in pixels (width x height), a quality, a prompt and references (repository-relative line-up images the result must stay faithful to; the prompt names the one unit meant).
+{
+  // Shared style text prepended to every shot prompt, identical to turnarounds1. Source: CONCEPT_BRIEF.md, Style (low-poly), plus model-sheet rules for 3D generation.
+  "style": "Orthographic character model sheet for a 3D modeller, science fiction strategy game unit rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single unit in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view facing away. The unit stands still in a neutral symmetric pose. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  "shots": [
+    {
+      // Output file name without extension.
+      "id": "skai_worker_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round9/skai_ground_lineup.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image is a line-up of four units. Draw ONLY the first unit from the left: the pelican worker (Fledgling) with the big yellow pouch beak, white head, charcoal armoured body with yellow chevron, a plasma cutter on one arm ending in a yellow cone tip, and a charcoal and yellow backpack carrying two cargo grabber claw arms that arch overhead. Do not draw the other three units. Same design and colours as the reference (storm charcoal, white, electric yellow), no red anywhere. It stands upright and still on both feet side by side in a neutral symmetric pose; the same plasma cutter arm and the same claw backpack are placed identically in every view, the beak points the same way the body faces in every view, and left and right sides mirror each other. No effects, no dome, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "skai_marksman_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round9/skai_ground_lineup.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image is a line-up of four units. Draw ONLY the third unit from the left: the heron trooper (Talon Marksman) with the long thin neck, long yellow pointed beak, white and charcoal head crest, charcoal armoured body with yellow trim, big yellow angular fins on its back, and the very long charcoal and yellow energy rifle. Do not draw the other three units. Same design and colours as the reference (storm charcoal, white, electric yellow), no red anywhere. It stands upright and still on both thin legs in a neutral pose, holding the rifle level across its front with the muzzle pointing forward, the same direction as its beak and face. In the front view the rifle points at the viewer; in the side view facing left the muzzle points left; in the back view the rifle points away from the viewer. The rifle never points backward. Left and right sides mirror each other apart from the rifle. No effects, no background."
+    },
+    {
+      // Output file name without extension.
+      "id": "skai_stormcaller_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round9/skai_ground_lineup.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image is a line-up of four units. Draw ONLY the fourth unit, the rightmost: the great horned owl storm-caller (Stormcaller) with ear tufts, yellow visor, charcoal armour with yellow chevron, layered charcoal and white feather skirt, the tall trident emitter staff held upright in one hand, and the backpack with a yellow side rotor disc on each side. Do not draw the other three units. Same design and colours as the reference (storm charcoal, white, electric yellow), no red anywhere. It stands upright and still on both feet in a neutral symmetric pose; the staff is held upright at its side with the trident tip up, the second hand relaxed at the side, the backpack and both rotors on its back clearly visible in the side and back views, and the face and talons face the same way as the body in every view."
+    },
+    {
+      // Output file name without extension.
+      "id": "skai_roc_rider_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round9/skai_air_units.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image shows two units. Draw ONLY the left one: the Roc Rider, an armoured charcoal and yellow bird-person rider with a white crest sitting in a saddle on a large mechanical raptor with a white-crested head, charcoal body with yellow stripes, white tail feathers, yellow-edged white-tipped wings and two charcoal talon legs with yellow blade tips. Do not draw the flying-wing aircraft on the right. Same design and colours as the reference (storm charcoal, white, electric yellow), no red anywhere. It hovers still in the air in level flight with both wings spread out straight and level, perfectly symmetrical, rider seated upright on the raptor's back holding the handlebar, raptor head and rider facing forward. Left wing and right wing mirror each other; the front view shows both wings spread to the sides, the side view shows the raptor in profile facing left, the back view shows the tail and rider from behind. No ground, no effects, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "skai_thunderhead_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round9/skai_air_units.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "IMPORTANT CHANGE to the three views for this unit only: the three views are FRONT, SIDE and TOP, not front, side and back. On the left a FRONT view: the aircraft seen from directly in front at eye level, so it looks like a flat low wide shape, only the nose tip, the two raised wing-tip hooks and the thin edge of the wing visible, the wing seen edge-on and NOT from above, in the middle a SIDE view facing left, on the right a TOP view looking straight down on the aircraft with its nose pointing up in the image. There is no back view. Only the right-hand view may be seen from above; the left and middle views must be horizontal eye-level views. The reference image shows two units. Draw ONLY the right one: the Thunderhead flying-wing bomber with a charcoal swept-back wing, a pointed grey nose spike, yellow panels and stripes, two long charcoal tail spikes, white feathers along the trailing (rear) edge of the wing only, and wing-tip hooks. Do not draw the rider on the raptor on the left. Same design and colours as the reference (storm charcoal, white, electric yellow), no red anywhere. It hovers still, perfectly level and symmetrical: left and right halves mirror each other. In the front view no feathers show on the front of the wing. No lightning arcs, no effects, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_worker_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image is a line-up of five units under a dome. Draw ONLY the first unit on the far left: the small octopus worker (Tender) in a round pressure-suit helmet with turquoise glowing eyes and rose-coral collar, dark sea-green body, a cargo backpack with rose-coral bands on its back, and eight curling sea-green tentacle legs, with turquoise-tipped claw hands. Do not draw the other four units. Same design and colours as the reference (muted sea-green, dusky rose-coral, dark teal, turquoise lights, no white), matte, no red anywhere. It stands still and upright in a neutral symmetric pose with both arms held down and slightly out, tentacles splayed evenly; the helmet face looks the same way the body faces in every view, the backpack is visible only on the back and in the side view, and left and right sides mirror each other. No effects, no dome, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_pummeler_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image is a line-up of five units under a dome. Draw ONLY the third unit from the left, the tall one in the middle: the mantis shrimp melee fighter (Pummeler) with two long curved antennae, turquoise stalk eyes, an armoured sea-green and rose-coral banded body, two big barrel-shaped club claws with rose-coral bands and turquoise hexagon ends, and a turquoise-feathered pair of small legs. Do not draw the other four units. Same design and colours as the reference (muted sea-green, dusky rose-coral, dark teal, turquoise lights, no white), matte, no red anywhere. It stands still and upright in a neutral symmetric pose, both club claws held identically at the same height in front of its chest, the face and eyes facing the same way as the body in every view; the clubs point forward and are never behind the body in the front view. Left and right sides mirror each other. No effects, no dome, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_spoutling_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image is a line-up of five units under a dome. Draw ONLY the fourth unit from the left (second from the right): the cuttlefish anti-air unit (Spoutling), a bell-shaped sea-green body with a rose-coral wavy skirt, a stern turquoise-eyed face with short tentacles on the front, and a multi-barrel hydro-cannon on top of its head made of three turquoise-rimmed barrels pointing upward and forward. Do not draw the other four units (the snail on its right and the mantis shrimp on its left are not part of this sheet), and omit the long turquoise blade effects shown above the barrels: draw plain barrels only. Same design and colours as the reference (muted sea-green, dusky rose-coral, dark teal, turquoise lights, no white), matte, no red anywhere. It hovers still just above the ground in a neutral symmetric pose; the three barrels sit side by side on top of the head and tilt up toward the front, the same side the face is on, in every view (in the side view facing left the barrels slope up to the left; in the back view they slope up away from the viewer). Left and right sides mirror each other. No effects, no dome, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_tidecaller_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round20/water_tidecaller_leviathan.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image shows two units. Draw ONLY the small one on the left: the jellyfish Tidecaller, a domed sea-green bell with a rose-coral top cap and rose-coral frilled rim, a ring of turquoise round lights around the bell, a turquoise glowing underside, and eight sea-green tentacles with rose-coral bands and turquoise tips hanging below. Do not draw the giant crab on the right, and do not draw the turquoise wave under the jellyfish. Same design and colours as the reference (muted sea-green, dusky rose-coral, dark teal, turquoise lights, no white), matte, no red anywhere. It hovers still in a neutral pose, perfectly round and symmetrical around its vertical axis, with the eight tentacles spaced evenly so all three views show the same tentacle arrangement. No effects, no wave, no background. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_leviathan_sheet",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round20/water_tidecaller_leviathan.jpg"],
+      // Shot text appended after the style text.
+      "prompt": "The reference image shows two units. Draw ONLY the large one on the right: the king-crab Leviathan siege unit, a wide sea-green armour-plated carapace with rose-coral spikes along its edge, a rose-coral ring around a turret on top carrying two long green rose-banded cannon barrels with turquoise muzzles, two huge rose-coral and sea-green pincer claws held low in front that drag on the ground, six armoured legs with rose-coral plates and turquoise studs, two turquoise eye stalks and a fringed mouth on the front. Do not draw the jellyfish on the left, and do not draw track marks or a ground. Same design and colours as the reference (muted sea-green, dusky rose-coral, dark teal, turquoise lights, no white), matte, no red anywhere. It stands still in a neutral symmetric pose. The cannons and the claws point the same way the face does: in the front view the cannon muzzles point toward the viewer and up; in the side view facing left they point up to the left; in the back view they point away from the viewer. The cannons never point backward. Left and right sides mirror each other. No effects, no background."
+    }
+  ]
+}

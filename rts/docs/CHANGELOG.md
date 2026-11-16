@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/art/concept/turnarounds2/`: front, side and back model sheets for ten units (Skai worker, Talon Marksman, Stormcaller, Roc Rider, Thunderhead; water worker, Pummeler, Spoutling, Tidecaller, Leviathan), awaiting the developer's marks before 3D generation.
+
 - Spec `docs/specs/p003_rules.md`: build-ready rules for the P-003 changes (uphill ranged penalty, armed workers, ranged hit delay, the Shellback's always-on dome shield, unit separation), in two build packages, with its row in the specs index.
 
 - `docs/proposals/P-003-decisions-to-apply.md`: the 16 Nov decisions compared with the code on `main` (4 of 14 already hold; result, evidence and what a change would touch for each row). `docs/STATUS.md` and the archive README no longer name the deleted branches; the duplicate build's code was deleted with them.
