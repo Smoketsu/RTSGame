@@ -163,6 +163,18 @@ namespace Rts.Sim.Tests.Ai
             return found;
         }
 
+        /// <summary>Puts every mobile non-worker unit of P0 into the attack group of <paramref name="memory"/> (for tests that set the Attack stance by hand).</summary>
+        private static void AddAllArmyToGroup(Simulation sim, AiMemory memory)
+        {
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == P0 && unit.Definition.Hq == null && unit.Definition.Economy.FootprintTiles <= 0 && !unit.Definition.Economy.CanGather)
+                {
+                    memory.AttackGroup.Add(unit.Id);
+                }
+            }
+        }
+
         /// <summary>Result of one AI-controlled run.</summary>
         private sealed class RunResult
         {
@@ -548,6 +560,8 @@ namespace Rts.Sim.Tests.Ai
             controller.Memory.Stance = AiStance.Attack;
             controller.Memory.AttackStaged = true;
             controller.Memory.AttackStartSupply = 30;
+            // Rule G (skirmish_ai_v2.md): only the attack group is ordered, so the hand-set attack needs its group.
+            AddAllArmyToGroup(sim, controller.Memory);
             // 7 supply left of 30 is below 0.25 x 30 = 7.5.
             List<Command> commands = ThinkNow(sim, controller);
             // Tick of the retreat think. Unit: ticks.
@@ -603,6 +617,7 @@ namespace Rts.Sim.Tests.Ai
                 controller.Memory.AttackThreshold = 8;
                 controller.Memory.Stance = AiStance.Attack;
                 controller.Memory.AttackStaged = true;
+                AddAllArmyToGroup(sim, controller.Memory);
                 // Full strength, so only the power comparison can cause a retreat.
                 controller.Memory.AttackStartSupply = 8;
                 ThinkNow(sim, controller);

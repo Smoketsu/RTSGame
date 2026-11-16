@@ -1,6 +1,6 @@
 // rts/src/Ai/AiMemory.cs
 // The per-controller memory of the skirmish AI (spec section 3): stance, attack threshold, regroup timer, build attempts,
-// last-seen enemy structures and army, cleared spawns, recent hits on own units, and the command sequence counter. Part of
+// the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, and the command sequence counter. Part of
 // Rts.Ai. This is NOT simulation state and is never hashed: it lives in the controller instance (no static fields), and it is
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
@@ -37,6 +37,9 @@ namespace Rts.Ai
 
         /// <summary>Tick it was last seen. Unit: ticks. Range: 0 upward.</summary>
         public int LastSeenTick { get; set; }
+
+        /// <summary>Health divided by maximum health when last seen. Unit: fraction. Range: 0 to 1. Used by the kill rule (skirmish_ai_v2.md C.2 rule K). Package B also uses it.</summary>
+        public Fix64 HealthFraction { get; set; } = Fix64.One;
     }
 
     /// <summary>A hit on an own unit, read from UnitDamagedEvent (own units only; the attacker is not used).</summary>
@@ -75,6 +78,12 @@ namespace Rts.Ai
 
         /// <summary>False while the attacking army is still gathering at the staging point short of the target; true once it pushes.</summary>
         public bool AttackStaged { get; set; }
+
+        /// <summary>IDs of the army units sent on the current attack (skirmish_ai_v2.md C.2 rule G). Only these are ordered in Attack; empty outside an attack. Ascending ID.</summary>
+        public SortedSet<EntityId> AttackGroup { get; } = new SortedSet<EntityId>();
+
+        /// <summary>Tick of the latest think that saw a threat inside the base, or -1 before the first (skirmish_ai_v2.md C.2 rule D). Unit: ticks. Range: -1, or 0 upward.</summary>
+        public int LastThreatTick { get; set; } = -1;
 
         /// <summary>Tick of the last attempt to place each structure, by definition ID (ordinal). Unit: ticks.</summary>
         public SortedDictionary<string, int> LastBuildAttemptTick { get; } = new SortedDictionary<string, int>(System.StringComparer.Ordinal);

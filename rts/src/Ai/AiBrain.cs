@@ -11,8 +11,7 @@
 //   1b. Cycle (planetary_cycles.md section 5; the spec numbers it rule 9): when the AI's team holds the Core, the next cycle is not
 //      locked yet, no pick of the own team or a script is pending and the AI is its team's pick captain (lowest-ID player still in the
 //      match, so two AI teammates never overwrite each other), pick the first cycle of the faction's cycle_preference that is
-//      allowed next (the first allowed cycle when none of the preferences is). With rally_at_core the Massing rally point is the Core
-//      centre while the Core exists and the AI's team does not hold it.
+//      allowed next (the first allowed cycle when none of the preferences is).
 //   2. Workers gather: each idle worker (no gather loop, no move or attack-move order), ascending ID, goes to the nearest field
 //      with resources within field_max_distance_tiles of the HQ that has fewer than workers_per_field workers (else the nearest
 //      such field at all). Only while the HQ is Rooted (it is the drop-off).
@@ -27,25 +26,44 @@
 //   4. Train workers at the Rooted HQ while workers (queued included) < min(max_workers, workers_per_field x fields in range),
 //      one at a time, if affordable and supply is free. Workers ignore structure reservations: they are the income, and a
 //      reservation that starved them could deadlock an AI whose workers were killed.
-//   5. Production: each complete idle producer, ascending ID, trains the composition unit it can make with the largest deficit
-//      d_u = w_u * (N + 1) - c_u * W (integers; ties to the ordinally lowest ID) if affordable after reservations and supply is free.
+//   5. Production (skirmish_ai_v2.md C.2 rule P; replaces the per-producer loop): repeat: the candidates are the composition units
+//      (weight above 0) that some complete producer with an empty queue, not used this think, lists in its trains and whose rare cost
+//      the rare stock minus reservations can pay; pick the one with the largest deficit d_u = w_u * (N + 1) - c_u * W (integers; ties
+//      to the ordinally lowest ID) and give it to the lowest-ID such producer. If affordable after reservations and supply is free:
+//      train it, count it and repeat; otherwise reserve its cost and stop, so cheaper units never jump ahead of the most needed one.
+//      (The old loop let every producer buy the best unit it could make: a Roost can only make Windrunners, so they were bought
+//      even at a negative deficit and the Archer's Windspire never saw the money; test C1.)
+//   5b. Extra producer (rule X): no threat, bank minus reservations >= extra_producer_bank_common, every producer busy or used this
+//      think, none under construction and fewer than max_producers: build the structure that trains the composition unit with the
+//      largest deficit (first in the build order, else the lowest ID of the faction), at the HQ ring sites.
 //   6. Army (army = own mobile units that are not workers or HQs): Defend (attack-move to a threat inside the base: a visible
 //      enemy army unit within defend_radius_tiles of the HQ or an own structure, or a recent hit on an own unit there; an attacking
-//      army is recalled only when the visible threat supply reaches defend_recall_supply), Massing (gather at the rally point; attack
-//      once army supply >= the drawn threshold, the regroup timer has run out and the tide window allows), Attack (attack-move to the
-//      nearest known enemy HQ, else known structure, else unexplored enemy spawn, else last seen enemy, first gathering at a staging
-//      point stage_distance_tiles short of it until stage_gather_fraction of the army supply stands within stage_radius_tiles of it
-//      or stage_timeout_seconds pass; reinforce; retreat on losses
-//      below retreat_army_fraction or when the army's power falls below retreat_power_ratio x the power of the visible armed enemies
-//      within engagement_radius_tiles of any army unit (power = supply x health / max health); siege: when an enemy
-//      HQ is visible and no visible enemy army unit stands within engagement_radius_tiles of it, army units within that radius
+//      army is recalled only when the visible threat supply reaches defend_recall_supply; after the last threat the stance stays
+//      Defend, ordering nothing, for defend_hold_seconds and then returns to Massing WITHOUT a new threshold draw: rule D), Massing
+//      (units wait at the HOME rally point, rule M: rally_distance_tiles from home toward the target; attack once army supply >= the
+//      drawn threshold, the regroup timer has run out and the tide window allows, or at once for rule K below), Attack (rule G: the
+//      units that were army units when the attack began are the attack group, and only they are ordered; later units rally at home.
+//      The group attack-moves to the nearest known enemy HQ, else known structure, else unexplored enemy spawn, else last seen enemy,
+//      first gathering at a staging point (the Core centre when rally_at_core, the map has a Core and the team does not hold it, else
+//      stage_distance_tiles short of the target) until stage_gather_fraction of the group supply stands within stage_radius_tiles of it
+//      or stage_timeout_seconds pass; retreat on losses
+//      below retreat_army_fraction of the group's start supply or when the group's power falls below retreat_power_ratio x the power of
+//      the visible armed enemies within engagement_radius_tiles of any group unit (power = supply x health / max health); siege: when an
+//      enemy HQ is visible and no visible enemy army unit stands within engagement_radius_tiles of it, group units within that radius
 //      of the HQ that can hit its layer are ordered to attack it (attack_unit, the only order that names an enemy unit, and only
 //      one the team sees now), and the order is replaced by an attack-move as soon as defenders show up; focus fire: in Defend and
 //      Attack, a unit with a visible enemy army unit it can hit within focus_radius_tiles attacks the nearest one (attack_unit),
 //      keeping its current target while that stays valid, so fights are won army-first instead of on buildings), Retreat (plain move
-//      to the HQ, regroup timer, back to Massing with a new threshold). All in: with all_in_when_mined_out, once no field within
-//      field_max_distance_tiles has resources left, the attack threshold drops to 1 supply, the tide window is ignored and the
-//      army never retreats (no reinforcements can come, so waiting only stalls the match).
+//      to the HQ, regroup timer, back to Massing with a new threshold). The threshold is drawn on the first think and whenever an
+//      attack ends (group empty, retreat, no target left), never on leaving Defend. Kill (rule K): a known enemy HQ last seen at or
+//      below kill_hq_health_fraction of its health (and was last seen within kill_seen_within_seconds) is attacked by any army of kill_min_army_supply, ignoring the threshold, the tide
+//      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no field within
+//      field_max_distance_tiles has resources left, the attack threshold drops to 1 supply, the tide window is ignored, the army never
+//      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
+// Deleted or replaced by skirmish_ai_v2.md package C: the Massing rally at the Core (rally_at_core now moves the staging point),
+// attack reinforcement by idle army units, the per-producer production loop, and the threshold redraw on every Massing entry.
+// PACKAGE B HOOKS (marked "PACKAGE B HOOK" below): with the HQ as the only base, home is the HQ position; package B moves it with a
+// relocating HQ (rule M), and rule R makes reservations depend on income.
 // Determinism: integers and Fix64 only; own units, enemies and fields walked in ascending ID or index order; squared distances;
 // ties to the lower ID or index; the only random draw is the attack threshold jitter from the controller's own generator.
 using System;
@@ -102,6 +120,7 @@ namespace Rts.Ai
             turn.Structures();
             turn.TrainWorkers();
             turn.Produce();
+            turn.ExtraProducer();
             turn.Army();
             return intents;
         }
@@ -148,7 +167,10 @@ namespace Rts.Ai
             return best;
         }
 
-        /// <summary>The army supply needed for the next attack: attack_army_supply plus a draw of 0 to attack_supply_jitter.</summary>
+        /// <summary>
+        /// The army supply needed for the next attack: attack_army_supply plus a draw of 0 to attack_supply_jitter. Called on the first
+        /// think and when an attack ends (rule D); it also empties the attack group.
+        /// </summary>
         /// <param name="memory">Gets the new threshold and stance Massing.</param>
         /// <param name="profile">The profile.</param>
         /// <param name="rng">The controller's generator.</param>
@@ -156,6 +178,7 @@ namespace Rts.Ai
         {
             memory.Stance = AiStance.Massing;
             memory.HasAttackTarget = false;
+            memory.AttackGroup.Clear();
             memory.AttackThreshold = profile.AttackArmySupply + rng.NextInt(profile.AttackSupplyJitter + 1);
         }
 
@@ -215,6 +238,9 @@ namespace Rts.Ai
                     known.Position = enemy.Position;
                     known.IsHq = enemy.IsHq;
                     known.LastSeenTick = view.Tick;
+                    // Health share when seen, 0 to 1 (a structure under construction can show above its build health; capped).
+                    Fix64 fraction = enemy.Health / enemy.Definition.MaxHealth;
+                    known.HealthFraction = fraction > Fix64.One ? Fix64.One : fraction;
                 }
                 else if (enemy.IsArmy)
                 {
@@ -337,6 +363,30 @@ namespace Rts.Ai
             /// <summary>Building sites chosen this think (tile indices), so two structures never share one.</summary>
             private readonly SortedSet<int> _reservedSites = new SortedSet<int>();
 
+            /// <summary>Own count per composition unit, queued included, in ordinal ID order; filled by <see cref="Produce"/>. Unit: units. Range: 0 upward.</summary>
+            private readonly SortedDictionary<string, int> _counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
+
+            /// <summary>Producers that were given a train order this think (rule P); they count as busy. Ascending ID.</summary>
+            private readonly SortedSet<EntityId> _usedProducers = new SortedSet<EntityId>();
+
+            /// <summary>Visible enemy army units inside the base this think (the threats). Unit: units. Range: 0 upward.</summary>
+            private int _threatCount;
+
+            /// <summary>Supply of those threats. Unit: supply. Range: 0 upward.</summary>
+            private int _threatSupply;
+
+            /// <summary>Sum of the threats' X positions, for the mean. Unit: tiles. Range: 0 to threat count x map width.</summary>
+            private Fix64 _threatSumX = Fix64.Zero;
+
+            /// <summary>Sum of the threats' Y positions, for the mean. Unit: tiles. Range: 0 to threat count x map height.</summary>
+            private Fix64 _threatSumY = Fix64.Zero;
+
+            /// <summary>The most recent hit on an own unit inside the base (ties to the lowest unit ID), or null.</summary>
+            private DamageReport? _latestHit;
+
+            /// <summary>The known low enemy HQ that rule K attacks this think, or null (set by <see cref="Army"/>).</summary>
+            private KnownStructure? _kill;
+
             /// <summary>Fields with resources within field_max_distance_tiles of the HQ, in index order.</summary>
             private readonly List<AiFieldView> _fieldsInRange = new List<AiFieldView>();
 
@@ -365,6 +415,7 @@ namespace Rts.Ai
                         _fieldsInRange.Add(field);
                     }
                 }
+                ScanThreat();
             }
 
             /// <summary>Appends an intent unless the per-think cap is reached; returns false when it was dropped.</summary>
@@ -704,50 +755,163 @@ namespace Rts.Ai
                 }
             }
 
-            /// <summary>Rule 5: each idle producer trains the composition unit with the largest deficit.</summary>
+            /// <summary>Rule 5 (rule P of skirmish_ai_v2.md): buys the composition unit the mix needs most, one producer at a time.</summary>
             public void Produce()
             {
                 // Own count per composition unit, queued included, in ordinal order. Unit: units.
-                SortedDictionary<string, int> counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
                 foreach (string id in _plan.Composition.Keys)
                 {
-                    counts[id] = 0;
+                    _counts[id] = 0;
                 }
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (counts.ContainsKey(unit.Definition.Id))
+                    if (_counts.ContainsKey(unit.Definition.Id))
                     {
-                        counts[unit.Definition.Id]++;
+                        _counts[unit.Definition.Id]++;
                     }
                     foreach (string queued in unit.Queue)
                     {
-                        if (counts.ContainsKey(queued))
+                        if (_counts.ContainsKey(queued))
                         {
-                            counts[queued]++;
+                            _counts[queued]++;
                         }
                     }
                 }
-                foreach (AiUnitView producer in _view.OwnUnits)
+                // Upper bound on units bought this think (one per producer), a guard against a loop that never ends. Unit: units.
+                int guard = _view.OwnUnits.Count;
+                // Purchase number. Range: 0 to guard.
+                for (int bought = 0; bought < guard; bought++)
                 {
-                    if (!producer.IsStructure || producer.IsUnderConstruction || producer.Queue.Count > 0 || producer.Definition.Economy.Trains.Count == 0)
+                    // Composition units some free producer can make and whose rare cost the stock can pay.
+                    SortedSet<string> candidates = new SortedSet<string>(StringComparer.Ordinal);
+                    foreach (KeyValuePair<string, int> pair in _plan.Composition)
                     {
-                        continue;
+                        // Definition of this composition unit.
+                        UnitDefinition candidate = _view.Content.Units[pair.Key];
+                        if (pair.Value > 0 && candidate.CostRare <= _rare - _reserveRare && FindFreeProducer(pair.Key) != null)
+                        {
+                            candidates.Add(pair.Key);
+                        }
                     }
-                    // Trains list of this producer, for the filter.
-                    IReadOnlyList<string> trains = producer.Definition.Economy.Trains;
-                    // Composition unit this producer should train, or null.
-                    string? choice = PickByDeficit(_plan.Composition, counts, id => Contains(trains, id));
+                    // The most needed candidate, or null when none.
+                    string? choice = PickByDeficit(_plan.Composition, _counts, id => candidates.Contains(id));
                     if (choice == null)
                     {
-                        continue;
+                        return;
                     }
+                    // The lowest-ID free producer of the choice (never null: the choice came from the candidates).
+                    AiUnitView producer = FindFreeProducer(choice)!;
                     // Definition of the chosen unit.
                     UnitDefinition definition = _view.Content.Units[choice];
-                    if (CanPay(definition) && HasSupply(definition) && Emit(AiIntent.Train(producer.Id, choice)))
+                    if (!CanPay(definition) || !HasSupply(definition))
                     {
-                        Pay(definition);
-                        counts[choice]++;
+                        // The head of the queue waits: hold its cost so cheaper units do not jump ahead.
+                        // PACKAGE B HOOK (rule R): reserve only while the player has income.
+                        _reserveCommon += definition.CostCommon;
+                        _reserveRare += definition.CostRare;
+                        return;
                     }
+                    if (!Emit(AiIntent.Train(producer.Id, choice)))
+                    {
+                        return;
+                    }
+                    Pay(definition);
+                    _counts[choice]++;
+                    _usedProducers.Add(producer.Id);
+                }
+            }
+
+            /// <summary>True for a complete own structure that can train now: it has a trains list and an empty queue, and was not used this think.</summary>
+            private bool IsFreeProducer(AiUnitView unit)
+            {
+                return unit.IsStructure && !unit.IsUnderConstruction && unit.Queue.Count == 0 && unit.Definition.Economy.Trains.Count > 0
+                    && !_usedProducers.Contains(unit.Id);
+            }
+
+            /// <summary>The lowest-ID free producer that lists <paramref name="unitId"/> in its trains, or null.</summary>
+            private AiUnitView? FindFreeProducer(string unitId)
+            {
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (IsFreeProducer(unit) && Contains(unit.Definition.Economy.Trains, unitId))
+                    {
+                        return unit;
+                    }
+                }
+                return null;
+            }
+
+            /// <summary>True when the structure trains at least one composition unit (weight above 0).</summary>
+            private bool TrainsCompositionUnit(UnitDefinition structure)
+            {
+                foreach (KeyValuePair<string, int> pair in _plan.Composition)
+                {
+                    if (pair.Value > 0 && Contains(structure.Economy.Trains, pair.Key))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>Rule X of skirmish_ai_v2.md: when money piles up and every producer is busy, builds the producer of the most needed unit.</summary>
+            public void ExtraProducer()
+            {
+                if (_threatCount > 0 || _latestHit != null || _common - _reserveCommon < _profile.ExtraProducerBankCommon)
+                {
+                    return;
+                }
+                // Own structures that train a composition unit, complete or under construction. Unit: structures. Range: 0 upward.
+                int producers = 0;
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (!unit.IsStructure || !TrainsCompositionUnit(unit.Definition))
+                    {
+                        continue;
+                    }
+                    producers++;
+                    if (unit.IsUnderConstruction || IsFreeProducer(unit))
+                    {
+                        return;
+                    }
+                }
+                if (producers >= _profile.MaxProducers)
+                {
+                    return;
+                }
+                // The composition unit with the largest deficit over all composition units.
+                string? needed = PickByDeficit(_plan.Composition, _counts, id => true);
+                if (needed == null)
+                {
+                    return;
+                }
+                // The structure to build: the first build order step that trains it, else the lowest ID of the faction.
+                UnitDefinition? structure = null;
+                foreach (AiBuildStep step in _plan.BuildOrder)
+                {
+                    // Definition of this step's structure.
+                    UnitDefinition stepDefinition = _view.Content.Units[step.StructureId];
+                    if (Contains(stepDefinition.Economy.Trains, needed))
+                    {
+                        structure = stepDefinition;
+                        break;
+                    }
+                }
+                if (structure == null)
+                {
+                    foreach (UnitDefinition candidate in _view.Content.Units.Values)
+                    {
+                        if (string.Equals(candidate.FactionId, _plan.FactionId, StringComparison.Ordinal) && candidate.Economy.FootprintTiles > 0
+                            && Contains(candidate.Economy.Trains, needed))
+                        {
+                            structure = candidate;
+                            break;
+                        }
+                    }
+                }
+                if (structure != null)
+                {
+                    TryBuild(structure);
                 }
             }
 
@@ -764,7 +928,7 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>Rule 6: the army stance machine.</summary>
+            /// <summary>Rule 6: the army stance machine (rules D, G, K and M of skirmish_ai_v2.md).</summary>
             public void Army()
             {
                 // Army units in ascending ID order, and their total supply. Unit: supply.
@@ -779,11 +943,24 @@ namespace Rts.Ai
                         armySupply += _view.SupplyOf(unit.Definition);
                     }
                 }
+                _kill = FindKillTarget();
                 if (DefendIfThreatened(army))
                 {
                     return;
                 }
-                if (_memory.Stance == AiStance.Defend || _memory.Stance == AiStance.Retreat)
+                if (_memory.Stance == AiStance.Defend)
+                {
+                    if (_view.Tick < _memory.LastThreatTick + _view.SecondsToTicks(_profile.DefendHoldSeconds))
+                    {
+                        // Rule D: hold Defend and order nothing until the hold time has passed.
+                        return;
+                    }
+                    // Back to massing without a new threshold draw (rule D).
+                    _memory.Stance = AiStance.Massing;
+                    _memory.HasAttackTarget = false;
+                    _memory.AttackGroup.Clear();
+                }
+                else if (_memory.Stance == AiStance.Retreat)
                 {
                     EnterMassing(_memory, _profile, _rng);
                 }
@@ -792,53 +969,52 @@ namespace Rts.Ai
                     Mass(army, armySupply);
                     return;
                 }
-                Attack(army, armySupply);
+                Attack(army);
             }
 
-            /// <summary>Defend: returns true (and orders the army) when a threat inside the base calls for it.</summary>
-            private bool DefendIfThreatened(List<AiUnitView> army)
+            /// <summary>Reads this think's threats (see <see cref="DefendIfThreatened"/>) into the threat fields; called once by the constructor.</summary>
+            private void ScanThreat()
             {
                 // Squared defend radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.DefendRadiusTiles * _profile.DefendRadiusTiles;
-                // Sum of threat positions and the threat count, for the centre; and the threat's supply. Unit: tiles, units, supply.
-                Fix64 sumX = Fix64.Zero;
-                // Sum of the Y positions, for the mean. Unit: tiles.
-                Fix64 sumY = Fix64.Zero;
-                // Visible enemy army units inside the base. Unit: units. Range: 0 upward.
-                int threats = 0;
-                // Supply of those threats. Unit: supply. Range: 0 upward.
-                int threatSupply = 0;
                 foreach (AiUnitView enemy in _view.VisibleEnemies)
                 {
                     if (enemy.IsArmy && IsInsideBase(enemy.Position, radiusSquared))
                     {
-                        sumX += enemy.Position.X;
-                        sumY += enemy.Position.Y;
-                        threats++;
-                        threatSupply += _view.SupplyOf(enemy.Definition);
+                        _threatSumX += enemy.Position.X;
+                        _threatSumY += enemy.Position.Y;
+                        _threatCount++;
+                        _threatSupply += _view.SupplyOf(enemy.Definition);
                     }
                 }
-                // Most recent hit inside the base, ties to the lowest unit ID.
-                DamageReport? latestHit = null;
                 foreach (DamageReport report in _memory.RecentDamage.Values)
                 {
-                    if (IsInsideBase(report.Position, radiusSquared) && (latestHit == null || report.Tick > latestHit.Tick))
+                    if (IsInsideBase(report.Position, radiusSquared) && (_latestHit == null || report.Tick > _latestHit.Tick))
                     {
-                        latestHit = report;
+                        _latestHit = report;
                     }
                 }
-                if (threats == 0 && latestHit == null)
+            }
+
+            /// <summary>
+            /// Defend: returns true (and orders the army) when a threat inside the base calls for it, and records the tick as the last
+            /// threat tick (rule D).
+            /// </summary>
+            private bool DefendIfThreatened(List<AiUnitView> army)
+            {
+                if (_threatCount == 0 && _latestHit == null)
                 {
                     return false;
                 }
-                if (_memory.Stance == AiStance.Attack && threatSupply < _profile.DefendRecallSupply)
+                if (_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply)
                 {
                     return false;
                 }
                 _memory.Stance = AiStance.Defend;
                 _memory.HasAttackTarget = false;
+                _memory.LastThreatTick = _view.Tick;
                 // Where the army goes: the mean threat position, else the latest hit.
-                FixVec2 centre = threats > 0 ? new FixVec2(sumX / threats, sumY / threats) : latestHit!.Position;
+                FixVec2 centre = _threatCount > 0 ? new FixVec2(_threatSumX / _threatCount, _threatSumY / _threatCount) : _latestHit!.Position;
                 // Defence goal, moved off a blocked tile. Unit: tiles.
                 FixVec2 goal = Standable(centre);
                 foreach (AiUnitView unit in army)
@@ -868,28 +1044,81 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>Massing: start the attack when ready, otherwise gather idle army units at the rally point.</summary>
+            /// <summary>
+            /// Rule K: the known enemy HQ last seen at or below kill_hq_health_fraction of its health (lowest fraction, ties nearer the
+            /// own HQ, then lower ID), or null.
+            /// </summary>
+            private KnownStructure? FindKillTarget()
+            {
+                // Best candidate so far, or null.
+                KnownStructure? best = null;
+                // Squared distance of the best candidate from home. Unit: squared tiles.
+                Fix64 bestSquared = Fix64.Zero;
+                // Oldest last-seen tick that still counts (review fix: stale health is not trusted). Unit: ticks. Range: below 0 upward.
+                int freshAfter = _view.Tick - _view.SecondsToTicks(_profile.KillSeenWithinSeconds);
+                foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
+                {
+                    if (!known.IsHq || known.HealthFraction > _profile.KillHqHealthFraction || known.LastSeenTick < freshAfter)
+                    {
+                        continue;
+                    }
+                    // Squared distance of this candidate. Unit: squared tiles. Range: 0 upward.
+                    Fix64 squared = (known.Position - Home()).LengthSquared();
+                    if (best == null || known.HealthFraction < best.HealthFraction || (known.HealthFraction == best.HealthFraction && squared < bestSquared))
+                    {
+                        best = known;
+                        bestSquared = squared;
+                    }
+                }
+                return best;
+            }
+
+            /// <summary>
+            /// The home anchor of the army: where it rallies and retreats to. PACKAGE B HOOK (rule M): return RelocationDestination while
+            /// a relocation is active. With the HQ as the only base it is the HQ position. Unit: tiles.
+            /// </summary>
+            private FixVec2 Home()
+            {
+                return _hq.Position;
+            }
+
+            /// <summary>Massing: start the attack when ready (or at once for rule K), otherwise gather idle army units at the home rally point.</summary>
             private void Mass(List<AiUnitView> army, int armySupply)
             {
                 // True when the tide window allows an attack, or the army is big enough to ignore it.
                 bool tideOk = AllIn || (_view.TideLevel >= _plan.AttackTideMin && _view.TideLevel <= _plan.AttackTideMax) || armySupply >= _plan.AttackTideOverrideSupply;
                 // Supply needed to attack now: the drawn threshold, or 1 when all in. Unit: supply.
                 int threshold = AllIn ? 1 : _memory.AttackThreshold;
-                if (army.Count > 0 && _view.Tick >= _memory.RegroupUntilTick && armySupply >= threshold && tideOk
-                    && TryChooseTarget(out FixVec2 target))
+                // True when rule K starts the attack: a low enemy HQ is known and the army is big enough (threshold, tide and regroup ignored).
+                bool kill = _kill != null && army.Count > 0 && armySupply >= _profile.KillMinArmySupply;
+                // True when the normal attack conditions hold.
+                bool ready = army.Count > 0 && _view.Tick >= _memory.RegroupUntilTick && armySupply >= threshold && tideOk;
+                if ((kill || ready) && TryChooseTarget(out _))
                 {
+                    // Rule G: the group is every army unit now.
+                    _memory.AttackGroup.Clear();
+                    foreach (AiUnitView unit in army)
+                    {
+                        _memory.AttackGroup.Add(unit.Id);
+                    }
                     _memory.Stance = AiStance.Attack;
                     _memory.AttackStartSupply = armySupply;
                     _memory.AttackStartTick = _view.Tick;
-                    _memory.AttackStaged = _profile.StageDistanceTiles <= Fix64.Zero;
+                    _memory.AttackStaged = kill || _profile.StageDistanceTiles <= Fix64.Zero;
                     _memory.AttacksStarted++;
                     _memory.HasAttackTarget = false;
-                    Attack(army, armySupply);
+                    Attack(army);
                     return;
                 }
-                // Where the massing army waits. Unit: tiles.
+                RallyIdle(army);
+            }
+
+            /// <summary>Rule M: idle army units more than 3 tiles from the home rally point attack-move there.</summary>
+            private void RallyIdle(List<AiUnitView> units)
+            {
+                // Where the waiting units gather. Unit: tiles.
                 FixVec2 rally = RallyPoint();
-                foreach (AiUnitView unit in army)
+                foreach (AiUnitView unit in units)
                 {
                     if (!unit.HasMoveTarget && !unit.IsAttackMoving && (unit.Position - rally).LengthSquared() > AtRallySquared)
                     {
@@ -898,21 +1127,55 @@ namespace Rts.Ai
                 }
             }
 
-            /// <summary>Attack: retreat on losses, otherwise keep every army unit attack-moving to the current target.</summary>
-            private void Attack(List<AiUnitView> army, int armySupply)
+            /// <summary>
+            /// Attack (rule G): only the attack group is ordered; retreat on the group's losses, otherwise the group attack-moves to the
+            /// current target and army units outside the group rally at home.
+            /// </summary>
+            private void Attack(List<AiUnitView> army)
             {
-                if (army.Count == 0)
+                // True when every army unit joins the group each think (all in, or rule K).
+                bool joinAll = AllIn || _kill != null;
+                // Review fix: drop group IDs that are no longer army units so the set cannot grow during a long attack.
+                _memory.AttackGroup.RemoveWhere(id => !army.Exists(unit => unit.Id == id));
+                if (_kill != null)
+                {
+                    // Rule K skips staging, also when it begins during an attack that is still staging.
+                    _memory.AttackStaged = true;
+                }
+                // Living members of the attack group, and their total supply. Unit: supply.
+                List<AiUnitView> group = new List<AiUnitView>();
+                // Supply of the living group. Unit: supply. Range: 0 upward.
+                int groupSupply = 0;
+                // Army units outside the group (trained after the attack began).
+                List<AiUnitView> rest = new List<AiUnitView>();
+                foreach (AiUnitView unit in army)
+                {
+                    if (joinAll)
+                    {
+                        _memory.AttackGroup.Add(unit.Id);
+                    }
+                    if (_memory.AttackGroup.Contains(unit.Id))
+                    {
+                        group.Add(unit);
+                        groupSupply += _view.SupplyOf(unit.Definition);
+                    }
+                    else
+                    {
+                        rest.Add(unit);
+                    }
+                }
+                if (group.Count == 0)
                 {
                     EnterMassing(_memory, _profile, _rng);
                     return;
                 }
-                if (!AllIn && ShouldRetreat(army, armySupply))
+                if (!AllIn && _kill == null && ShouldRetreat(group, groupSupply))
                 {
                     _memory.Retreats++;
                     _memory.Stance = AiStance.Retreat;
-                    // Retreat destination: the HQ position, moved off a blocked tile. Unit: tiles.
-                    FixVec2 home = Standable(_hq.Position);
-                    foreach (AiUnitView unit in army)
+                    // Retreat destination: home, moved off a blocked tile. Unit: tiles.
+                    FixVec2 home = Standable(Home());
+                    foreach (AiUnitView unit in group)
                     {
                         Emit(AiIntent.Move(unit.Id, home));
                     }
@@ -926,13 +1189,14 @@ namespace Rts.Ai
                     EnterMassing(_memory, _profile, _rng);
                     return;
                 }
+                RallyIdle(rest);
                 // True when the attack switched to a new target this think.
                 bool changed = !_memory.HasAttackTarget || (target - _memory.AttackTarget).LengthSquared() > SameGoalSquared;
                 _memory.HasAttackTarget = true;
                 _memory.AttackTarget = target;
                 if (!_memory.AttackStaged)
                 {
-                    if (!Stage(army, armySupply, target))
+                    if (!Stage(group, groupSupply, target))
                     {
                         return;
                     }
@@ -942,7 +1206,7 @@ namespace Rts.Ai
                 AiUnitView? siege = FindSiegeTarget();
                 // Squared engagement radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
-                foreach (AiUnitView unit in army)
+                foreach (AiUnitView unit in group)
                 {
                     if (Focus(unit))
                     {
@@ -970,15 +1234,17 @@ namespace Rts.Ai
             }
 
             /// <summary>
-            /// Staging: gathers the army at the point stage_distance_tiles short of <paramref name="target"/> (toward the own HQ).
-            /// Returns true (and marks the attack staged) once stage_gather_fraction of the army supply stands within
-            /// stage_radius_tiles of that point or stage_timeout_seconds have passed since the attack started; otherwise orders
-            /// stragglers there and returns false.
+            /// Staging: gathers the group at the staging point (the Core centre when rally_at_core, the map has a Core and the own team
+            /// does not hold it; otherwise stage_distance_tiles short of <paramref name="target"/> toward home). Returns true (and marks
+            /// the attack staged) once stage_gather_fraction of the group supply stands within stage_radius_tiles of that point or
+            /// stage_timeout_seconds have passed since the attack started; otherwise orders stragglers there and returns false.
             /// </summary>
             private bool Stage(List<AiUnitView> army, int armySupply, FixVec2 target)
             {
-                // Staging point short of the target, moved off a blocked tile. Unit: tiles.
-                FixVec2 stage = Standable(target.MoveTowards(_hq.Position, _profile.StageDistanceTiles));
+                // Staging point, moved off a blocked tile. Unit: tiles.
+                FixVec2 stage = _profile.RallyAtCore && _view.HasCore && !_view.OwnTeamHoldsCore
+                    ? Standable(_view.CoreCentre)
+                    : Standable(target.MoveTowards(Home(), _profile.StageDistanceTiles));
                 // Squared gathering radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.StageRadiusTiles * _profile.StageRadiusTiles;
                 // Army supply standing at the staging point. Unit: supply.
@@ -1149,11 +1415,17 @@ namespace Rts.Ai
             }
 
             /// <summary>
-            /// The attack target: the known enemy HQ nearest the own HQ, else the nearest known enemy structure, else the nearest
+            /// The attack target: the kill target of rule K when there is one, else the known enemy HQ nearest the own HQ, else the nearest known enemy structure, else the nearest
             /// enemy spawn not yet seen empty, else the last seen enemy army position. False when none exists.
             /// </summary>
             private bool TryChooseTarget(out FixVec2 target)
             {
+                if (_kill != null)
+                {
+                    // Rule K: a known low enemy HQ comes before everything else.
+                    target = Standable(_kill.Position);
+                    return true;
+                }
                 // Pass 0 looks at HQs only, pass 1 at every known structure.
                 for (int pass = 0; pass < 2; pass++)
                 {
@@ -1221,19 +1493,17 @@ namespace Rts.Ai
                 return best >= 0;
             }
 
-            /// <summary>Where the massing army waits: the Core centre when rally_at_core applies, else rally_distance_tiles from the HQ toward the attack target (or the HQ itself).</summary>
+            /// <summary>
+            /// Rule M: where the massing army waits: rally_distance_tiles from home toward the attack target, or home itself when there
+            /// is no target. Never the Core (rally_at_core moves only the attack group's staging point).
+            /// </summary>
             private FixVec2 RallyPoint()
             {
-                if (_profile.RallyAtCore && _view.HasCore && !_view.OwnTeamHoldsCore)
-                {
-                    // Take and hold the Core: the massing army waits at its centre.
-                    return Standable(_view.CoreCentre);
-                }
                 if (!TryChooseTarget(out FixVec2 toward))
                 {
-                    return Standable(_hq.Position);
+                    return Standable(Home());
                 }
-                return Standable(_hq.Position.MoveTowards(toward, _profile.RallyDistanceTiles));
+                return Standable(Home().MoveTowards(toward, _profile.RallyDistanceTiles));
             }
 
             /// <summary>

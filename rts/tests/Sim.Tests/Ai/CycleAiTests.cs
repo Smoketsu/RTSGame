@@ -196,7 +196,12 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(AiWorldView.Build(sim, P1).PendingPickTeam.IsValid, Is.False);
         }
 
-        /// <summary>Four AI players: P0 (Skai) and P2 (Water) on team 0, P1 (Water) and P3 (Skai) on team 1, cycles every 60 seconds with no warning, and a Windrunner of P0 at the Core centre.</summary>
+        /// <summary>
+        /// Four AI players: P0 (Skai) and P2 (Water) on team 0, P1 (Water) and P3 (Skai) on team 1, cycles every 60 seconds with no warning,
+        /// and a fifth player P4 on team 0 with no controller (an HQ and a Windrunner standing at the Core centre), so team 0 holds the Core
+        /// all run. Since skirmish_ai_v2.md package C the AI's own units rally at home instead of at the Core, so a unit of an AI player
+        /// would walk away from the Core.
+        /// </summary>
         private Simulation TwoVersusTwo(out List<IPlayerController> controllers)
         {
             List<PlayerSetup> players = new List<PlayerSetup>
@@ -205,6 +210,7 @@ namespace Rts.Sim.Tests.Ai
                 new PlayerSetup(P1, new TeamId(1), "water", "Water B"),
                 new PlayerSetup(new PlayerId(2), new TeamId(0), "water", "Water C"),
                 new PlayerSetup(new PlayerId(3), new TeamId(1), "skai", "Skai D"),
+                new PlayerSetup(new PlayerId(4), new TeamId(0), "skai", "Skai holder (no controller)"),
             };
             Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players, BuiltInMechanics.CreateRegistry(),
                 Rts.Sim.Tests.Cycles.CycleWorld.EditedTuning(Rts.Sim.Tests.Cycles.CycleWorld.ShortCycleEdits()), Data.RequireMap("greybox_1v1"), Data.Cycles.Values));
@@ -213,12 +219,16 @@ namespace Rts.Sim.Tests.Ai
             Spawn(sim, "water.grand_shell", P1, "57", "57");
             Spawn(sim, "water.grand_shell", new PlayerId(2), "9", "9");
             Spawn(sim, "skai.great_aerie", new PlayerId(3), "55", "55");
-            Spawn(sim, "skai.windrunner", P0, "32", "32");
+            Spawn(sim, "skai.great_aerie", new PlayerId(4), "6", "58");
+            Spawn(sim, "skai.windrunner", new PlayerId(4), "32", "32");
             controllers = new List<IPlayerController>();
             AiProfile profile = AiProfile.FromDataSet(Data, "aggressive");
             foreach (PlayerSetup setup in players)
             {
-                controllers.Add(new SkirmishAiController(setup.Id, profile));
+                if (setup.Id.Value != 4)
+                {
+                    controllers.Add(new SkirmishAiController(setup.Id, profile));
+                }
             }
             AiHost.StartAll(sim, controllers);
             return sim;
@@ -331,33 +341,50 @@ namespace Rts.Sim.Tests.Ai
             return points;
         }
 
+        /// <summary>Rewritten for skirmish_ai_v2.md C-5 and C-7: the massing army rallies at home whatever rally_at_core says; only the attack group's staging point is the Core while the team does not hold it.</summary>
         [Test]
-        public void RallyAtCore_MassingArmyGathersAtTheCoreUntilTheTeamHoldsIt()
+        public void RallyAtCore_MassesAtHomeAndStagesAtTheCore()
         {
             Simulation sim = Greybox(out _);
-            // A second idle army unit far from any rally point, so the holder case below still has a unit to order.
+            // A second idle army unit far from the rally point.
             Spawn(sim, "skai.windrunner", P0, "20", "12");
             AiProfile aggressive = AiProfile.FromDataSet(Data, "aggressive");
+            AiProfile defensive = AiProfile.FromDataSet(Data, "defensive");
             Assert.That(aggressive.RallyAtCore, Is.True);
-            Assert.That(AiProfile.FromDataSet(Data, "defensive").RallyAtCore, Is.False);
+            Assert.That(defensive.RallyAtCore, Is.False);
             AiWorldView view = AiWorldView.Build(sim, P0);
             Assert.That(view.HasCore, Is.True);
-            List<FixVec2> toCore = RallyPoints(Decide(view, aggressive));
-            Assert.That(toCore, Is.EqualTo(new List<FixVec2> { view.CoreCentre, view.CoreCentre }), "both idle army units walk to the Core centre");
-            // Once the team holds the Core the army rallies by the old rule (toward the enemy, rally_distance_tiles from the HQ).
-            view.CoreHolder = view.Team;
-            List<FixVec2> byHq = RallyPoints(Decide(view, aggressive));
-            Assert.That(byHq.Count, Is.GreaterThanOrEqualTo(1));
-            foreach (FixVec2 point in byHq)
+            // Home rally point: rally_distance_tiles from the HQ (7, 7) toward the Water spawn.
+            FixVec2 home = FixVec2.FromInts(7, 7).MoveTowards(sim.Map.Spawns[1], aggressive.RallyDistanceTiles);
+            List<FixVec2> massing = RallyPoints(Decide(view, aggressive));
+            Assert.That(massing.Count, Is.EqualTo(1), "only the unit far from the rally point is ordered (the one at (8, 8) is within 3 tiles of it)");
+            foreach (FixVec2 point in massing)
             {
-                Assert.That(point, Is.Not.EqualTo(view.CoreCentre));
+                Assert.That((point - home).LengthSquared(), Is.LessThanOrEqualTo(Fix64.FromInt(2)), "massing is at home, not at the Core");
             }
-            // A profile without rally_at_core never goes to the Core.
+            // With 10 army supply (the largest threshold) the attack starts and stages at the Core while the team does not hold it.
+            // Unit index. Range: 0 to 7.
+            for (int i = 0; i < 8; i++)
+            {
+                Spawn(sim, "skai.windrunner", P0, "20", "12");
+            }
+            AiWorldView attack = AiWorldView.Build(sim, P0);
+            List<FixVec2> toCore = RallyPoints(Decide(attack, aggressive));
+            Assert.That(toCore.Count, Is.EqualTo(10));
+            foreach (FixVec2 point in toCore)
+            {
+                Assert.That((point - attack.CoreCentre).LengthSquared(), Is.LessThanOrEqualTo(Fix64.FromInt(2)));
+            }
+            // Once the team holds the Core, or without rally_at_core, the staging point is short of the target instead.
+            attack.CoreHolder = attack.Team;
+            foreach (FixVec2 point in RallyPoints(Decide(attack, aggressive)))
+            {
+                Assert.That((point - attack.CoreCentre).LengthSquared(), Is.GreaterThan(Fix64.FromInt(100)));
+            }
             AiWorldView again = AiWorldView.Build(sim, P0);
-            AiProfile defensive = AiProfile.FromDataSet(Data, "defensive");
             foreach (FixVec2 point in RallyPoints(AiBrain.Decide(again, defensive, defensive.RequireFaction("skai"), new AiMemory(), new DeterministicRandom(1))))
             {
-                Assert.That(point, Is.Not.EqualTo(again.CoreCentre));
+                Assert.That((point - again.CoreCentre).LengthSquared(), Is.GreaterThan(Fix64.FromInt(100)));
             }
         }
 

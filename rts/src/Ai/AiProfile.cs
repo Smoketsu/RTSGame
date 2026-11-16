@@ -16,7 +16,10 @@
 //     (Phase 1 maps hold only the main fields, so a mined-out AI attacks with what it has instead of stalling the match);
 //   * Phase 2 (planetary_cycles.md section 5): the root key rally_at_core (the massing army gathers at the Core while the AI does not
 //     hold it) and, per faction, cycle_preference (every cycle ID, most wanted first; the AI picks the first allowed one when its team
-//     holds the Core).
+//     holds the Core);
+//   * skirmish_ai_v2.md package C (army): defend_hold_seconds, kill_hq_health_fraction, kill_seen_within_seconds, kill_min_army_supply, extra_producer_bank_common
+//     and max_producers; rally_at_core now moves the attack group's staging point to the Core (the massing army rallies at home).
+//     The expansion keys of packages A and B are not built yet.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -193,10 +196,28 @@ namespace Rts.Ai
         public bool AllInWhenMinedOut { get; }
 
         /// <summary>
-        /// When true, the massing army gathers at the Core centre while the AI's team is not the Core holder, so it takes and holds
-        /// the Core (and with it the pick of the next cycle). Unit: boolean. Range: true or false.
+        /// When true and the AI's team does not hold the Core, the attack group stages at the Core centre instead of short of the
+        /// target (skirmish_ai_v2.md C.2 rule G; it no longer moves the massing army, which rallies at home). Unit: boolean. Range: true or false.
         /// </summary>
         public bool RallyAtCore { get; }
+
+        /// <summary>Stay in Defend this long after the last threat before massing again. Unit: seconds. Range: 0 to 60.</summary>
+        public Fix64 DefendHoldSeconds { get; }
+
+        /// <summary>A known enemy HQ last seen at or below this share of its health is finished off (rule K). Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 KillHqHealthFraction { get; }
+
+        /// <summary>A remembered enemy HQ is a kill target only if it was last seen this recently (its health may have changed since). Unit: seconds. Range: 1 to 600.</summary>
+        public Fix64 KillSeenWithinSeconds { get; }
+
+        /// <summary>Army supply the kill rule needs. Unit: supply. Range: 1 to 200.</summary>
+        public int KillMinArmySupply { get; }
+
+        /// <summary>Bank (after this think's spending and reservations) at which rule X adds a production building. Unit: resource units. Range: 0 to 100000.</summary>
+        public int ExtraProducerBankCommon { get; }
+
+        /// <summary>Most own structures that train a composition unit (complete or under construction). Unit: structures. Range: 1 to 30.</summary>
+        public int MaxProducers { get; }
 
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
@@ -234,6 +255,12 @@ namespace Rts.Ai
             RegroupSeconds = root.RequireFix64("regroup_seconds", "0", "120");
             AllInWhenMinedOut = root.RequireBool("all_in_when_mined_out");
             RallyAtCore = root.RequireBool("rally_at_core");
+            DefendHoldSeconds = root.RequireFix64("defend_hold_seconds", "0", "60");
+            KillHqHealthFraction = root.RequireFix64("kill_hq_health_fraction", "0", "1");
+            KillSeenWithinSeconds = root.RequireFix64("kill_seen_within_seconds", "1", "600");
+            KillMinArmySupply = root.RequireInt("kill_min_army_supply", 1, 200);
+            ExtraProducerBankCommon = root.RequireInt("extra_producer_bank_common", 0, 100000);
+            MaxProducers = root.RequireInt("max_producers", 1, 30);
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -298,7 +325,8 @@ namespace Rts.Ai
                 "field_clearance_tiles", "rally_distance_tiles", "attack_army_supply", "attack_supply_jitter", "retreat_army_fraction",
                 "retreat_power_ratio", "engagement_radius_tiles", "stage_distance_tiles", "stage_radius_tiles", "stage_gather_fraction",
                 "stage_timeout_seconds", "focus_radius_tiles", "defend_radius_tiles", "defend_recall_supply", "damage_memory_seconds",
-                "regroup_seconds", "all_in_when_mined_out", "rally_at_core", "factions");
+                "regroup_seconds", "all_in_when_mined_out", "rally_at_core", "defend_hold_seconds", "kill_hq_health_fraction",
+                "kill_seen_within_seconds", "kill_min_army_supply", "extra_producer_bank_common", "max_producers", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
