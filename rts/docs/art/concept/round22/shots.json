@@ -1,0 +1,14 @@
+// rts/docs/art/concept/round22/shots.json: shot list for concept art round 22 (one fix from the developer's note on round 21), read by rts/tools/ConceptArt/generate.py. The shot has an id (the output file name), a size in pixels (width x height), a quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to the shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "earth_roster",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round21/earth_roster.jpg"],
+      "prompt": "Redraw the unit line-up sheet in the reference image: the same four living stone-construct units in the same order, sizes, poses, designs and colours on the same plain dark-grey backdrop, keeping the worker, the lancer and the four-armed guardian exactly as they are. Change only how the guns are mounted on the large four-legged siege beast on the right, so they look properly engineered and believable, not three separate tubes stuck onto its spine. Replace them with ONE armoured gun turret built into the beast's back: a low, wide hexagonal turret housing of cream stone with lapis blue bands, seated in a round turret ring that is sunk into the back between the shoulder plates, so the turret looks like part of the body. Three cannon barrels emerge side by side, parallel and level with each other, from a single thick armoured mantlet on the front face of the turret, like the triple gun turret of a battleship. The barrels are cream stone with lapis bands and open dark muzzles, all the same length, pointing forward the same way the beast's head faces (toward the left of the picture), angled slightly upward and clearing the top of its head. No other weapons on its back. Four units only."
+    }
+  ]
+}

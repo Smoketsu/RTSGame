@@ -1,0 +1,61 @@
+// rts/docs/art/concept/round4/shots.json: shot list for concept art round 4 (options from the developer's notes on round 3), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a prompt and, optionally, references: repository-relative images the result must stay faithful to (sent to the image edit endpoint). The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style and Developer notes on round 3.
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. Advanced alien civilisations with high technology: armour plating, engines, energy weapons, glowing power lines. Hand-painted 3D look, bold readable shapes, clean strong distinctive silhouettes, soft daylight. Nothing medieval or primitive. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_species_option_1",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/skai_ground_scheme_b_stormfront.jpg"],
+      "prompt": "Using the reference image's art style, sharp angular sci-fi armour and exact colour scheme (storm-charcoal armour, white feather tips, electric yellow energy glow), draw a new character line-up sheet on a plain light-grey backdrop of four ground units of a civilisation of many different bird species. Each unit is a clearly different kind of bird with its own head, beak and body shape. Left to right: a small stocky worker based on a puffin or pigeon with a short thick beak, in a hunched utility exosuit with one large mining arm and a canister; a lean fast scout raider based on a swift or falcon with a small hooked beak and long swept-back head and tail vanes, sprinting with leg thrusters; a ranged trooper based on a heron or crane with a long neck and long straight dagger beak, holding a long slim energy rifle, with triangular hard-light glider wings; a storm-caller based on a great horned owl with a round facial disc, ear tufts and large eyes, with a tall forked emitter staff and a back-mounted generator. No red anywhere. No headdresses, no face paint, no real-world cultural patterns."
+    },
+    {
+      "id": "skai_species_option_2",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/skai_ground_scheme_b_stormfront.jpg"],
+      "prompt": "Using the reference image's art style, sharp angular sci-fi armour and exact colour scheme (storm-charcoal armour, white feather tips, electric yellow energy glow), draw a new character line-up sheet on a plain light-grey backdrop of four ground units of a civilisation of many different bird species. Each unit is a clearly different kind of bird with its own head, beak and body shape. Left to right: a small worker based on a corvid (raven or crow) with a heavy straight black beak and clever eyes, in a hunched utility exosuit with one large mining arm and a canister; a lean fast scout raider based on a roadrunner or secretary bird with very long legs and a tall spiky crest, sprinting with leg thrusters; a ranged trooper based on a hornbill or toucan with a huge curved casque beak, holding a long slim energy rifle, with triangular hard-light glider wings; a storm-caller based on a vulture or condor with a bald head, a ruff of feathers at the neck and a hunched posture, with a tall forked emitter staff and a back-mounted generator. No red anywhere. No headdresses, no face paint, no real-world cultural patterns."
+    },
+    {
+      "id": "skai_air_units",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/skai_air_units.jpg", "rts/docs/art/concept/round3/skai_ground_scheme_b_stormfront.jpg"],
+      "prompt": "Redraw the two flying units from the first reference image (a pilot on a bio-mechanical raptor with forward-swept blade wings and energy lances, and a huge serrated flying-wing siege bomber with a plasma bomb bay and lightning between its wingtips) keeping their designs and layout on a plain pale-sky backdrop, but recoloured and restyled to match the second reference image exactly: storm-charcoal faceted armour plates, white feather tips, electric yellow energy glow and yellow lightning, sharp angular metal surfaces that look like machined alloy, not stone. No gold, no cyan, no red."
+    },
+    {
+      "id": "water_scheme_a_abalone",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/water_lineup.jpg"],
+      "prompt": "Recolour the five units in the reference image, keeping every design, pose, size and the plain cool-grey backdrop exactly the same. New colour scheme with no white and no pearl: shells and armour in dark iridescent abalone, shifting deep teal to dark violet with an oil-slick sheen; bodies dark indigo; coral-pink bioluminescent lights."
+    },
+    {
+      "id": "water_scheme_b_abyss",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/water_lineup.jpg"],
+      "prompt": "Recolour the five units in the reference image, keeping every design, pose, size and the plain cool-grey backdrop exactly the same. New colour scheme with no white and no pearl: shells and armour in near-black abyssal navy with a matte finish; bodies deep blue-black; bright bioluminescent aqua-green lights and markings like deep-sea creatures."
+    },
+    {
+      "id": "water_scheme_c_reef",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/water_lineup.jpg"],
+      "prompt": "Recolour the five units in the reference image, keeping every design, pose, size and the plain cool-grey backdrop exactly the same. New colour scheme with no white and no pearl: shells and armour in deep sea-green with dusky rose-coral banding like a living reef; bodies dark teal; turquoise bioluminescent lights."
+    },
+    {
+      "id": "earth_stone_a_marble",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/earth_mood.jpg"],
+      "prompt": "Recolour and re-material the three hexagonal stone constructs in the reference image, keeping every design, pose, size and the plain dark-grey backdrop exactly the same. New stone: polished white and cream marble with dark veins and thin gold seams, hexagonal columns of banded travertine, amber energy glow, green crystal prisms kept."
+    },
+    {
+      "id": "earth_stone_b_malachite",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/earth_mood.jpg"],
+      "prompt": "Recolour and re-material the three hexagonal stone constructs in the reference image, keeping every design, pose, size and the plain dark-grey backdrop exactly the same. New stone: deep green banded malachite and dark jade with swirling light-green bands, joints and trims of oxidised copper and bronze, amber energy glow, clear quartz crystal prisms."
+    },
+    {
+      "id": "earth_stone_c_strata",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round3/earth_mood.jpg"],
+      "prompt": "Recolour and re-material the three hexagonal stone constructs in the reference image, keeping every design, pose, size and the plain dark-grey backdrop exactly the same. New stone: every hexagonal column and plate is a different kind of rock, like a geology collection: dark basalt, speckled pink-grey granite, deep blue lapis lazuli, banded tan sandstone, black-and-white striped gneiss and purple amethyst geode interiors where plates are broken open; amber energy glow, green crystal prisms kept."
+    }
+  ]
+}

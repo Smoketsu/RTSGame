@@ -1,0 +1,28 @@
+// rts/docs/art/concept/round16/shots.json: shot list for concept art round 16 (from the developer's notes on round 15), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round15/skai_buildings_option_a_pine.jpg", "rts/docs/art/concept/round15/skai_buildings_option_b_canopy.jpg"],
+      "prompt": "Draw one combined building design sheet on a plain light-grey backdrop with seven Skai base buildings, each on its small rock base with talon-shaped roots, taking each building from one of the two reference sheets and keeping its design as drawn there. The first reference image is the conifer style (stacked tiers of sharp triangular boughs); the second reference image is the canopy style (forked trunks holding flat diamond and hexagon platforms). Same colours as both: storm-charcoal, white edges, flat electric yellow panels. Top row, left to right: the drop-off depot with crane and cargo bay in the CANOPY style from the second image; the small supply roost in the CANOPY style from the second image; the ground-unit muster deck with its platform in the CONIFER style from the first image; the air-unit sky dock with two landing pads in the CONIFER style from the first image. Bottom row, left to right: the tech storm spire in the CONIFER style from the first image; the defence turret in the CANOPY style from the second image; the wall segment in the CONIFER style from the first image, a row of small angular pines joined by a barrier. The two styles should sit together as one family. Seven buildings only, no units."
+    },
+    {
+      "id": "skai_great_aerie_hq",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round15/skai_great_aerie_hq.jpg"],
+      "prompt": "Redraw the design sheet in the reference image: the same round nest-shaped Skai citadel shown twice on the same plain light-grey backdrop, same colours, same command dome and mast, same rim of feather-shaped vanes all sweeping one way like turbine blades, same four taloned bird legs, same turrets, ramp and workers in the landed drawing. One change: it flies on propellers. Left drawing, Uprooted hovering state, seen slightly from below so the underside is clearly visible: under the citadel are four large horizontal rotors, each a ring-shaped charcoal duct with a yellow rim holding a big multi-bladed propeller, drawn with a light motion blur disc to show they are spinning; the four taloned legs are folded up against the underside between the rotors; no glowing thrust panels. Right drawing, Rooted landed state: standing on the four taloned legs, and under the body the same four ducted propellers are visible, stopped, with their individual blades clearly drawn. Same citadel in both drawings."
+    },
+    {
+      "id": "water_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round15/water_buildings.jpg"],
+      "prompt": "Redraw the reef building design sheet in the reference image: the same seven water-faction buildings in the same positions, each in its small flat turquoise puddle, same plain cool-grey backdrop and colours (muted sea-green, dusty mauve-pink coral, dark teal, flat turquoise lights; no white, nothing red), keeping six of them exactly as they are. Change only the defence turret (bottom row, middle): it must look sturdy and intimidating, not soft or floppy. Replace the drooping anemone petals with a low armoured ring of thick rigid fire-coral spikes that point outward and upward like a crown of horns, on a heavy barnacle-crusted sea-green base; in the middle sits a big heavy hydro-cannon with a long thick straight barrel, a wide muzzle ring and a solid armoured mount, aimed up at an angle, with two small turquoise sensor eyes. It should read as a fortified gun emplacement grown from coral. Seven buildings only, no units."
+    }
+  ]
+}

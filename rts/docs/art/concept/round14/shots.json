@@ -1,0 +1,28 @@
+// rts/docs/art/concept/round14/shots.json: shot list for concept art round 14 (from the developer's notes on round 13), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_great_aerie_leg_options",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round13/skai_great_aerie_hq.jpg"],
+      "prompt": "Design variation sheet on a plain light-grey backdrop showing the landed (Rooted) nest-shaped citadel from the right side of the reference image three times in a row, same high three-quarter view, same size, same colours (storm-charcoal plates, white feather-shaped rim vanes, flat electric yellow panels), same two turrets, ramp and landing pads. Remove the large eagle head sculpture from the centre in all three: the centre is a plain low domed command hub with yellow windows and a short antenna mast. The three drawings differ only in the landing legs. First: four big mechanical bird legs with backward-bending knees ending in three-toed gripping talons that clutch the ground. Second: six slender jointed stilt legs, like a wading bird's, each ending in a small spiked foot. Third: three very thick short pillar legs in a tripod, each ending in a wide round stabiliser pad with small claw anchors. Only the citadel, three times."
+    },
+    {
+      "id": "skai_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round13/skai_buildings.jpg"],
+      "prompt": "Redraw the building design sheet in the reference image: the same seven Skai buildings in the same positions, designs, colours and plain light-grey backdrop, each on its small rock base. Two changes. First, every strut and leg that holds a building up now ends in a little mechanical bird foot: a small three-toed talon in charcoal with yellow claw tips gripping the rock base, clearly visible on all seven buildings. Second, on the wall segment at the bottom right the white feather-shaped plates point UPWARD, standing along the top of the wall like a row of raised feathers or a crest, with none hanging down. Everything else stays the same. Seven buildings only, no units."
+    },
+    {
+      "id": "water_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round13/water_buildings.jpg"],
+      "prompt": "Redraw the building design sheet in the reference image: seven water-faction base buildings in the same positions, each in its small flat turquoise puddle, same plain cool-grey backdrop, same colours (muted sea-green, dusky rose-coral, dark teal, flat turquoise lights; no white), with the same seven jobs, but redesigned to look grown from a living coral reef, not from clam shells. Use reef forms: rounded brain-coral domes with grooved maze patterns, branching staghorn coral, fan corals, tube sponges and chimney clusters, table coral shelves, anemone-like crowns, barnacle clumps; no clam shell halves and far fewer spiral shells. Top row, left to right: a resource drop-off depot built under a wide table-coral shelf with a ramp; a small supply building, a cluster of tube sponges of different heights; a ground-unit brood pool, a ring of low brain coral around a round turquoise pool; a tide well, a tall chimney of tube corals pouring flat turquoise water from several spouts. Bottom row, left to right: a tech reef workshop, a large brain-coral dome crowned with branching staghorn antennae; a defence turret, an anemone-like crown with a single raised hydro-cannon siphon; a straight wall segment grown from interlocking branching coral. Seven buildings only, no units."
+    }
+  ]
+}

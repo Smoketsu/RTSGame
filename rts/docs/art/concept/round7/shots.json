@@ -1,0 +1,31 @@
+// rts/docs/art/concept/round7/shots.json: shot list for concept art round 7 (from the developer's notes on round 6), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a prompt and references: repository-relative images the result must stay faithful to in style and colour (sent to the image edit endpoint). The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style and Developer notes on round 6.
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. Advanced alien civilisations with high technology: armour plating, engines, energy weapons, glowing power lines. Hand-painted 3D look, bold readable shapes, clean strong distinctive silhouettes, soft daylight. Nothing medieval or primitive. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_thunderhead",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round6/skai_thunderhead.jpg"],
+      "prompt": "Redraw the two-view design sheet in the reference image of the flying-wing siege bomber, same colours and materials, same plain pale-sky backdrop. Left half: keep the top-down plan view exactly as it is (nose up, white feather blades only along the rear trailing edge of both wings). Right half: correct the front view. The aircraft is seen exactly head-on, flying straight toward the viewer and perfectly level. From the front no feathers are visible at all, because they are hidden behind the wings on the rear edge: the wings appear as clean thin dark armoured blades with a yellow light strip. Under each wing hang pylons carrying missiles that point straight forward along the direction of flight, horizontal and parallel to the fuselage, so from head-on each missile appears as a round yellow-tipped nose cone pointing at the viewer, not angled downward. Keep the glowing plasma bomb bay under the centre and the lightning between the wingtips. No gold, no cyan, no red."
+    },
+    {
+      "id": "skai_worker_species_options",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round6/skai_raven_worker_tool_options.jpg"],
+      "prompt": "Design variation sheet on a plain light-grey backdrop showing four different small bird-people workers side by side, in the same art style and colour scheme as the reference image (storm-charcoal angular exosuit, white feather tips, electric yellow energy), full body, same scale. All four have exactly the same equipment: a plasma cutting torch on one arm with a glowing yellow flame, a welding visor over the eyes, and a backpack rig with two long articulated cargo grabber claws reaching up over the shoulders carrying resource crates. Only the bird species differs. First: an emperor penguin, upright and stocky with flipper arms and a short beak. Second: a puffin, round and compact with a large triangular beak. Third: a pelican, with a very long beak and a big throat pouch. Fourth: the raven from the reference image, for comparison. No red anywhere. No real-world cultural patterns."
+    },
+    {
+      "id": "water_lineup",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round6/water_lineup.jpg"],
+      "prompt": "Redraw the five sea-creature units in the reference image as a line-up on the same plain cool-grey backdrop, keeping the species, order, scale and colour scheme (deep sea-green with dusky rose-coral banding, dark teal bodies, turquoise bioluminescent lights), with these changes. Materials: every shell and armour plate is matte and weathered, not glossy or shiny, with a rough rusty patina and verdigris texture like old corroded bronze and barnacle-crusted iron. The giant clam defender: remove the small round shield disc it holds, and replace its legs with two heavy tank treads; it still projects the very large transparent turquoise dome bubble shield over the units beside it. The sea-snail artillery at the right: its shell is an ordinary upright spiral snail shell sitting on its back in the normal resting position, coiled like a real snail, with the gun muzzle at the shell's opening; the shell is not tilted or bent forward. The octopus worker, mantis shrimp fighter and cuttlefish with a four-barrel head gun stay as they are apart from the matte patina materials."
+    },
+    {
+      "id": "water_snail_poses",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round6/water_lineup.jpg"],
+      "prompt": "Design sheet on a plain cool-grey backdrop showing ONE unit twice, side view: the giant sea-snail artillery unit from the right of the reference image, in the same colour scheme (deep sea-green with dusky rose-coral banding, dark teal body, turquoise bioluminescent lights) but with matte, weathered materials and a rough rusty patina and verdigris texture, not shiny. The snail's whole shell is its cannon. Left, travelling pose: the shell sits upright on the snail's back in the normal position of a real snail, a regular coiled spiral with its opening at the bottom rear, glow dimmed, the snail crawling forward with eye stalks raised. Right, firing pose: the same snail braced low, the same spiral shell rotated forward on a mechanical pivot mount so that the shell's wide opening now faces forward over the snail's head as the gun muzzle, glowing brightly and firing a blast of dark ink-plasma. Only the snail, twice."
+    }
+  ]
+}

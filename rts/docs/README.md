@@ -6,3 +6,5 @@
 - [ASSET_STORE.md](ASSET_STORE.md): shortlist of Unity Asset Store packages for presentation only.
 - [UNITY_SETUP.md](UNITY_SETUP.md): how to open and set up the Unity 6 project (to come).
 - [CI.md](CI.md): what the continuous integration workflows run (to come).
+- [proposals/](proposals/README.md): proposals awaiting or recording a developer decision (P-001 art pipeline, P-002 community and store, P-003 decisions still to apply).
+- [art/CONCEPT_BRIEF.md](art/CONCEPT_BRIEF.md): art direction and the table of approved concept art; `art/concept/` holds every round, `art/models/` the 3D generation trials.

@@ -46,7 +46,7 @@ rts/tools/         BalanceHarness, ReplayCheck
 rts/data/          tuning, units, factions, maps, cycles (JSON)
 rts/campaign/      campaign scripting
 rts/tests/         NUnit tests (Sim.Tests)
-rts/docs/          ADRs, CHANGELOG.md, ASSET_STORE.md, UNITY_SETUP.md, CI.md
+rts/docs/          plans, ADRs, specs/, proposals/, art/ (concept brief, approved concept art, 3D trials), CHANGELOG.md, ASSET_STORE.md, UNITY_SETUP.md, CI.md
 ```
 
 ## Model tiers
@@ -66,7 +66,7 @@ rts/docs/          ADRs, CHANGELOG.md, ASSET_STORE.md, UNITY_SETUP.md, CI.md
 
 ## Build and test
 
-- Requires the .NET 8 SDK. Commands, run from the repository root:
+- Requires the .NET 8 SDK. In a cloud session it is not preinstalled: run `apt-get update && apt-get install -y dotnet-sdk-8.0` first (Ubuntu 24.04; confirmed 16 Nov 2026). Commands, run from the repository root:
 
 ```
 dotnet build rts/RtsGame.sln
@@ -94,3 +94,10 @@ dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 - `docs-writer` (Haiku): file headers, READMEs, changelog entries and tuning comments. Never changes logic.
 - `builder` (Sonnet): implements a written spec with tests, runs the test suite. Must not edit `rts/src/Sim` without a `sim-reviewer` pass afterwards.
 - `sim-reviewer` (Opus): reviews `rts/src/Sim` and `rts/src/Net` changes for determinism. Reports findings with file and line; does not rewrite code unless asked.
+- `designer` (Opus): writes build-ready specs with acceptance tests under `rts/docs/specs`. Never writes code; lists open design questions for the developer.
+- `concept-artist` (Sonnet): generates concept art from a shot list and checks it against `rts/docs/art/CONCEPT_BRIEF.md`. Never invents art direction.
+
+## Branches
+
+- `main` is the working branch for every session (decided by the developer, 16 Nov 2026). Before starting, run `git ls-remote --heads origin` and build on `main`; do not assume the branch a session was started on is current.
+- The session on the developer's PC owns `rts/src/Game` and anything that needs the Unity Editor (through the Funplay connector). Cloud sessions own plans, specs, art and `rts/src/Sim` work. Pull `main` before starting.

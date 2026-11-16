@@ -1,0 +1,42 @@
+// rts/docs/art/concept/round19/shots.json: shot list for concept art round 19 (from the developer's notes on round 18), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "water_tidecaller_leviathan",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round18/water_tidecaller_leviathan.jpg", "rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg"],
+      "prompt": "Redraw the unit design sheet in the first reference image: the same jellyfish Tidecaller on the left and the same colossal king-crab Leviathan with two long hydro-cannons on its back on the right, same plain cool-grey backdrop, same designs. Two changes. First, the Leviathan's two front claws are enormous: each claw is nearly as big as its whole body, heavy armoured crusher pincers so large and heavy that they hang down and rest on the ground in front of it, dragging along the floor as it walks and leaving two shallow gouged furrows in the ground behind them. Second, use the exact colours of the second reference image: muted sea-green armour with dusty mauve-pink coral bands (pale greyish pink, not red and not brown), dark teal bodies, flat turquoise lights. Two units only."
+    },
+    {
+      "id": "earth_roster",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round10/earth_lineup.jpg", "rts/docs/art/concept/round18/earth_roster.jpg"],
+      "prompt": "Unit line-up sheet on a plain dark-grey backdrop of four units of the living stone-construct faction, in exactly the low-polygon matte style and colours of the first reference image (pale cream hexagonal stone columns and honeycomb plates, bold deep blue lapis plates, deep blue crystal prisms, flat amber energy panels and joints). These are living BEINGS, not buildings: each one has a clear body with a head and a face made of an amber eye slit, a torso, arms and legs, stands in an alert animated pose, and reads as a creature like the sentinel and bruiser in the first reference image; none of them looks like a tower, an arch or a wall. Left to right, increasing in size: the small worker exactly as on the far left of the second reference image, a squat hovering cluster with two floating arms carrying blue ore; an anti-air lancer, a tall lean two-legged figure with long limbs and a narrow head, leaning back to aim a long blue crystal lance held in both hands up at the sky; a support guardian, a broad hunched monk-like figure with four arms, two arms holding up a floating translucent amber hexagonal shield panel in front of it and two arms cupping a floating amber core at its chest; and, largest, a capstone siege beast, a massive four-legged creature with the build of a rhinoceros or giant tortoise, a heavy low head with an amber eye slit, a thick neck and a broad back carrying three big crystal prism cannons. Four units only."
+    },
+    {
+      "id": "earth_titan_hq",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round10/earth_lineup.jpg", "rts/docs/art/concept/round18/earth_titan_hq.jpg"],
+      "prompt": "Design sheet on a plain dark-grey backdrop showing ONE mobile headquarters twice from a high three-quarter view: the Titan, the towering humanoid stone construct on the far right of the first reference image (cream hexagonal columns, lapis blue plates, a glowing amber hexagonal chest core, a halo ring of floating blue crystal prisms), in exactly that low-polygon matte style and colours. It is exactly the same figure in both drawings, with the same head, chest core, shoulders, arms and halo, and no weapons built into its hands. Left, the Uprooted moving state: the Titan walking slowly, upright, arms at its sides. Right, the Rooted state: the same Titan sitting cross-legged on the ground in a calm meditative pose, back straight, hands resting on its knees, head bowed, halo of prisms floating level above its head; around the seated Titan the rest of the base has risen out of the ground: a ring wall of hexagonal stone columns encircling it, a few stepped hexagonal platforms, one short-range amber emitter pylon, and an open hexagonal gateway in the wall as a worker drop-off, with tiny stone workers for scale. The seated figure is clearly visible above the wall and is clearly the same Titan as on the left."
+    },
+    {
+      "id": "earth_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round18/earth_buildings.jpg"],
+      "prompt": "Redraw the earth building design sheet in the reference image: seven buildings in the same positions on the same plain dark-grey backdrop, same low-polygon style and colours (cream hexagonal stone columns, lapis blue plates, blue crystal prisms, flat amber energy panels). Keep three exactly as they are: the resource drop-off hub (top row, far left), the shaping structure with the floating crystal between pylons (top row, far right), and the monolith tech vault (bottom row, far left). Completely redesign the other four so that anyone can tell at a glance what each one does. Top row, second from left, the supply building: a simple neat storehouse, a low hexagonal plinth stacked with rows of identical blue crystal power cells in a tidy honeycomb rack, like a battery bank. Top row, third from left, the unit production building: a big obvious gateway, a tall thick hexagonal arch with a wide dark doorway and a ramp leading out of it, an amber glow inside, and one small stone worker stepping out to show that units come from here. Bottom row, middle, the gravity spire defence tower that pulls flyers down: a stout sturdy tower with a wide base and, on top, a large downward-tilted amber emitter dish held by three column arms, with a single heavy boulder floating in a beam of amber rings beneath the dish to show its gravity pull. Bottom row, far right, the wall segment: a plain strong straight wall of tall hexagonal columns packed shoulder to shoulder at the same height, with a flat walkable top and a row of lapis blue cap stones. Seven buildings only, no other units."
+    },
+    {
+      "id": "map_full_1v1",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round18/map_full_1v1.jpg"],
+      "prompt": "Wide overview of a complete large two-player strategy game map with no units and no buildings, seen from a very high three-quarter top-down camera so the whole battlefield fits in frame, in the same clean low-polygon matte style as the reference image. This is the map before any faction has changed it, so it is ordinary dry land with no flood water at all: no pools, no lakes, no turquoise water anywhere. The low ground is open grassy fields in soft flat greens, the middle level is paler dry grass and bare earth, and the high ground is pale-grey rock plateaus, so the three elevation layers are told apart by colour as well as by cliffs. Layout: mirror symmetric left to right only; a main base plateau on high ground at the far left and the far right, each reached by one wide ramp; beside each a natural expansion on the middle level behind a clear narrow choke between cliffs; exposed flank expansion sites along the top and bottom edges marked by small clusters of pale blue rare crystals; wide gentle ramps, as wide as a road, joining the levels; several separate routes between the two bases across broad low meadows; and in the exact centre on raised middle ground the Core, an ancient reactor of dark alloy rings and pylons around a flat white-gold energy sphere with thin glowing conduit lines. A few low-poly trees and bushes in muted greens and pale lilac. Clear, readable and uncluttered."
+    }
+  ]
+}

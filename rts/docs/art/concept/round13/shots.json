@@ -1,0 +1,33 @@
+// rts/docs/art/concept/round13/shots.json: shot list for concept art round 13 (HQ units and first building sheets for Skai and water, requested by the developer on 16 Nov 2026), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to in style and colour).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_great_aerie_hq",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round9/skai_ground_lineup.jpg", "rts/docs/art/concept/round2/skai_great_aerie_hq.jpg"],
+      "prompt": "Design sheet on a plain light-grey backdrop showing ONE mobile headquarters twice, seen from a high three-quarter view: the Great Aerie, a vast round nest-shaped flying citadel like the one in the second reference image, redesigned in exactly the low-polygon matte style and colour scheme of the first reference image: storm-charcoal angular armour plates layered like overlapping feathers, white feather-tip edges, flat electric yellow light panels; no gold, no red, no teal. Left, the Uprooted moving state: hovering in the air on four large lift engines with flat yellow thrust panels underneath, landing legs folded, weapons stowed, rim plates swept back like wings. Right, the Rooted state: the same citadel landed on the ground on four heavy landing legs, engines off, its rim plates opened outward like a nest, two short-range arc gun turrets raised on the rim, a wide ramp lowered as a worker drop-off, and small landing pads with tiny pelican workers for scale. Same building in both drawings."
+    },
+    {
+      "id": "water_grand_shell_hq",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg", "rts/docs/art/concept/round2/water_grand_shell_hq.jpg"],
+      "prompt": "Design sheet on a plain cool-grey backdrop showing ONE mobile headquarters twice, seen from a high three-quarter view: the Grand Shell, a colossal bio-mechanical creature like a giant armoured nautilus as in the second reference image, redesigned in exactly the low-polygon matte style and colour scheme of the first reference image: muted sea-green shell with dusky rose-coral bands, dark teal body, flat turquoise light panels; no white, no pearl, no blue stripes. Left, the Uprooted moving state: wading forward on heavy tentacles with its huge spiral shell closed and sealed, reactor domes dim. Right, the Rooted state: the same creature settled low on the ground with its tentacles dug in, shell plates opened, turquoise reactor domes lit, flood water pouring from vents in the shell and spreading in a flat turquoise pool around it, one short-range hydro-cannon turret raised on top, a docking bay opened as a worker drop-off, and tiny octopus workers for scale. Same creature in both drawings."
+    },
+    {
+      "id": "skai_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round9/skai_ground_lineup.jpg", "rts/docs/art/concept/round9/skai_air_units.jpg"],
+      "prompt": "Building design sheet on a plain light-grey backdrop: seven separate base buildings of a bird-people civilisation, each on its own small rock base, evenly spaced in two rows, all seen from the same high three-quarter strategy game view, in exactly the low-polygon matte style and colour scheme of the reference images: storm-charcoal angular armour plates, white feather-shaped vanes and fins, flat electric yellow light panels; no gold, no red, no teal. Buildings are tall, light and pointed, perched on thin struts like roosts. Top row, left to right: a resource drop-off depot with a wide open cargo bay and a crane arm; a small supply roost, a cluster of pod shelters on a pole; a ground-unit muster deck with a broad open platform and a doorway; an air-unit sky dock, a tall tower with two cantilevered landing pads and a small flyer parked on one. Bottom row, left to right: a tech storm spire, a tall needle with a ring and a small flat lightning zigzag at its tip; a short defence turret with twin arc emitters on a swivel base; a straight segment of defensive wall made of angled wind-baffle plates. Seven buildings only, no units, no ground plane beyond each small base."
+    },
+    {
+      "id": "water_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg"],
+      "prompt": "Building design sheet on a plain cool-grey backdrop: seven separate base buildings of a sea-creature civilisation that grows its technology, each sitting in its own small flat turquoise puddle, evenly spaced in two rows, all seen from the same high three-quarter strategy game view, in exactly the low-polygon matte style and colour scheme of the reference image: muted sea-green shells with dusky rose-coral bands, dark teal bases, flat turquoise light panels; no white. Buildings are low, rounded and heavy, built from domes, spirals and circles. Top row, left to right: a resource drop-off depot shaped like an open clam with a conveyor ramp; a small supply building, a cluster of three little spiral shells; a ground-unit brood pool, a ring-shaped dome around a round turquoise pool; a tide well, a squat pump tower with a big spiral shell on top pouring flat turquoise water out of four spouts. Bottom row, left to right: a tech reef workshop, a large dome with coral antenna growths and round windows; a short defence turret, a dome with a single raised hydro-cannon siphon; a straight segment of defensive wall grown from chunky coral blocks. Seven buildings only, no units."
+    }
+  ]
+}

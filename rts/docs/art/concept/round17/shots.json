@@ -1,0 +1,14 @@
+// rts/docs/art/concept/round17/shots.json: shot list for concept art round 17 (from the developer's note on round 16), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_great_aerie_hq",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round16/skai_great_aerie_hq.jpg"],
+      "prompt": "Clean design sheet on a plain light-grey backdrop showing the round nest-shaped Skai citadel from the reference image three times, each drawing in correct, consistent perspective with no warping. Keep its design exactly: storm-charcoal body, white feather-shaped rim vanes all sweeping one way like turbine blades, flat electric yellow panels, low command dome with a mast, two arc turrets, landing pads, four mechanical bird legs ending in three-toed talons, and four large ducted propellers with yellow rims mounted under the body. Left drawing, hovering, seen from directly underneath at a low angle like looking up at it from the ground: only the underside is visible, a flat round belly with the four ducted propellers spinning (shown with blur discs) and the four taloned legs folded flat between them; the top deck is not visible at all in this drawing: no mast, dome, turret or pad sticks up above the rim, the silhouette is just the vane ring and the round belly. Middle drawing, hovering, seen from the high three-quarter strategy game camera above: the top deck with its dome, turrets and pads, the one-way rim vanes, and below the rim just the lower edges of the four spinning propeller ducts peeking out, with a soft round shadow on the ground beneath to show it is airborne; legs folded and hidden. Right drawing, landed, from the same high three-quarter camera: standing on its four taloned legs with the ramp lowered, turrets raised, propellers stopped under the hull, small pelican workers for scale. The three drawings are the same size and show the same citadel."
+    }
+  ]
+}

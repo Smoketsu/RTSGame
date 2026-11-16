@@ -1,0 +1,25 @@
+// rts/docs/art/concept/round10/shots.json: shot list for concept art round 10 (snail fix from the developer's notes on round 9, plus earth and the battle mock in the decided low-poly style), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a prompt and references: repository-relative images the result must stay faithful to (sent to the image edit endpoint). The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "water_snail_poses",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round9/water_snail_poses.jpg"],
+      "prompt": "Redraw the two-pose design sheet in the reference image: the same low-polygon sea-snail artillery unit twice in clean side view on the same plain cool-grey backdrop, same colours, same tall conical spiral shell with rose-coral bands, identical in size and shape in both drawings. Change only how the shell is held. The shell is carried by an external yoke, like the trunnion mount of a cannon: two thick sea-green brace arms rise from a rose-coral base plate on the snail's back, one on the left outer side of the shell and one on the right outer side, and each arm ends in a large round pivot disc bolted to the OUTSIDE wall of the shell at its widest band. The braces never go inside the shell or into its opening. The pivot discs and brace arms are in exactly the same place on the snail and on the shell in both drawings. Left drawing, travelling pose: the shell hangs upright between the two braces with its pointed tip up and its opening facing down. Right drawing, firing pose: the same shell rotated forward around the two outer pivot discs until it is horizontal, pointed tip to the rear and wide round opening facing forward as the muzzle, firing a flat-shaded blast of dark ink-plasma; the brace arms have not moved. Only the snail, twice."
+    },
+    {
+      "id": "earth_lineup",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg", "rts/docs/art/concept/round5/earth_marble_c_lapis.jpg"],
+      "prompt": "Redraw the three hexagonal stone constructs from the second reference image as a line-up on a plain dark-grey backdrop, keeping their designs, poses and relative sizes (a slim floating sentinel, a heavy bruiser, and a towering titan raising hexagonal columns from the ground with a ring of floating prisms), rendered in exactly the low-polygon faceted matte style of the first reference image. Keep the chosen colours: pale cream stone built from hexagonal columns and honeycomb plates, bold plates of deep blue lapis lazuli, deep blue crystal prisms, flat amber energy panels with no glow."
+    },
+    {
+      "id": "battle_skai_raid_low_tide",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg", "rts/docs/art/concept/round9/skai_ground_lineup.jpg", "rts/docs/art/concept/round9/skai_air_units.jpg"],
+      "prompt": "Gameplay mock-up of a strategy game battle seen from a fixed high three-quarter top-down camera, units small on screen, everything rendered in the low-polygon faceted matte style of the reference images. Use the unit designs from the reference images. Attackers, coming from the left across wet exposed mud: the Skai, bird people in storm-charcoal armour with white feather tips and yellow lights, a squad of several heron troopers with very long rifles and several secretary-bird scouts with yellow foot blades, one owl storm-caller with a trident staff, with one Roc Rider and one flying-wing Thunderhead bomber in the air above them. Defenders, on the right: a water-faction base on partly flooded low ground at low tide, simple dome and spiral-shell buildings in muted sea-green with rose-coral bands and turquoise panels, defended by a tracked giant clam projecting a large turquoise dome shield over nearby units, mantis shrimp fighters, two clearly visible cuttlefish units standing at the edge of the dome (squat bodies with tentacles and a cluster of several gun barrels on the head) firing water jets that start at their own barrels and arc upward to hit the flyers, and a sea-snail artillery piece firing dark ink. Low-poly rocky terrain with shallow flat-shaded water. The two armies are easy to tell apart by silhouette and colour. No user interface."
+    }
+  ]
+}

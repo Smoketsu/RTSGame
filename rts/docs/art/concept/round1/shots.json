@@ -1,0 +1,47 @@
+// rts/docs/art/concept/round1/shots.json: shot list for concept art round 1, read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height) and a prompt. The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style.
+  "style": "Video game concept art for a stylised real-time strategy game. Hand-painted 3D look, chunky readable shapes, clean strong silhouettes, soft daylight, muted faction palette with one saturated team colour. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_ground_lineup",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain warm-grey backdrop, four ground units of an invented species of feathered bird people (avian humanoids with beaks, feathered arms and tail feathers), standing side by side at the same scale, full body. Left to right: a small worker carrying a woven basket; a lean fast scout raider in a running pose with wind streamers; an archer with a tall bow and folded glider feathers on the arms; a robed storm-caller holding a staff with a spinning wind vane. Palette of cream, ochre and warm brown with sky-teal accents; saturated red team-colour sashes and banners. Invented sky and feather iconography only: no headdresses, no war bonnets, no face paint, no real-world tribal patterns."
+    },
+    {
+      "id": "skai_air_units",
+      "size": "1536x1024",
+      "prompt": "Unit concept sheet on a plain pale-sky backdrop, two flying units. Left: a heavy flyer, an armoured feathered bird person riding a giant roc-like bird with broad wings, carrying javelins. Right: a huge siege bomber, a dark storm-grey giant bird with a wide wingspan carrying slung clay bomb pots under a woven harness, small crackles of lightning at the wingtips. Palette of cream, ochre and storm grey with sky-teal accents; saturated red team-colour streamers. No headdresses, no real-world tribal patterns."
+    },
+    {
+      "id": "skai_great_aerie_hq",
+      "size": "1536x1024",
+      "prompt": "Concept painting of a mobile headquarters seen from a three-quarter top-down view: a vast woven nest-fortress of branches, feathers and kite-like sails, carried through the air by four giant birds on long tethers, above a rocky cliff edge. Small feathered bird people stand on its platforms for scale. Cream, ochre and warm brown with sky-teal sails and saturated red team-colour banners. No headdresses, no totem poles, no real-world tribal patterns."
+    },
+    {
+      "id": "water_lineup",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain cool-grey backdrop, five units of an octopus and mollusk people, standing side by side at the same scale, full body. Left to right: a small octopus-like worker carrying a coral tool; a squat heavily armoured defender inside a thick spiral shell; a tall melee fighter with long grasping tentacles; a small anti-air creature with a raised siphon spraying a water jet upward; an artillery creature with an ink sac lobbing a blob of ink. Low rounded silhouettes. Palette of deep teal, violet and pearl with coral-pink details; saturated blue team-colour shell markings."
+    },
+    {
+      "id": "water_grand_shell_hq",
+      "size": "1536x1024",
+      "prompt": "Concept painting of a mobile headquarters seen from a three-quarter top-down view: a colossal shelled creature like a giant nautilus-snail, its spiral shell grown over with coral towers and tidal pools, wading slowly through shallow flood water that spreads out around it across low ground. Small octopus people ride on it for scale. Deep teal, violet and pearl with coral pink; saturated blue team-colour markings on the shell."
+    },
+    {
+      "id": "map_core_flooded",
+      "size": "1536x1024",
+      "prompt": "Environment concept for a strategy game map seen from a high three-quarter top-down camera. Rocky terrain with three clear elevation layers joined by ramps: high plateaus, a middle shelf and a low basin. The low basin is partly flooded with clear shallow water spreading from one side, deeper and darker in the middle of the flood. At the centre of the map on the middle shelf sits the Core: a glowing crack in the ground with a pulsing sphere of white-gold energy. Narrow chokes and cliffs are easy to read. No units, no buildings."
+    },
+    {
+      "id": "battle_skai_raid_low_tide",
+      "size": "1536x1024",
+      "prompt": "Gameplay mock-up seen from a fixed three-quarter top-down strategy game camera, units small on screen. A red-team raid of feathered bird people (ground archers and two large rider birds in the air) attacks a blue-team base of octopus and mollusk people built from shells and coral on partly flooded low ground at low tide, with wet exposed mud at the flood's edge. Blue-team creatures spray water jets up at the flyers. Both armies must be easy to tell apart by silhouette and by red versus blue team colour. No user interface."
+    },
+    {
+      "id": "earth_mood",
+      "size": "1536x1024",
+      "prompt": "Mood sheet on a plain dark-grey backdrop for a faction of living crystal and stone. Left: a blocky stone sentinel with a glowing amber geode core. Middle: a heavy quarry golem bruiser with basalt fists. Right, much larger: a towering walking fortress titan of slate and crystal raising a stone wall from the ground. Angular, heavy silhouettes. Slate grey and basalt with amber glowing veins; saturated green team-colour crystal inlays."
+    }
+  ]
+}

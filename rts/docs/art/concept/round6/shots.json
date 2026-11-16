@@ -1,0 +1,37 @@
+// rts/docs/art/concept/round6/shots.json: shot list for concept art round 6 (from the developer's notes on round 5), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a prompt and references: repository-relative images the result must stay faithful to in style and colour (sent to the image edit endpoint). The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style and Developer notes on round 5.
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. Advanced alien civilisations with high technology: armour plating, engines, energy weapons, glowing power lines. Hand-painted 3D look, bold readable shapes, clean strong distinctive silhouettes, soft daylight. Nothing medieval or primitive. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_thunderhead",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round5/skai_air_units.jpg"],
+      "prompt": "Design sheet on a plain pale-sky backdrop showing ONE aircraft twice: the huge flying-wing siege bomber from the reference image, in the same colours and materials (storm-charcoal machined-alloy plates, white feather blades, electric yellow energy), redrawn so its wing layout is unmistakable. Left half of the sheet: a flat top-down plan view looking straight down on it, with its sharp beak-like nose pointing to the TOP of the image; the front leading edge of both wings is smooth bare armour; a full row of long white feather blades runs along the REAR trailing edge of both the left and the right wing, pointing down toward the bottom of the image, symmetric on both sides, like the flight feathers of a soaring eagle seen from above. Right half of the sheet: the same aircraft seen from the front and slightly below, showing racks of yellow-tipped missiles hanging on pylons under both wings beside the glowing plasma bomb bay, with lightning arcing between the wingtips. No rider bird in this image. No gold, no cyan, no red."
+    },
+    {
+      "id": "skai_roc_rider",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round5/skai_air_units.jpg"],
+      "prompt": "Design sheet on a plain pale-sky backdrop showing ONE unit only: the armoured bird-person pilot riding the large bio-mechanical raptor from the reference image, in the same colours and materials (storm-charcoal machined-alloy plates, white feather tips, electric yellow energy), redrawn with correct bird anatomy. Clean side view, flying toward the right, wings spread in a downstroke. The raptor has exactly two wings. Both wing roots are at the shoulders, in the FRONT THIRD of the body, right behind the base of the neck and well in FRONT of the rider's saddle; the rider sits on the middle of the back BEHIND the wing roots. The rear half of the body behind the saddle is only a plain tapered body ending in one fan-shaped tail, with no wing, no wing root and no feathers attached to it, like a real eagle in flight. Long white flight feathers run along the rear trailing edge of each wing. One fan-shaped tail at the very rear of the body. Legs with talons tucked underneath holding two energy lances. No other wings, fins or feather clusters anywhere on the body. No second aircraft in this image. No gold, no cyan, no red."
+    },
+    {
+      "id": "skai_raven_worker_tool_options",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round5/skai_ground_lineup.jpg"],
+      "prompt": "Design variation sheet on a plain light-grey backdrop showing the small raven worker (the left-most unit in the reference image) four times side by side, same raven, same art style and colour scheme (storm-charcoal angular exosuit, white feather tips, electric yellow energy), full body, each with a clearly different set of work tools. First: a heavy rotary mining drill arm and a glowing resource canister. Second: a plasma cutting torch arm with a welding visor over the eyes and a tank on the back. Third: two long articulated cargo grabber claws on the back carrying stacked resource crates. Fourth: a construction fabricator arm projecting a small yellow hologram blueprint, with a little hovering survey drone beside the shoulder. Only the raven worker, four times. No red anywhere. No real-world cultural patterns."
+    },
+    {
+      "id": "skai_owl_storm_caller",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round5/skai_owl_staff_backpack_options.jpg"],
+      "prompt": "Character design sheet on a plain light-grey backdrop of the great horned owl storm-caller, based on the third owl in the reference image (the one holding the trident staff and wearing the backpack with two side-mounted rotors), same colour scheme (storm-charcoal armour, white feather tips, electric yellow energy), shown twice: a front three-quarter view and a back view. Keep the triple-pronged trident emitter staff and the twin side-rotor turbine backpack, and make the owl much more high-tech and cybernetically augmented: a glowing targeting visor over one eye, a mechanical augmented arm with exposed energy conduits, armoured plating in place of the robe, power cables running from the backpack into the staff, small antenna arrays on the ear tufts, and hovering capacitor nodes orbiting the trident head. No red anywhere. No real-world cultural patterns."
+    },
+    {
+      "id": "water_lineup",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round5/water_species_option_1.jpg", "rts/docs/art/concept/round5/water_species_option_2.jpg"],
+      "prompt": "Draw one new character line-up sheet on a plain cool-grey backdrop of five sea-creature units taken from the two reference images, in the same art style, menacing mood and colour scheme (deep sea-green shells and armour with dusky rose-coral banding, dark teal bodies, turquoise bioluminescent lights), same scale, full body. Left to right: the small octopus worker from the first reference image, unchanged; the giant clam defender from the second reference image, now projecting a very large transparent turquoise dome-shaped bubble energy shield, far bigger than the clam itself, wide enough to cover the units standing next to it; the mantis shrimp melee fighter with huge club claws from the second reference image; the cuttlefish anti-air unit from the first reference image, now with a cluster of four hydro-cannon barrels mounted on top of its head like a rotary flak gun, firing several water jets upward; the sea-snail artillery unit from the first reference image, redesigned so that its entire spiral shell is the cannon: the shell is one huge coiled gun barrel with the wide opening of the shell as the muzzle pointing up and forward, glowing with ink-plasma, with no separate mortar tube attached."
+    }
+  ]
+}

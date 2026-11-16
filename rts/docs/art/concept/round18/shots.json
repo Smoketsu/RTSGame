@@ -1,0 +1,42 @@
+// rts/docs/art/concept/round18/shots.json: shot list for concept art round 18 (the remaining drawings, requested by the developer on 16 Nov 2026), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to in style and colour).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "water_tidecaller_leviathan",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round8/water_lineup_style_c_lowpoly.jpg"],
+      "prompt": "Unit design sheet on a plain cool-grey backdrop showing two new units of the sea-creature faction in the reference image, in exactly its low-polygon matte style and colours (muted sea-green armour with dusty rose-pink coral bands, dark teal bodies, flat turquoise light panels; no white, nothing red), menacing deep-sea mood, built from round edges, domes and circles. Left, medium size: the Tidecaller, a support caster that makes waves: a large jellyfish, a wide armoured dome bell with a ring of turquoise emitter panels around its rim, hovering just above the ground on a cluster of thick armoured tentacles, with a flat turquoise wave of water curling out in front of it. Right, very large, three times the size of the Tidecaller: the Leviathan, a capstone siege unit: a colossal king crab walking battleship with a broad low domed carapace, eight heavy jointed legs, two massive crusher claws, and two huge long-barrelled hydro-cannons mounted on its back, with small turquoise sensor eyes on stalks. Two units only, each a different animal from the octopus, clam, mantis shrimp, cuttlefish and snail in the reference."
+    },
+    {
+      "id": "earth_roster",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round10/earth_lineup.jpg"],
+      "prompt": "Unit line-up sheet on a plain dark-grey backdrop showing four new units of the stone-construct faction in the reference image, in exactly its low-polygon matte style, colours and design language (bodies built from pale cream hexagonal stone columns and honeycomb plates, bold deep blue lapis plates, deep blue crystal prisms, flat amber energy panels, parts held together by energy with small gaps), each with a distinctive uneven silhouette. Left to right, increasing in size: a small worker, a squat cluster of short hexagonal columns that hovers low with two floating column-segment arms carrying a chunk of blue ore; an anti-air unit, a tall slender spire of stacked hexagonal segments with a large blue crystal prism lance at the top aimed upward and a ring of small floating prisms; a support unit, a wide low arch of hexagonal columns with a floating amber hexagonal core in the middle projecting a flat translucent hexagonal amber shield panel in front of it; and, largest, a capstone walking fortress, a massive four-legged block of bundled hexagonal columns like a walking basalt cliff, with lapis battlements-free flat top carrying three big crystal prism cannons. Four units only, different from the three in the reference."
+    },
+    {
+      "id": "earth_titan_hq",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round10/earth_lineup.jpg"],
+      "prompt": "Design sheet on a plain dark-grey backdrop showing ONE mobile headquarters twice from a high three-quarter view: the Titan, based on the largest construct on the right of the reference image (the towering figure built from cream hexagonal columns with lapis blue plates, blue crystal prisms, a ring of floating prisms and amber energy), in exactly the same low-polygon matte style and colours. It is the slowest and toughest headquarters in the game. Left, the Uprooted moving state: the Titan walking slowly on two enormous column legs, arms lowered, its ring of floating prisms pulled in close, amber panels dim. Right, the Rooted state: the same Titan settled down low on the ground with its legs folded into a wide hexagonal base, a thick ring wall of raised hexagonal stone columns lifted out of the ground all around it, its floating prism ring spread wide, one short-range amber energy emitter raised on its shoulder, an open hexagonal bay in its base as a worker drop-off, and tiny stone workers for scale. Same construct in both drawings."
+    },
+    {
+      "id": "earth_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round10/earth_lineup.jpg"],
+      "prompt": "Building design sheet on a plain dark-grey backdrop: seven separate base buildings of the stone-construct faction in the reference image, each on its own small patch of cracked ground, evenly spaced in two rows, all seen from the same high three-quarter strategy game view, in exactly its low-polygon matte style and colours (pale cream hexagonal stone columns and honeycomb plates, deep blue lapis plates, deep blue crystal prisms, flat amber energy panels). Buildings are heavy monoliths and spires grown out of the ground from bundles of hexagonal columns, with floating pieces held by energy. Top row, left to right: a resource drop-off hub, a low hexagonal platform ringed by short columns with an open bay and a floating ore chunk above it; a small supply building, a tight cluster of seven short hexagonal columns of different heights; a unit production forge, a ring of tall columns around a glowing amber hexagonal pit; a shaping structure where units are recast, two tall column pylons holding a large floating blue crystal prism between them over a hexagonal pad. Bottom row, left to right: a tech vault, a massive solid hexagonal monolith with lapis bands and a slot of amber light; a gravity spire defence tower, a tall thin needle of stacked hexagonal segments with rings of small stones orbiting it and a downward-pointing amber emitter at the top; a straight wall segment of tall hexagonal basalt-like columns raised shoulder to shoulder out of the ground. Seven buildings only, no units."
+    },
+    {
+      "id": "map_full_1v1",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round11/battle_take_c_wide_map.jpg", "rts/docs/art/concept/round3/map_full_1v1.jpg"],
+      "prompt": "Wide overview of a complete large two-player strategy game map with no units and no buildings, seen from a very high three-quarter top-down camera so the whole battlefield fits in frame, rendered in exactly the clean low-polygon matte style of the first reference image (plain pale-grey faceted rock, flat turquoise water, simple shapes). Use the layout ideas of the second reference image, redrawn cleanly: mirror symmetric left to right; a main base plateau on high ground in the far left and far right, each with a single ramp; next to each a natural expansion shelf behind a narrow choke; exposed flank expansion sites along the top and bottom edges marked by small clusters of pale blue rare crystals; three clear elevation layers with cliffs and many ramps, and several separate routes between the two bases; large low basins partly filled with flat shallow turquoise water, darker turquoise where it is deep; and in the exact centre on raised middle ground the Core, an ancient reactor of dark alloy rings and pylons around a flat white-gold energy sphere with thin glowing conduit lines running out along the ground. Sparse low-poly alien plants in muted grey-green and pale lilac only. Clear, readable and uncluttered. The two main bases are plain large high plateaus centred vertically at the far left and far right edges of the image (not in the corners), each one bare rock with a single ramp, with no spires, no structures and no markings other than a thin glowing line; the map is mirror symmetric left to right but the top and bottom halves differ, so it is clear which two plateaus are the starting bases."
+    }
+  ]
+}

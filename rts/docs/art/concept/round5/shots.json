@@ -1,0 +1,55 @@
+// rts/docs/art/concept/round5/shots.json: shot list for concept art round 5 (from the developer's notes on round 4), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a prompt and references: repository-relative images the result must stay faithful to (sent to the image edit endpoint). The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style and Developer notes on round 4.
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. Advanced alien civilisations with high technology: armour plating, engines, energy weapons, glowing power lines. Hand-painted 3D look, bold readable shapes, clean strong distinctive silhouettes, soft daylight. Nothing medieval or primitive. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_ground_lineup",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/skai_species_option_2.jpg", "rts/docs/art/concept/round4/skai_species_option_1.jpg"],
+      "prompt": "Draw one new character line-up sheet on a plain light-grey backdrop combining four bird-people units from the two reference images, in the same art style and the same colour scheme (storm-charcoal angular armour, white feather tips, electric yellow energy glow). Left to right: the raven worker exactly as in the first reference image; the long-legged secretary-bird scout from the first reference image, now with glowing electric-yellow energy blades mounted on its feet and ankles like kicking talons; the heron trooper from the second reference image, now holding a much longer and heavier energy rifle, a long-barrelled sniper weapon nearly as long as the trooper is tall, held in both hands; the great horned owl storm-caller exactly as in the second reference image. Four units only, same scale, full body. No red anywhere. No real-world cultural patterns."
+    },
+    {
+      "id": "skai_owl_staff_backpack_options",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/skai_species_option_1.jpg"],
+      "prompt": "Design variation sheet on a plain light-grey backdrop showing the great horned owl storm-caller from the reference image four times side by side, same owl, same art style and colour scheme (storm-charcoal armour, white feather tips, electric yellow energy), full body, each with a clearly different storm staff and a clearly different backpack generator. First: a tall tuning-fork staff with lightning arcing between two prongs, and a backpack of twin vertical capacitor cylinders. Second: a staff topped with a spinning ring gyroscope holding a ball of lightning, and a backpack with a fan of radiating antenna spines like tail feathers. Third: a long lance-like staff with a triple-pronged trident emitter, and a wide turbine backpack with two side-mounted spinning rotors. Fourth: a short heavy sceptre with a floating orb storm core above it, and a backpack of a single large coil with a small storm cloud forming over it. Only the owl, four times. No red anywhere. No real-world cultural patterns."
+    },
+    {
+      "id": "skai_air_units",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/skai_air_units.jpg"],
+      "prompt": "Redraw the two flying units from the reference image on a plain pale-sky backdrop in the same art style and colours (storm-charcoal machined-alloy plates, white feather tips, electric yellow energy and lightning), with two corrections. Top left, the rider on the bio-mechanical raptor: it has exactly one pair of wings at the shoulders and one tail at the rear; remove any extra wing or fin growing from its back end. Bottom, the huge flying-wing siege bomber: keep its design, plasma bomb bay and wingtip lightning, but it flies with its sharp beak-like prow pointing forward and all of its white feather blades along the trailing rear edge of the wings, sweeping backwards away from the direction of flight like a real bird's flight feathers; no feathers on the leading front edge. Both aircraft face the same direction. No gold, no cyan, no red."
+    },
+    {
+      "id": "earth_marble_a_white",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/earth_stone_a_marble.jpg"],
+      "prompt": "Recolour the three hexagonal stone constructs in the reference image, keeping every design, pose, size and the plain dark-grey backdrop exactly the same. New stone colour: bright white polished marble with fine grey veins and thin gold seams between the hexagons; amber energy glow; emerald green crystal prisms."
+    },
+    {
+      "id": "earth_marble_b_honey",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/earth_stone_a_marble.jpg"],
+      "prompt": "Recolour the three hexagonal stone constructs in the reference image, keeping every design, pose, size and the plain dark-grey backdrop exactly the same. New stone colour: warm honey and caramel banded onyx and travertine with darker brown bands; amber energy glow; turquoise crystal prisms instead of green."
+    },
+    {
+      "id": "earth_marble_c_lapis",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/earth_stone_a_marble.jpg"],
+      "prompt": "Recolour the three hexagonal stone constructs in the reference image, keeping every design, pose, size and the plain dark-grey backdrop exactly the same. New stone colour: pale cream limestone with bold inlaid bands and plates of deep blue lapis lazuli flecked with gold; amber energy glow; deep blue sapphire crystal prisms instead of green."
+    },
+    {
+      "id": "water_species_option_1",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/water_scheme_c_reef.jpg"],
+      "prompt": "Using the reference image's art style, menacing deep-sea predator mood and exact colour scheme (deep sea-green shells and armour with dusky rose-coral banding, dark teal bodies, turquoise bioluminescent lights), draw a new character line-up sheet on a plain cool-grey backdrop of five sci-fi units of a civilisation of many different mollusk species. Each unit is a clearly different kind of mollusk with its own head and body shape, built from round edges, domes and spirals. Left to right: a small octopus worker with a round head in a compact pressure suit with tool-tipped arms and a cargo pod; a massive chambered nautilus defender with a striped coiled shell, a hood and many short tentacles, carrying a round shield emitter; a tall giant squid melee fighter with a long pointed torpedo-shaped mantle head with fins, huge eyes and two extra-long hooked feeding tentacles; a cuttlefish anti-air unit with a broad flat body, a rippling skirt fin and W-shaped pupils, firing a high-pressure water jet upward from a raised siphon cannon; a giant sea-snail artillery unit with a tall spiral cone shell, eye stalks and a pressurised ink-plasma mortar on its shell."
+    },
+    {
+      "id": "water_species_option_2",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round4/water_scheme_c_reef.jpg"],
+      "prompt": "Using the reference image's art style, menacing deep-sea predator mood and exact colour scheme (deep sea-green shells and armour with dusky rose-coral banding, dark teal bodies, turquoise bioluminescent lights), draw a new character line-up sheet on a plain cool-grey backdrop of five sci-fi units of a civilisation of many different sea creatures. Each unit is a clearly different kind of animal with its own head and body shape, built from round edges, domes and spirals. Left to right: a small hermit crab worker living in a mechanical spiral shell with tool claws and a cargo pod; a massive giant clam defender, two thick ridged shell halves that open like jaws around a glowing core, on stubby legs, with a round shield emitter; a tall mantis shrimp melee fighter with armoured segments, stalked eyes and two huge club-like punching claws; a vampire squid anti-air unit with a webbed cloak of arms and large eyes, firing a high-pressure water jet upward from a raised siphon cannon; a blue-ringed octopus artillery unit with glowing ring markings, carrying a pressurised ink-plasma mortar."
+    }
+  ]
+}

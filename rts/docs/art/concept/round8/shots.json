@@ -1,0 +1,30 @@
+// rts/docs/art/concept/round8/shots.json: shot list for concept art round 8 (from the developer's notes on round 7), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a prompt and references: repository-relative images the result must stay faithful to (sent to the image edit endpoint). The style text is prepended to every prompt. This round's style text is short on purpose: the three line-up shots each set their own rendering treatment.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Developer notes on round 7 (remove the glossy look).
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. No glossy highlights, no shiny reflections, no glow bloom, no fine surface noise. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "water_lineup_style_a_flat",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round7/water_lineup.jpg"],
+      "prompt": "Redraw the five sea-creature units and the dome shield in the reference image, keeping every design, the order, the scale and the plain cool-grey backdrop, in a different rendering treatment: flat cel-shaded illustration. Each surface is one flat colour with a single hard-edged shadow shape, clean dark outlines, large simple shapes, no gradients, no specular highlights, no texture detail, no tiny rivets or pits. Limited palette: muted sea-green, dusky rose-coral bands, dark teal bodies, a few small flat turquoise lights with no glow. It should look hand-drawn by a 2D concept artist, like a graphic novel."
+    },
+    {
+      "id": "water_lineup_style_b_gouache",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round7/water_lineup.jpg"],
+      "prompt": "Redraw the five sea-creature units and the dome shield in the reference image, keeping every design, the order, the scale and the plain cool-grey backdrop, in a different rendering treatment: a loose traditional gouache painting. Visible broad brush strokes, chalky dry matte paint, soft blocked-in shapes, slightly rough edges, details suggested rather than rendered, no specular highlights, no glossy sheen. Weathered verdigris sea-green and dusty rose-coral, dark teal bodies, small dull turquoise lights without glow. It should look like a hand-painted production painting on paper."
+    },
+    {
+      "id": "water_lineup_style_c_lowpoly",
+      "size": "1536x1024",
+      "references": ["rts/docs/art/concept/round7/water_lineup.jpg"],
+      "prompt": "Redraw the five sea-creature units and the dome shield in the reference image, keeping every design, the order, the scale and the plain cool-grey backdrop, in a different rendering treatment: simple low-polygon 3D game models as they would appear in a strategy game. Chunky faceted geometry with visible flat polygons, plain hand-painted diffuse textures with broad colour areas, fully matte unlit-style shading with soft ambient light only, no specular highlights, no reflections, no small detail. Muted sea-green with dusky rose-coral bands, dark teal bodies, small flat turquoise light panels."
+    },
+    {
+      "id": "water_snail_poses",
+      "size": "1536x1024",
+      "prompt": "Mechanical design sheet on a plain cool-grey backdrop, clean side view, showing ONE sea-snail artillery unit twice, with exactly the same design in both drawings. The snail has a dark teal body with two eye stalks. Its shell is a short, fat, round coiled spiral shell like a garden snail shell, about as tall as it is long, sea-green with rose-coral bands and round studs and a matte rusty verdigris patina. The shell is a rigid object that never changes shape: the SAME short round spiral shell in both drawings, never stretched, never lengthened, never a tube or barrel. The shell sits on a clearly visible mechanism: a heavy armoured cradle strapped to the snail back, a large hinge pin at the front of the cradle, and two thick silver hydraulic piston arms at the rear under the shell. LEFT drawing, travelling: pistons retracted, the short round shell upright on the cradle exactly like a normal snail shell, round opening at the lower back. RIGHT drawing, firing: the pistons are extended and have pushed the rear of the shell upward so the whole short round shell is rotated forward about the front hinge, tilted about 60 degrees nose-down-to-up so its round opening points forward and upward over the snail head; the shell keeps exactly the same short round proportions as on the left, and a burst of dark ink-plasma leaves the opening. Hinge, extended pistons and cradle clearly visible. Matte surfaces, no glossy highlights. Only the snail, twice."
+    }
+  ]
+}

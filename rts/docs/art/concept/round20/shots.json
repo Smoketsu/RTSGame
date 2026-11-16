@@ -1,0 +1,42 @@
+// rts/docs/art/concept/round20/shots.json: shot list for concept art round 20 (from the developer's notes on round 19), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "water_tidecaller_leviathan",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round19/water_tidecaller_leviathan.jpg"],
+      "prompt": "Redraw the unit design sheet in the reference image: the same jellyfish Tidecaller on the left and the same colossal king-crab Leviathan on the right with its two enormous claws resting on the ground and dragging furrows, its eight legs and its two long hydro-cannons, same plain cool-grey backdrop, same colours (muted sea-green armour, dusty mauve-pink bands, dark teal, flat turquoise lights). Change only the Leviathan's back: it must look like a real crab's armoured carapace, not a clam or scallop shell. Remove the wavy scalloped rim and the smooth dome. Give it a broad, flat-topped, angular crab carapace made of several thick overlapping armour plates with hard straight edges, a row of short blunt spikes along the front and side edges, a clear seam line down the middle, and bolted plate segments over the leg joints. The two cannons are mounted on an armoured turret ring bolted to the carapace. Two units only."
+    },
+    {
+      "id": "earth_roster",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round19/earth_roster.jpg"],
+      "prompt": "Redraw the unit line-up sheet in the reference image: the same four living stone-construct units in the same order, sizes, designs and colours on the same plain dark-grey backdrop. Two changes. First, the large four-legged siege beast on the right: its three crystal prism cannons are the wrong way round in the reference and must be turned to face the front. The beast's head is on the LEFT of the drawing, so each blue crystal cannon must have its sharp pointed tip on the LEFT, pointing toward the left edge of the picture and reaching out above and past the beast's head, with the cannon's mounting ring at the right, further back toward the tail; the cannons slope upward to the left. No crystal tip points to the right or toward the tail. Second, the lancer (second from left): give it a steadier, more natural stance: standing upright with feet apart and knees slightly bent, torso turned toward the viewer, both hands holding the long crystal lance diagonally across its body with the point raised toward the sky, like a soldier at the ready, not twisted or leaning back. The worker and the four-armed guardian stay exactly as they are. Four units only."
+    },
+    {
+      "id": "earth_titan_hq",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round19/earth_titan_hq.jpg", "rts/docs/art/concept/round18/earth_titan_hq.jpg"],
+      "prompt": "Redraw the design sheet in the first reference image: the same Titan shown twice on the same plain dark-grey backdrop, walking on the left and sitting cross-legged in a meditative pose inside its risen ring-wall base on the right, same colours and design. Two changes. First, give the Titan back its big gun arm, as on the walking Titan in the second reference image: its right forearm is a huge multi-barrel cannon made of a bundle of hexagonal column barrels with lapis blue bands, clearly visible in BOTH drawings; when walking the gun arm hangs at its side, and when seated the gun arm rests across its right knee while the left hand rests on the left knee. Second, make the Rooted base symmetrical: instead of one emitter pylon on one side, there are two identical amber emitter pylons, one on the left of the seated Titan and one on the right, mirrored, and the ring wall, platforms and central gateway are evenly balanced on both sides. Same Titan in both drawings."
+    },
+    {
+      "id": "earth_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round19/earth_buildings.jpg"],
+      "prompt": "Redraw the earth building design sheet in the reference image: the same seven buildings in the same positions, designs and colours on the same plain dark-grey backdrop, keeping six of them exactly as they are. Change only the wall segment (bottom row, far right): the deep blue lapis pieces along the top of the wall become a row of small subtle spikes, short blunt blue crystal points rising just a little above the flat top of the cream columns, one per column, modest and tidy rather than large or dramatic. Seven buildings only."
+    },
+    {
+      "id": "map_full_1v1",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round19/map_full_1v1.jpg"],
+      "prompt": "Redraw the map overview in the reference image: the same dry, grassy two-player map with no water, no units and no buildings, same very high three-quarter view, same clean low-polygon style and colours (green low ground, tan middle level, pale-grey high rock), the same two starting base plateaus at the far left and far right left exactly as they are, and the same Core reactor in the centre. One change: add many more ways up and down between the elevation levels in the middle of the map and in the low grassy zones. Along the cliffs that separate the green low ground from the tan middle level, and the tan middle level from the central Core platform, cut wide, obvious ramps, each as wide as a road and drawn as a smooth sloped wedge of ground with no glowing lines, about a dozen in total, spread evenly so that every low meadow has at least three ramps leading out of it and the Core platform can be climbed from four sides. The ramps must be easy to spot at a glance. Keep the map mirror symmetric left to right."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+// rts/docs/art/concept/turnarounds1/shots.json: shot list for the first set of three-view model sheets (front, side, back) used as multi-view input for 3D generation, read by rts/tools/ConceptArt/generate.py. They apply the developer's notes on the 3D trial (16 Nov 2026). Each shot has an id (the output file name), a size in pixels (width x height), a quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly), plus model-sheet rules for 3D generation.
+  "style": "Orthographic character model sheet for a 3D modeller, science fiction strategy game unit rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single unit in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view facing away. The unit stands still in a neutral symmetric pose. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  "shots": [
+    {
+      "id": "skai_scout_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/models/trial/skai_scout.png"],
+      "prompt": "The unit is the secretary-bird scout from the reference image, same design and colours (storm-charcoal armour, white feather tips, yellow details, tall spiky white and charcoal head crest, yellow hooked beak). Changes: it stands upright and still on both legs with feet side by side, arms relaxed, instead of running. The two legs are perfectly symmetrical mirror images: each leg has the same charcoal armour, the same yellow knee guard, the same yellow ankle cuff and the same three long yellow energy blade talons on the foot. The feathers on its back and shoulders are gathered into a short cape: a neat mantle of layered charcoal feathers with white tips that hangs from the shoulders down to the waist, clearly visible in the side and back views."
+    },
+    {
+      "id": "water_clam_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/models/trial/water_clam.png"],
+      "prompt": "The unit is the tracked giant clam from the reference image, same design and colours (muted sea-green ridged shell halves with dusky rose-coral wavy rims, turquoise core between the shell halves, turquoise studs on top), without any dome shield or background effects. It sits on two heavy tank tracks, one on each side, and the tracks are clearly detailed: each track is a belt of separate chunky rectangular tread plates with raised grip bars, wrapped around a row of five round road wheels with turquoise hubs and a larger drive sprocket at the rear, dark grey-green with rose-coral track guards above. The tracks are identical on the left and right sides."
+    },
+    {
+      "id": "water_snail_sheet",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/models/trial/water_snail.png"],
+      "prompt": "The unit is the sea-snail artillery from the reference image in its travelling pose, same design and colours (dark sea-green slug body with a rose-coral wavy skirt and turquoise panels, a tall conical spiral cannon shell in sea-green with rose-coral bands, vents and turquoise panels, standing upright with its tip up). Two changes. First, the shell mount sits flush in the slug's back: a round rose-coral socket plate is recessed into the top of the slug's back, and the two thick sea-green brace arms rise straight out of that socket plate with no gap, one on the left outer side of the shell and one on the right, each ending in a round pivot disc on the shell's outer wall; the mount is symmetrical and looks built into the body. Second, the targeting gear is tidy and deliberate: the two eye stalks end in plain round turquoise eyes, and exactly one eye stalk carries a single neat scope, a short tube with one round lens showing a small crosshair, fixed to the stalk by one clean clamp ring; no extra arms, joints or loose parts."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+// rts/docs/art/concept/round3/shots.json: shot list for concept art round 3 (revisions from the developer's notes on round 2), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height) and a prompt. The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style and Developer notes on round 2.
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. Advanced alien civilisations with high technology: armour plating, engines, energy weapons, glowing power lines. Hand-painted 3D look, bold readable shapes, clean strong distinctive silhouettes, soft daylight. Nothing medieval or primitive. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_ground_scheme_a_dawn",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain mid-grey backdrop, four ground units of an invented alien species of feathered bird people (avian humanoids with beaks and tail feathers) in sharp angular sci-fi armour: faceted plates, swept blade-like shoulder fins, long pointed crests and tail vanes, aggressive forward-leaning stances, each with a very different outline. Left to right: a small worker in a hunched utility exosuit with one large mining arm and a canister; a lean fast scout raider sprinting with swept-back leg thrusters and long blade tail fins; a ranged trooper with a long slim energy rifle and sharp triangular hard-light glider wings; a storm-caller with a tall forked emitter staff and a back-mounted generator with antenna spines. Colour scheme: ivory white armour with brushed gold edges and bright sky-cyan energy glow. No red anywhere. No headdresses, no face paint, no real-world cultural patterns."
+    },
+    {
+      "id": "skai_ground_scheme_b_stormfront",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain light-grey backdrop, four ground units of an invented alien species of feathered bird people (avian humanoids with beaks and tail feathers) in sharp angular sci-fi armour: faceted plates, swept blade-like shoulder fins, long pointed crests and tail vanes, aggressive forward-leaning stances, each with a very different outline. Left to right: a small worker in a hunched utility exosuit with one large mining arm and a canister; a lean fast scout raider sprinting with swept-back leg thrusters and long blade tail fins; a ranged trooper with a long slim energy rifle and sharp triangular hard-light glider wings; a storm-caller with a tall forked emitter staff and a back-mounted generator with antenna spines. Colour scheme: dark storm-charcoal armour with white feather tips and electric yellow lightning-coloured energy glow. No red anywhere. No headdresses, no face paint, no real-world cultural patterns."
+    },
+    {
+      "id": "skai_ground_scheme_c_zenith",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain mid-grey backdrop, four ground units of an invented alien species of feathered bird people (avian humanoids with beaks and tail feathers) in sharp angular sci-fi armour: faceted plates, swept blade-like shoulder fins, long pointed crests and tail vanes, aggressive forward-leaning stances, each with a very different outline. Left to right: a small worker in a hunched utility exosuit with one large mining arm and a canister; a lean fast scout raider sprinting with swept-back leg thrusters and long blade tail fins; a ranged trooper with a long slim energy rifle and sharp triangular hard-light glider wings; a storm-caller with a tall forked emitter staff and a back-mounted generator with antenna spines. Colour scheme: polished silver-white armour with deep indigo under-plates and vivid magenta-violet energy glow. No red anywhere. No headdresses, no face paint, no real-world cultural patterns."
+    },
+    {
+      "id": "skai_air_units",
+      "size": "1536x1024",
+      "prompt": "Unit concept sheet on a plain pale-sky backdrop, two flying sci-fi units of a feathered bird-people civilisation, both sharply angular with dramatic silhouettes. Left: a heavy flyer, an armoured avian pilot riding a bio-mechanical raptor built from faceted angular plates, with long forward-swept blade wings edged in hard-light feathers, a split forked tail and underslung energy lances. Right: a huge siege bomber, a wide angular flying wing with a jagged serrated trailing edge like spread flight feathers, a sharp beak-like prow, twin tail blades, a glowing bomb bay of plasma charges and lightning arcing between its wingtips. Colour scheme: ivory white and storm grey armour with brushed gold edges and sky-cyan energy glow. No red anywhere. No real-world cultural patterns."
+    },
+    {
+      "id": "water_lineup",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain cool-grey backdrop, five menacing sci-fi units of an alien octopus and mollusk civilisation that uses grown bio-technology, standing side by side at the same scale, full body. Designs are built from round edges, circles, domes and spirals but look dangerous and intimidating, like deep-sea predators: narrowed glowing eyes, heavy armour, hooked beaks, barbed and clawed tentacles, larger and more imposing bodies. Left to right: a small worker in a compact pressure suit with tool-tipped tentacles and a cargo pod; a massive hunched defender inside a thick spiral pearl-ceramic shell with a round shield emitter and crushing claws; a tall looming melee fighter with long armoured tentacles ending in hooked glowing grippers; an anti-air walker with a tall raised hydro-cannon siphon firing a high-pressure water jet upward; a heavy artillery unit carrying a pressurised dark ink-plasma mortar on its shell. Deep teal, dark violet and pearl with coral-pink bioluminescent lights and blue shell panels."
+    },
+    {
+      "id": "earth_mood",
+      "size": "1536x1024",
+      "prompt": "Mood sheet on a plain dark-grey backdrop for a science fiction faction of living crystal and stone constructs held together by energy. Every body is built from hexagons: hexagonal basalt columns, honeycomb armour plating, six-sided crystal prisms, with clearly visible hexagonal shapes in the outline. Each has a distinctive, interesting silhouette, not a plain block. Left: a slim sentinel made of a cluster of floating hexagonal columns of different heights around a glowing amber hexagonal core, with a tall asymmetric crown of prisms. Middle: a heavy bruiser with a wide honeycomb-plated torso, one huge arm of bundled hexagonal columns and one smaller arm, amber energy joints. Right, much larger: a towering walking fortress whose legs and shoulders are stepped stacks of hexagonal columns like a basalt causeway, with a ring of levitating hexagonal shards, raising a wall of hexagonal columns from the ground with a gravity field. No castle battlements. Slate grey and basalt with amber energy and green crystal inlays."
+    },
+    {
+      "id": "map_full_1v1",
+      "size": "1536x1024",
+      "prompt": "Wide overview of a complete, very large two-player strategy game map on an alien planet, seen from a very high three-quarter top-down camera so the whole battlefield fits in frame and details are small. Mirror symmetric left to right. In the far left and far right corners, two main base plateaus on high ground, each with a single ramp. Next to each, a natural expansion on a middle shelf behind a narrow choke. Further out along the top and bottom edges, exposed flank expansion sites marked by clusters of glowing rare crystals. Large low basins between the bases, partly flooded with shallow water that is deeper and darker at the centre of each flood. Three clear elevation layers with cliffs and many ramps, and several separate attack routes between the two bases. In the exact centre on raised middle ground, the Core: an ancient exposed planetary reactor of metallic alloy rings and emitter pylons around a pulsing white-gold energy sphere, with glowing conduits running out through the ground. Alien vegetation in muted grey-green and pale lilac only. No units, no buildings."
+    }
+  ]
+}

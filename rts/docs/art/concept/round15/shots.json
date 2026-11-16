@@ -1,0 +1,42 @@
+// rts/docs/art/concept/round15/shots.json: shot list for concept art round 15 (from the developer's notes on round 14), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_great_aerie_hq",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round14/skai_great_aerie_leg_options.jpg", "rts/docs/art/concept/round13/skai_great_aerie_hq.jpg"],
+      "prompt": "Design sheet on a plain light-grey backdrop showing ONE mobile headquarters twice from a high three-quarter view: the round nest-shaped Skai citadel, using the LEFT version in the first reference image (low command dome with a mast at the centre, no eagle head, four big mechanical bird legs with backward-bending knees ending in three-toed gripping talons). Same colours: storm-charcoal plates, white feather-shaped rim vanes, flat electric yellow panels. One change to the rim: every feather-shaped vane around the rim sweeps the same way, all leaning in one consistent clockwise direction around the whole circle like the blades of a turbine or a pinwheel, evenly spaced, none pointing the opposite way or sticking out at odd angles. Left drawing, Uprooted moving state: hovering on four lift engines with flat yellow thrust panels, the taloned legs folded up under the body, turrets stowed. Right drawing, Rooted state: landed and standing on the four taloned legs, two arc turrets raised, ramp lowered, small pelican workers for scale. Same citadel in both drawings, with the same one-way rim feathers."
+    },
+    {
+      "id": "skai_buildings_option_a_pine",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round14/skai_buildings.jpg"],
+      "prompt": "Building design sheet on a plain light-grey backdrop: seven Skai base buildings with the same seven jobs and layout as the reference image (top row: drop-off depot with a crane and cargo bay, small supply roost, ground-unit muster deck, air-unit sky dock with two landing pads; bottom row: tech storm spire, defence turret with twin arc emitters, a straight wall segment), same colours (storm-charcoal, white, flat electric yellow panels), but redesigned in a new shape language: sharp, angular, geometric trees instead of bird shapes. Option A, conifers: each building is built like a stylised angular pine tree, a straight faceted charcoal trunk with stacked tiers of sharp flat triangular bough-plates that get smaller toward a pointed top, the white used only as crisp edges on the bough tips; working parts (cargo bay, pads, emitters) sit among the tiers. Each trunk grips its small rock base with angular roots shaped like talons. Hard straight edges and triangles everywhere, no curves, no feather clusters. The wall is a row of short angular pines joined by a flat-topped barrier. Seven buildings only, no units."
+    },
+    {
+      "id": "skai_buildings_option_b_canopy",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round14/skai_buildings.jpg"],
+      "prompt": "Building design sheet on a plain light-grey backdrop: seven Skai base buildings with the same seven jobs and layout as the reference image (top row: drop-off depot with a crane and cargo bay, small supply roost, ground-unit muster deck, air-unit sky dock with two landing pads; bottom row: tech storm spire, defence turret with twin arc emitters, a straight wall segment), same colours (storm-charcoal, white, flat electric yellow panels), but redesigned in a new shape language: sharp, angular, geometric trees instead of bird shapes. Option B, canopy trees: each building is built like a stylised angular savanna tree, a faceted charcoal trunk that forks into a few straight angled branches holding wide flat canopy platforms shaped like hexagons and diamonds, with white edges; the platforms are the decks, landing pads and roofs, and small angular pod rooms hang under them. Each trunk grips its small rock base with angular roots shaped like talons. Hard straight edges and flat planes everywhere, no curves, no feather clusters. The wall is a line of low forked trunks carrying one long flat canopy slab. Seven buildings only, no units."
+    },
+    {
+      "id": "skai_buildings_option_c_lightning",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round14/skai_buildings.jpg"],
+      "prompt": "Building design sheet on a plain light-grey backdrop: seven Skai base buildings with the same seven jobs and layout as the reference image (top row: drop-off depot with a crane and cargo bay, small supply roost, ground-unit muster deck, air-unit sky dock with two landing pads; bottom row: tech storm spire, defence turret with twin arc emitters, a straight wall segment), same colours (storm-charcoal, white, flat electric yellow panels), but redesigned in a new shape language: sharp, angular, geometric trees instead of bird shapes. Option C, lightning trees: each building is built like a bare storm-struck tree whose trunk and branches are jagged zigzags, like forked lightning bolts made solid in charcoal alloy with a yellow light strip running along each branch and white tips; angular pod rooms, platforms and emitters are mounted at the branch tips and in the forks. Each trunk grips its small rock base with angular roots shaped like talons. Hard straight edges and sharp zigzag angles everywhere, no curves, no feather clusters. The wall is a row of crossed zigzag branches forming a jagged fence. Seven buildings only, no units."
+    },
+    {
+      "id": "water_buildings",
+      "size": "1536x1024",
+      "quality": "high",
+      "references": ["rts/docs/art/concept/round14/water_buildings.jpg"],
+      "prompt": "Redraw the reef building design sheet in the reference image: the same seven water-faction buildings in the same positions, each in its small flat turquoise puddle, same plain cool-grey backdrop, keeping five of them exactly as they are (the table-coral depot with a ramp, the brain-coral ring brood pool, the brain-coral workshop with a branching crown, the anemone turret with a cannon, the branching-coral wall). Change two so they can never be confused with each other. The small supply building (top row, second from left) is no longer made of tubes: it becomes a low cluster of round mushroom corals and bubble corals, soft domes and flat discs of different sizes with small turquoise lights, short and squat. The tide well (top row, far right) stays a tall structure and becomes more clearly a water tower: one extremely tall slender-but-thick central chimney of tube coral, at least twice as tall as every other building and reaching the top edge of the picture, with a wide flared top overflowing with flat turquoise water that runs down channels and out of four spouts into its puddle. Colours: muted sea-green, dusty mauve-pink coral, a pale greyish pink like faded rose petals, clearly lighter and greyer than salmon or red, dark teal, flat turquoise lights; no white. Seven buildings only, no units."
+    }
+  ]
+}

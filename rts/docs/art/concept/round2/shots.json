@@ -1,0 +1,47 @@
+// rts/docs/art/concept/round2/shots.json: shot list for concept art round 2 (the round 1 shots redone as science fiction), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height) and a prompt. The style text is prepended to every prompt.
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (science fiction direction, 16 Nov 2026).
+  "style": "Science fiction video game concept art for a stylised real-time strategy game. Advanced alien civilisations with high technology: armour plating, engines, energy weapons, glowing power lines. Hand-painted 3D look, chunky readable shapes, clean strong silhouettes, soft daylight, muted faction palette with one saturated team colour. Nothing medieval or primitive: no bows, no spears, no cloth robes, no wood, no rope. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      "id": "skai_ground_lineup",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain warm-grey backdrop, four ground units of an invented alien species of feathered bird people (avian humanoids with beaks and tail feathers) wearing sleek lightweight sci-fi armour of white composite and brushed gold with sky-teal glowing lines, standing side by side at the same scale, full body. Left to right: a small worker in a utility exosuit carrying a glowing resource canister with a mining tool arm; a lean fast scout raider in a running pose with small leg thrusters leaving teal contrails; a ranged trooper holding a long slim energy rifle, with folding hard-light glider wings on the arms; a storm-caller with a backpack generator and a staff-like emitter crackling with a small contained lightning storm. Saturated red team-colour armour panels and light strips. No headdresses, no face paint, no real-world cultural patterns or ornaments, plain invented feather-shaped insignia only."
+    },
+    {
+      "id": "skai_air_units",
+      "size": "1536x1024",
+      "prompt": "Unit concept sheet on a plain pale-sky backdrop, two flying sci-fi units of a feathered bird-people civilisation. Left: a heavy flyer, an armoured avian pilot riding a large bio-mechanical raptor with white composite armour plates, hard-light energy feathers along broad wings and underslung energy lances. Right: a huge siege bomber, a wide dark storm-grey flying-wing aircraft shaped like a giant bird, with a glowing bomb bay of plasma charges and arcs of lightning between its wingtips. White and pale grey composite, brushed gold and storm grey with sky-teal engine glow; saturated red team-colour panels and wing stripes. No real-world cultural patterns."
+    },
+    {
+      "id": "skai_great_aerie_hq",
+      "size": "1536x1024",
+      "prompt": "Concept painting of a mobile sci-fi headquarters seen from a high three-quarter top-down strategy game camera: a vast floating nest-shaped citadel, round and bowl-like, built from layered curved white composite plates like overlapping feathers with brushed gold ribs, hovering above a rocky cliff edge on four anti-gravity lift engines glowing sky teal, with landing pads around its rim and small flyers docking. Tiny armoured bird people on its platforms for scale. Saturated red team-colour panels and light strips. It must read as a hovering nest, not a ship and not a sailing vessel. No real-world cultural patterns."
+    },
+    {
+      "id": "water_lineup",
+      "size": "1536x1024",
+      "prompt": "Character line-up sheet on a plain cool-grey backdrop, five sci-fi units of an alien octopus and mollusk civilisation that uses grown bio-technology, standing side by side at the same scale, full body. Left to right: a small octopus-like worker in a compact pressure suit with tool-tipped tentacles and a glowing cargo pod; a squat heavily armoured defender inside a thick spiral pearl-ceramic shell with a shield emitter; a tall melee fighter with long mechanically augmented tentacles ending in glowing grippers; a small anti-air walker with a tall raised hydro-cannon siphon firing a high-pressure water jet upward; an artillery unit carrying a pressurised dark ink-plasma mortar tank on its shell. Low rounded silhouettes. Deep teal, violet and pearl with coral-pink bioluminescent lights; saturated blue team-colour shell panels."
+    },
+    {
+      "id": "water_grand_shell_hq",
+      "size": "1536x1024",
+      "prompt": "Concept painting of a mobile sci-fi headquarters seen from a high three-quarter top-down strategy game camera: a colossal bio-mechanical creature like a giant armoured nautilus, its spiral pearl-ceramic shell fitted with glowing tidal reactor domes, sensor spires and docking bays, wading slowly on heavy tentacles through shallow flood water that pours from vents in its shell and spreads across low ground. Built from five or six large simple shapes so it reads from far away. Tiny octopus people in pressure suits for scale. Deep teal, violet and pearl with coral-pink bioluminescence; saturated blue team-colour shell panels."
+    },
+    {
+      "id": "map_core_flooded",
+      "size": "1536x1024",
+      "prompt": "Environment concept for a science fiction strategy game map on an alien planet, seen from a high three-quarter top-down camera. Rocky terrain with three clear elevation layers joined by ramps: high plateaus, a middle shelf and a low basin. The low basin is partly flooded with clear shallow water spreading from one side, deeper and darker in the middle of the flood. At the centre of the map on the middle shelf sits the Core: an ancient exposed planetary reactor, a ring of half-buried high-tech alien machinery made of smooth metallic alloy plates, power conduits, emitter pylons and containment rings, around a pulsing sphere of white-gold energy, with bright glowing conduit lines running out across the ground and along the ramps. Add a few buried metal alien machine panels with glowing seams in the terrain. Alien vegetation in muted grey-green and pale lilac only, nothing red or blue. Narrow chokes and cliffs are easy to read. No units, no buildings."
+    },
+    {
+      "id": "battle_skai_raid_low_tide",
+      "size": "1536x1024",
+      "prompt": "Science fiction gameplay mock-up seen from a fixed high three-quarter top-down strategy game camera, units small on screen. A red-team raid of armoured feathered bird-people troopers firing energy rifles, with two large bio-mechanical raptor flyers overhead, attacks a blue-team base of an octopus and mollusk civilisation: pearl-ceramic shell domes, reactor spires and glowing pools on partly flooded low ground at low tide, with wet exposed mud at the flood's edge. Blue-team walkers fire high-pressure water jets up at the flyers; energy bolts and shield flashes in the air. Both armies must be easy to tell apart by silhouette and by red versus blue team colour. No user interface."
+    },
+    {
+      "id": "earth_mood",
+      "size": "1536x1024",
+      "prompt": "Mood sheet on a plain dark-grey backdrop for a science fiction faction of living crystal and stone constructs held together by energy. Left: a blocky sentinel of basalt plates floating slightly apart around a glowing amber crystal reactor core. Middle: a heavy bruiser golem with massive faceted fists and amber energy joints. Right, much larger: a towering walking fortress titan of slate slabs and levitating crystal shards, projecting a gravity field that lifts a wall of hexagonal stone columns out of the ground. No castle battlements, no masonry. Angular, heavy silhouettes. Slate grey and basalt with amber energy; saturated green team-colour crystal inlays."
+    }
+  ]
+}
