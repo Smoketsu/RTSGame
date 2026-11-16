@@ -128,7 +128,7 @@ After 6d no queued hit has `LandTick <= tick`.
 
 In `ResolveTarget`:
 - **New pick**: among valid, visible candidates in acquire reach, take the minimum of the key (armed ? 0 : 1, squared centre distance, EntityId). With ascending-ID iteration: replace `best` when the candidate's rank is lower, or the rank is equal and its distance is strictly smaller.
-- **Kept target**: a forced target is kept exactly as today. An unforced target that is still valid, in reach and visible is kept if it is armed; if it is unarmed, it is kept only when no armed valid, visible candidate is in acquire reach; otherwise the new pick runs (and will choose an armed one).
+- **Kept target**: unchanged from today. A target that is still valid, in reach and visible is kept whether it is armed or not; units never switch targets on their own. Armed-first applies only when a new target is picked. (Developer decision, 16 Nov 2026.)
 
 ### A.4.4 Fire (decision 3 and 4)
 
@@ -173,7 +173,7 @@ Build test content by adding units to a fresh `TestWorld.Catalog()` before the s
 5. Order: with the existing `FixedModifier` factor 2 registered, an uphill hit deals `((10 * table) * 0.75) * 2`.
 6. Shipped workers: `skai.fledgling` and `water.tender` have a weapon with `IsMelee`, `HitDelayTicks 0`, damage 3, kinetic.
 7. Armed first: shooter with an unarmed runner 2 tiles away and an armed tank 4 tiles away (both in reach) targets the tank. Two armed at equal distance: lowest ID (existing rule still holds).
-8. Upgrade: shooter auto-targeting a runner; a tank spawns in reach; the next tick `AttackTarget` is the tank. With `attack_unit` on the runner (forced), it stays on the runner.
+8. No switching: shooter auto-targeting a runner; a tank spawns in reach; the next tick `AttackTarget` is still the runner. After the runner dies, the next pick is the tank.
 9. Unarmed by state: an Uprooted HQ and a structure under construction rank as unarmed (a shooter prefers an armed tank further away).
 10. A worker beside an enemy tank with no orders hits it for 3 x table every 20 ticks.
 11. Loader `hit_delay_ticks`: absent gives 0; 11 fails; 2 on a melee weapon fails with the melee message; every shipped ranged weapon has 2 and every melee weapon 0.
@@ -303,7 +303,7 @@ Each has a recommended answer the builder uses until the developer replies.
 6. **When the dome decides.** Recommended: at fire time, like damage, so absorbed shots never enter the hit queue.
 7. **Uphill edge cases.** Recommended: flyers neither suffer nor cause the penalty; a ramp lifts the attacker's eye by one level (the vision rule), so a shooter on a ramp is not penalised against the level above.
 8. **Uphill order.** Recommended: applied after the armour table and before faction damage modifiers.
-9. **Switching to armed targets.** Recommended: a unit auto-attacking an unarmed target switches when an armed enemy comes into reach; forced targets never switch.
+9. **Switching to armed targets.** Decided 16 Nov 2026: no. A unit keeps its current target; armed-first only applies to a new pick.
 10. **Worker weapon.** Recommended: 3 kinetic damage, 0.3 tiles, 1 hit per second, hits ground and water.
 11. **Hit delay unit.** Recommended: ticks as decided (2 ticks = 100 ms at 20 per second), maximum 10.
 12. **Air separation.** Recommended: on, among air units only.
