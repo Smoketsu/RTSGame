@@ -248,7 +248,19 @@
     // Field 14: south-east corner, beside rare, common, layer 1, 68.0 tiles from the nearest HQ start, 46.7 from the Core centre.
     { "x": 80, "y": 14, "kind": "common", "amount": 3000 },
     // Field 15: P1-side low basin (north), common, layer 0, 29.7 tiles from the nearest HQ start, 26.6 from the Core centre.
-    { "x": 55, "y": 73, "kind": "common", "amount": 3000 }
+    { "x": 55, "y": 73, "kind": "common", "amount": 3000 },
+    // Field 16: P0 natural rare, rare, layer 1, 18.0 tiles from the nearest HQ start, 38.7 from the Core centre.
+    { "x": 30, "y": 13, "kind": "rare", "amount": 600 },
+    // Field 17: west flank shelf rare, rare, layer 1, 54.3 tiles from the nearest HQ start, 34.8 from the Core centre.
+    { "x": 18, "y": 66, "kind": "rare", "amount": 600 },
+    // Field 18: P0-side low basin rare, rare, layer 0, 28.6 tiles from the nearest HQ start, 30.4 from the Core centre.
+    { "x": 40, "y": 18, "kind": "rare", "amount": 600 },
+    // Field 19: P1 natural rare, rare, layer 1, 18.0 tiles from the nearest HQ start, 38.7 from the Core centre.
+    { "x": 65, "y": 82, "kind": "rare", "amount": 600 },
+    // Field 20: east flank shelf rare, rare, layer 1, 54.3 tiles from the nearest HQ start, 34.8 from the Core centre.
+    { "x": 77, "y": 29, "kind": "rare", "amount": 600 },
+    // Field 21: P1-side low basin rare, rare, layer 0, 28.6 tiles from the nearest HQ start, 30.4 from the Core centre.
+    { "x": 55, "y": 77, "kind": "rare", "amount": 600 }
   ],
   // The Core on the raised layer-2 hub at the map centre, reached by four ramps (north, east, south, west) from the sand plaza. Unit: tiles and a radius in tiles. Range: radius 1 to 32. Source: Maps / Central element: the Core (contested middle ground); Source: art/CONCEPT_BRIEF.md (approved map concept round20/map_full_1v1.jpg); radius is a placeholder.
   "core": { "x": 48, "y": 48, "radius_tiles": 6 }

@@ -383,7 +383,7 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>
         /// B-4 on prototype_1v1 (96 x 96, developer-approved layout): the depot tiles the rule gives beside the first natural field,
         /// computed with an independent script from the spec's rule: player 0 (HQ at (12.5, 12.5), target field 3 at (26, 16)) builds
-        /// at (26, 13); player 1 (HQ at (83.5, 83.5), target field 11 at (69, 79)) builds at (69, 82), the exact mirror (95 - x, 95 - y).
+        /// at (27, 13); player 1 (HQ at (83.5, 83.5), target field 11 at (69, 79)) builds at (68, 82), the exact mirror (95 - x, 95 - y).
         /// </summary>
         [Test]
         public void B4_ExpandByTime_Prototype()
@@ -396,11 +396,11 @@ namespace Rts.Sim.Tests.Ai
             SetStock(sim, P1, 200, 0);
             List<AiIntent> skai = Builds(DecideP0(sim), "skai.perch_depot");
             Assert.That(skai.Count, Is.EqualTo(1));
-            Assert.That(skai[0].TileX, Is.EqualTo(26));
+            Assert.That(skai[0].TileX, Is.EqualTo(27));
             Assert.That(skai[0].TileY, Is.EqualTo(13));
             List<AiIntent> water = Builds(Decide(sim, P1, Aggressive), "water.pearl_depot");
             Assert.That(water.Count, Is.EqualTo(1));
-            Assert.That(water[0].TileX, Is.EqualTo(69));
+            Assert.That(water[0].TileX, Is.EqualTo(68));
             Assert.That(water[0].TileY, Is.EqualTo(82));
         }
 
