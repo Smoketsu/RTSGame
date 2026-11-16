@@ -7,6 +7,13 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Skirmish AI v2, packages A and B (spec `docs/specs/skirmish_ai_v2.md`), AI code reviewed by the sim-reviewer; no `src/Sim` change:
+  - Data: new drop-off buildings `skai.perch_depot` and `water.pearl_depot`; common fields doubled to 3000; the three grey-box maps gain a natural pair and a flank field per side; `greybox_1v1` made 180-degree symmetric; map layout tests for every 2-spawn map.
+  - AI: fields are served from any drop-off; depots are built at the natural (by clock or when served fields run low); workers are rebalanced and gather rare; the HQ relocates when the main runs dry (new `UprootHq` intent), never ends stuck uprooted, skips destinations that failed or are nearly empty; field amounts come from what the team has seen; reservations hold only with income; all-in only when no field on the map has resources. Roc Rider and Brinecaster join the compositions.
+  - Review fixes: site searches are mirrored per player (both players build mirror-image bases); the AI no longer treats unseen enemy footprints as blocked tiles; hidden fields report the remembered amount.
+  - Evidence in `docs/reports/ai_v2_2026-11-16/`: seven traced games, all decided before the 1200 s cap, no player idle with no income and no army.
+  - Shipped data changed, so hashes changed: headless smoke is `8eb22fe6a8e7c7ff`, economy_smoke `d72e327e14850967`; older replays no longer re-simulate. Unity parity must be re-checked on the PC.
+
 - `data/maps/prototype_1v1.json`: a mirrored pair of common fields (3000) in the low ground, at (40, 22) in the south basin and (55, 73) in the north basin, asked for by the developer on 16 Nov 2026; the map now has 16 fields. Review picture regenerated.
 
 - Skirmish AI v2, package C (army), spec `docs/specs/skirmish_ai_v2.md`, reviewed by the sim-reviewer:
