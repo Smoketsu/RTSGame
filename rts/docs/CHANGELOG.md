@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/art/models/batch1/`: heavier Pummeler model (kept sheet) and a first Thunderhead model that did not work from two edge-on views (2,590 Tripo credits left). `docs/art/concept/turnarounds5/`: four sheets redrawn after the third review (Talon Marksman with the rifle on its right side, Roc Rider redrawn from the original picture, Stormcaller with a tidier back unit, water worker with a beak).
+
 - `docs/art/models/batch1/`: models for the Tidecaller and Leviathan and a second Stormcaller (2,810 Tripo credits left). `docs/art/concept/turnarounds4/`: five sheets redrawn after the second review (Talon Marksman shouldering the rifle, Pummeler with heavier arms, water worker with a solid face, Roc Rider bigger with tucked legs and wing crystals, Thunderhead with its bird head). Kept so far as models: Skai worker, Spoutling.
 
 - Balance harness batch mode (Phase 2 step 5, spec `docs/specs/balance_harness.md`; Sim-side changes reviewed by the sim-reviewer): `--batch` runs N AI-versus-AI games per matchup per map in worker processes with derived seeds and writes `report.md`, `results.jsonl` and `hq_floor.jsonl`; win rate with a Wilson interval, match length, HQ time-to-kill, the hard limits, a determinism spot check, `--ci` and `--report-only`. New `tuning/harness_batch.json`, required by the loader but left out of the content digest so state hashes do not change. The skirmish AI no longer counts enemy workers as army power when deciding to retreat. First reduced batch: HQ survivability floor FAIL (6.6 s against 20 s), water-versus-earth cap DEFERRED.
