@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `data/maps/prototype_1v1.json`: a 96 x 96 1v1 map authored from the approved map concept (round 20): three walkable layers plus impassable rock (layer 4), a raised Core hub with four ramps, eight causeways and grass basins, two start plateaus with two ramps each, 14 fields (main, natural, flank, and rare with a common field beside it). 180-degree symmetric; passes the map checklist tests; awaiting the developer's approval. `docs/art/maps/prototype_1v1_layout.png` is its review picture. Spec `docs/specs/skirmish_ai_v2.md` added earlier the same day.
+
 - Balance harness `--trace` mode (`--trace --map --matchup --seed [--game] [--max-game-seconds] [--out]`): plays one batch game and writes a 30-second per-player timeline and a summary; read-only, the final state hash equals the untraced game's. `docs/reports/ai_trace_2026-11-16/`: review of how the skirmish AI plays (18 traces, 69 extra games). Main finding: the AI acts correctly but each side's reachable economy is 3000 common, gone by 240 to 390 s, after which nothing can be produced and games freeze.
 
 - All thirteen Skai and water units now have a 3D model kept by the developer (16 Nov 2026; the Thunderhead is `skai_thunderhead_v6`). `docs/art/models/batch1/README.md` lists the approved file per unit, how the models were made and what is still untested (rigging, animation, Unity import).
