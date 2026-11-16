@@ -1,0 +1,6 @@
+# rts/docs/art/models/batch1/.gitignore: keeps Tripo run logs and the temporary upload copies out of git; the cut views and the models are tracked.
+*.log
+*.png
+!*_front.png
+!*_left.png
+!*_back.png
