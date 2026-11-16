@@ -11,3 +11,4 @@
 - [ASSET_STORE.md](ASSET_STORE.md): shortlist of Unity Asset Store packages for presentation only.
 - [UNITY_SETUP.md](UNITY_SETUP.md): how to open and set up the Unity 6 project, and the Unity-versus-headless hash check.
 - [CI.md](CI.md): what the continuous integration workflows run.
+- [archive/](archive/2026-11-16-duplicate-build/README.md): old material kept for reference only; never current.
