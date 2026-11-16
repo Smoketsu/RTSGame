@@ -23,7 +23,7 @@ namespace Rts.Sim.Combat
         /// <summary>The unit hit.</summary>
         public readonly EntityId Target;
 
-        /// <summary>Final damage (after table, uphill, modifiers and dome). Unit: health points. Range: above 0.</summary>
+        /// <summary>Final damage (after table, uphill, modifiers and dome). Unit: health points. Range: 0 or more (0 when a table multiplier or modifier is 0).</summary>
         public readonly Fix64 Damage;
 
         /// <summary>True when the landed hit counts as a drench hit (Spoutling).</summary>

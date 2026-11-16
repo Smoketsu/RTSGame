@@ -46,17 +46,17 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 
 ## What was checked on 16 Nov 2026
 
-- `dotnet test rts/RtsGame.sln` on `main`: 429 simulation, 33 net and 27 replay tests pass.
-- The headless runner's default script gives `STATE_HASH=24ffa53a8542d783` on Linux (cloud) and on the developer's Windows PC.
+- `dotnet test rts/RtsGame.sln` on `main`: 458 simulation, 33 net and 27 replay tests pass (after P-003 package A).
+- The headless runner's default script gives `STATE_HASH=59f817c2c9d3a5b4` on Linux (cloud) after P-003 package A. Before it the hash was `24ffa53a8542d783` on Linux and on the developer's Windows PC; Windows has not been re-run.
 - Unity (`6000.6.7f1`, pinned in `rts/src/Game/ProjectSettings/ProjectVersion.txt`), checked on the developer's PC through Funplay at commit `e15f943` (later commits that day changed no simulation, data or Unity file):
   - Compile: no errors, and no warnings in `Rts.Game` or `Rts.Sim`, including no CS8632 nullable warnings. The 55 warnings are all inside the Funplay package.
-  - Hash parity: Unity printed `script finished at tick 1500, final hash dac9a5db27e3fdb4`; the headless runner with `--script rts/data/scripts/economy_smoke.json` printed `STATE_HASH=dac9a5db27e3fdb4`, and all 75 per-interval hashes matched.
+  - Hash parity: Unity printed `script finished at tick 1500, final hash dac9a5db27e3fdb4`; the headless runner with `--script rts/data/scripts/economy_smoke.json` printed `STATE_HASH=dac9a5db27e3fdb4`, and all 75 per-interval hashes matched. **Stale since P-003 package A:** the headless hash for that script is now `e21eda591302b212`; the PC session must repeat the Unity check against it (and again after package B).
   - Not confirmed: unit count and movement in Play mode. Funplay lost its connection when Play mode reloaded scripts (its server moved from port 29309 to 29310 while the session still pointed at 29309).
 - Unity's `SimulationHost` plays `scripts/economy_smoke.json` by default, not the harness default `smoke.json`. Compare Unity with the harness run on the same script, as `UNITY_SETUP.md` describes. `CLAUDE.md` said otherwise until 16 Nov 2026 and was corrected.
 
 ## What comes next, in order
 
-1. Build `specs/p003_rules.md` (the P-003 rule changes the developer approved on 16 Nov): package A, combat, is being built by the cloud orchestrator session; package B, unit separation, follows. Both change every state hash, so the Unity-versus-headless check must be repeated afterwards.
+1. Build `specs/p003_rules.md` (the P-003 rule changes the developer approved on 16 Nov): package A, combat, is built, reviewed by the sim-reviewer and on `main`; package B, unit separation, is being built by the cloud orchestrator session. Both change every state hash, so the Unity-versus-headless check must be repeated afterwards.
 2. Build Phase 2 step 5 (balance harness) and step 8 (campaign scripting) from their specs.
 3. Phase 2 step 9, the Unity HUD and menus: done by the session on the developer's PC, which has the Unity Editor.
 4. Art: the art direction is settled (`art/CONCEPT_BRIEF.md`, table of approved designs). Approved units and buildings go to 3D through the pipeline trialled in `art/models/trial2`.

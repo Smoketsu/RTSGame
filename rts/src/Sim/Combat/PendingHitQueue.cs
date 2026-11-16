@@ -46,6 +46,11 @@ namespace Rts.Sim.Combat
 
         /// <summary>Queues a hit with the next sequence number.</summary>
         /// <param name="landTick">Tick the hit lands. Unit: ticks. Range: above the current tick.</param>
+        /// <param name="attacker">Unit that fired; it may be gone when the hit lands.</param>
+        /// <param name="attackerOwner">Owner of the attacker at fire time, used for kill credit and Drench.</param>
+        /// <param name="target">Unit the hit is bound to.</param>
+        /// <param name="damage">Final damage. Unit: health points. Range: 0 or more.</param>
+        /// <param name="appliesDrench">True when the hit applies Drench on landing.</param>
         internal void Enqueue(int landTick, EntityId attacker, PlayerId attackerOwner, EntityId target, Fix64 damage, bool appliesDrench)
         {
             // Sequence of this hit. Unit: count. Range: 0 upward.
@@ -93,6 +98,7 @@ namespace Rts.Sim.Combat
             {
                 if (pair.Key.Sequence == sequence)
                 {
+                    // The entry being replaced; its attacker, owner and drench flag are kept.
                     PendingHit old = pair.Value;
                     _hits.Remove(pair.Key);
                     _hits.Add(new HitKey(landTick, sequence), new PendingHit(landTick, sequence, old.Attacker, old.AttackerOwner, target, damage, old.AppliesDrench));

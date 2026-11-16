@@ -7,6 +7,14 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- P-003 package A (combat), spec `docs/specs/p003_rules.md`, reviewed by the sim-reviewer:
+  - Ranged hits on higher ground deal 0.75 damage (`uphill_ranged_damage_multiplier` in `tuning/combat.json`); melee, air attackers, air targets and a shooter on a ramp are exempt.
+  - Workers (Fledgling, Tender) carry a weak melee weapon (3 kinetic, 0.3 tiles, 1 s). New target picks prefer armed units; a unit never switches target on its own.
+  - `hit_delay_ticks` on weapons (0 to 10; 2 on every shipped ranged weapon, 0 for melee). Damage is fixed at fire time, the hit cannot be dodged, and it waits in the hashed `PendingHitQueue`.
+  - The Shellback's always-on `shield_dome` (radius 3 tiles, pool 150, recharge after 4 s at 25 per second): absorbs ranged shots from outside the dome aimed at allied units inside; a dome that went down returns only when full.
+  - New events `ShotFiredEvent`, `ShieldDomeHitEvent`, `ShieldDomeDownEvent`, `ShieldDomeUpEvent`. Combat step 6 is now 6a dome regen, 6b land due hits, 6c unit loop, 6d deaths. `StatusSystem.ApplyDrenchHit` takes the attacker's ID and owner.
+  - Every state hash changed: headless smoke is `59f817c2c9d3a5b4`, economy_smoke `e21eda591302b212`, golden hash re-pinned. Unity parity must be re-checked on the PC. Not yet adjusted: the skirmish AI counts workers as armed power, and Unity's selection treats workers as armed.
+
 - Unit display names picked by the developer on 16 Nov 2026: Talon Archer is now Talon Marksman, Ink Lobber is Brinecaster, Grasper is Pummeler (data files, script comments, specs). Data IDs are unchanged. Concept art round 22 (siege beast turret) was marked Keep.
 
 ### Added
