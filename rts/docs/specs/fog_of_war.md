@@ -15,7 +15,7 @@ No tuning keys in Phase 1. Unit-data fields (`UnitDefinition`, read by `UnitSche
 
 | Field | Type | Unit | Range | Default / placeholder |
 | --- | --- | --- | --- | --- |
-| `sight_range_tiles` | Fix64 | tiles | 1 to 64 | **Exists** (optional, schema default 8). Ground and water sight, and a Grounded flyer's. Placeholders to write into the unit files: workers 7, Windrunner 10, Grasper 8, Spoutling 9, Roc Rider 9. |
+| `sight_range_tiles` | Fix64 | tiles | 1 to 64 | **Exists** (optional, schema default 8). Ground and water sight, and a Grounded flyer's. Placeholders to write into the unit files: workers 7, Windrunner 10, Pummeler 8, Spoutling 9, Roc Rider 9. |
 | `airborne_sight_range_tiles` | Fix64 | tiles | 1 to 64 | **New.** Required when `layer` is `air`, rejected otherwise (`UnitDefinition.AirborneSightRangeTiles`, equal to `SightRangeTiles` for non-air units). Placeholder: Roc Rider 6 ("short sight range when airborne"). |
 
 Buildings use `sight_range_tiles` the same way (placeholder 9 when building data lands).

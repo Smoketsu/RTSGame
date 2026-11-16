@@ -1,18 +1,18 @@
-// rts/data/units/skai/talon_archer.json: Talon Archer, the Skai core ranged ground unit. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+// rts/data/units/skai/talon_archer.json: Talon Marksman, the Skai core ranged ground unit. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Talon Archer unit definition for the skai faction (core ranged ground unit with kinetic shots, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Gliding down from cliffs is a design note only: Phase 1 has no glide mechanic and no field for it.",
+  "$doc": "Talon Marksman unit definition for the skai faction (core ranged ground unit with kinetic shots, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Gliding down from cliffs is a design note only: Phase 1 has no glide mechanic and no field for it.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.talon_archer",
-  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (Talon Archer).
-  "display_name": "Talon Archer",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (Talon Marksman).
+  "display_name": "Talon Marksman",
   // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
   "faction_id": "skai",
   // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
   "kind": "unit",
-  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders / Unit concepts (Talon Archer is ground).
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders / Unit concepts (Talon Marksman is ground).
   "layer": "ground",
-  // Design note, not a value: the Talon Archer can glide down from cliffs (Unit concepts). No glide mechanic or field exists in Phase 1, so it walks like any ground unit until one is added.
+  // Design note, not a value: the Talon Marksman can glide down from cliffs (Unit concepts). No glide mechanic or field exists in Phase 1, so it walks like any ground unit until one is added.
   // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder.
   "max_health": 90,
   // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder.
@@ -31,7 +31,7 @@
   "armour_type": "light",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder.
   "sight_range_tiles": 9,
-  // Weapon: kinetic bow fire at range, hitting all three layers. Every number is a placeholder for playtesting.
+  // Weapon: kinetic rifle fire at range, hitting all three layers. Every number is a placeholder for playtesting.
   "weapon": {
     // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder.
     "damage": 8,

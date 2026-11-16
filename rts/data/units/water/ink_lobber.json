@@ -1,16 +1,16 @@
-// rts/data/units/water/ink_lobber.json: Ink Lobber, the Water ranged artillery unit that cannot hit air. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+// rts/data/units/water/ink_lobber.json: Brinecaster, the Water ranged artillery unit that cannot hit air. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Ink Lobber unit definition for the water faction (ranged artillery with blast ink shots at long range and a slow cooldown; cannot target air); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Brinecaster unit definition for the water faction (ranged artillery with blast water-energy shells at long range and a slow cooldown; cannot target air); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.ink_lobber",
-  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Ink Lobber).
-  "display_name": "Ink Lobber",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Brinecaster).
+  "display_name": "Brinecaster",
   // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
   "faction_id": "water",
   // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
   "kind": "unit",
-  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: placeholder choice; the design does not name the Ink Lobber's layer, so it matches the other water combat units.
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: placeholder choice; the design does not name the Brinecaster's layer, so it matches the other water combat units.
   "layer": "water",
   // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder.
   "max_health": 100,

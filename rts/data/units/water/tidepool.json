@@ -1,7 +1,7 @@
 // rts/data/units/water/tidepool.json: Tidepool, Water production building that adds supply. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Tidepool building definition for the water faction (trains Spoutlings and Graspers and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Tidepool building definition for the water faction (trains Spoutlings and Pummelers and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.tidepool",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Buildings (placeholder).

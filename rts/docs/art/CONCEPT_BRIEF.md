@@ -28,7 +28,7 @@ Twelve rounds of concept art on 16 Nov 2026 settled the art direction. The table
 
 From concept to 3D (trialled 16 Nov 2026, see `models/trial2/README.md`): each unit is redrawn as a front, side and back sheet in a neutral standing pose, then generated with Tripo3D's multi-view endpoint at about 5,000 triangles. A single side-on drawing makes the generator invent the far side, which is where the first trial's faults came from. The scout and clam models from trial 2 are approved.
 
-Design-doc names for the approved units: pelican worker is the Fledgling, secretary-bird scout the Windrunner, heron trooper the Talon Archer, owl storm-caller the Stormcaller; octopus worker is the Tender, giant clam the Shellback, mantis shrimp the Grasper, cuttlefish the Spoutling, sea snail the Ink Lobber (which now fires water-energy, not ink).
+Design-doc names for the approved units: pelican worker is the Fledgling, secretary-bird scout the Windrunner, heron trooper the Talon Marksman (was Talon Archer), owl storm-caller the Stormcaller; octopus worker is the Tender, giant clam the Shellback, mantis shrimp the Pummeler (was Grasper), cuttlefish the Spoutling, sea snail the Brinecaster (was Ink Lobber; fires water-energy, not ink).
 
 Not yet drawn: the fire faction. The rest of the earth roster is in review (round 21).
 

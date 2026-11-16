@@ -1,7 +1,7 @@
-// rts/data/units/water/shell_forge.json: Shell Forge, the Water production building for Shellbacks and Ink Lobbers. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+// rts/data/units/water/shell_forge.json: Shell Forge, the Water production building for Shellbacks and Brinecasters. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Shell Forge building definition for the water faction (trains Shellbacks and Ink Lobbers and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Shell Forge building definition for the water faction (trains Shellbacks and Brinecasters and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.shell_forge",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Buildings (placeholder).

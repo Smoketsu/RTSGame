@@ -865,7 +865,7 @@ namespace Rts.Sim.Tests.Factions
 
         // ------------------------------------------------------------------ data
 
-        /// <summary>The shipped Tidepool and Grand Shell are flood sources; the Grasper is not; the validation rejects a source with no capacity.</summary>
+        /// <summary>The shipped Tidepool and Grand Shell are flood sources; the Pummeler is not; the validation rejects a source with no capacity.</summary>
         [Test]
         public void Data_FloodKeysAreLoaded_AndValidated()
         {
@@ -952,7 +952,7 @@ namespace Rts.Sim.Tests.Factions
 
         /// <summary>
         /// The shipped flood_smoke.json on the real data: Water's Rooted Grand Shell and Tidepool flood the south-east corner, the water
-        /// stays out of the four-tile gap around the Skai Great Aerie and the fields it claims, the Grasper stands in water, and
+        /// stays out of the four-tile gap around the Skai Great Aerie and the fields it claims, the Pummeler stands in water, and
         /// two runs give the same hash.
         /// </summary>
         [Test]

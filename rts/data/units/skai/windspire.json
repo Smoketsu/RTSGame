@@ -1,7 +1,7 @@
-// rts/data/units/skai/windspire.json: Windspire, the Skai production building for Talon Archers and Stormcallers. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+// rts/data/units/skai/windspire.json: Windspire, the Skai production building for Talon Marksmans and Stormcallers. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Windspire building definition for the skai faction (trains Talon Archers and Stormcallers and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Windspire building definition for the skai faction (trains Talon Marksmans and Stormcallers and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.windspire",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Buildings (placeholder).

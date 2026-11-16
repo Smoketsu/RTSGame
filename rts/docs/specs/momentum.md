@@ -105,5 +105,5 @@ Test setup: flat open 64x64 map, one Skai player and one water player, a test gr
 
 - Does water's terrain slow count as "slowed"? Phase 1: no, only the Slowed status. If playtests want it, add a switch `lost_on_terrain_slow`.
 - Do workers and the HQ gain Momentum? Phase 1: every eligible mobile unit; an opt-out unit field can come with the Phase 1 unit docs.
-- Talon Archer glide from cliffs and Stormcaller Downdraft are separate unit specs.
+- Talon Marksman glide from cliffs and Stormcaller Downdraft are separate unit specs.
 - UI: show stacks from `momentum_changed` events; nothing for the renderer to compute.

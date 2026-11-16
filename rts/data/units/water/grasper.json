@@ -1,11 +1,11 @@
-// rts/data/units/water/grasper.json: Grasper, tentacle melee fighter. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+// rts/data/units/water/grasper.json: Pummeler, mantis shrimp melee fighter. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Grasper unit definition for the water faction (tentacle melee fighter); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Pummeler unit definition for the water faction (mantis shrimp melee fighter); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.grasper",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts.
-  "display_name": "Grasper",
+  "display_name": "Pummeler",
   // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
   "faction_id": "water",
   // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Water faction / Unit concepts.
@@ -28,7 +28,7 @@
   "armour_type": "armoured",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
   "sight_range_tiles": 8,
-  // Weapon: omit the whole object for an unarmed unit. Grasper: tentacle melee fighter (range 1 counts as melee), cannot hit flyers. Every number is a placeholder for playtesting. Source: placeholder for Phase 1 unit docs.
+  // Weapon: omit the whole object for an unarmed unit. Pummeler: mantis shrimp melee fighter (range 1 counts as melee), cannot hit flyers. Every number is a placeholder for playtesting. Source: placeholder for Phase 1 unit docs.
   "weapon": {
     // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.
     "damage": 12,

@@ -13,12 +13,12 @@
     { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
     { "id": 1, "team": 1, "faction": "water", "name": "Water" }
   ],
-  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: player slot, or 255 for the script itself; sequence: per-issuer counter, unique per issuer. Only spawn_unit is used (script only): the units appear complete. Entity IDs are handed out in the order units appear: 1 the Skai Great Aerie, 2 the Skai Fledgling, 3 the Water Grand Shell, 4 the Water Tidepool, 5 the Water Grasper. Source: Phase 1 command set (rts/src/Sim/Commands).
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: player slot, or 255 for the script itself; sequence: per-issuer counter, unique per issuer. Only spawn_unit is used (script only): the units appear complete. Entity IDs are handed out in the order units appear: 1 the Skai Great Aerie, 2 the Skai Fledgling, 3 the Water Grand Shell, 4 the Water Tidepool, 5 the Water Pummeler. Source: Phase 1 command set (rts/src/Sim/Commands).
   "commands": [
     // Tick 0: the Great Aerie lands 3.2 tiles from the common field at (53, 59) and starts Rooted, so it is a drop-off and every field within 10 tiles of it (the fields at (53, 59) and (59, 53)) counts as an enemy resource field for Water's floods. A Fledgling stands beside it.
     { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "50", "y": "60" },
     { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "52", "y": "57" },
-    // Tick 0: Water's Grand Shell lands 5.1 tiles from the field at (59, 53) and starts Rooted (a flood source while Rooted); a Tidepool (flood source) stands west of it and a Grasper (water layer, heals on its own water) between them.
+    // Tick 0: Water's Grand Shell lands 5.1 tiles from the field at (59, 53) and starts Rooted (a flood source while Rooted); a Tidepool (flood source) stands west of it and a Pummeler (water layer, heals on its own water) between them.
     { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "58", "y": "58" },
     { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.tidepool", "owner": 1, "x": "55", "y": "55" },
     { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "water.grasper", "owner": 1, "x": "56", "y": "56" }

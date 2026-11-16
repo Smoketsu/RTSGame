@@ -41,7 +41,7 @@
     { "tick": 800, "issuer": 0, "sequence": 7, "type": "build_structure", "unit": 3, "definition": "skai.perch_tower", "x": 11, "y": 8 },
     // Tick 1000: the finished Roost (complete at tick 829) trains a Windrunner.
     { "tick": 1000, "issuer": 0, "sequence": 8, "type": "train_unit", "producer": 9, "definition": "skai.windrunner" },
-    // Tick 1100: Water trains a Grasper at its finished Tidepool (complete at tick 509).
+    // Tick 1100: Water trains a Pummeler at its finished Tidepool (complete at tick 509).
     { "tick": 1100, "issuer": 1, "sequence": 4, "type": "train_unit", "producer": 7, "definition": "water.grasper" },
     // Tick 1300: Skai uproots the Great Aerie to move on; it stops being a drop-off and its weapon turns off. Skai also orders a rooted-HQ move that the simulation rejects (hq_rooted) at tick 1290.
     { "tick": 1290, "issuer": 0, "sequence": 9, "type": "move_unit", "unit": 1, "x": "20", "y": "20" },

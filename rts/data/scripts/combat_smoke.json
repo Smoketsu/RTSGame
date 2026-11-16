@@ -13,12 +13,12 @@
   ],
   // Commands. Units get IDs 1 to 4 in spawn order. attack_move: unit + x, y goal; attack_unit: unit + target unit ID; stop: unit. Source: rts/src/Sim/Commands/CombatCommands.cs.
   "commands": [
-    // Tick 0: Skai Windrunner (unit 1) and Roc Rider (unit 2) at the left; Water Spoutling (unit 3) and Grasper (unit 4) twelve tiles to the right.
+    // Tick 0: Skai Windrunner (unit 1) and Roc Rider (unit 2) at the left; Water Spoutling (unit 3) and Pummeler (unit 4) twelve tiles to the right.
     { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "20", "y": "20" },
     { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.roc_rider", "owner": 0, "x": "20", "y": "24" },
     { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "32", "y": "20" },
     { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.grasper", "owner": 1, "x": "32", "y": "24" },
-    // Tick 5: Skai attack-moves the Windrunner past the Water units and orders the Roc Rider to attack the Grasper.
+    // Tick 5: Skai attack-moves the Windrunner past the Water units and orders the Roc Rider to attack the Pummeler.
     { "tick": 5, "issuer": 0, "sequence": 0, "type": "attack_move", "unit": 1, "x": "40", "y": "20" },
     { "tick": 5, "issuer": 0, "sequence": 1, "type": "attack_unit", "unit": 2, "target": 4 },
     // Tick 10: Water attack-moves both units toward the Skai corner.

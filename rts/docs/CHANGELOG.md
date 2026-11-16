@@ -5,6 +5,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased] - Phase 2 Vertical slice
 
+### Changed
+
+- Unit display names picked by the developer on 16 Nov 2026: Talon Archer is now Talon Marksman, Ink Lobber is Brinecaster, Grasper is Pummeler (data files, script comments, specs). Data IDs are unchanged. Concept art round 22 (siege beast turret) was marked Keep.
+
 ### Added
 
 - `docs/proposals/P-003-decisions-to-apply.md`: the 16 Nov decisions compared with the code on `main` (4 of 14 already hold; result, evidence and what a change would touch for each row). `docs/STATUS.md` and the archive README no longer name the deleted branches; the duplicate build's code was deleted with them.
