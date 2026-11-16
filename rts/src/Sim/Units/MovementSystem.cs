@@ -2,7 +2,9 @@
 // Phase 1 movement: ground and water units follow flow fields over the terrain grid; air units fly straight.
 // Part of Rts.Sim.Units (ADR-007). Runs once per tick inside Simulation.Step in ascending entity ID order.
 // Speed each tick = base speed × terrain multiplier (tile, effective layer) × status multiplier × every
-// registered ISpeedModifier (ascending Id), converted to a per-tick step with the match clock.
+// registered ISpeedModifier (ascending Id), converted to a per-tick step with the match clock. Step 5c (UnitSeparation) then pushes
+// touching units apart, sidesteps head-on movers to the right and settles crowds near a goal (P-003 package B).
+using System.Collections.Generic;
 using Rts.Sim.Core;
 using Rts.Sim.Events;
 using Rts.Sim.Pathing;
@@ -38,6 +40,18 @@ namespace Rts.Sim.Units
             Fix64 arrivalRadius = sim.Tuning.Terrain.ArrivalRadiusTiles;
             // Arrival radius squared. Unit: squared tiles. Range: 0.0025 to 4 (arrival radius 0.05 to 2).
             Fix64 arrivalRadiusSquared = arrivalRadius * arrivalRadius;
+            // Every unit in ascending ID order and its position before moving, for separation (step 5c); empty when separation is off.
+            Unit[] all = new Unit[0];
+            FixVec2[] start = new FixVec2[0];
+            if (UnitSeparation.IsActive(sim.Tuning.Terrain))
+            {
+                all = new List<Unit>(sim.Units.All).ToArray();
+                start = new FixVec2[all.Length];
+                for (int i = 0; i < all.Length; i++)
+                {
+                    start[i] = all[i].Position;
+                }
+            }
             // Unit being moved, visited in ascending ID order.
             foreach (Unit unit in sim.Units.All)
             {
@@ -107,6 +121,10 @@ namespace Rts.Sim.Units
                     unit.ClearMoveTarget();
                     sim.Events.Add(new UnitArrivedEvent(sim.Clock.Tick, unit.Id, unit.Position));
                 }
+            }
+            if (all.Length > 0)
+            {
+                UnitSeparation.Run(sim, all, start);
             }
         }
 

@@ -9,7 +9,7 @@
 //   2. apply this tick's commands in (issuer, sequence) order
 //   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 //   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
-//   5. movement
+//   5. movement, then separation (UnitSeparation: touching units pushed apart from a position snapshot, keep-right sidestep, crowd arrival)
 //   6. combat (CombatSystem), in this order: 6a dome regen (units with a shield_dome, ascending ID; also collects the active domes);
 //      6b land due hits (PendingHits.TakeDue, in (land tick, sequence) order; a hit whose target is gone is dropped); 6c the unit loop
 //      (cooldown, target with armed-first acquisition, fire: damage fixed at fire time with the uphill multiplier, dome absorption,

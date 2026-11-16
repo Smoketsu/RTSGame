@@ -192,7 +192,17 @@ namespace Rts.Sim.Tests.Cycles
         [Test]
         public void Relocation_ASpeedZeroUnitKeepsTheTileOpen()
         {
-            CycleRig rig = QuakeRig(BridgeMap());
+            // The dummy and the scout deliberately share one tile (radius 0.5 each), which separation (P-003 package B) would push apart; the
+            // test is about relocation, so separation, sidestep and crowd arrival are switched off here.
+            List<string> edits = new List<string>(CycleWorld.ShortCycleEdits());
+            edits.AddRange(new[]
+            {
+                "tuning/terrain.json", "\"separation_strength\": 0.5", "\"separation_strength\": 0",
+                "tuning/terrain.json", "\"sidestep_strength\": 0.5", "\"sidestep_strength\": 0",
+                "tuning/terrain.json", "\"crowd_arrival_radius_tiles\": 3", "\"crowd_arrival_radius_tiles\": 0",
+            });
+            CycleRig rig = new CycleRig(map: BridgeMap(), tuning: CycleWorld.EditedTuning(edits.ToArray()), cycles: CycleWorld.ShippedCycles());
+            rig.ScriptPick(0, "quake");
             EntityId dummy = rig.Spawn(0, CycleWorld.DummyId, CycleWorld.P0, "9.5", "9.5");
             EntityId scout = rig.Spawn(0, CycleWorld.ScoutId, CycleWorld.P0, "9.5", "9.5");
             rig.RunThrough(1200);

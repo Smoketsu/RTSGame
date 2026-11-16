@@ -38,6 +38,24 @@ namespace Rts.Sim.Data
         /// <summary>Distance from the goal at which a move order completes. Unit: tiles. Range: 0.05 to 2. Source: ADR-007; placeholder.</summary>
         public Fix64 ArrivalRadiusTiles { get; }
 
+        /// <summary>Fraction of the overlap between two touching units removed per tick. Unit: fraction per tick. Range: 0 to 1 (0 = off). Source: P-003 row 11; placeholder.</summary>
+        public Fix64 SeparationStrength { get; }
+
+        /// <summary>Sideways ("keep right") push of a moving unit that walks into another. Unit: fraction of the overlap per tick. Range: 0 to 2 (0 = off). Source: P-003 row 11; placeholder.</summary>
+        public Fix64 SidestepStrength { get; }
+
+        /// <summary>Largest total push one unit receives per tick. Unit: tiles per tick. Range: 0.01 to 0.5. Source: P-003 row 11; placeholder.</summary>
+        public Fix64 SeparationMaxPushTilesPerTick { get; }
+
+        /// <summary>Distance from its goal within which a moving unit touching a nearer stopped unit ends its move. Unit: tiles. Range: 0 to 16 (0 = off). Source: P-003 row 11; placeholder.</summary>
+        public Fix64 CrowdArrivalRadiusTiles { get; }
+
+        /// <summary>Side of the neighbour-search grid cells; speed only, never results. Unit: tiles. Range: 1 to 16 (integer). Source: placeholder.</summary>
+        public int SeparationCellTiles { get; }
+
+        /// <summary>Whether air units push each other apart. Unit: boolean. Range: true or false. Source: P-003 row 11; placeholder.</summary>
+        public bool AirSeparationEnabled { get; }
+
         /// <summary>Most cached flow fields before the oldest is evicted. Unit: fields. Range: 1 to 1024. Source: ADR-007; placeholder.</summary>
         public int MaxCachedFlowFields { get; }
 
@@ -48,7 +66,8 @@ namespace Rts.Sim.Data
             root.RejectUnknownKeys("deep_water_depth_threshold", "max_water_depth", "ground_dry_speed_multiplier",
                 "ground_raised_speed_multiplier", "ground_scorched_speed_multiplier", "water_unit_dry_speed_multiplier",
                 "water_unit_shallow_speed_multiplier", "water_unit_deep_speed_multiplier", "arrival_radius_tiles",
-                "max_cached_flow_fields");
+                "separation_strength", "sidestep_strength", "separation_max_push_tiles_per_tick", "crowd_arrival_radius_tiles",
+                "separation_cell_tiles", "air_separation_enabled", "max_cached_flow_fields");
             DeepWaterDepthThreshold = root.RequireFix64("deep_water_depth_threshold", "0.05", "10");
             MaxWaterDepth = root.RequireFix64("max_water_depth", "0.5", "20");
             if (!FloodTuning.IsWholeDrops(MaxWaterDepth))
@@ -62,6 +81,12 @@ namespace Rts.Sim.Data
             WaterUnitShallowSpeedMultiplier = root.RequireFix64("water_unit_shallow_speed_multiplier", "0.1", "2");
             WaterUnitDeepSpeedMultiplier = root.RequireFix64("water_unit_deep_speed_multiplier", "0.1", "2");
             ArrivalRadiusTiles = root.RequireFix64("arrival_radius_tiles", "0.05", "2");
+            SeparationStrength = root.RequireFix64("separation_strength", "0", "1");
+            SidestepStrength = root.RequireFix64("sidestep_strength", "0", "2");
+            SeparationMaxPushTilesPerTick = root.RequireFix64("separation_max_push_tiles_per_tick", "0.01", "0.5");
+            CrowdArrivalRadiusTiles = root.RequireFix64("crowd_arrival_radius_tiles", "0", "16");
+            SeparationCellTiles = root.RequireInt("separation_cell_tiles", 1, 16);
+            AirSeparationEnabled = root.RequireBool("air_separation_enabled");
             MaxCachedFlowFields = root.RequireInt("max_cached_flow_fields", 1, 1024);
         }
     }
