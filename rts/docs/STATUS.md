@@ -36,7 +36,7 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 | 2 | Versioned replays (`rts/src/Replay`), `tools/ReplayCheck` | Built and reviewed |
 | 3 | Specs: Planetary Cycles, balance harness, campaign scripting | Written (`specs/`) |
 | 4 | Planetary Cycles and Core capture | Built and reviewed |
-| 5 | Balance harness at full scale | **Not built.** Spec: `specs/balance_harness.md`. The harness still plays one game per run. |
+| 5 | Balance harness at full scale | Built 16 Nov 2026 (`--batch`). Spec: `specs/balance_harness.md`. The CI job is not added yet. |
 | 6 | Map checklist test | Built |
 | 7 | Two more 1v1 maps (three in total) | Built; both pass the checklist |
 | 8 | Campaign scripting layer and the first tutorial mission | **Not built.** Spec: `specs/campaign_scripting.md`. `rts/campaign` holds only a README. |
@@ -46,7 +46,7 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 
 ## What was checked on 16 Nov 2026
 
-- `dotnet test rts/RtsGame.sln` on `main`: 473 simulation, 33 net and 27 replay tests pass (after P-003 packages A and B).
+- `dotnet test rts/RtsGame.sln` on `main`: 489 simulation, 33 net and 27 replay tests pass (after P-003 packages A and B and the balance harness).
 - The headless runner's default script gives `STATE_HASH=06ab47ea375f0430` on Linux (cloud) after P-003 packages A and B. Before it the hash was `24ffa53a8542d783` on Linux and on the developer's Windows PC; Windows has not been re-run.
 - Unity (`6000.6.7f1`, pinned in `rts/src/Game/ProjectSettings/ProjectVersion.txt`), checked on the developer's PC through Funplay at commit `e15f943` (later commits that day changed no simulation, data or Unity file):
   - Compile: no errors, and no warnings in `Rts.Game` or `Rts.Sim`, including no CS8632 nullable warnings. The 55 warnings are all inside the Funplay package.
@@ -57,7 +57,7 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 ## What comes next, in order
 
 1. Build `specs/p003_rules.md` (the P-003 rule changes the developer approved on 16 Nov): both packages (A combat, B unit separation) are built, reviewed by the sim-reviewer and on `main` as of 16 Nov 2026. Left over: the PC session repeats the Unity check and draws the new events (shots, dome); the skirmish AI still counts workers as armed power; separation strength is a first guess to tune once seen in Unity. Both change every state hash, so the Unity-versus-headless check must be repeated afterwards.
-2. Build Phase 2 step 5 (balance harness) and step 8 (campaign scripting) from their specs.
+2. Phase 2 step 5 (balance harness batch mode) is built and on `main` (16 Nov 2026). Its first reduced batch FAILS the HQ survivability floor (a Rooted Great Aerie dies in 6.6 s to 15 Brinecasters; the floor is 20 s) and shows strong spawn bias and many undecided games; these are balance and AI findings for the developer, not harness faults. Still to do: the CI `balance-batch` job, a test guarding that `harness_batch.json` stays out of the content digest, and step 8 (campaign scripting).
 3. Phase 2 step 9, the Unity HUD and menus: done by the session on the developer's PC, which has the Unity Editor.
 4. Art: the art direction is settled (`art/CONCEPT_BRIEF.md`, table of approved designs). Approved units and buildings go to 3D through the pipeline trialled in `art/models/trial2`.
 

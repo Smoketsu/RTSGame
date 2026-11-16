@@ -175,13 +175,13 @@ namespace Rts.Sim.Data
             CheckCycleSet(cycles, cycleFiles);
             // Typed tuning built from every tuning file together. Range: every tuning file present.
             Tuning tuning = BuildTuning(tuningRoots);
-            // Digest of the tuning texts in ordinal path order, so any tuning edit changes the content digest.
+            // Digest of the tuning texts in ordinal path order, so any tuning edit changes the content digest, except tuning/harness_batch.json, which is left out below.
             StateHasher tuningHasher = new StateHasher();
             foreach (KeyValuePair<string, JsonValue> pair in tuningRoots)
             {
                 if (pair.Key == HarnessBatchTuning.FilePath)
                 {
-                    // Read by the balance harness only, so it must not change any state hash.
+                    // Read by the balance harness only, so it must not change the content digest (Tuning.SourceDigest). Nothing in Rts.Sim or Rts.Ai may read Tuning.HarnessBatch during a step: peers with different files would desync unnoticed.
                     continue;
                 }
                 tuningHasher.Write(pair.Key);
