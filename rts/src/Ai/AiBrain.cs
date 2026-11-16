@@ -539,6 +539,8 @@ namespace Rts.Ai
                 _supplyUsed = view.SupplyUsed;
                 // Largest worked distance, squared. Unit: squared tiles.
                 Fix64 reachSquared = ReachSquared;
+                // DepotsPlaced counts the depots among the own units (rule E's schedule), not the orders given.
+                memory.DepotsPlaced = 0;
                 foreach (AiUnitView unit in view.OwnUnits)
                 {
                     if (unit.IsWorker && unit.GatherState != GatherState.Idle)
@@ -553,6 +555,7 @@ namespace Rts.Ai
                     else if (unit.IsStructure && unit.Definition.Economy.IsDropOff)
                     {
                         _plannedDropOffs.Add(unit.Position);
+                        _memory.DepotsPlaced++;
                         if (unit.IsUnderConstruction)
                         {
                             _depotUnderConstruction = true;
@@ -686,6 +689,8 @@ namespace Rts.Ai
                         _memory.RelocationCooldownUntilTick = _view.Tick + _view.SecondsToTicks(_profile.RelocateCooldownSeconds);
                         _memory.Relocations++;
                     }
+                    // The failed-field memory lasts only until the HQ stands on a field again.
+                    _memory.FailedRelocationFields.Clear();
                     TriggerRelocation();
                     return;
                 }
@@ -704,11 +709,11 @@ namespace Rts.Ai
                     if (!_hq.HasMoveTarget)
                     {
                         // An Uprooted HQ nobody sent anywhere (for example after a script): relocate it.
-                        // Candidate fields measured from where it stands.
-                        List<AiFieldView> candidates = RelocationCandidates();
-                        if (candidates.Count > 0)
+                        // Best field to head for, measured from where it stands (the nearest live field when no candidate is left), or null.
+                        AiFieldView? choice = ChooseRelocationTarget(true);
+                        if (choice != null)
                         {
-                            BeginRelocation(candidates[0]);
+                            BeginRelocation(choice);
                             Emit(AiIntent.Move(_hq.Id, _memory.RelocationDestination));
                         }
                     }
@@ -742,6 +747,48 @@ namespace Rts.Ai
                     return true;
                 }
                 return RelocationCandidates().Count == 0 && LiveFieldInRootReach();
+            }
+
+            /// <summary>
+            /// The field an Uprooted HQ heads for: the first relocation candidate, else (so the HQ always ends up rooted while any field
+            /// has resources, also when it stands 6 to 10 tiles from one) the nearest field with known resources, preferring fields that
+            /// have not just timed out (<paramref name="avoidFailed"/>). Null when no field has known resources.
+            /// </summary>
+            private AiFieldView? ChooseRelocationTarget(bool avoidFailed)
+            {
+                List<AiFieldView> candidates = RelocationCandidates();
+                if (candidates.Count > 0)
+                {
+                    return candidates[0];
+                }
+                // Nearest field with known resources, or null. Unit: field. Range: any field.
+                AiFieldView? nearest = null;
+                // Nearest such field that is not a failed relocation target, or null. Unit: field. Range: any field.
+                AiFieldView? nearestFresh = null;
+                // Squared distance of the nearest field from the HQ. Unit: squared tiles. Range: 0 upward.
+                Fix64 nearestSquared = Fix64.Zero;
+                // Squared distance of the nearest non-failed field from the HQ. Unit: squared tiles. Range: 0 upward.
+                Fix64 freshSquared = Fix64.Zero;
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    if (Known(field) <= 0)
+                    {
+                        continue;
+                    }
+                    // Squared distance of this field. Unit: squared tiles. Range: 0 upward.
+                    Fix64 squared = (field.Centre - _hq.Position).LengthSquared();
+                    if (nearest == null || squared < nearestSquared)
+                    {
+                        nearest = field;
+                        nearestSquared = squared;
+                    }
+                    if (!_memory.FailedRelocationFields.Contains(field.Index) && (nearestFresh == null || squared < freshSquared))
+                    {
+                        nearestFresh = field;
+                        freshSquared = squared;
+                    }
+                }
+                return avoidFailed && nearestFresh != null ? nearestFresh : nearest;
             }
 
             /// <summary>True when a field with known resources lies within the HQ root reach (tuning/hq.json) of the HQ.</summary>
@@ -809,13 +856,36 @@ namespace Rts.Ai
                 List<AiFieldView> result = new List<AiFieldView>();
                 foreach (AiFieldView field in TargetOrder(_hq.Position))
                 {
-                    if (IsNearAny(depots, field.Centre) || (field.Centre - _hq.Position).LengthSquared() <= ReachSquared)
+                    if (IsNearAny(depots, field.Centre) || (field.Centre - _hq.Position).LengthSquared() <= ReachSquared
+                        || _memory.FailedRelocationFields.Contains(field.Index) || SurroundingsNearlyEmpty(field))
                     {
                         continue;
                     }
                     result.Add(field);
                 }
                 return result;
+            }
+
+            /// <summary>
+            /// True when the fields around <paramref name="field"/> (every field within field_max_distance_tiles of its centre, itself
+            /// included) hold relocate_when_home_remaining_fraction or less of their start amount: moving there would only start the
+            /// next relocation, so the HQ would bounce between nearly empty bases.
+            /// </summary>
+            private bool SurroundingsNearlyEmpty(AiFieldView field)
+            {
+                // Known amount left in the fields around the field. Unit: resource units. Range: 0 upward.
+                int known = 0;
+                // Start amount of those fields. Unit: resource units. Range: 1 upward.
+                int start = 0;
+                foreach (AiFieldView other in _view.Fields)
+                {
+                    if ((other.Centre - field.Centre).LengthSquared() <= ReachSquared)
+                    {
+                        known += Known(other);
+                        start += other.StartAmount;
+                    }
+                }
+                return Fix64.FromInt(known) <= _profile.RelocateWhenHomeRemainingFraction * Fix64.FromInt(start);
             }
 
             /// <summary>Where the HQ stops for <paramref name="field"/>: stand_off tiles (at most half the root distance) from its centre toward the HQ, on a standable tile.</summary>
@@ -855,17 +925,32 @@ namespace Rts.Ai
                 }
                 // Candidate fields measured from where the HQ stands.
                 List<AiFieldView> candidates = RelocationCandidates();
-                if (candidates.Count == 0)
+                if (!depleted && candidates.Count == 0)
                 {
-                    // Keep moving to the old destination; rooting happens wherever a live field is within reach.
-                    return false;
+                    // Nothing better: keep moving to the old destination (a timeout is handled below).
+                    if (!timedOut)
+                    {
+                        return false;
+                    }
                 }
                 if (!depleted && !timedOut && IsUnsafe(candidates[0].Centre))
                 {
                     // Only unsafe alternatives: stay on the old target.
                     return false;
                 }
-                BeginRelocation(candidates[0]);
+                if (timedOut && !depleted)
+                {
+                    // The destination could not be reached in time: do not pick this field again until the HQ has rooted.
+                    _memory.FailedRelocationFields.Add(_memory.RelocationField);
+                    candidates = RelocationCandidates();
+                }
+                // Next field: the first candidate, else the nearest live field (the HQ must end up rooted while any field has resources).
+                AiFieldView? next = candidates.Count > 0 ? candidates[0] : ChooseRelocationTarget(true);
+                if (next == null)
+                {
+                    return false;
+                }
+                BeginRelocation(next);
                 return true;
             }
 
@@ -886,7 +971,18 @@ namespace Rts.Ai
                     }
                 }
                 // Target order from the HQ position, computed once for the long haul (empty unless starved with a drop-off).
-                List<AiFieldView> haul = _hasDropOff && Starved ? TargetOrder(_hq.Position) : new List<AiFieldView>();
+                List<AiFieldView> haul = new List<AiFieldView>();
+                if (_hasDropOff && Starved)
+                {
+                    // Unsafe fields stay out of the long haul (workers walk there alone; a depot may still be built beside one, rule E).
+                    foreach (AiFieldView field in TargetOrder(_hq.Position))
+                    {
+                        if (!IsUnsafe(field.Centre))
+                        {
+                            haul.Add(field);
+                        }
+                    }
+                }
                 foreach (AiUnitView worker in _view.OwnUnits)
                 {
                     if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving)
@@ -1067,8 +1163,9 @@ namespace Rts.Ai
                     return false;
                 }
                 _memory.LastBuildAttemptTick[definition.Id] = _view.Tick;
-                // Tile of the new structure.
+                // Tile column of the new structure. Unit: tiles. Range: 0 to map width - 1.
                 int x = 0;
+                // Tile row of the new structure. Unit: tiles. Range: 0 to map height - 1.
                 int y = 0;
                 if (site != null)
                 {
@@ -1117,15 +1214,23 @@ namespace Rts.Ai
                 int hy = _hq.TileY;
                 // Height layer of the HQ's tile; sites must match it. Range: 0 to 7.
                 byte baseHeight = _view.HeightAt(hx, hy);
+                // Scan direction per axis: +1 when the map centre lies at or beyond the HQ tile in that axis, else -1 (a point-symmetric map
+                // then gives the two players exactly mirrored scans, so neither starts behind its base and the other in front).
+                int sx = _view.Width / 2 >= hx ? 1 : -1;
+                int sy = _view.Height / 2 >= hy ? 1 : -1;
                 // Ring distance from the HQ tile. Unit: tiles. Range: build_ring_min_tiles to build_ring_max_tiles.
                 for (int ring = _profile.BuildRingMinTiles; ring <= _profile.BuildRingMaxTiles; ring++)
                 {
-                    // Row offset. Unit: tiles. Range: -ring to ring.
-                    for (int dy = -ring; dy <= ring; dy++)
+                    // Scan step along the row axis. Unit: tiles. Range: -ring to ring.
+                    for (int stepY = -ring; stepY <= ring; stepY++)
                     {
-                        // Column offset. Unit: tiles. Range: -ring to ring.
-                        for (int dx = -ring; dx <= ring; dx++)
+                        // Row offset, flipped toward the map centre so both players scan from behind their base. Unit: tiles. Range: -ring to ring.
+                        int dy = stepY * sy;
+                        // Scan step along the column axis. Unit: tiles. Range: -ring to ring.
+                        for (int stepX = -ring; stepX <= ring; stepX++)
                         {
+                            // Column offset, flipped the same way. Unit: tiles. Range: -ring to ring.
+                            int dx = stepX * sx;
                             if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != ring)
                             {
                                 continue;
@@ -1226,8 +1331,9 @@ namespace Rts.Ai
                         }
                     }
                 }
-                // Pool split by safety.
+                // Pool fields that are safe. Unit: fields. Range: 0 to field count.
                 List<AiFieldView> safe = new List<AiFieldView>();
+                // Pool fields that are unsafe. Unit: fields. Range: 0 to field count.
                 List<AiFieldView> unsafeFields = new List<AiFieldView>();
                 foreach (AiFieldView field in pool)
                 {
@@ -1245,8 +1351,9 @@ namespace Rts.Ai
             /// <summary>Orders two fields by squared distance from <paramref name="from"/>, then by index (a total order, so the sort is deterministic).</summary>
             private static int CompareByDistance(AiFieldView a, AiFieldView b, FixVec2 from)
             {
-                // Squared distances of the two fields. Unit: squared tiles.
+                // Squared distance of the first field from the origin point. Unit: squared tiles. Range: 0 upward.
                 Fix64 da = (a.Centre - from).LengthSquared();
+                // Squared distance of the second field from the origin point. Unit: squared tiles. Range: 0 upward.
                 Fix64 db = (b.Centre - from).LengthSquared();
                 int byDistance = da.CompareTo(db);
                 return byDistance != 0 ? byDistance : a.Index.CompareTo(b.Index);
@@ -1261,8 +1368,9 @@ namespace Rts.Ai
                 }
                 // Clock time from which the next depot is due. Unit: seconds.
                 Fix64 dueSeconds = _profile.ExpandAtSeconds + _profile.ExpandIntervalSeconds * _memory.DepotsPlaced;
-                // Known and start amounts of the served fields. Unit: resource units.
+                // Known amount left in the served fields. Unit: resource units. Range: 0 upward.
                 int servedKnown = 0;
+                // Start amount of the served fields. Unit: resource units. Range: 0 upward.
                 int servedStart = 0;
                 foreach (AiFieldView field in _served)
                 {
@@ -1294,10 +1402,7 @@ namespace Rts.Ai
                     _memory.UnbuildableFields.Add(target.Index);
                     return;
                 }
-                if (TryBuild(_view.Content.Units[_plan.DropOffBuildingId], (x, y)))
-                {
-                    _memory.DepotsPlaced++;
-                }
+                TryBuild(_view.Content.Units[_plan.DropOffBuildingId], (x, y));
             }
 
             /// <summary>
@@ -1309,20 +1414,29 @@ namespace Rts.Ai
             {
                 // Height layer of the target field's tile; the depot must stand on it. Range: 0 to 7.
                 byte baseHeight = _view.HeightAt(target.X, target.Y);
-                // True once a site has been found, and the best score so far. Unit: squared tiles.
+                // True once a depot site has been found. Unit: boolean. Range: true or false.
                 bool found = false;
+                // Score of the best site so far (sum of squared distances to the live fields near the target). Unit: squared tiles. Range: 0 upward.
                 Fix64 bestScore = Fix64.Zero;
                 siteX = 0;
                 siteY = 0;
+                // Scan direction per axis: +1 when the target field lies at or beyond the HQ tile in that axis, else -1 (mirrored for the
+                // other player on a point-symmetric map).
+                int sx = target.X >= _hq.TileX ? 1 : -1;
+                int sy = target.Y >= _hq.TileY ? 1 : -1;
                 // Ring distance from the target tile. Unit: tiles. Range: depot_ring_min_tiles to depot_ring_max_tiles.
                 for (int ring = _profile.DepotRingMinTiles; ring <= _profile.DepotRingMaxTiles; ring++)
                 {
-                    // Row offset. Unit: tiles. Range: -ring to ring.
-                    for (int dy = -ring; dy <= ring; dy++)
+                    // Scan step along the row axis. Unit: tiles. Range: -ring to ring.
+                    for (int stepY = -ring; stepY <= ring; stepY++)
                     {
-                        // Column offset. Unit: tiles. Range: -ring to ring.
-                        for (int dx = -ring; dx <= ring; dx++)
+                        // Row offset, flipped toward the HQ side per the scan direction. Unit: tiles. Range: -ring to ring.
+                        int dy = stepY * sy;
+                        // Scan step along the column axis. Unit: tiles. Range: -ring to ring.
+                        for (int stepX = -ring; stepX <= ring; stepX++)
                         {
+                            // Column offset, flipped the same way. Unit: tiles. Range: -ring to ring.
+                            int dx = stepX * sx;
                             if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != ring || !IsGoodSite(target.X + dx, target.Y + dy, baseHeight))
                             {
                                 continue;

@@ -124,7 +124,7 @@ namespace Rts.Ai
                 return;
             }
             // What the AI may know this think.
-            AiWorldView view = AiWorldView.Build(sim, Player);
+            AiWorldView view = AiWorldView.Build(sim, Player, Memory.KnownFieldRemaining);
             Memory.ThinkCount++;
             // Intents decided this think, in rule order.
             List<AiIntent> intents = AiBrain.Decide(view, Profile, Plan!, Memory, Rng!);

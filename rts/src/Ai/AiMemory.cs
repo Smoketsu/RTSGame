@@ -133,13 +133,19 @@ namespace Rts.Ai
         /// </summary>
         public int[] KnownFieldRemaining { get; set; } = System.Array.Empty<int>();
 
-        /// <summary>Depot build intents emitted so far (rule E). Unit: count. Range: 0 upward.</summary>
+        /// <summary>Own depots (drop-off structures, complete or under construction) counted at the latest think; sets when the next one is due (rule E). Unit: count. Range: 0 upward.</summary>
         public int DepotsPlaced { get; set; }
 
-        /// <summary>Field indices around which no depot site was found; skipped as depot targets (rule E). Ascending.</summary>
+        /// <summary>Field indices around which no depot site was found; skipped as depot targets (rule E). Ascending. Range: each 0 to field count - 1; empty at the start.</summary>
         public SortedSet<int> UnbuildableFields { get; } = new SortedSet<int>();
 
-        /// <summary>True while the HQ is moving to a new field (rule H).</summary>
+        /// <summary>
+        /// Fields a relocation timed out on; skipped when choosing a relocation target until the HQ roots again, when the set is
+        /// cleared (rule H step 4). Ascending. Range: each 0 to field count - 1; empty at the start.
+        /// </summary>
+        public SortedSet<int> FailedRelocationFields { get; } = new SortedSet<int>();
+
+        /// <summary>True while the HQ is moving to a new field (rule H). Unit: boolean. Range: true or false; false at the start.</summary>
         public bool RelocationActive { get; set; }
 
         /// <summary>Field index the relocating HQ heads for. Range: 0 to field count - 1; meaningful only while <see cref="RelocationActive"/>.</summary>

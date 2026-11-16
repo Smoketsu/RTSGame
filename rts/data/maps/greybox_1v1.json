@@ -1,7 +1,7 @@
 // rts/data/maps/greybox_1v1.json: grey-box 1v1 test map. Part of rts/data/maps; read by the data loader (rts/src/Sim/Data) into a MapDefinition. Three elevation layers: two layer-2 start plateaus with ramps, a layer-1 middle ring and a layer-0 central basin holding the Core (docs/decisions/ADR-006-terrain-model.md).
 {
   "$schema_version": 1,
-  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, 180-degree symmetric (and symmetric under swapping x and y), with two high-ground start plateaus, ramps, a central low basin around the Core, two common fields at each main, a natural pair outside each main, rare fields on the flanks and a flank common field beside each rare one.",
+  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, 180-degree symmetric, with two high-ground start plateaus, ramps, a central low basin around the Core, two common fields at each main, a natural pair outside each main, rare fields on the flanks and a flank common field beside each rare one.",
   // Stable map ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "greybox_1v1",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: not in the design doc; placeholder for Phase 1.

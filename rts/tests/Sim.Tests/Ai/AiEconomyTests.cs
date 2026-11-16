@@ -59,7 +59,7 @@ namespace Rts.Sim.Tests.Ai
         /// A started two-player match on <paramref name="mapId"/>: each player has its HQ at its spawn, <paramref name="workers"/>
         /// workers beside it and one producer (Roost or Tidepool, so the build order has nothing to buy), cycles off, seed 1234.
         /// </summary>
-        private Simulation Game(string mapId = "greybox_1v1", int workers = 2)
+        private Simulation Game(string mapId = "greybox_1v1", int workers = 2, bool producers = true, FixVec2? hq0 = null, FixVec2? hq1 = null)
         {
             List<PlayerSetup> players = new List<PlayerSetup>
             {
@@ -71,8 +71,8 @@ namespace Rts.Sim.Tests.Ai
             sim.Start();
             Assert.That(sim.Clock.TicksPerSecond, Is.EqualTo(TicksPerSecond));
             // The spawn points of the two players. Unit: tiles.
-            FixVec2 s0 = sim.Map.Spawns[0];
-            FixVec2 s1 = sim.Map.Spawns[1];
+            FixVec2 s0 = hq0 ?? sim.Map.Spawns[0];
+            FixVec2 s1 = hq1 ?? sim.Map.Spawns[1];
             Spawn(sim, "skai.great_aerie", P0, s0);
             Spawn(sim, "water.grand_shell", P1, s1);
             // Worker index. Range: 0 to workers - 1.
@@ -83,8 +83,11 @@ namespace Rts.Sim.Tests.Ai
                 Spawn(sim, "skai.fledgling", P0, s0 + offset);
                 Spawn(sim, "water.tender", P1, s1 - offset);
             }
-            Spawn(sim, "skai.roost", P0, s0 + new FixVec2(Fix64.FromInt(5), Fix64.FromInt(-2)));
-            Spawn(sim, "water.tidepool", P1, s1 - new FixVec2(Fix64.FromInt(5), Fix64.FromInt(-2)));
+            if (producers)
+            {
+                Spawn(sim, "skai.roost", P0, s0 + new FixVec2(Fix64.FromInt(5), Fix64.FromInt(-2)));
+                Spawn(sim, "water.tidepool", P1, s1 - new FixVec2(Fix64.FromInt(5), Fix64.FromInt(-2)));
+            }
             Assert.That(Hq(sim, P0).HqState, Is.EqualTo(HqState.Rooted), "the Skai HQ starts Rooted beside its fields");
             Assert.That(Hq(sim, P1).HqState, Is.EqualTo(HqState.Rooted), "the Water HQ starts Rooted beside its fields");
             return sim;
@@ -364,7 +367,10 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(builds[0].TileX, Is.EqualTo(21));
             Assert.That(builds[0].TileY, Is.EqualTo(7));
             Assert.That(builds[0].Unit, Is.EqualTo(skaiWorkers[1]), "the lowest-ID gathering worker, not the idle lowest-ID worker");
-            Assert.That(memory.DepotsPlaced, Is.EqualTo(1));
+            Assert.That(memory.DepotsPlaced, Is.EqualTo(0), "DepotsPlaced counts depots among the own units, not orders");
+            Apply(sim, P0, intents);
+            DecideP0(sim, memory);
+            Assert.That(memory.DepotsPlaced, Is.EqualTo(1), "the depot now stands (under construction)");
             // The mirror: Water at slot 1 builds its Pearl Depot at (42, 56).
             AiMemory waterMemory = new AiMemory();
             List<AiIntent> waterBuilds = Builds(Decide(sim, P1, Aggressive, waterMemory), "water.pearl_depot");
@@ -372,13 +378,12 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(waterBuilds[0].TileX, Is.EqualTo(42));
             Assert.That(waterBuilds[0].TileY, Is.EqualTo(56));
             Assert.That(waterBuilds[0].Unit, Is.EqualTo(waterWorkers[1]));
-            Assert.That(waterMemory.DepotsPlaced, Is.EqualTo(1));
         }
 
         /// <summary>
         /// B-4 on prototype_1v1 (96 x 96, developer-approved layout): the depot tiles the rule gives beside the first natural field,
         /// computed with an independent script from the spec's rule: player 0 (HQ at (12.5, 12.5), target field 3 at (26, 16)) builds
-        /// at (26, 13); player 1 (HQ at (83.5, 83.5), target field 11 at (69, 79)) builds at (68, 82).
+        /// at (26, 13); player 1 (HQ at (83.5, 83.5), target field 11 at (69, 79)) builds at (69, 82), the exact mirror (95 - x, 95 - y).
         /// </summary>
         [Test]
         public void B4_ExpandByTime_Prototype()
@@ -395,7 +400,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(skai[0].TileY, Is.EqualTo(13));
             List<AiIntent> water = Builds(Decide(sim, P1, Aggressive), "water.pearl_depot");
             Assert.That(water.Count, Is.EqualTo(1));
-            Assert.That(water[0].TileX, Is.EqualTo(68));
+            Assert.That(water[0].TileX, Is.EqualTo(69));
             Assert.That(water[0].TileY, Is.EqualTo(82));
         }
 
@@ -428,8 +433,9 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Builds(DecideP0(sim), "skai.perch_depot"), Is.Empty, "a threat stops expansion");
 
             // max_live_depots reached: two complete depots, each with live fields in reach.
+            // (A depot is due at 240 s + 150 s per depot standing, so the clock is set past 240 + 2 x 150 s.)
             sim = Game();
-            StepTo(sim, Ticks(240));
+            StepTo(sim, Ticks(600));
             SetStock(sim, P0, 500, 0);
             SpawnAtTile(sim, "skai.perch_depot", P0, 21, 7);
             SpawnAtTile(sim, "skai.perch_depot", P0, 9, 49);
@@ -439,7 +445,7 @@ namespace Rts.Sim.Tests.Ai
             // A complete depot whose fields are all known empty is not live (limit 1: a live one blocks, an empty one does not).
             AiProfile one = Edited("\"max_live_depots\": 2", "\"max_live_depots\": 1");
             sim = Game();
-            StepTo(sim, Ticks(240));
+            StepTo(sim, Ticks(400));
             SetStock(sim, P0, 500, 0);
             SpawnAtTile(sim, "skai.perch_depot", P0, 21, 7);
             Assert.That(Probe(sim).LiveDepots, Is.EqualTo(1));
@@ -452,7 +458,7 @@ namespace Rts.Sim.Tests.Ai
 
             // None while a depot is under construction.
             sim = Game();
-            StepTo(sim, Ticks(240));
+            StepTo(sim, Ticks(400));
             SetStock(sim, P0, 500, 0);
             sim.Submit(new BuildStructureCommand(sim.Clock.Tick, P0, _sequence++, Workers(sim, P0)[0], "skai.perch_depot", 21, 7));
             sim.Step();
@@ -719,6 +725,7 @@ namespace Rts.Sim.Tests.Ai
             memory.RelocationField = 0;
             memory.RelocationDestination = FixVec2.FromInts(5, 9);
             memory.RelocationStartTick = sim.Clock.Tick;
+            memory.FailedRelocationFields.Add(11);
             intents = DecideP0(sim, memory);
             Assert.That(Of(intents, AiIntentKind.RootHq).Count, Is.EqualTo(1));
             Apply(sim, P0, intents);
@@ -737,6 +744,7 @@ namespace Rts.Sim.Tests.Ai
             intents = DecideP0(sim, memory);
             Assert.That(memory.RelocationActive, Is.False);
             Assert.That(memory.Relocations, Is.EqualTo(1));
+            Assert.That(memory.FailedRelocationFields, Is.Empty, "cleared once the HQ roots");
             Assert.That(Of(intents, AiIntentKind.UprootHq), Is.Empty, "inside the cooldown");
             StepTo(sim, rootedTick + Ticks(30));
             SetStock(sim, P0, 40, 0);
@@ -834,6 +842,185 @@ namespace Rts.Sim.Tests.Ai
             {
                 Assert.That(gather.Field, Is.EqualTo(6));
             }
+        }
+
+        // ------------------------------------------------------------------ review fixes (16 Nov 2026)
+
+        /// <summary>Moves P0's Uprooted HQ to <paramref name="point"/> with a command and steps until it arrives.</summary>
+        private void WalkHq(Simulation sim, FixVec2 point)
+        {
+            sim.Submit(new MoveUnitCommand(sim.Clock.Tick, P0, _sequence++, Hq(sim, P0).Id, point));
+            // Steps spent walking. Range: 0 to 2000.
+            for (int i = 0; i < 2000 && (i == 0 || Hq(sim, P0).HasMoveTarget); i++)
+            {
+                sim.Step();
+            }
+            Assert.That(Hq(sim, P0).HasMoveTarget, Is.False);
+        }
+
+        /// <summary>Review fix 1: an Uprooted HQ 6 to 10 tiles from the only live field (too far to root, a home field so no candidate) walks to it and roots; also when its target empties.</summary>
+        [Test]
+        public void R1_HqNearALiveFieldIsNeverStuckUprooted()
+        {
+            Simulation sim = Game();
+            Empty(sim, 0);
+            Empty(sim, 1);
+            UprootAndWait(sim);
+            WalkHq(sim, new FixVec2(Fix64.Parse("14.5"), Fix64.Parse("8.5")));
+            // Field 6 at (21, 10) is 6.7 tiles away: out of root reach (6), inside the home radius (10). It is the only field known live
+            // (fields 6 and 7), so the candidate list is empty.
+            AiMemory memory = new AiMemory();
+            memory.KnownFieldRemaining = new int[sim.Resources.Count];
+            memory.KnownFieldRemaining[6] = 3000;
+            memory.KnownFieldRemaining[7] = 3000;
+            List<AiIntent> intents = DecideP0(sim, memory);
+            Assert.That(Of(intents, AiIntentKind.RootHq), Is.Empty);
+            // The HQ's own moves.
+            List<AiIntent> hqMoves = new List<AiIntent>();
+            foreach (AiIntent move in Of(intents, AiIntentKind.Move))
+            {
+                if (move.Unit == Hq(sim, P0).Id)
+                {
+                    hqMoves.Add(move);
+                }
+            }
+            Assert.That(hqMoves.Count, Is.EqualTo(1));
+            Assert.That(memory.RelocationField, Is.EqualTo(6));
+            Assert.That((hqMoves[0].Point - Destination(sim, 6, Hq(sim, P0).Position)).LengthSquared() < Fix64.Half, Is.True);
+            // Walk there: now the HQ roots.
+            WalkHq(sim, hqMoves[0].Point);
+            Assert.That(Of(DecideP0(sim, memory), AiIntentKind.RootHq).Count, Is.EqualTo(1));
+
+            // The same when the relocation target empties during the walk and the only live field is a home field.
+            sim = Game();
+            Empty(sim, 0);
+            Empty(sim, 1);
+            UprootAndWait(sim);
+            WalkHq(sim, new FixVec2(Fix64.Parse("14.5"), Fix64.Parse("8.5")));
+            memory = new AiMemory();
+            memory.RelocationActive = true;
+            memory.RelocationField = 11;
+            memory.RelocationDestination = Destination(sim, 11, Hq(sim, P0).Position);
+            memory.RelocationStartTick = sim.Clock.Tick;
+            memory.KnownFieldRemaining = new int[sim.Resources.Count];
+            memory.KnownFieldRemaining[6] = 3000;
+            memory.KnownFieldRemaining[7] = 3000;
+            DecideP0(sim, memory);
+            Assert.That(memory.RelocationField, Is.EqualTo(6), "field 11 is known empty and no candidate is left: the nearest live field");
+        }
+
+        /// <summary>Review fix 2: a field a relocation timed out on is remembered and skipped when re-targeting (until the HQ roots).</summary>
+        [Test]
+        public void R2_TimedOutFieldsAreNotChosenAgain()
+        {
+            Simulation sim = Game();
+            UprootAndWait(sim);
+            StepTo(sim, Ticks(300));
+            AiMemory memory = new AiMemory();
+            memory.RelocationActive = true;
+            memory.RelocationField = 11;
+            memory.RelocationDestination = Destination(sim, 11, Hq(sim, P0).Position);
+            memory.RelocationStartTick = sim.Clock.Tick - Ticks(121);
+            DecideP0(sim, memory);
+            Assert.That(memory.RelocationField, Is.EqualTo(6));
+            Assert.That(memory.FailedRelocationFields, Is.EqualTo(new List<int> { 11 }));
+            // Field 6 times out too: the next choice is neither 6 nor 11.
+            memory.RelocationStartTick = sim.Clock.Tick - Ticks(121);
+            DecideP0(sim, memory);
+            Assert.That(memory.RelocationField, Is.EqualTo(7));
+            Assert.That(memory.FailedRelocationFields, Is.EqualTo(new List<int> { 6, 11 }));
+        }
+
+        /// <summary>Review fix 3: a relocation candidate whose own surrounding fields are nearly empty is skipped.</summary>
+        [Test]
+        public void R3_NearlyEmptySurroundingsAreNotACandidate()
+        {
+            Simulation sim = Game();
+            Empty(sim, 0);
+            Empty(sim, 1);
+            StepTo(sim, Ticks(10));
+            SetStock(sim, P0, 40, 0);
+            AiMemory memory = new AiMemory();
+            memory.KnownFieldRemaining = StartAmounts(sim);
+            // Fields 6 and 7 hold 300 each of 6000 (5 percent, at or under the 10 percent limit) but are far above the minimum remaining.
+            memory.KnownFieldRemaining[6] = 300;
+            memory.KnownFieldRemaining[7] = 300;
+            List<AiIntent> intents = DecideP0(sim, memory);
+            Assert.That(Of(intents, AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+            Assert.That(memory.RelocationField, Is.EqualTo(10), "not the nearly empty natural pair");
+        }
+
+        /// <summary>Review fix 4: the view marks a footprint as blocked only where the team sees the tile.</summary>
+        [Test]
+        public void R4_UnseenEnemyFootprintsAreNotInTheView()
+        {
+            Simulation sim = Game();
+            SpawnAtTile(sim, "water.tidepool", P1, 40, 40);
+            SpawnAtTile(sim, "water.tidepool", P1, 14, 8);
+            Assert.That(sim.Terrain.At(40, 40).IsBlocked, Is.True, "the simulation blocks the footprint");
+            AiWorldView view = AiWorldView.Build(sim, P0);
+            Assert.That(view.IsVisible(40, 40), Is.False);
+            Assert.That(view.IsBlocked(40, 40), Is.False, "an unseen enemy footprint is not known");
+            Assert.That(view.IsVisible(14, 8), Is.True);
+            Assert.That(view.IsBlocked(14, 8), Is.True, "a seen footprint is");
+        }
+
+        /// <summary>Review fix 5: on a point-symmetric map the two players' HQ-area sites and depot sites are exact 180-degree mirrors.</summary>
+        [Test]
+        public void R5_SiteSearchesMirrorBetweenThePlayers()
+        {
+            // Prototype at the spawns; grey-box with the HQs on mirrored tiles ((8, 8) and (55, 55); its P1 spawn is one tile off the mirror).
+            foreach ((string map, FixVec2? h0, FixVec2? h1, int size) in new[]
+            {
+                ("prototype_1v1", (FixVec2?)null, (FixVec2?)null, 96),
+                ("greybox_1v1", (FixVec2?)new FixVec2(Fix64.Parse("8.5"), Fix64.Parse("8.5")), (FixVec2?)new FixVec2(Fix64.Parse("55.5"), Fix64.Parse("55.5")), 64),
+            })
+            {
+                // HQ-area structure sites: nothing is built yet, so the first build order step places a Roost and a Tidepool.
+                Simulation sim = Game(map, 2, false, h0, h1);
+                SetStock(sim, P0, 1000, 0);
+                SetStock(sim, P1, 1000, 0);
+                List<AiIntent> skai = Builds(DecideP0(sim), "skai.roost");
+                List<AiIntent> water = Builds(Decide(sim, P1, Aggressive), "water.tidepool");
+                Assert.That(skai.Count, Is.EqualTo(1), map);
+                Assert.That(water.Count, Is.EqualTo(1), map);
+                Assert.That(water[0].TileX, Is.EqualTo(size - 1 - skai[0].TileX), map + " HQ-area column");
+                Assert.That(water[0].TileY, Is.EqualTo(size - 1 - skai[0].TileY), map + " HQ-area row");
+                // Depot sites at 240 s.
+                sim = Game(map, 2, true, h0, h1);
+                StepTo(sim, Ticks(240));
+                Gather(sim, P0, Workers(sim, P0)[1], 0);
+                Gather(sim, P1, Workers(sim, P1)[1], map == "greybox_1v1" ? 2 : 8);
+                SetStock(sim, P0, 200, 0);
+                SetStock(sim, P1, 200, 0);
+                skai = Builds(DecideP0(sim), "skai.perch_depot");
+                water = Builds(Decide(sim, P1, Aggressive), "water.pearl_depot");
+                Assert.That(skai.Count, Is.EqualTo(1), map);
+                Assert.That(water.Count, Is.EqualTo(1), map);
+                Assert.That(water[0].TileX, Is.EqualTo(size - 1 - skai[0].TileX), map + " depot column");
+                Assert.That(water[0].TileY, Is.EqualTo(size - 1 - skai[0].TileY), map + " depot row");
+            }
+        }
+
+        /// <summary>Review fix 7: a hidden field reports the remembered (or start) amount in the view, and unsafe fields are left out of the long haul.</summary>
+        [Test]
+        public void R7_HiddenAmountsAreMasked_AndTheLongHaulSkipsUnsafeFields()
+        {
+            Simulation sim = Game();
+            Leave(sim, 9, 1000);
+            Assert.That(AiWorldView.Build(sim, P0).Fields[9].Remaining, Is.EqualTo(3000), "hidden: start amount without a memory");
+            Assert.That(AiWorldView.Build(sim, P0, new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 2500, 0, 0 }).Fields[9].Remaining, Is.EqualTo(2500), "hidden: remembered amount");
+            Assert.That(AiWorldView.Build(sim, P0).Fields[0].Remaining, Is.EqualTo(3000), "visible: live amount");
+
+            // Starved with only field 8 known live: it is 13.7 tiles from the Water spawn, so unsafe: no worker is sent there.
+            sim = Game();
+            Empty(sim, 0);
+            Empty(sim, 1);
+            SetStock(sim, P0, 200, 0);
+            AiMemory memory = new AiMemory();
+            memory.KnownFieldRemaining = new int[sim.Resources.Count];
+            memory.KnownFieldRemaining[8] = 3000;
+            Assert.That(Of(DecideP0(sim, memory), AiIntentKind.Gather), Is.Empty);
         }
 
         // ------------------------------------------------------------------ B-19 to B-21

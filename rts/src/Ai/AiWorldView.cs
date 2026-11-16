@@ -336,7 +336,12 @@ namespace Rts.Ai
         /// </summary>
         /// <param name="sim">The simulation between steps.</param>
         /// <param name="player">The AI's player; must be in the match setup.</param>
-        public static AiWorldView Build(Simulation sim, PlayerId player)
+        /// <param name="knownRemaining">
+        /// The AI's remembered amount per field (AiMemory.KnownFieldRemaining), or null before the first think. A field whose tile the
+        /// team does not see reports this amount in <see cref="AiFieldView.Remaining"/> (its start amount when null or too short), never
+        /// the live amount. Unit: resource units. Range: each 0 upward.
+        /// </param>
+        public static AiWorldView Build(Simulation sim, PlayerId player, IReadOnlyList<int>? knownRemaining = null)
         {
             if (sim == null)
             {
@@ -435,8 +440,9 @@ namespace Rts.Ai
                 TerrainTile tile = terrain[index];
                 view._heights[index] = tile.Height;
                 view._ramps[index] = tile.IsRamp;
-                view._blocked[index] = tile.IsBlocked;
                 view._visible[index] = sim.Vision.IsTileVisible(self.Team, terrain.XOf(index), terrain.YOf(index));
+                // Walls are terrain; a footprint (a structure, maybe an enemy one) is known only where the team sees the tile.
+                view._blocked[index] = (tile.Blockers & TileBlockers.Wall) != 0 || ((tile.Blockers & TileBlockers.Footprint) != 0 && view._visible[index]);
             }
 
             // Own units in ascending ID order.
@@ -470,7 +476,13 @@ namespace Rts.Ai
             List<AiFieldView> fields = new List<AiFieldView>();
             foreach (ResourceFieldState field in sim.Resources.All)
             {
-                fields.Add(new AiFieldView(field.Index, field.X, field.Y, field.Kind, field.Remaining, terrain.CentreOf(terrain.IndexOf(field.X, field.Y)), field.Initial));
+                // Amount the AI may know: the live one only while the field's tile is visible, else what it remembers (or the start amount).
+                int remaining = field.Remaining;
+                if (!sim.Vision.IsTileVisible(self.Team, field.X, field.Y))
+                {
+                    remaining = knownRemaining != null && field.Index < knownRemaining.Count ? knownRemaining[field.Index] : field.Initial;
+                }
+                fields.Add(new AiFieldView(field.Index, field.X, field.Y, field.Kind, remaining, terrain.CentreOf(terrain.IndexOf(field.X, field.Y)), field.Initial));
             }
             view.Fields = fields.AsReadOnly();
             view.Spawns = new List<FixVec2>(sim.Map.Spawns).AsReadOnly();
