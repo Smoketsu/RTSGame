@@ -1,32 +1,40 @@
-<!-- rts/docs/reports/ai_v2_2026-11-16/README.md: four 1200-second AI traces after skirmish_ai_v2.md packages A and B (data, maps, AI economy and expansion; package C was already in). Numbers read from each trace summary. Compare rts/docs/reports/ai_trace_2026-11-16/README.md (the freeze evidence). -->
-# AI traces after packages A and B, 16 Nov 2026
+<!-- rts/docs/reports/ai_v2_2026-11-16/README.md: AI traces after skirmish_ai_v2.md packages A and B and their review fixes (data, maps, AI economy and expansion; package C was already in), re-run on 16 Nov 2026 after the fixes, plus the spawn-swap check. Numbers read from each trace summary. Compare rts/docs/reports/ai_trace_2026-11-16/README.md (the freeze evidence). -->
+# AI traces after packages A and B plus review fixes, 16 Nov 2026
 
-Made with `dotnet run --project rts/tools/BalanceHarness -- --data rts/data --trace --map <map> --matchup <a_vs_b> --seed 20261026 --max-game-seconds 1200 --out <file>` (profile `aggressive`, game 0). The cap was 1200 s; none of the four games reached it. Files: `<map>__<matchup>__seed20261026.txt` (timeline every 30 s and summary).
+Made with `dotnet run --project rts/tools/BalanceHarness -- --data rts/data --trace --map <map> --matchup <a_vs_b> --seed 20261026 --max-game-seconds 1200 --out <file>` (profile `aggressive`, game 0). None of the games reached the 1200 s cap. Files: `<map>__<matchup>__seed20261026.txt` (the four main games) and `swapped_spawns__prototype_1v1__<matchup>__seed20261026.txt` (the spawn-swap runs: a temporary copy of the data folder, not committed, in which the two spawn entries of `prototype_1v1` are exchanged, so slot 0 starts in the north-east at (83.5, 83.5) and slot 1 in the south-west at (12.5, 12.5); all else equal).
 
-Relocation ticks are only known to the 30 s sample (the command appears in the line of the interval it was issued in); first depot ticks are exact (the summary's "structure sites").
+Relocation intervals are the 30 s sample in which the uproot was ordered; depot ticks are exact.
 
-| Game | Ended | First depot (tick, tile) P0 / P1 | HQ relocation (interval it was ordered) P0 / P1 |
-| --- | --- | --- | --- |
-| prototype_1v1 skai_vs_water | slot 0 (Skai) wins, HQ destroyed at tick 12452 (622 s) | 4840 (242 s) at (26, 13) / 4959 (248 s) at (68, 82) | 540 to 570 s, rooted again by 600 s at (21.8, 63.5) / 570 to 600 s (game ended at 622 s) |
-| prototype_1v1 water_vs_water | slot 0 wins, tick 22093 (1104 s) | 4920 at (26, 13) / 4959 at (68, 82) | 570 to 600 s (rooted at (21.7, 63.4) by 660 s) and again 1020 to 1050 s / 570 to 600 s (rooting at (74.3, 32.6) by 660 s) and again 1020 to 1050 s |
-| prototype_1v1 skai_vs_skai | slot 0 wins, tick 10400 (520 s) | 4900 at (26, 13) / 5219 at (55, 70) | none / none |
-| greybox_1v1 skai_vs_water | slot 1 (Water) wins, tick 7334 (366 s) | 6330 (316 s) at (9, 49) / 4519 (226 s) at (42, 56) | none / none |
+## The four main games
 
-Gathered, spent and trained per player (summary lines):
+| Game | Ended | First depot (tick, tile) P0 / P1 | HQ relocations (sample, P0 / P1) | Gathered common / rare, P0 and P1 | Trained P0 | Trained P1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| prototype skai_vs_water | slot 1 (Water) wins, tick 19820 (991 s) | 4900 (40, 19) / 4959 (69, 82) | 570 s / 600 s | 16000 / 600 and 17800 / 330 | fledgling 25, windrunner 111, talon_archer 30, roc_rider 3 | tender 11, grasper 104, shellback 20, ink_lobber 1 |
+| prototype water_vs_water | slot 0 wins, tick 21517 (1075 s) | 4800 (26, 13) / 4989 (69, 82) | 600 s and 1050 s / 600 s | 19990 / 600 and 16545 / 255 | tender 11, grasper 120, shellback 21, ink_lobber 3 | tender 17, grasper 99, shellback 18, ink_lobber 1 |
+| prototype skai_vs_skai | slot 0 wins, tick 9264 (463 s) | 4900 (26, 13) / 5089 (69, 82) | none / none | 6965 / 0 and 4800 / 0 | fledgling 11, windrunner 48, talon_archer 12 | fledgling 12, windrunner 30, talon_archer 10 |
+| greybox skai_vs_water | slot 0 (Skai) wins, tick 15056 (752 s) | 4960 (9, 49) / 4519 (42, 56) | 450 s (Skai) / 420 s and 720 s (Water) | 12275 / 785 and 14300 / 25 | fledgling 16, windrunner 93, talon_archer 24, roc_rider 5 | tender 14, grasper 94, shellback 18 |
 
-| Game | P0 gathered (common / rare) | P0 trained | P1 gathered (common / rare) | P1 trained |
-| --- | --- | --- | --- | --- |
-| prototype skai_vs_water | 11225 / 0 | fledgling 11, windrunner 94, talon_archer 20 | 10515 / 0 | tender 12, grasper 62, shellback 12 |
-| prototype water_vs_water | 20420 / 600 | tender 11, grasper 119, shellback 21, ink_lobber 4 | 16110 / 600 | tender 22, grasper 87, shellback 17, ink_lobber 1 |
-| prototype skai_vs_skai | 8695 / 0 | fledgling 11, windrunner 63, talon_archer 15 | 6825 / 0 | fledgling 11, windrunner 47, talon_archer 16 |
-| greybox skai_vs_water | 4800 / 0 | fledgling 5, windrunner 35, talon_archer 11 | 6360 / 0 | tender 8, grasper 32, shellback 7 |
+- On `prototype_1v1` the two players' first depot tiles are now exact mirrors, (26, 13) and (69, 82) (the scan fix; before the fix player 1 built at (68, 82)).
+- Frozen state (idle workers, zero income and zero army while fields remained): none in any of the 14 player-games below. The review's pattern (6 idle workers, bank under 50, `cmds=-` for 30 minutes) did not occur.
+- Rare is now gathered in three of the four games (Skai on prototype and greybox, both Water players on prototype), by depots and relocated HQs that reach the rare corner fields.
+- Every player placed its first depot between 4519 and 5089 ticks (226 to 254 s).
 
-Frozen state (idle workers, zero income and zero army while fields remained): none. Of all the 30 s samples of the eight player-games only one has idle workers (3 idle at 1080 s, water mirror P0, with an income of 600 and an army of 49 Graspers: an HQ on the move). The review's pattern (6 idle workers, bank under 50, `cmds=-` for 30 minutes) did not occur.
+## Spawn-side check (prototype_1v1, seed 20261026)
 
-Notes read from the traces:
+| Matchup | Normal spawns: winner, time | Swapped spawns: winner, time |
+| --- | --- | --- |
+| skai_vs_water | slot 1 (Water, north-east) wins, 991 s | slot 1 (Water, now south-west) wins, 536 s |
+| water_vs_water | slot 0 (south-west) wins, 1075 s | slot 0 (now north-east) wins, 993 s |
+| skai_vs_skai | slot 0 (south-west) wins, 463 s | slot 1 (now south-west) wins, 579 s |
 
-- Both sides expand: every player placed a depot between 226 and 316 s (the `expand_at_seconds` 240 time, or the served share falling under 50 percent first), and 7 of the 8 player-games placed a second depot (the first greybox Skai player was beaten at 366 s with one).
-- HQ relocation happens late (after 540 s), as the spec says (`max_live_depots` 2 reached and the main nearly empty), and the AI plays the long games through it: no relocation was needed in the games decided before 520 s.
-- Rare is gathered only in the water mirror (600 each, the whole rare field), and spent on 4 and 1 Ink Lobbers. In the other games no depot or HQ reached a rare field before the game ended (the depots go to the nearest safe unserved field, which on these maps is a natural or a flank common field, and a rare field is served only when it lies within 10 tiles of such a depot). The `--ai-check` rare criterion (package D, rare by 720 s) is therefore not met by these four games; whether it matters is for package D.
-- The Water mirror on prototype_1v1 reaches 1104 s: depots at the natural and at the far shelves, two relocations per player, then the first HQ falls. It is the longest game and the closest one to the cap.
-- Stance changes: still frequent (Skai 17, Water 27 in the prototype skai_vs_water game over 622 s); each Attack to Massing pair is a retreat followed by a new attack 10 s later (`regroup_seconds`), which is the army package's behaviour, not the economy's.
+What the six games say (one seed, one game each, so only indications):
+
+- Skai versus Water: Water wins in both arrangements, so in these two games the result follows the faction, not the corner or the slot.
+- Water mirror: slot 0 wins in both arrangements, in the south-west corner and in the north-east one, so the corner did not decide it here and the slot (or the think order that comes with it) may have.
+- Skai mirror: the south-west player wins in both arrangements (slot 0 in the normal game, slot 1 in the swapped one), the one case that follows the corner. Its 463 s and 579 s games also differ in length by 116 s, so the corner is not the only difference.
+- With three of six games following the slot or faction and one following the corner, these runs do not show a spawn-side lean in the AI itself. The site scans are now mirrored (see above), so the build-site asymmetry of the 16 Nov review no longer applies.
+
+## Notes
+
+- Relocation happens late (after 420 s), as the spec says (`max_live_depots` 2 reached and the main nearly empty). The games decided before 520 s needed none.
+- The longest games, the Water mirrors (1075 s and 993 s), are the closest to the cap.
