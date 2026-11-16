@@ -56,7 +56,7 @@
 //      keeping its current target while that stays valid, so fights are won army-first instead of on buildings), Retreat (plain move
 //      to the HQ, regroup timer, back to Massing with a new threshold). The threshold is drawn on the first think and whenever an
 //      attack ends (group empty, retreat, no target left), never on leaving Defend. Kill (rule K): a known enemy HQ last seen at or
-//      below kill_hq_health_fraction of its health is attacked by any army of kill_min_army_supply, ignoring the threshold, the tide
+//      below kill_hq_health_fraction of its health (and was last seen within kill_seen_within_seconds) is attacked by any army of kill_min_army_supply, ignoring the threshold, the tide
 //      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no field within
 //      field_max_distance_tiles has resources left, the attack threshold drops to 1 supply, the tide window is ignored, the army never
 //      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
@@ -375,10 +375,10 @@ namespace Rts.Ai
             /// <summary>Supply of those threats. Unit: supply. Range: 0 upward.</summary>
             private int _threatSupply;
 
-            /// <summary>Sum of the threats' X positions, for the mean. Unit: tiles.</summary>
+            /// <summary>Sum of the threats' X positions, for the mean. Unit: tiles. Range: 0 to threat count x map width.</summary>
             private Fix64 _threatSumX = Fix64.Zero;
 
-            /// <summary>Sum of the threats' Y positions, for the mean. Unit: tiles.</summary>
+            /// <summary>Sum of the threats' Y positions, for the mean. Unit: tiles. Range: 0 to threat count x map height.</summary>
             private Fix64 _threatSumY = Fix64.Zero;
 
             /// <summary>The most recent hit on an own unit inside the base (ties to the lowest unit ID), or null.</summary>
@@ -1054,9 +1054,11 @@ namespace Rts.Ai
                 KnownStructure? best = null;
                 // Squared distance of the best candidate from home. Unit: squared tiles.
                 Fix64 bestSquared = Fix64.Zero;
+                // Oldest last-seen tick that still counts (review fix: stale health is not trusted). Unit: ticks. Range: below 0 upward.
+                int freshAfter = _view.Tick - _view.SecondsToTicks(_profile.KillSeenWithinSeconds);
                 foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
                 {
-                    if (!known.IsHq || known.HealthFraction > _profile.KillHqHealthFraction)
+                    if (!known.IsHq || known.HealthFraction > _profile.KillHqHealthFraction || known.LastSeenTick < freshAfter)
                     {
                         continue;
                     }
@@ -1133,6 +1135,13 @@ namespace Rts.Ai
             {
                 // True when every army unit joins the group each think (all in, or rule K).
                 bool joinAll = AllIn || _kill != null;
+                // Review fix: drop group IDs that are no longer army units so the set cannot grow during a long attack.
+                _memory.AttackGroup.RemoveWhere(id => !army.Exists(unit => unit.Id == id));
+                if (_kill != null)
+                {
+                    // Rule K skips staging, also when it begins during an attack that is still staging.
+                    _memory.AttackStaged = true;
+                }
                 // Living members of the attack group, and their total supply. Unit: supply.
                 List<AiUnitView> group = new List<AiUnitView>();
                 // Supply of the living group. Unit: supply. Range: 0 upward.

@@ -449,6 +449,69 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(quiet.Stance, Is.EqualTo(AiStance.Massing));
         }
 
+        /// <summary>Review fix: an HQ seen at 20 percent health is a kill target only while it was seen within kill_seen_within_seconds; after that the retreat rule applies again.</summary>
+        [Test]
+        public void C9b_KillMode_EndsWhenTheHqIsNoLongerSeen()
+        {
+            Simulation sim = Greybox();
+            Spawn(sim, "skai.great_aerie", P0, "7", "7");
+            Spawn(sim, "skai.windrunner", P0, "10", "10");
+            AiProfile profile = NoJitter();
+            // Think with a remembered HQ last seen this many ticks ago; returns the memory afterwards.
+            AiMemory Think(int agoTicks)
+            {
+                AiMemory memory = new AiMemory();
+                memory.AttackThreshold = 8;
+                memory.Stance = AiStance.Attack;
+                memory.AttackStaged = true;
+                memory.AttackStartSupply = 40;
+                memory.AttackGroup.Add(FirstArmy(sim));
+                memory.KnownEnemyStructures.Add(new EntityId(900), new KnownStructure
+                {
+                    Position = FixVec2.FromInts(57, 57), IsHq = true, HealthFraction = Fix64.Parse("0.2"), LastSeenTick = sim.Clock.Tick - agoTicks,
+                });
+                Decide(sim, profile, memory);
+                return memory;
+            }
+            Assert.That(Think(100).Retreats, Is.EqualTo(0), "seen 5 s ago: kill mode, no retreat");
+            Assert.That(Think(700).Retreats, Is.EqualTo(1), "last seen 35 s ago (key 30 s): normal retreat rule");
+        }
+
+        /// <summary>Review fix: a group member that dies is removed from the attack group on the next think.</summary>
+        [Test]
+        public void AttackGroup_DropsDeadMembers()
+        {
+            Simulation sim = Greybox();
+            Spawn(sim, "skai.great_aerie", P0, "7", "7");
+            EntityId a = Spawn(sim, "skai.windrunner", P0, "10", "10");
+            EntityId b = Spawn(sim, "skai.windrunner", P0, "10", "11");
+            AiProfile profile = NoJitter();
+            AiMemory memory = new AiMemory();
+            memory.AttackThreshold = 8;
+            memory.Stance = AiStance.Attack;
+            memory.AttackStaged = true;
+            memory.AttackStartSupply = 2;
+            memory.AttackGroup.Add(a);
+            memory.AttackGroup.Add(b);
+            sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, a));
+            sim.Step();
+            Decide(sim, profile, memory);
+            Assert.That(memory.AttackGroup, Is.EqualTo(new List<EntityId> { b }));
+        }
+
+        /// <summary>The lowest-ID army unit of P0.</summary>
+        private static EntityId FirstArmy(Simulation sim)
+        {
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == P0 && unit.Definition.Hq == null && unit.Definition.Economy.FootprintTiles <= 0 && !unit.Definition.Economy.CanGather)
+                {
+                    return unit.Id;
+                }
+            }
+            throw new AssertionException("no army unit");
+        }
+
         /// <summary>C-10: when every group unit is dead the stance returns to Massing with exactly one new draw, the think still trains for an idle producer, and a unit trained next goes to the home rally point.</summary>
         [Test]
         public void C10_Rebuild_AfterTheGroupIsLost()

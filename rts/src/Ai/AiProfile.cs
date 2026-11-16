@@ -17,7 +17,7 @@
 //   * Phase 2 (planetary_cycles.md section 5): the root key rally_at_core (the massing army gathers at the Core while the AI does not
 //     hold it) and, per faction, cycle_preference (every cycle ID, most wanted first; the AI picks the first allowed one when its team
 //     holds the Core);
-//   * skirmish_ai_v2.md package C (army): defend_hold_seconds, kill_hq_health_fraction, kill_min_army_supply, extra_producer_bank_common
+//   * skirmish_ai_v2.md package C (army): defend_hold_seconds, kill_hq_health_fraction, kill_seen_within_seconds, kill_min_army_supply, extra_producer_bank_common
 //     and max_producers; rally_at_core now moves the attack group's staging point to the Core (the massing army rallies at home).
 //     The expansion keys of packages A and B are not built yet.
 using System;
@@ -207,6 +207,9 @@ namespace Rts.Ai
         /// <summary>A known enemy HQ last seen at or below this share of its health is finished off (rule K). Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 KillHqHealthFraction { get; }
 
+        /// <summary>A remembered enemy HQ is a kill target only if it was last seen this recently (its health may have changed since). Unit: seconds. Range: 1 to 600.</summary>
+        public Fix64 KillSeenWithinSeconds { get; }
+
         /// <summary>Army supply the kill rule needs. Unit: supply. Range: 1 to 200.</summary>
         public int KillMinArmySupply { get; }
 
@@ -254,6 +257,7 @@ namespace Rts.Ai
             RallyAtCore = root.RequireBool("rally_at_core");
             DefendHoldSeconds = root.RequireFix64("defend_hold_seconds", "0", "60");
             KillHqHealthFraction = root.RequireFix64("kill_hq_health_fraction", "0", "1");
+            KillSeenWithinSeconds = root.RequireFix64("kill_seen_within_seconds", "1", "600");
             KillMinArmySupply = root.RequireInt("kill_min_army_supply", 1, 200);
             ExtraProducerBankCommon = root.RequireInt("extra_producer_bank_common", 0, 100000);
             MaxProducers = root.RequireInt("max_producers", 1, 30);
@@ -322,7 +326,7 @@ namespace Rts.Ai
                 "retreat_power_ratio", "engagement_radius_tiles", "stage_distance_tiles", "stage_radius_tiles", "stage_gather_fraction",
                 "stage_timeout_seconds", "focus_radius_tiles", "defend_radius_tiles", "defend_recall_supply", "damage_memory_seconds",
                 "regroup_seconds", "all_in_when_mined_out", "rally_at_core", "defend_hold_seconds", "kill_hq_health_fraction",
-                "kill_min_army_supply", "extra_producer_bank_common", "max_producers", "factions");
+                "kill_seen_within_seconds", "kill_min_army_supply", "extra_producer_bank_common", "max_producers", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
