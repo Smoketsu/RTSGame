@@ -100,6 +100,6 @@ dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 ## Branches
 
 - `main` is the working branch for every session (decided by the developer, 16 Nov 2026). Before starting, run `git ls-remote --heads origin` and `git log -1 origin/main`; if you were started on any other branch, or on one behind `main`, switch to `main` first. Do not trust the phase a branch's own documents claim.
-- The repository's default branch on GitHub was still `phase-0/foundations` on 16 Nov 2026, so a new cloud session can start on Phase 0 code. A session did that on 16 Nov and rebuilt part of Phase 1 before noticing. `rts/docs/STATUS.md` lists every branch and what it is.
+- Until 16 Nov 2026 the repository's default branch on GitHub was `phase-0/foundations`; a session started there rebuilt part of Phase 1 before noticing. The default is now `main`, but a session can still be started on an old branch by name, so the check stays. `rts/docs/STATUS.md` lists every branch and what it is.
 - The session on the developer's PC owns `rts/src/Game` and anything that needs the Unity Editor (through the Funplay connector). Cloud sessions own plans, specs, art and work in `rts/src/Sim`, `rts/src/Net` and `rts/src/Replay`. Pull `main` before starting.
 - A session that finishes or starts a plan step updates `rts/docs/STATUS.md` in the same commit.

@@ -9,7 +9,7 @@ Last verified: 16 Nov 2026, against `main` at commit `050c18f`.
 
 Before doing anything, run `git ls-remote --heads origin` and `git log -1 origin/main`. If the branch you were started on is not `main`, or is behind it, stop and switch to `main`. Do not trust the phase a branch's own documents claim.
 
-Why this warning exists: until the developer changes it, the repository's default branch on GitHub is the old `phase-0/foundations`, so a new cloud session can start on Phase 0 code. On 16 Nov 2026 a session did exactly that and rebuilt part of Phase 1 before noticing that Phase 1 and most of Phase 2 already existed.
+Why this warning exists: until 16 Nov 2026 the repository's default branch on GitHub was the old `phase-0/foundations`, so a new cloud session started on Phase 0 code. A session did exactly that and rebuilt part of Phase 1 before noticing that Phase 1 and most of Phase 2 already existed. The developer changed the default branch to `main` that day; the check above stays, because a session can still be started on an old branch by name.
 
 | Branch | What it is |
 | --- | --- |
