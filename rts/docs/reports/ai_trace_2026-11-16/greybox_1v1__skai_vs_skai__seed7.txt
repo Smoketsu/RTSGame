@@ -1,0 +1,97 @@
+# greybox_1v1 skai_vs_skai game 0 seed 2454662985954155097 profile aggressive cap 2400 s; P0 skai, P1 skai
+# line format per player: bank=common/rare  +income=common/rare since last line  supply=used/cap  workers=total gather=n idle=n  done=[structures complete]  building=[under construction]  army=[units]  trained=[since last line]  lost=[since last line]  hq=state hp=health/max @(x,y)  cmds=[commands issued since last line, by kind]  rejected=[by reason]  atk=attack-moving/army  armyDist=tiles from army centre to enemy HQ  atkDist=same for the attack-moving part  armyAt=army centre (x,y) in tiles  nearFields=resource left in the fields within 12 tiles of the own HQ (C common, R rare)  stance=the AI army stance (Massing, Attack, Defend, Retreat) after its last think  attacks=attacks started so far  retreats=retreats so far
+t=30s P0 skai bank=10/0 +income=285/0 supply=7/18 workers=6 gather=6 idle=0 done=skai.roost:1 building=skai.roost:1 army=- trained=skai.fledgling:2 lost=- hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=build_structure:2,gather:6,train_unit:3 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C1345,C1370 stance=Massing attacks=0 retreats=0
+t=30s P1 skai bank=20/0 +income=295/0 supply=7/18 workers=6 gather=6 idle=0 done=skai.roost:1 building=skai.roost:1 army=- trained=skai.fledgling:2 lost=- hq=Rooted hp=1500/1500 @(56.0,56.0) cmds=build_structure:2,gather:6,train_unit:3 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C1310,C1390 stance=Massing attacks=0 retreats=0
+t=60s P0 skai bank=255/0 +income=395/0 supply=9/26 workers=6 gather=6 idle=0 done=skai.roost:2 building=- army=skai.windrunner:1 trained=skai.windrunner:1 lost=- hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:1,train_unit:2 rejected=- atk=1/1 armyDist=37.2 atkDist=37.2 armyAt=(27.5,32.1) nearFields=C1145,C1175 stance=Massing attacks=0 retreats=0
+t=60s P1 skai bank=275/0 +income=405/0 supply=9/26 workers=6 gather=6 idle=0 done=skai.roost:2 building=- army=skai.windrunner:1 trained=skai.windrunner:1 lost=- hq=Rooted hp=1500/1500 @(56.0,56.0) cmds=attack_move:1,train_unit:2 rejected=- atk=0/1 armyDist=34.2 atkDist=n/a armyAt=(32.2,32.1) nearFields=C1110,C1190 stance=Massing attacks=0 retreats=0
+t=90s P0 skai bank=200/0 +income=395/0 supply=11/26 workers=6 gather=6 idle=0 done=skai.roost:2 building=skai.windspire:1 army=skai.windrunner:3 trained=skai.windrunner:4 lost=skai.windrunner:2 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:4,build_structure:1,train_unit:4 rejected=- atk=2/3 armyDist=42.7 atkDist=47.1 armyAt=(25.8,25.8) nearFields=C950,C975 stance=Massing attacks=0 retreats=0
+t=90s P1 skai bank=240/0 +income=415/0 supply=10/26 workers=6 gather=6 idle=0 done=skai.roost:2 building=skai.windspire:1 army=skai.windrunner:2 trained=skai.windrunner:4 lost=skai.windrunner:3 hq=Rooted hp=1500/1500 @(56.0,56.0) cmds=attack_move:4,build_structure:1,train_unit:4 rejected=- atk=2/2 armyDist=41.5 atkDist=41.5 armyAt=(41.2,32.9) nearFields=C900,C985 stance=Massing attacks=0 retreats=0
+t=120s P0 skai bank=20/0 +income=395/0 supply=16/34 workers=6 gather=6 idle=0 done=skai.roost:2,skai.windspire:1 building=skai.roost:1 army=skai.talon_archer:1,skai.windrunner:5 trained=skai.talon_archer:1,skai.windrunner:4 lost=skai.windrunner:2 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:7,build_structure:1,pick_cycle:1,train_unit:5 rejected=- atk=3/6 armyDist=61.3 atkDist=58.4 armyAt=(12.9,12.4) nearFields=C750,C775 stance=Massing attacks=0 retreats=0
+t=120s P1 skai bank=0/0 +income=410/0 supply=14/34 workers=6 gather=6 idle=0 done=skai.roost:2,skai.windspire:1 building=skai.roost:1 army=skai.talon_archer:1,skai.windrunner:2 trained=skai.talon_archer:1,skai.windrunner:4 lost=skai.windrunner:4 hq=Rooted hp=1500/1500 @(56.0,56.0) cmds=attack_move:5,build_structure:1,train_unit:6 rejected=- atk=3/3 armyDist=55.1 atkDist=55.1 armyAt=(46.7,47.2) nearFields=C695,C780 stance=Massing attacks=0 retreats=0
+t=150s P0 skai bank=45/0 +income=400/0 supply=19/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.talon_archer:2,skai.windrunner:6 trained=skai.talon_archer:1,skai.windrunner:3 lost=skai.windrunner:2 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:17,attack_unit:22,train_unit:5 rejected=- atk=8/8 armyDist=34.0 atkDist=34.0 armyAt=(34.7,29.5) nearFields=C550,C580 stance=Attack attacks=1 retreats=0
+t=150s P1 skai bank=75/0 +income=400/0 supply=13/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:2 trained=skai.talon_archer:1,skai.windrunner:2 lost=skai.talon_archer:2,skai.windrunner:2 hq=Rooted hp=1500/1500 @(56.0,56.0) cmds=attack_move:8,attack_unit:10,move_unit:3,pick_cycle:1,train_unit:4 rejected=- atk=0/2 armyDist=52.5 atkDist=n/a armyAt=(50.6,38.6) nearFields=C495,C575 stance=Massing attacks=1 retreats=1
+t=180s P0 skai bank=40/0 +income=395/0 supply=19/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.talon_archer:3,skai.windrunner:4 trained=skai.talon_archer:1,skai.windrunner:4 lost=skai.windrunner:6 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:14,attack_unit:41,train_unit:5 rejected=- atk=7/7 armyDist=21.9 atkDist=21.9 armyAt=(40.9,40.2) nearFields=C355,C380 stance=Attack attacks=1 retreats=0
+t=180s P1 skai bank=70/0 +income=420/0 supply=10/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=- trained=skai.talon_archer:2,skai.windrunner:4 lost=skai.talon_archer:2,skai.windrunner:6 hq=Rooted hp=1357/1500 @(56.0,56.0) cmds=attack_move:3,attack_unit:14,train_unit:5 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C285,C370 stance=Defend attacks=1 retreats=1
+t=210s P0 skai bank=35/0 +income=395/0 supply=19/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.talon_archer:2,skai.windrunner:5 trained=skai.windrunner:5 lost=skai.talon_archer:1,skai.windrunner:4 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:5,attack_unit:47,train_unit:5 rejected=- atk=7/7 armyDist=19.2 atkDist=19.2 armyAt=(43.4,41.5) nearFields=C155,C185 stance=Attack attacks=1 retreats=0
+t=210s P1 skai bank=5/0 +income=410/0 supply=11/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:1 trained=skai.talon_archer:1,skai.windrunner:5 lost=skai.talon_archer:1,skai.windrunner:4 hq=Rooted hp=1063/1500 @(56.0,56.0) cmds=attack_unit:7,train_unit:6 rejected=- atk=1/1 armyDist=69.2 atkDist=69.2 armyAt=(58.4,55.4) nearFields=C80,C165 stance=Defend attacks=1 retreats=1
+t=240s P0 skai bank=0/0 +income=340/0 supply=19/42 workers=6 gather=0 idle=6 done=skai.roost:3,skai.windspire:1 building=- army=skai.talon_archer:3,skai.windrunner:4 trained=skai.talon_archer:1,skai.windrunner:4 lost=skai.windrunner:5 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:7,attack_unit:36,gather:3,train_unit:5 rejected=- atk=7/7 armyDist=18.2 atkDist=18.2 armyAt=(43.6,42.7) nearFields=C0,C0 stance=Attack attacks=1 retreats=0
+t=240s P1 skai bank=50/0 +income=245/0 supply=6/42 workers=5 gather=0 idle=5 done=skai.roost:3,skai.windspire:1 building=- army=- trained=skai.fledgling:1,skai.talon_archer:1,skai.windrunner:3 lost=skai.fledgling:2,skai.talon_archer:1,skai.windrunner:4 hq=Rooted hp=837/1500 @(56.0,56.0) cmds=attack_unit:6,gather:2,train_unit:3 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C0,C0 stance=Defend attacks=1 retreats=1
+t=270s P0 skai bank=0/0 +income=0/0 supply=14/42 workers=6 gather=0 idle=6 done=skai.roost:3,skai.windspire:1 building=- army=skai.talon_archer:2,skai.windrunner:4 trained=skai.windrunner:3 lost=skai.talon_archer:1,skai.windrunner:3 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_move:3,attack_unit:14 rejected=- atk=6/6 armyDist=6.0 atkDist=6.0 armyAt=(51.1,52.5) nearFields=C0,C0 stance=Attack attacks=1 retreats=0
+t=270s P1 skai bank=50/0 +income=0/0 supply=5/42 workers=5 gather=0 idle=5 done=skai.roost:3,skai.windspire:1 building=- army=- trained=skai.windrunner:1 lost=skai.windrunner:1 hq=Rooted hp=309/1500 @(56.0,56.0) cmds=attack_unit:1,pick_cycle:1 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C0,C0 stance=Defend attacks=1 retreats=1
+
+== final state at tick 5730 ==
+t=286s P0 skai bank=0/0 +income=0/0 supply=12/42 workers=6 gather=0 idle=6 done=skai.roost:3,skai.windspire:1 building=- army=skai.talon_archer:2,skai.windrunner:2 trained=- lost=skai.windrunner:2 hq=Rooted hp=1500/1500 @(8.0,8.0) cmds=attack_unit:1 rejected=- atk=4/4 armyDist=n/a atkDist=n/a armyAt=(53.3,53.3) nearFields=C0,C0 stance=Attack attacks=1 retreats=0 (final)
+t=286s P1 skai bank=50/0 +income=0/0 supply=5/42 workers=5 gather=0 idle=5 done=skai.roost:3,skai.windspire:1 building=- army=- trained=- lost=skai.great_aerie:1 hq=none cmds=- rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=- stance=Defend attacks=1 retreats=1 (final)
+
+== summary ==
+outcome: team 0 wins (player slot 0)
+defeat: P1 Defeated (hq_destroyed) at tick 5730
+game length: 5730 ticks = 286 s
+
+P0 skai totals
+  gathered=3000c/0r  spent=3200c/0r
+  trained=skai.fledgling:2,skai.talon_archer:4,skai.windrunner:28
+  lost=skai.talon_archer(killed):2,skai.windrunner(killed):26
+  structures placed=skai.roost:3,skai.windspire:1  completed=skai.roost:3,skai.windspire:1
+  structure sites: tick 10 skai.roost tile (5,5); tick 450 skai.roost tile (7,5); tick 1310 skai.windspire tile (5,7); tick 2100 skai.roost tile (11,7)
+  damage dealt to enemy HQ=1501.3
+  first: worker trained=12s (tick 249)  structure placed=0s (tick 10)  army unit=46s (tick 939)  attack order=47s (tick 940)  damage to enemy HQ=165s (tick 3304)  first stance Attack=132s (tick 2650)
+  stance changes (1 in all, first 60 listed):
+    tick 2650 (132s) Massing -> Attack (army threshold 9 supply, attacks started 1, retreats 0)
+  commands rejected, whole game=-
+  last 20 commands:
+    tick 4760 attack_unit E74 target E6 -> ok
+    tick 4770 attack_unit E72 target E6 -> ok
+    tick 4830 attack_unit E76 target E6 -> ok
+    tick 4850 attack_move E82 to (56.0,56.0) -> ok
+    tick 4910 attack_unit E58 target E83 -> ok
+    tick 4910 attack_unit E72 target E83 -> ok
+    tick 4910 attack_unit E74 target E83 -> ok
+    tick 4910 attack_unit E76 target E83 -> ok
+    tick 4930 attack_unit E78 target E83 -> ok
+    tick 4960 attack_unit E58 target E6 -> ok
+    tick 4960 attack_unit E72 target E6 -> ok
+    tick 4960 attack_unit E74 target E6 -> ok
+    tick 4960 attack_unit E76 target E6 -> ok
+    tick 4960 attack_unit E78 target E6 -> ok
+    tick 4980 attack_move E84 to (56.0,56.0) -> ok
+    tick 5100 attack_unit E81 target E6 -> ok
+    tick 5110 attack_move E85 to (56.0,56.0) -> ok
+    tick 5190 attack_unit E82 target E6 -> ok
+    tick 5300 attack_unit E84 target E6 -> ok
+    tick 5460 attack_unit E85 target E6 -> ok
+
+P1 skai totals
+  gathered=3000c/0r  spent=3150c/0r
+  trained=skai.fledgling:3,skai.talon_archer:6,skai.windrunner:24
+  lost=skai.fledgling(killed):2,skai.great_aerie(killed):1,skai.talon_archer(killed):6,skai.windrunner(killed):24
+  structures placed=skai.roost:3,skai.windspire:1  completed=skai.roost:3,skai.windspire:1
+  structure sites: tick 9 skai.roost tile (53,53); tick 449 skai.roost tile (55,53); tick 1319 skai.windspire tile (53,55); tick 2229 skai.roost tile (59,56)
+  damage dealt to enemy HQ=0.0
+  first: worker trained=12s (tick 248)  structure placed=0s (tick 9)  army unit=46s (tick 928)  attack order=46s (tick 929)  damage to enemy HQ=never  first stance Attack=137s (tick 2759)
+  stance changes (3 in all, first 60 listed):
+    tick 2759 (137s) Massing -> Attack (army threshold 8 supply, attacks started 1, retreats 0)
+    tick 2919 (145s) Attack -> Massing (army threshold 10 supply, attacks started 1, retreats 1)
+    tick 3049 (152s) Massing -> Defend (army threshold 10 supply, attacks started 1, retreats 1)
+  commands rejected, whole game=-
+  last 20 commands:
+    tick 3919 attack_unit E65 target E60 -> ok
+    tick 3979 train_unit E11 skai.windrunner -> ok
+    tick 3979 attack_unit E67 target E36 -> ok
+    tick 4079 train_unit E15 skai.windrunner -> ok
+    tick 4079 attack_unit E69 target E62 -> ok
+    tick 4199 train_unit E26 skai.talon_archer -> ok
+    tick 4199 attack_unit E71 target E62 -> ok
+    tick 4219 attack_unit E71 target E64 -> ok
+    tick 4309 train_unit E38 skai.windrunner -> ok
+    tick 4339 attack_unit E73 target E36 -> ok
+    tick 4389 train_unit E6 skai.fledgling -> ok
+    tick 4439 attack_unit E75 target E36 -> ok
+    tick 4469 gather E8 field 3 -> ok
+    tick 4469 gather E9 field 3 -> ok
+    tick 4549 train_unit E11 skai.windrunner -> ok
+    tick 4599 attack_unit E77 target E58 -> ok
+    tick 4669 attack_unit E80 target E70 -> ok
+    tick 4739 attack_unit E80 target E36 -> ok
+    tick 4809 pick_cycle  -> ok
+    tick 4909 attack_unit E83 target E58 -> ok

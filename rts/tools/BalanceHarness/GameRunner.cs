@@ -50,7 +50,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="seed">Simulation seed (see <see cref="SeedDerivation"/>). Range: any ulong.</param>
         /// <param name="aiProfile">AI profile ID both slots play.</param>
         /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
-        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string aiProfile, int maxGameSeconds)
+        /// <param name="trace">Optional read-only observer (--trace mode); null in batch games. It never changes the game.</param>
+        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string aiProfile, int maxGameSeconds, GameTrace? trace = null)
         {
             MapDefinition map = data.RequireMap(mapId);
             // Players of the game: slot 0 team 0, slot 1 team 1, named after their factions.
@@ -74,6 +75,8 @@ namespace Rts.Tools.BalanceHarness
                 controllers.Add(new SkirmishAiController(player.Id, AiProfile.FromDataSet(data, aiProfile)));
             }
             AiHost.StartAll(sim, controllers);
+            trace?.Begin(sim, mapId + " " + matchupId + " game " + game + " seed " + seed + " profile " + aiProfile + " cap " + maxGameSeconds + " s; P0 "
+                + players[0].FactionId + ", P1 " + players[1].FactionId);
 
             // Tick limit. Unit: ticks. Range: 1 upward.
             int maxTicks = sim.Clock.SecondsToTicks(Fix64.FromInt(maxGameSeconds));
@@ -86,8 +89,10 @@ namespace Rts.Tools.BalanceHarness
             for (int i = 0; i < maxTicks; i++)
             {
                 AiHost.ThinkAll(sim, controllers);
+                trace?.AfterThink(sim, controllers);
                 lastTick = sim.Clock.Tick;
                 sim.Step();
+                trace?.AfterStep(sim);
                 if (i == 0)
                 {
                     // shortcut: only the HQs of the standard start are watched; an HQ trained later would be missed, upgrade when HQs can be built.
@@ -120,6 +125,7 @@ namespace Rts.Tools.BalanceHarness
                 }
             }
 
+            trace?.Finish(sim, outcome, Math.Max(lastTick, 0), maxGameSeconds);
             // Result text of the game.
             string result = !outcome.IsDecided ? GameRecord.Undecided : outcome.IsDraw ? GameRecord.Draw : outcome.Winner.Value == 0 ? GameRecord.Slot0 : GameRecord.Slot1;
             // Kills in ascending entity order.

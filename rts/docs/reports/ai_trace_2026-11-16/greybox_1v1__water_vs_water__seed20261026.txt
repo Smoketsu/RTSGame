@@ -1,0 +1,95 @@
+# greybox_1v1 water_vs_water game 0 seed 13812107518961583198 profile aggressive cap 2400 s; P0 water, P1 water
+# line format per player: bank=common/rare  +income=common/rare since last line  supply=used/cap  workers=total gather=n idle=n  done=[structures complete]  building=[under construction]  army=[units]  trained=[since last line]  lost=[since last line]  hq=state hp=health/max @(x,y)  cmds=[commands issued since last line, by kind]  rejected=[by reason]  atk=attack-moving/army  armyDist=tiles from army centre to enemy HQ  atkDist=same for the attack-moving part  armyAt=army centre (x,y) in tiles  nearFields=resource left in the fields within 12 tiles of the own HQ (C common, R rare)  stance=the AI army stance (Massing, Attack, Defend, Retreat) after its last think  attacks=attacks started so far  retreats=retreats so far
+t=30s P0 water bank=0/0 +income=300/0 supply=8/18 workers=6 gather=6 idle=0 done=water.tidepool:1 building=water.tidepool:1 army=- trained=water.tender:2 lost=- hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=build_structure:2,gather:6,train_unit:3 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C1335,C1360 stance=Massing attacks=0 retreats=0
+t=30s P1 water bank=0/0 +income=300/0 supply=8/18 workers=6 gather=6 idle=0 done=water.tidepool:1 building=water.tidepool:1 army=- trained=water.tender:2 lost=- hq=Rooted hp=1800/1800 @(56.0,56.0) cmds=build_structure:2,gather:6,train_unit:3 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C1305,C1395 stance=Massing attacks=0 retreats=0
+t=60s P0 water bank=75/0 +income=425/0 supply=12/26 workers=6 gather=6 idle=0 done=water.tidepool:2 building=water.shell_forge:1 army=water.grasper:1 trained=water.grasper:1 lost=- hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:1,build_structure:1,train_unit:2 rejected=- atk=1/1 armyDist=40.3 atkDist=40.3 armyAt=(23.6,32.1) nearFields=C1120,C1150 stance=Massing attacks=0 retreats=0
+t=60s P1 water bank=80/0 +income=430/0 supply=12/26 workers=6 gather=6 idle=0 done=water.tidepool:2 building=water.shell_forge:1 army=water.grasper:1 trained=water.grasper:1 lost=- hq=Rooted hp=1800/1800 @(56.0,56.0) cmds=attack_move:1,build_structure:1,train_unit:2 rejected=- atk=1/1 armyDist=35.6 atkDist=35.6 armyAt=(33.5,32.9) nearFields=C1090,C1180 stance=Massing attacks=0 retreats=0
+t=90s P0 water bank=65/0 +income=440/0 supply=16/34 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:2 building=water.tidepool:1 army=water.grasper:3 trained=water.grasper:3 lost=water.grasper:1 hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:3,build_structure:1,train_unit:3 rejected=- atk=3/3 armyDist=40.1 atkDist=40.1 armyAt=(27.3,28.0) nearFields=C900,C930 stance=Massing attacks=0 retreats=0
+t=90s P1 water bank=65/0 +income=435/0 supply=14/34 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:2 building=water.tidepool:1 army=water.grasper:2 trained=water.grasper:3 lost=water.grasper:2 hq=Rooted hp=1800/1800 @(56.0,56.0) cmds=attack_move:3,build_structure:1,train_unit:3 rejected=- atk=1/2 armyDist=40.5 atkDist=46.1 armyAt=(38.9,34.2) nearFields=C875,C960 stance=Massing attacks=0 retreats=0
+t=120s P0 water bank=90/0 +income=425/0 supply=20/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:5 trained=water.grasper:4 lost=water.grasper:2 hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:5,attack_unit:3,train_unit:4 rejected=- atk=5/5 armyDist=43.0 atkDist=43.0 armyAt=(27.6,23.7) nearFields=C690,C720 stance=Attack attacks=1 retreats=0
+t=120s P1 water bank=90/0 +income=425/0 supply=16/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:3 trained=water.grasper:4 lost=water.grasper:3 hq=Rooted hp=1800/1800 @(56.0,56.0) cmds=attack_move:4,train_unit:4 rejected=- atk=3/3 armyDist=48.2 atkDist=48.2 armyAt=(44.2,39.8) nearFields=C660,C750 stance=Massing attacks=0 retreats=0
+t=150s P0 water bank=15/0 +income=425/0 supply=30/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:9 trained=water.grasper:4 lost=- hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:27,attack_unit:35,train_unit:5 rejected=- atk=9/9 armyDist=15.6 atkDist=15.6 armyAt=(47.7,42.8) nearFields=C480,C505 stance=Attack attacks=1 retreats=0
+t=150s P1 water bank=15/0 +income=425/0 supply=12/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=- trained=water.grasper:4 lost=water.grasper:7 hq=Rooted hp=1778/1800 @(56.0,56.0) cmds=attack_move:3,attack_unit:2,train_unit:5 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C450,C535 stance=Defend attacks=0 retreats=0
+t=180s P0 water bank=45/0 +income=430/0 supply=26/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:7 trained=water.grasper:4 lost=water.grasper:6 hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:4,attack_unit:40,train_unit:4 rejected=- atk=7/7 armyDist=15.6 atkDist=15.6 armyAt=(48.4,42.4) nearFields=C265,C290 stance=Attack attacks=1 retreats=0
+t=180s P1 water bank=45/0 +income=430/0 supply=12/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=- trained=water.grasper:4 lost=water.grasper:4 hq=Rooted hp=1418/1800 @(56.0,56.0) cmds=attack_unit:5,train_unit:4 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C235,C315 stance=Defend attacks=0 retreats=0
+t=210s P0 water bank=80/0 +income=435/0 supply=28/42 workers=6 gather=6 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:9 trained=water.grasper:5 lost=water.grasper:3 hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:5,attack_unit:47,train_unit:4 rejected=- atk=9/9 armyDist=18.9 atkDist=18.9 armyAt=(44.7,40.8) nearFields=C45,C75 stance=Attack attacks=1 retreats=0
+t=210s P1 water bank=15/0 +income=420/0 supply=12/42 workers=5 gather=5 idle=0 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:1 trained=water.grasper:5 lost=water.grasper:4,water.tender:1 hq=Rooted hp=1046/1800 @(56.0,56.0) cmds=attack_unit:7,train_unit:5 rejected=- atk=1/1 armyDist=63.9 atkDist=63.9 armyAt=(52.5,53.9) nearFields=C30,C105 stance=Defend attacks=0 retreats=0
+t=240s P0 water bank=0/0 +income=120/0 supply=24/42 workers=6 gather=0 idle=6 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:9 trained=water.grasper:4 lost=water.grasper:4 hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_move:4,attack_unit:47,gather:3,train_unit:2 rejected=- atk=9/9 armyDist=16.2 atkDist=16.2 armyAt=(45.8,43.4) nearFields=C0,C0 stance=Attack attacks=1 retreats=0
+t=240s P1 water bank=50/0 +income=135/0 supply=6/42 workers=6 gather=0 idle=6 done=water.shell_forge:1,water.tidepool:3 building=- army=- trained=water.grasper:3,water.tender:1 lost=water.grasper:4 hq=Rooted hp=392/1800 @(56.0,56.0) cmds=attack_unit:4,gather:3,train_unit:1 rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C0,C0 stance=Defend attacks=0 retreats=0
+
+== final state at tick 5018 ==
+t=250s P0 water bank=0/0 +income=0/0 supply=24/42 workers=6 gather=0 idle=6 done=water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:9 trained=- lost=- hq=Rooted hp=1800/1800 @(8.0,8.0) cmds=attack_unit:1 rejected=- atk=9/9 armyDist=n/a atkDist=n/a armyAt=(52.2,50.1) nearFields=C0,C0 stance=Attack attacks=1 retreats=0 (final)
+t=250s P1 water bank=50/0 +income=0/0 supply=6/42 workers=6 gather=0 idle=6 done=water.shell_forge:1,water.tidepool:3 building=- army=- trained=- lost=water.grand_shell:1 hq=none cmds=- rejected=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=- stance=Defend attacks=0 retreats=0 (final)
+
+== summary ==
+outcome: team 0 wins (player slot 0)
+defeat: P1 Defeated (hq_destroyed) at tick 5018
+game length: 5018 ticks = 250 s
+
+P0 water totals
+  gathered=3000c/0r  spent=3200c/0r
+  trained=water.grasper:25,water.tender:2
+  lost=water.grasper(killed):16
+  structures placed=water.shell_forge:1,water.tidepool:3  completed=water.shell_forge:1,water.tidepool:3
+  structure sites: tick 10 water.tidepool tile (5,5); tick 450 water.tidepool tile (7,5); tick 1090 water.shell_forge tile (5,7); tick 1430 water.tidepool tile (11,7)
+  damage dealt to enemy HQ=2004.0
+  first: worker trained=12s (tick 249)  structure placed=0s (tick 10)  army unit=47s (tick 949)  attack order=47s (tick 950)  damage to enemy HQ=149s (tick 2980)  first stance Attack=118s (tick 2360)
+  stance changes (1 in all, first 60 listed):
+    tick 2360 (118s) Massing -> Attack (army threshold 10 supply, attacks started 1, retreats 0)
+  commands rejected, whole game=-
+  last 20 commands:
+    tick 4510 attack_unit E60 target E6 -> ok
+    tick 4510 attack_unit E62 target E6 -> ok
+    tick 4600 attack_move E70 to (56.0,56.0) -> ok
+    tick 4660 attack_unit E64 target E6 -> ok
+    tick 4720 attack_unit E46 target E71 -> ok
+    tick 4720 attack_unit E52 target E71 -> ok
+    tick 4720 attack_unit E54 target E71 -> ok
+    tick 4720 attack_unit E58 target E71 -> ok
+    tick 4720 attack_unit E60 target E71 -> ok
+    tick 4720 attack_unit E62 target E71 -> ok
+    tick 4720 attack_unit E64 target E71 -> ok
+    tick 4750 attack_unit E66 target E71 -> ok
+    tick 4770 attack_move E72 to (56.0,56.0) -> ok
+    tick 4790 attack_unit E54 target E6 -> ok
+    tick 4790 attack_unit E58 target E6 -> ok
+    tick 4790 attack_unit E60 target E6 -> ok
+    tick 4790 attack_unit E62 target E6 -> ok
+    tick 4790 attack_unit E64 target E6 -> ok
+    tick 4790 attack_unit E66 target E6 -> ok
+    tick 4920 attack_unit E69 target E6 -> ok
+
+P1 water totals
+  gathered=3000c/0r  spent=3150c/0r
+  trained=water.grasper:24,water.tender:3
+  lost=water.grand_shell(killed):1,water.grasper(killed):24,water.tender(killed):1
+  structures placed=water.shell_forge:1,water.tidepool:3  completed=water.shell_forge:1,water.tidepool:3
+  structure sites: tick 9 water.tidepool tile (53,53); tick 449 water.tidepool tile (55,53); tick 1089 water.shell_forge tile (53,55); tick 1429 water.tidepool tile (59,56)
+  damage dealt to enemy HQ=0.0
+  first: worker trained=12s (tick 248)  structure placed=0s (tick 9)  army unit=47s (tick 948)  attack order=47s (tick 949)  damage to enemy HQ=never  first stance Attack=never
+  stance changes (3 in all, first 60 listed):
+    tick 2819 (140s) Massing -> Defend (army threshold 10 supply, attacks started 0, retreats 0)
+    tick 2879 (143s) Defend -> Massing (army threshold 8 supply, attacks started 0, retreats 0)
+    tick 2889 (144s) Massing -> Defend (army threshold 8 supply, attacks started 0, retreats 0)
+  commands rejected, whole game=-
+  last 20 commands:
+    tick 3619 attack_unit E55 target E36 -> ok
+    tick 3679 train_unit E15 water.grasper -> ok
+    tick 3759 attack_unit E57 target E44 -> ok
+    tick 3789 attack_unit E57 target E48 -> ok
+    tick 3819 train_unit E11 water.grasper -> ok
+    tick 3889 attack_unit E59 target E52 -> ok
+    tick 3949 train_unit E27 water.grasper -> ok
+    tick 4039 attack_unit E61 target E48 -> ok
+    tick 4079 attack_unit E61 target E54 -> ok
+    tick 4099 train_unit E15 water.grasper -> ok
+    tick 4179 attack_unit E63 target E50 -> ok
+    tick 4189 train_unit E6 water.tender -> ok
+    tick 4309 attack_unit E65 target E58 -> ok
+    tick 4319 gather E8 field 3 -> ok
+    tick 4319 gather E9 field 3 -> ok
+    tick 4359 train_unit E11 water.grasper -> ok
+    tick 4429 gather E67 field 3 -> ok
+    tick 4459 attack_unit E68 target E46 -> ok
+    tick 4719 attack_unit E71 target E46 -> ok
+    tick 4729 attack_unit E71 target E54 -> ok
