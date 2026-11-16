@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- All thirteen Skai and water units now have a 3D model kept by the developer (16 Nov 2026; the Thunderhead is `skai_thunderhead_v6`). `docs/art/models/batch1/README.md` lists the approved file per unit, how the models were made and what is still untested (rigging, animation, Unity import).
+
 - Kept by the developer on 16 Nov 2026: Talon Marksman (`skai_marksman_v3`) and Roc Rider (`skai_roc_rider_v2`) models. `docs/art/concept/turnarounds7/`: Thunderhead sheet with a back view and box missile pods; new model `skai_thunderhead_v5` and `_v6` (same model with the hull grey darkened in the texture), awaiting the developer's mark. 1,790 Tripo credits left.
 
 - Models kept by the developer on 16 Nov 2026 (`docs/art/models/batch1/`): Skai worker, Stormcaller (`skai_stormcaller_v4`), Spoutling, Pummeler (`water_pummeler_v2`), water worker (`water_worker_v2`), Tidecaller, Leviathan. Awaiting marks: Talon Marksman (`skai_marksman_v3`, two hands), Roc Rider (`skai_roc_rider_v2`, wings flat for rigging), Thunderhead (`skai_thunderhead_v4`, greys darkened in the texture). `docs/art/concept/turnarounds6/` holds the two sheets behind the first two. `tripo.py --texture-text` describes a texture in words when re-texturing. 1,900 Tripo credits left.
