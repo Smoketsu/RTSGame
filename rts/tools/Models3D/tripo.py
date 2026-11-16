@@ -1,5 +1,6 @@
 # rts/tools/Models3D/tripo.py: image -> GLB through the Tripo3D v3 API (upload, image_to_model task, poll, download). Presentation-side tooling, not part of the simulation.
-# Usage: python3 rts/tools/Models3D/tripo.py <input image> <output folder> [--face-limit N]
+# Usage: python3 rts/tools/Models3D/tripo.py <input image> <output folder> [--face-limit N] [--views left=.. back=..] [--task ID] [--retexture ID]
+# --retexture keeps the geometry of an earlier task and only regenerates its texture from the given image(s) (POST /models/texture).
 import argparse, json, mimetypes, os, sys, time, urllib.request, uuid
 
 # Base URL of the API. Unit: URL. Range: https URL, no trailing slash. Override with env TRIPO_BASE.
@@ -49,6 +50,7 @@ def main():
     ap.add_argument("--face-limit", type=int, default=5000)  # triangle cap asked of the service. Unit: faces. Range: 500..20000. Source: P-001 budget.
     ap.add_argument("--task", default="")  # id of an existing task to download instead of generating (costs no credits). Unit: UUID text. Range: a task id on this account, or empty.
     ap.add_argument("--views", nargs="*", default=[])  # extra views for multi-view generation, each "left=path", "back=path" or "right=path"; the positional image is the front view. Unit: key=path text. Range: 0..3 entries.
+    ap.add_argument("--retexture", default="")  # id of an earlier generation task whose model keeps its shape and gets a new texture from the image(s). Unit: UUID text. Range: a task id on this account, or empty.
     a = ap.parse_args()
     t0 = time.time()  # wall-clock start. Unit: seconds. (Tooling only; never in Sim.)
     name = os.path.splitext(os.path.basename(a.image))[0]  # output file stem, e.g. skai_scout
@@ -56,6 +58,18 @@ def main():
     b0 = balance()  # credits before the task. Unit: credits
     print("balance_before", b0)
     tid = a.task  # task id, text; empty means generate a new model
+    if a.retexture:
+        token = upload(a.image)  # reference image token (the front view, or the only image)
+        if a.views:
+            refs = [{"front": {"file_token": token}}]  # view-key list: front plus each extra view
+            for v in a.views:
+                key, path = v.split("=", 1)  # view name and its image path
+                refs.append({key: {"file_token": upload(path)}})
+            prompt = {"images": refs}
+        else:
+            prompt = {"image": {"file_token": token}}  # one reference image for the whole texture
+        body = {"input": a.retexture, "texture_prompt": prompt, "pbr": False}  # texture task: same geometry, new texture
+        tid = call("POST", BASE + "/models/texture", json.dumps(body).encode(), {"Content-Type": "application/json"})["data"]["task_id"]
     if not tid:
         token = upload(a.image)  # image token returned by the upload (the front view)
         task = {"model": MODEL, "texture": True, "pbr": False, "face_limit": a.face_limit}  # task settings shared by both endpoints

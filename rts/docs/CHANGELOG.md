@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `tools/Models3D/tripo.py --retexture <task id>`: keeps an earlier model's geometry and regenerates only its texture from one image or front/left/back views (Tripo `POST /models/texture`, 10 credits against 110 for a new model). Used for the Stormcaller (its texture came out grey) and the Thunderhead's top. New models in `docs/art/models/batch1/`: Talon Marksman, Roc Rider, Stormcaller, water worker with a beak (2,130 Tripo credits left).
+
 - `docs/art/models/batch1/`: heavier Pummeler model (kept sheet) and a first Thunderhead model that did not work from two edge-on views (2,590 Tripo credits left). `docs/art/concept/turnarounds5/`: four sheets redrawn after the third review (Talon Marksman with the rifle on its right side, Roc Rider redrawn from the original picture, Stormcaller with a tidier back unit, water worker with a beak).
 
 - `docs/art/models/batch1/`: models for the Tidecaller and Leviathan and a second Stormcaller (2,810 Tripo credits left). `docs/art/concept/turnarounds4/`: five sheets redrawn after the second review (Talon Marksman shouldering the rifle, Pummeler with heavier arms, water worker with a solid face, Roc Rider bigger with tucked legs and wing crystals, Thunderhead with its bird head). Kept so far as models: Skai worker, Spoutling.
