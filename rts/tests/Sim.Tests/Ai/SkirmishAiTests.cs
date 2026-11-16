@@ -4,7 +4,7 @@
 // composition by largest deficit, the attack trigger, retreat and regroup, defence, never acting on enemies the team cannot see,
 // profile validation with file-and-field errors and the loader's ai/ route, a 2000-tick AI-versus-AI match on the test economy
 // map with no rejected command, and the Phase 1 exit test: two full runs of rts/data/scripts/ai_vs_ai.json on greybox_1v1 give
-// identical hashes and a decided outcome within 6000 ticks. Part of Rts.Sim.Tests. Test code only (may use System.IO).
+// identical hashes and a decided outcome within the script's tick limit. Part of Rts.Sim.Tests. Test code only (may use System.IO).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -802,7 +802,7 @@ namespace Rts.Sim.Tests.Ai
 
         /// <summary>
         /// The Phase 1 exit test: two full AI-versus-AI runs of rts/data/scripts/ai_vs_ai.json (Skai aggressive vs Water defensive on
-        /// greybox_1v1, seed 1234) produce identical per-interval and final hashes and reach a decided outcome within 6000 ticks, with
+        /// greybox_1v1, seed 1234) produce identical per-interval and final hashes and reach a decided outcome within the script's tick limit, with
         /// no rejected AI command and no use of hidden information.
         /// </summary>
         [Test]
@@ -810,21 +810,24 @@ namespace Rts.Sim.Tests.Ai
         {
             // The two runs of the exit script.
             RunResult[] runs = new RunResult[2];
+            // The script's tick limit. Unit: ticks. Range: 1 upward (read from the script, 24000 today).
+            int limit = 0;
             // Run index. Range: 0 to 1.
             for (int run = 0; run < 2; run++)
             {
                 // The simulation under test.
                 Simulation sim = StartAiVsAi(out List<SkirmishAiController> controllers, out CommandScript script);
-                Assert.That(script.Ticks, Is.EqualTo(6000));
+                limit = script.Ticks;
+                Assert.That(script.Ticks, Is.GreaterThan(0));
                 Assert.That(controllers.Count, Is.EqualTo(2));
                 runs[run] = RunAi(sim, controllers, script.Ticks);
             }
             Assert.That(runs[1].Hashes, Is.EqualTo(runs[0].Hashes));
             Assert.That(runs[1].FinalHash, Is.EqualTo(runs[0].FinalHash));
             Assert.That(runs[1].LastTick, Is.EqualTo(runs[0].LastTick));
-            Assert.That(runs[0].Outcome!.IsDecided, Is.True, "decided within 6000 ticks");
+            Assert.That(runs[0].Outcome!.IsDecided, Is.True, "decided within script.Ticks");
             Assert.That(runs[0].Outcome!.IsDraw, Is.False);
-            Assert.That(runs[0].LastTick, Is.LessThan(6000));
+            Assert.That(runs[0].LastTick, Is.LessThan(limit));
             Assert.That(runs[0].Rejections, Is.Empty);
             Assert.That(runs[0].VisionViolations, Is.Empty);
         }

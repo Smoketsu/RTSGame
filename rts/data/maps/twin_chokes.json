@@ -1,7 +1,7 @@
 // rts/data/maps/twin_chokes.json: grey-box 1v1 map with one choke ramp per base and an exposed Core on open ground. Part of rts/data/maps; read by the data loader (rts/src/Sim/Data) into a MapDefinition. Three elevation layers: two small layer-2 start plateaus in the north-west and south-east corners that can only be left by one three-tile ramp, a wide layer-1 plain with the Core in the open middle, and two layer-0 flank basins in the north-east and south-west corners (docs/decisions/ADR-006-terrain-model.md).
 {
   "$schema_version": 1,
-  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, point-symmetric, small north-west and south-east plateaus with a single choke ramp each, an open plain with the Core in the middle and no cliffs around it, and a low basin in each other corner holding one rare field.",
+  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, point-symmetric, small north-west and south-east plateaus with a single choke ramp each, an open plain with the Core in the middle and no cliffs around it, and a low basin in each other corner holding one rare field and a flank common field; each side also has a natural pair of common fields outside its main.",
   // Stable map ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "twin_chokes",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: not in the design doc; placeholder for Phase 2.
@@ -149,14 +149,20 @@
     "................................................................",
     "................................................................"
   ],
-  // Resource fields: common at each main, rare on the flanks, never in the Core's area. Two common fields at each main (4 to 5 tiles from where the mobile HQ lands at (8, 56) and (56, 8)); one rare field in each basin at (53, 53) and (10, 10), about 30 tiles off the line between the starts and 29 from the Core. Unit: tile position, kind and starting resource units. Range: amount 1 to 1000000. Source: Economy (two resources; rare on the flanks, mirrored; fields run out); amounts are placeholders.
+  // Resource fields: two common fields at each main, rare fields on the flanks, never in the Core's area; common amounts are 3000 and rare ones 600. Appended after the original entries, in this order: a natural pair per side (two common fields 6 to 7 tiles apart just outside the main's ramp, 12.7 to 15.9 tiles from the HQ) and one flank field per side (common, 3 to 4 tiles from a rare field, so a depot there gathers rare too); each is the 180-degree image of its partner (x, y to 63 - x, 63 - y). New indices: 6 (21, 52); 7 (21, 59); 8 (42, 11); 9 (42, 4); 10 (7, 13); 11 (56, 50). Unit: tile position, kind and starting resource units. Range: amount 1 to 1000000. Source: Economy (two resources; rare on the flanks, mirrored; fields run out; a drop-off per base); skirmish_ai_v2.md A.2 and A.3; amounts are placeholders.
   "resource_fields": [
-    { "x": 4, "y": 59, "kind": "common", "amount": 1500 },
-    { "x": 9, "y": 60, "kind": "common", "amount": 1500 },
-    { "x": 59, "y": 4, "kind": "common", "amount": 1500 },
-    { "x": 54, "y": 3, "kind": "common", "amount": 1500 },
+    { "x": 4, "y": 59, "kind": "common", "amount": 3000 },
+    { "x": 9, "y": 60, "kind": "common", "amount": 3000 },
+    { "x": 59, "y": 4, "kind": "common", "amount": 3000 },
+    { "x": 54, "y": 3, "kind": "common", "amount": 3000 },
     { "x": 53, "y": 53, "kind": "rare", "amount": 600 },
-    { "x": 10, "y": 10, "kind": "rare", "amount": 600 }
+    { "x": 10, "y": 10, "kind": "rare", "amount": 600 },
+    { "x": 21, "y": 52, "kind": "common", "amount": 3000 },
+    { "x": 21, "y": 59, "kind": "common", "amount": 3000 },
+    { "x": 42, "y": 11, "kind": "common", "amount": 3000 },
+    { "x": 42, "y": 4, "kind": "common", "amount": 3000 },
+    { "x": 7, "y": 13, "kind": "common", "amount": 3000 },
+    { "x": 56, "y": 50, "kind": "common", "amount": 3000 }
   ],
   // The Core. Centred on the open layer-1 plain at (32, 32), radius 4, with no cliff within several tiles, so it is exposed to attack from every side. Unit: tiles and a radius in tiles. Range: radius 1 to 32. Source: Maps / Central element: the Core (contested middle ground); radius is a placeholder.
   "core": { "x": 32, "y": 32, "radius_tiles": 4 }

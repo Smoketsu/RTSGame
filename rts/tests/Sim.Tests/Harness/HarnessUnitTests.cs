@@ -162,9 +162,9 @@ namespace Rts.Sim.Tests.Harness
         {
             string folder = TestDataFolder();
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder }, out string output, out _), Is.EqualTo(0));
-            Assert.That(output, Does.Contain("STATE_HASH=06ab47ea375f0430\n"));
+            Assert.That(output, Does.Contain("STATE_HASH=8eb22fe6a8e7c7ff\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=f4e4a16805e63190\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=d72e327e14850967\n"));
         }
 
         /// <summary>The shipped data set.</summary>

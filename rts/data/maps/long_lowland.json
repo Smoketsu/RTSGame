@@ -1,7 +1,7 @@
 // rts/data/maps/long_lowland.json: grey-box 1v1 map with a long central lowland and wide flanks. Part of rts/data/maps; read by the data loader (rts/src/Sim/Data) into a MapDefinition. Three elevation layers: two layer-2 start plateaus at the west and east edges with three ramp exits each, a layer-1 plain whose north and south flanks are wide, and a layer-0 lowland channel across the middle holding the Core (docs/decisions/ADR-006-terrain-model.md).
 {
   "$schema_version": 1,
-  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, point-symmetric, west and east start plateaus, a long low channel through the middle with the Core, wide open flanks with two rare fields each and two layer-2 mesas.",
+  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, point-symmetric, west and east start plateaus, a long low channel through the middle with the Core, wide open flanks with two rare fields each and two layer-2 mesas; each side also has a natural pair of common fields outside its main and a flank common field beside one rare field.",
   // Stable map ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "long_lowland",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: not in the design doc; placeholder for Phase 2.
@@ -149,16 +149,22 @@
     "................................................................",
     "................................................................"
   ],
-  // Resource fields: common at each main, rare on the flanks, never in the Core's area. Two common fields at each main (about 4 tiles from where the mobile HQ lands); the four rare fields sit at (20, 52), (45, 54), (43, 11) and (18, 9), more than 20 tiles off the line between the starts and about 25 tiles from the Core. Unit: tile position, kind and starting resource units. Range: amount 1 to 1000000. Source: Economy (two resources; rare on the flanks, mirrored; fields run out); amounts are placeholders.
+  // Resource fields: two common fields at each main, rare fields on the flanks, never in the Core's area; common amounts are 3000 and rare ones 600. Appended after the original entries, in this order: a natural pair per side (two common fields 6 to 7 tiles apart just outside the main's ramp, 12.7 to 15.9 tiles from the HQ) and one flank field per side (common, 3 to 4 tiles from a rare field, so a depot there gathers rare too); each is the 180-degree image of its partner (x, y to 63 - x, 63 - y). New indices: 8 (5, 47); 9 (11, 47); 10 (58, 16); 11 (52, 16); 12 (22, 55); 13 (41, 8). Unit: tile position, kind and starting resource units. Range: amount 1 to 1000000. Source: Economy (two resources; rare on the flanks, mirrored; fields run out; a drop-off per base); skirmish_ai_v2.md A.2 and A.3; amounts are placeholders.
   "resource_fields": [
-    { "x": 4, "y": 35, "kind": "common", "amount": 1500 },
-    { "x": 4, "y": 29, "kind": "common", "amount": 1500 },
-    { "x": 59, "y": 28, "kind": "common", "amount": 1500 },
-    { "x": 59, "y": 34, "kind": "common", "amount": 1500 },
+    { "x": 4, "y": 35, "kind": "common", "amount": 3000 },
+    { "x": 4, "y": 29, "kind": "common", "amount": 3000 },
+    { "x": 59, "y": 28, "kind": "common", "amount": 3000 },
+    { "x": 59, "y": 34, "kind": "common", "amount": 3000 },
     { "x": 20, "y": 52, "kind": "rare", "amount": 600 },
     { "x": 45, "y": 54, "kind": "rare", "amount": 600 },
     { "x": 43, "y": 11, "kind": "rare", "amount": 600 },
-    { "x": 18, "y": 9, "kind": "rare", "amount": 600 }
+    { "x": 18, "y": 9, "kind": "rare", "amount": 600 },
+    { "x": 5, "y": 47, "kind": "common", "amount": 3000 },
+    { "x": 11, "y": 47, "kind": "common", "amount": 3000 },
+    { "x": 58, "y": 16, "kind": "common", "amount": 3000 },
+    { "x": 52, "y": 16, "kind": "common", "amount": 3000 },
+    { "x": 22, "y": 55, "kind": "common", "amount": 3000 },
+    { "x": 41, "y": 8, "kind": "common", "amount": 3000 }
   ],
   // The Core. Centred in the lowland at (32, 32), radius 4, so the Core is a low, open fight below both flanks. Unit: tiles and a radius in tiles. Range: radius 1 to 32. Source: Maps / Central element: the Core (contested middle ground); radius is a placeholder.
   "core": { "x": 32, "y": 32, "radius_tiles": 4 }

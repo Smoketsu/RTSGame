@@ -270,7 +270,7 @@ namespace Rts.Sim.Tests.Terrain
             Assert.That(map.HeightAt(map.WidthTiles * 8 + 8), Is.EqualTo(2), "spawn plateau is layer 2");
             Assert.That(map.HeightAt(map.WidthTiles * 32 + 32), Is.EqualTo(0), "basin is layer 0");
             Assert.That(map.IsRampAt(map.WidthTiles * 7 + 14), Is.True, "plateau exit ramp");
-            Assert.That(map.ResourceFields.Count, Is.EqualTo(6));
+            Assert.That(map.ResourceFields.Count, Is.EqualTo(12));
             Assert.That(map.Core, Is.Not.Null);
             // Lowest layer under the 35% cap from flood.json.
             int lowest = 0;

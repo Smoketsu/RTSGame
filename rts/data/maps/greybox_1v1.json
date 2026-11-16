@@ -1,7 +1,7 @@
 // rts/data/maps/greybox_1v1.json: grey-box 1v1 test map. Part of rts/data/maps; read by the data loader (rts/src/Sim/Data) into a MapDefinition. Three elevation layers: two layer-2 start plateaus with ramps, a layer-1 middle ring and a layer-0 central basin holding the Core (docs/decisions/ADR-006-terrain-model.md).
 {
   "$schema_version": 1,
-  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, mirror-symmetric, with two high-ground start plateaus, ramps, a central low basin around the Core, common fields at each main and rare fields on the flanks.",
+  "$doc": "Grey-box 1v1 map: 64 by 64 tiles, 180-degree symmetric (and symmetric under swapping x and y), with two high-ground start plateaus, ramps, a central low basin around the Core, two common fields at each main, a natural pair outside each main, rare fields on the flanks and a flank common field beside each rare one.",
   // Stable map ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "greybox_1v1",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: not in the design doc; placeholder for Phase 1.
@@ -15,7 +15,7 @@
     { "x": 8, "y": 8 },
     { "x": 56, "y": 56 }
   ],
-  // Elevation layer per tile, one row per y (row 0 is y = 0, the south edge) and one digit per x. Unit: layer index. Range: 0 to 7; this map uses 0 (basin), 1 (middle) and 2 (plateaus). The lowest layer covers about 11 percent of the map, under the 35 percent cap. Source: Maps / Layout rules (at least three elevation layers; main base on high ground with one ramp).
+  // Elevation layer per tile, one row per y (row 0 is y = 0, the south edge) and one digit per x. Unit: layer index. Range: 0 to 7; this map uses 0 (basin), 1 (middle) and 2 (plateaus). The lowest layer covers about 10 percent of the map (408 tiles after the symmetry fix of skirmish_ai_v2.md A.4), under the 35 percent cap. Source: Maps / Layout rules (at least three elevation layers; main base on high ground with one ramp).
   "height_rows": [
     "2222222222222211111111111111111111111111111111111111111111111111",
     "2222222222222211111111111111111111111111111111111111111111111111",
@@ -43,25 +43,25 @@
     "1111111111111111111111111000000000000000111111111111111111111111",
     "1111111111111111111111110000000000000000011111111111111111111111",
     "1111111111111111111111100000000000000000001111111111111111111111",
+    "1111111111111111111111000000000000000000001111111111111111111111",
     "1111111111111111111111000000000000000000000111111111111111111111",
-    "1111111111111111111111000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000000111111111111111111111",
     "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111100000000000000000000000001111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111110000000000000000000000011111111111111111111",
-    "1111111111111111111111000000000000000000000111111111111111111111",
-    "1111111111111111111111000000000000000000000111111111111111111111",
-    "1111111111111111111111100000000000000000001111111111111111111111",
-    "1111111111111111111111110000000000000000011111111111111111111111",
-    "1111111111111111111111111000000000000000111111111111111111111111",
-    "1111111111111111111111111100000000000001111111111111111111111111",
-    "1111111111111111111111111111000000000111111111111111111111111111",
-    "1111111111111111111111111111111101111111111111111111111111111111",
+    "1111111111111111111100000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000000111111111111111111111",
+    "1111111111111111111110000000000000000000001111111111111111111111",
+    "1111111111111111111111000000000000000000001111111111111111111111",
+    "1111111111111111111111000000000000000000011111111111111111111111",
+    "1111111111111111111111100000000000000000111111111111111111111111",
+    "1111111111111111111111110000000000000001111111111111111111111111",
+    "1111111111111111111111111000000000000011111111111111111111111111",
+    "1111111111111111111111111110000000001111111111111111111111111111",
+    "1111111111111111111111111111111011111111111111111111111111111111",
+    "1111111111111111111111111111111111111111111111111111111111111111",
     "1111111111111111111111111111111111111111111111111111111111111111",
     "1111111111111111111111111111111111111111111111111111111111111111",
     "1111111111111111111111111111111111111111111111111111111111111111",
@@ -115,9 +115,8 @@
     "................................................................",
     "................................................................",
     "................................................................",
-    "....................R.......................R...................",
-    "....................R.......................R...................",
-    "................................................................",
+    "....................R......................R....................",
+    "....................R......................R....................",
     "................................................................",
     "................................................................",
     "................................................................",
@@ -129,6 +128,7 @@
     "................................................................",
     "................................................................",
     "...............................RR...............................",
+    "................................................................",
     "................................................................",
     "................................................................",
     "................................................................",
@@ -149,14 +149,20 @@
     "................................................................",
     "................................................................"
   ],
-  // Resource fields: common at each main and natural, rare on the flanks, never in the Core's area. Unit: tile position, kind and starting resource units. Range: amount 1 to 1000000. Source: Economy (two resources; rare on the flanks, mirrored; fields run out); amounts are placeholders.
+  // Resource fields: two common fields at each main, rare fields on the flanks, never in the Core's area; common amounts are 3000 and rare ones 600. Appended after the original entries, in this order: a natural pair per side (two common fields 6 to 7 tiles apart just outside the main's ramp, 12.7 to 15.9 tiles from the HQ) and one flank field per side (common, 3 to 4 tiles from a rare field, so a depot there gathers rare too); each is the 180-degree image of its partner (x, y to 63 - x, 63 - y). New indices: 6 (21, 10); 7 (21, 4); 8 (42, 53); 9 (42, 59); 10 (12, 49); 11 (51, 14). Unit: tile position, kind and starting resource units. Range: amount 1 to 1000000. Source: Economy (two resources; rare on the flanks, mirrored; fields run out; a drop-off per base); skirmish_ai_v2.md A.2 and A.3; amounts are placeholders.
   "resource_fields": [
-    { "x": 4, "y": 10, "kind": "common", "amount": 1500 },
-    { "x": 10, "y": 4, "kind": "common", "amount": 1500 },
-    { "x": 59, "y": 53, "kind": "common", "amount": 1500 },
-    { "x": 53, "y": 59, "kind": "common", "amount": 1500 },
+    { "x": 4, "y": 10, "kind": "common", "amount": 3000 },
+    { "x": 10, "y": 4, "kind": "common", "amount": 3000 },
+    { "x": 59, "y": 53, "kind": "common", "amount": 3000 },
+    { "x": 53, "y": 59, "kind": "common", "amount": 3000 },
     { "x": 8, "y": 52, "kind": "rare", "amount": 600 },
-    { "x": 55, "y": 11, "kind": "rare", "amount": 600 }
+    { "x": 55, "y": 11, "kind": "rare", "amount": 600 },
+    { "x": 21, "y": 10, "kind": "common", "amount": 3000 },
+    { "x": 21, "y": 4, "kind": "common", "amount": 3000 },
+    { "x": 42, "y": 53, "kind": "common", "amount": 3000 },
+    { "x": 42, "y": 59, "kind": "common", "amount": 3000 },
+    { "x": 12, "y": 49, "kind": "common", "amount": 3000 },
+    { "x": 51, "y": 14, "kind": "common", "amount": 3000 }
   ],
   // The Core at the centre of the basin. Unit: tiles and a radius in tiles. Range: radius 1 to 32. Source: Maps / Central element: the Core (contested middle ground); radius is a placeholder.
   "core": { "x": 32, "y": 32, "radius_tiles": 4 }
