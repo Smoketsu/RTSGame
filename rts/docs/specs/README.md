@@ -26,6 +26,12 @@ The specs build on the wave A code (terrain grid, flow fields, combat, `ISpeedMo
 
 Build order for Phase 2: planetary_cycles first (it changes the step order, the hash order, `SimulationConfig` and the content digest that the other two rely on); then balance_harness and campaign_scripting in either order or in parallel (they touch different folders; both need the `CommandScript` / `SimulationConfig` edits from step 4).
 
+## Rule changes (P-003, 16 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [p003_rules.md](p003_rules.md) | Package A: uphill ranged penalty, armed workers with armed-first targeting, ranged hit delay (pending-hit queue), Shellback dome shield. Package B: unit separation with keep-right sidestep and crowd arrival | P-003 | combat, movement (built); build A before B |
+
 ## Shared decisions (resolved across specs)
 
 **Step order** (the `Simulation.cs` header is authoritative; Phase 2 adds step 9, the coordinator makes the edit): 1. clear events; 2. apply commands in (issuer, sequence) order; 3. statuses (`StatusSystem.BeginTick`); 4. HQ timers (`HqSystem.Step`); 5. movement; 6. combat; 7. economy; 8. faction mechanics in ascending ordinal ID (`flooding` before `momentum`); 9. **cycles and Core** (`CycleSystem.Step`: out-of-match sides, presence, capture, hold accrual, Core win, lock, shift and quake paths, quake damage); 10. vision recompute; 11. state hash every interval; 12. advance the clock. A status applied by combat on tick t wipes Momentum on tick t and changes movement from tick t+1; a cycle that starts on tick S changes movement and combat from tick S+1; the hash and the AI read end-of-tick vision and Core state.

@@ -11,6 +11,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Spec `docs/specs/p003_rules.md`: build-ready rules for the P-003 changes (uphill ranged penalty, armed workers, ranged hit delay, the Shellback's always-on dome shield, unit separation), in two build packages, with its row in the specs index.
+
 - `docs/proposals/P-003-decisions-to-apply.md`: the 16 Nov decisions compared with the code on `main` (4 of 14 already hold; result, evidence and what a change would touch for each row). `docs/STATUS.md` and the archive README no longer name the deleted branches; the duplicate build's code was deleted with them.
 
 - `docs/archive/2026-11-16-duplicate-build/`: the systems spec and plan revision from the 16 Nov duplicate build, kept for the hit-delay and sidestep designs and the orchestration rules; marked as not current. The default branch is `main`. Ten stale branches were checked and found safe to delete (listed in `docs/STATUS.md`); deleting them is left to the developer or a session on the developer's PC, because the cloud session could not remove refs.

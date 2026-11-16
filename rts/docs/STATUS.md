@@ -56,7 +56,7 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 
 ## What comes next, in order
 
-1. The developer chooses which rows of `proposals/P-003-decisions-to-apply.md` to build (compared with the code on 16 Nov: 4 of 14 already hold); those become spec changes.
+1. Build `specs/p003_rules.md` (the P-003 rule changes the developer approved on 16 Nov): package A, combat, is being built by the cloud orchestrator session; package B, unit separation, follows. Both change every state hash, so the Unity-versus-headless check must be repeated afterwards.
 2. Build Phase 2 step 5 (balance harness) and step 8 (campaign scripting) from their specs.
 3. Phase 2 step 9, the Unity HUD and menus: done by the session on the developer's PC, which has the Unity Editor.
 4. Art: the art direction is settled (`art/CONCEPT_BRIEF.md`, table of approved designs). Approved units and buildings go to 3D through the pipeline trialled in `art/models/trial2`.
