@@ -1,0 +1,31 @@
+// rts/docs/art/concept/turnarounds6/shots.json: shot list for the sixth set of model sheets, a redraw of two sheets (Marksman hands, Roc Rider rigging-friendly wings) after the developer's review of the 3D models of 16 Nov 2026, read by rts/tools/ConceptArt/generate.py. Fields per shot: id = output file name without extension (text); size = image size WxH in pixels (1536x1024); quality = API quality enum (high); references = repository-relative paths of reference images (list); prompt = shot text appended to the style text. style = shared text prepended to every prompt.
+{
+  // Shared style text prepended to every prompt. Unit: text.
+  "style": "Orthographic character model sheet for a 3D modeller, science fiction strategy game unit rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single unit in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view facing away. The unit stands still in a neutral symmetric pose. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  "shots": [
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_marksman_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/turnarounds5/skai_marksman_sheet.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the existing three-view model sheet of the Talon Marksman (heron trooper), approved design. Draw the same single heron, same design, colours and proportions, apart from ONE fix: the arms and hands. In EVERY view (front, side, back) the heron has exactly TWO arms and exactly TWO hands, no more, each clearly traceable from its shoulder to its hand. The RIGHT hand (the bird's right) grips the pistol grip, the handle of the rifle, near the body. The LEFT hand (the bird's left) supports the rifle from underneath, further forward on the barrel and handguard. There is NO third hand: no hand, glove or arm-like shape anywhere else, nothing resting on the chest, no white glove shapes on the scope or on the stock. The rifle stays on the bird's RIGHT side with the stock at the right shoulder, level, pointing forward in the direction his beak faces. In the FRONT view (the bird's right is the viewer's LEFT) the rifle is offset to the viewer's left, the muzzle pointing at the viewer, both hands visible on the rifle (one on the grip, one under the handguard), and the yellow chest emblem and the centre of the chest are unobstructed. In the SIDE view (facing left) the rifle is level with the stock at the shoulder and the muzzle pointing left, both hands on it. In the BACK view the rifle and the supporting arm are visible beside the body on the viewer's right, pointing away from the viewer, with exactly two arms. Everything else unchanged: same palette (storm charcoal, white, electric yellow). BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_roc_rider_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/turnarounds5/skai_roc_rider_sheet.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the existing three-view model sheet of the Roc Rider (rider on a mechanical raptor), approved design. Draw the same single unit with the same head, crest, yellow neck band, yellow wing patches, row of yellow faceted crystals under each wing, slatted vents, metal-plated feathers, charcoal body, fan tail, tucked legs and rider, exactly as in the reference, apart from ONE change: a rigging-friendly neutral pose for the wings. CHANGE: both wings are fully spread and held perfectly STRAIGHT and HORIZONTAL, a flat T-pose seen from the front and the back: no droop, no bend, no curl at the tips, and symmetrical left and right. Each wing is clearly built in separate segments: a shoulder joint at the body, an inner wing section, then an outer wing section, with the feather blades laid out flat, straight and evenly spaced, not overlapping the body. The tail fan points straight back. The legs stay tucked under the belly as now. The rider sits upright. In the SIDE view (facing left) the wing is seen edge-on as a thin level line so that it does not hide the body. Draw the three views as large as the sheet allows, side by side without overlapping (wing span may be slightly shortened to fit). Same low-polygon faceted look, palette storm charcoal, white, electric yellow. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    }
+  ]
+}

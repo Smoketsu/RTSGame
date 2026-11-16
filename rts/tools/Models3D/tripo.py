@@ -51,6 +51,7 @@ def main():
     ap.add_argument("--task", default="")  # id of an existing task to download instead of generating (costs no credits). Unit: UUID text. Range: a task id on this account, or empty.
     ap.add_argument("--views", nargs="*", default=[])  # extra views for multi-view generation, each "left=path", "back=path" or "right=path"; the positional image is the front view. Unit: key=path text. Range: 0..3 entries.
     ap.add_argument("--retexture", default="")  # id of an earlier generation task whose model keeps its shape and gets a new texture from the image(s). Unit: UUID text. Range: a task id on this account, or empty.
+    ap.add_argument("--texture-text", default="")  # with --retexture: a text description of the texture; the image then only sets the style. Unit: text. Range: empty or a short prompt.
     a = ap.parse_args()
     t0 = time.time()  # wall-clock start. Unit: seconds. (Tooling only; never in Sim.)
     name = os.path.splitext(os.path.basename(a.image))[0]  # output file stem, e.g. skai_scout
@@ -60,7 +61,9 @@ def main():
     tid = a.task  # task id, text; empty means generate a new model
     if a.retexture:
         token = upload(a.image)  # reference image token (the front view, or the only image)
-        if a.views:
+        if a.texture_text:
+            prompt = {"text": a.texture_text, "style_image": {"file_token": token}}  # described texture, image as style only
+        elif a.views:
             refs = [{"front": {"file_token": token}}]  # view-key list: front plus each extra view
             for v in a.views:
                 key, path = v.split("=", 1)  # view name and its image path
