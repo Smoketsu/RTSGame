@@ -50,7 +50,11 @@ The cloud session that did this clean-up could not delete branches (its git acce
 
 - `dotnet test rts/RtsGame.sln` on `main`: 429 simulation, 33 net and 27 replay tests pass.
 - The headless runner's default script gives `STATE_HASH=24ffa53a8542d783` on Linux (cloud) and on the developer's Windows PC.
-- Not yet confirmed that day: the Unity compile and the Play-mode hash on `main`. Unity is pinned to `6000.6.7f1` (`rts/src/Game/ProjectSettings/ProjectVersion.txt`).
+- Unity (`6000.6.7f1`, pinned in `rts/src/Game/ProjectSettings/ProjectVersion.txt`), checked on the developer's PC through Funplay at commit `e15f943` (later commits that day changed no simulation, data or Unity file):
+  - Compile: no errors, and no warnings in `Rts.Game` or `Rts.Sim`, including no CS8632 nullable warnings. The 55 warnings are all inside the Funplay package.
+  - Hash parity: Unity printed `script finished at tick 1500, final hash dac9a5db27e3fdb4`; the headless runner with `--script rts/data/scripts/economy_smoke.json` printed `STATE_HASH=dac9a5db27e3fdb4`, and all 75 per-interval hashes matched.
+  - Not confirmed: unit count and movement in Play mode. Funplay lost its connection when Play mode reloaded scripts (its server moved from port 29309 to 29310 while the session still pointed at 29309).
+- Known mismatch found by that check: in an untitled scene `AutoBootstrap` adds a `SimulationHost` whose default script is `scripts/economy_smoke.json`, while `CLAUDE.md` and `UNITY_SETUP.md` say Unity and the harness both play `smoke.json` by default. Compare Unity with the harness run on the same script. The documents or the default should be brought into line by the session that owns `rts/src/Game`.
 
 ## What comes next, in order
 
