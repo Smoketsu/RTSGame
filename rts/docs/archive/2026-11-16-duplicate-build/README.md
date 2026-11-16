@@ -12,7 +12,7 @@ On 16 Nov 2026 a cloud session started on the old `phase-0/foundations` branch, 
 
 ## What was not kept in the tree
 
-- The duplicate simulation code and its tests. The last state of that work is preserved under the git tag `archive/2026-11-16-phase-1a-duplicate` (the head of the deleted branch `claude/phase-1a-exit`: 231 passing tests on that codebase, reviewed by the Opus sim-reviewer up to the combat merge). It shares no history with `main` and cannot be merged; it is a reference only.
+- The duplicate simulation code and its tests. The last state of that work is preserved on the branch `archive/2026-11-16-phase-1a-duplicate` (the head of the deleted branch `claude/phase-1a-exit`, plus a notice marking it as an archive; tags could not be pushed from the session that did the clean-up: 231 passing tests on that codebase, reviewed by the Opus sim-reviewer up to the combat merge). It shares no history with `main` and cannot be merged; it is a reference only.
 - The concept art, art brief, proposals, tools and agent definitions from that day: these were copied to `main` unchanged and are current.
 
 ## Branches deleted on 16 Nov 2026

@@ -11,7 +11,7 @@ Before doing anything, run `git ls-remote --heads origin` and `git log -1 origin
 
 Why this warning exists: until 16 Nov 2026 the repository's default branch on GitHub was the old `phase-0/foundations`, so a new cloud session started on Phase 0 code. A session did exactly that and rebuilt part of Phase 1 before noticing that Phase 1 and most of Phase 2 already existed. The developer changed the default branch to `main` that day; the check above stays, because a session can still be started on an old branch by name.
 
-On 16 Nov 2026 every other branch was deleted at the developer's request: the old phase branches (`phase-0/foundations`, `phase-0/foundations-pr`, `phase-1/prototype`, `phase-2/vertical-slice`, all contained in `main`) and the duplicate Phase 1A build (`claude/game-dev-plan-concept-7107ge`, `claude/phase-1a-*`). The duplicate build's code survives only under the tag `archive/2026-11-16-phase-1a-duplicate`, and two of its documents under `docs/archive/2026-11-16-duplicate-build/`; neither is current. New work goes on `main` or on a short-lived branch merged back into it.
+On 16 Nov 2026 every other working branch was deleted at the developer's request: the old phase branches (`phase-0/foundations`, `phase-0/foundations-pr`, `phase-1/prototype`, `phase-2/vertical-slice`, all contained in `main`) and the duplicate Phase 1A build (`claude/game-dev-plan-concept-7107ge`, `claude/phase-1a-*`). The duplicate build's code survives only on the branch `archive/2026-11-16-phase-1a-duplicate` (marked as an archive; never merge it), and two of its documents under `docs/archive/2026-11-16-duplicate-build/`; neither is current. New work goes on `main` or on a short-lived branch merged back into it.
 
 ## Where the project stands
 
