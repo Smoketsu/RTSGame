@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- `data/maps/prototype_1v1.json`: a mirrored pair of common fields (3000) in the low ground, at (40, 22) in the south basin and (55, 73) in the north basin, asked for by the developer on 16 Nov 2026; the map now has 16 fields. Review picture regenerated.
+
 - Skirmish AI v2, package C (army), spec `docs/specs/skirmish_ai_v2.md`, reviewed by the sim-reviewer:
   - Production buys one unit at a time: the composition unit with the largest deficit goes to the lowest-ID free producer and its cost is held when unaffordable. Cause of the old skew, confirmed by a failing test: producers were served in ID order and a Roost (or Tidepool) spent the bank on the only unit it can make before the Windspire (or Shell Forge) got a turn.
   - Massing units rally at the HQ, not the Core; only the group that began an attack is ordered, later units rally at home; with `rally_at_core` the group stages at the Core.
