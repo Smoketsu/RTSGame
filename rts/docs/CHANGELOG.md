@@ -7,6 +7,14 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- P-003 package B (movement), spec `docs/specs/p003_rules.md`, reviewed by the sim-reviewer:
+  - Units on the same layer push apart instead of stacking (step 5c, new `Units/UnitSeparation.cs`): pushes come from a position snapshot with exact fixed-point sums and a uniform-grid neighbour search, so the result does not depend on visiting order or cell size.
+  - A keep-right sidestep lets units pass head-on; a moving unit near its goal that touches a stopped, pushable unit nearer the goal ends its move (crowd arrival).
+  - Pushes are terrain-checked. Buildings, HQs and speed-0 units are never pushed; gathering workers take no part; air units push only air units.
+  - Six new keys in `tuning/terrain.json`: `separation_strength`, `sidestep_strength`, `separation_max_push_tiles_per_tick`, `crowd_arrival_radius_tiles`, `separation_cell_tiles`, `air_separation_enabled`.
+  - Review fixes: a step shorter than 2^-16 tiles no longer divides by zero in the sidestep; buildings and posts no longer trigger crowd arrival.
+  - Hashes changed again: headless smoke is `06ab47ea375f0430`, economy_smoke `f4e4a16805e63190`, golden hash re-pinned. The quake relocation speed-0 test runs with separation off because it stacks two units on one tile on purpose.
+
 - P-003 package A (combat), spec `docs/specs/p003_rules.md`, reviewed by the sim-reviewer:
   - Ranged hits on higher ground deal 0.75 damage (`uphill_ranged_damage_multiplier` in `tuning/combat.json`); melee, air attackers, air targets and a shooter on a ramp are exempt.
   - Workers (Fledgling, Tender) carry a weak melee weapon (3 kinetic, 0.3 tiles, 1 s). New target picks prefer armed units; a unit never switches target on its own.

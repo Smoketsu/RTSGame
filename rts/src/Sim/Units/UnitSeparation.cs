@@ -109,19 +109,28 @@ namespace Rts.Sim.Units
                 members.Add(k);
             }
             // Rule strengths, squared crowd radius.
+            // Share of the overlap removed per tick by separation, from tuning. Unit: fraction per tick. Range: 0 to 1.
             Fix64 strength = tuning.SeparationStrength;
+            // Sideways push as a share of the overlap per tick, from tuning. Unit: fraction per tick. Range: 0 to 2.
             Fix64 sidestep = tuning.SidestepStrength;
+            // Crowd arrival radius from tuning, 0 when off. Unit: tiles. Range: 0 to 16.
             Fix64 crowdRadius = tuning.CrowdArrivalRadiusTiles;
             Fix64 crowdRadiusSquared = crowdRadius * crowdRadius;
             for (int a = 0; a < n; a++)
             {
                 // Unit A, its group and the cells that can hold a touching neighbour.
                 Unit ua = all[parts[a]];
+                // Layer group of unit A, indexes grids and maxRadius. Unit: index. Range: 0 to 2 (MovementLayer value).
                 int group = (int)ua.EffectiveLayer;
+                // Distance from A within which a touching neighbour can lie: A's radius plus the largest radius in its group. Unit: tiles. Range: 0 upward.
                 Fix64 reach = ua.Definition.Radius + maxRadius[group];
+                // Lowest grid column the reach box touches, clamped at 0. Unit: cell coordinate. Range: 0 up to the last column.
                 int cx0 = System.Math.Max((pos[a].X - reach).FloorToInt(), 0) / cell;
+                // Highest grid column the reach box touches, clamped at 0. Unit: cell coordinate. Range: cx0 up to the last column.
                 int cx1 = System.Math.Max((pos[a].X + reach).FloorToInt(), 0) / cell;
+                // Lowest grid row the reach box touches, clamped at 0. Unit: cell coordinate. Range: 0 up to the last row.
                 int cy0 = System.Math.Max((pos[a].Y - reach).FloorToInt(), 0) / cell;
+                // Highest grid row the reach box touches, clamped at 0. Unit: cell coordinate. Range: cy0 up to the last row.
                 int cy1 = System.Math.Max((pos[a].Y + reach).FloorToInt(), 0) / cell;
                 for (int cy = cy0; cy <= cy1; cy++)
                 {
@@ -153,12 +162,15 @@ namespace Rts.Sim.Units
                 }
                 // Push clamped to the per-tick maximum.
                 FixVec2 p = push[k];
+                // Squared length of the summed push. Unit: squared tiles. Range: 0 upward.
                 Fix64 l2 = p.LengthSquared();
                 if (l2 > maxSquared)
                 {
                     p = p * (max / Fix64.Sqrt(l2));
                 }
+                // Unit object for participant k. Unit: none (reference). Range: non-null.
                 Unit u = all[parts[k]];
+                // Movement layer of unit k, used for terrain checks. Unit: enum value. Range: Ground 0, Water 1, Air 2.
                 MovementLayer layer = u.EffectiveLayer;
                 // Wanted position, inside the map.
                 FixVec2 from = pos[k];
@@ -187,6 +199,7 @@ namespace Rts.Sim.Units
         private static FixVec2 TerrainChecked(TerrainGrid terrain, FixVec2 from, FixVec2 to, MovementLayer layer)
         {
             // Tile before the push.
+            // Tile index of the start position, from TileOf. Unit: index. Range: 0 to Width * Height - 1.
             int a = terrain.TileOf(from);
             if (Allowed(terrain, a, terrain.TileOf(to), layer))
             {
@@ -198,6 +211,7 @@ namespace Rts.Sim.Units
             {
                 return xOnly;
             }
+            // Position with only the Y move applied (X stays at the start). Unit: tiles. Range: inside the map.
             FixVec2 yOnly = new FixVec2(from.X, to.Y);
             return Allowed(terrain, a, terrain.TileOf(yOnly), layer) ? yOnly : from;
         }
@@ -208,6 +222,7 @@ namespace Rts.Sim.Units
             return a == b || terrain.IsStepPassable(a, b, layer);
         }
 
+        // Keys are unique while cell coordinates stay within 0 to 2^20, which holds because positions are clamped to the map.
         /// <summary>Key of a grid cell. Unit: none. Range: cell coordinates 0 to 2^20 - 1 each.</summary>
         private static long CellKey(int cx, int cy)
         {
@@ -231,18 +246,23 @@ namespace Rts.Sim.Units
             {
                 return;
             }
+            // Squared distance between A and B. Unit: squared tiles. Range: 0 up to m * m (exclusive).
             Fix64 s = d.LengthSquared();
             if (s >= m * m)
             {
                 return;
             }
+            // Distance between A and B. Unit: tiles. Range: 0 up to m (exclusive).
             Fix64 len = Fix64.Sqrt(s);
             // Unit vector from B to A; coincident units: A goes west, B east.
             FixVec2 dir = len == Fix64.Zero ? new FixVec2(-Fix64.One, Fix64.Zero) : new FixVec2(d.X / len, d.Y / len);
+            // Amount the two radii overlap, m - len. Unit: tiles. Range: above 0 up to m.
             Fix64 overlap = m - len;
+            // Push magnitude for the pair: overlap times separation strength. Unit: tiles. Range: 0 up to overlap.
             Fix64 c = overlap * strength;
             if (pushable[a] && pushable[b])
             {
+                // Share of c each pushable unit receives when both can move. Unit: tiles. Range: 0 up to c / 2.
                 Fix64 half = c / 2;
                 push[a] = push[a] + dir * half;
                 push[b] = push[b] - dir * half;
@@ -257,6 +277,7 @@ namespace Rts.Sim.Units
             }
             if (sidestep > Fix64.Zero)
             {
+                // Sidestep push length for each unit of the pair: overlap times sidestep strength, halved. Unit: tiles. Range: 0 up to overlap.
                 Fix64 amount = overlap * sidestep / 2;
                 Sidestep(start, pos, pushable, push, a, dir, -Fix64.One, amount);
                 Sidestep(start, pos, pushable, push, b, dir, Fix64.One, amount);
@@ -285,12 +306,19 @@ namespace Rts.Sim.Units
                 return;
             }
             // Direction toward the other unit: -dir for A (sign -1), +dir for B (sign +1).
+            // Unit direction toward the other unit (components). Unit: fraction. Range: -1 to 1 per component.
             FixVec2 toward = dir * sign;
             if (step.X * toward.X + step.Y * toward.Y <= Fix64.Zero)
             {
                 return;
             }
+            // Length of this tick's step. Unit: tiles. Range: 0 upward; 0 for a step under 2^-16 tiles, whose square truncates to zero.
             Fix64 stepLength = step.Length();
+            if (stepLength == Fix64.Zero)
+            {
+                return; // too short to have a direction; dividing by it would throw
+            }
+            // Unit vector of this tick's step (components). Unit: fraction. Range: -1 to 1 per component.
             FixVec2 u = new FixVec2(step.X / stepLength, step.Y / stepLength);
             push[x] = push[x] + new FixVec2(u.Y, -u.X) * amount;
         }
@@ -298,11 +326,14 @@ namespace Rts.Sim.Units
         /// <summary>Marks mover as settled when it has a goal within the crowd radius and touches a goal-less unit nearer that goal (B.3 crowd flag).</summary>
         private static void Crowd(Simulation sim, Unit mover, Unit other, int mi, int oi, FixVec2[] pos, bool[] settled, Fix64 radiusSquared)
         {
-            if (!mover.HasMoveTarget || other.HasMoveTarget)
+            // Only a stopped, pushable unit counts: a building, HQ or post in the way must not end a move short of its goal.
+            if (!mover.HasMoveTarget || other.HasMoveTarget || !IsPushable(other))
             {
                 return;
             }
+            // Move target of the mover, clamped to the map. Unit: tiles. Range: inside the map.
             FixVec2 goal = sim.Terrain.ClampToMap(mover.MoveTarget);
+            // Squared distance from the mover to its goal. Unit: squared tiles. Range: 0 upward.
             Fix64 mine = (goal - pos[mi]).LengthSquared();
             if (mine <= radiusSquared && (goal - pos[oi]).LengthSquared() < mine)
             {

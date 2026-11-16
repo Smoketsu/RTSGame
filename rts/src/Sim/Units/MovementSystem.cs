@@ -42,6 +42,7 @@ namespace Rts.Sim.Units
             Fix64 arrivalRadiusSquared = arrivalRadius * arrivalRadius;
             // Every unit in ascending ID order and its position before moving, for separation (step 5c); empty when separation is off.
             Unit[] all = new Unit[0];
+            // Position of each unit in all before moving (same index as all); empty when separation is off. Unit: tiles. Range: 0 to the map bounds.
             FixVec2[] start = new FixVec2[0];
             if (UnitSeparation.IsActive(sim.Tuning.Terrain))
             {
