@@ -76,7 +76,7 @@ dotnet run --project rts/tools/BalanceHarness -- --data rts/data
 
 - `rts/build/` is the output folder (set in `rts/Directory.Build.props`). It is git-ignored; never commit it.
 - Warnings are errors (`TreatWarningsAsErrors`), and the code uses C# 9 with nullable reference types on. Fix every warning rather than suppressing it.
-- The harness reads its command script from `rts/data/scripts/smoke.json` unless `--script <path>` is given; the Unity `SimulationHost` plays the same file (parsed by `Rts.Sim.Data.CommandScript`), so their state hashes are comparable. If the script file is missing the run fails with a file error.
+- The harness reads its command script from `rts/data/scripts/smoke.json` unless `--script <path>` is given; the Unity `SimulationHost` plays `rts/data/scripts/economy_smoke.json` by default (both are parsed by `Rts.Sim.Data.CommandScript`), so compare Unity with the harness run on that same file: `--script rts/data/scripts/economy_smoke.json` (see `rts/docs/UNITY_SETUP.md`). If the script file is missing the run fails with a file error.
 
 ## Unity editor (Funplay MCP)
 

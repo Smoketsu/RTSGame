@@ -54,7 +54,7 @@ The cloud session that did this clean-up could not delete branches (its git acce
   - Compile: no errors, and no warnings in `Rts.Game` or `Rts.Sim`, including no CS8632 nullable warnings. The 55 warnings are all inside the Funplay package.
   - Hash parity: Unity printed `script finished at tick 1500, final hash dac9a5db27e3fdb4`; the headless runner with `--script rts/data/scripts/economy_smoke.json` printed `STATE_HASH=dac9a5db27e3fdb4`, and all 75 per-interval hashes matched.
   - Not confirmed: unit count and movement in Play mode. Funplay lost its connection when Play mode reloaded scripts (its server moved from port 29309 to 29310 while the session still pointed at 29309).
-- Known mismatch found by that check: in an untitled scene `AutoBootstrap` adds a `SimulationHost` whose default script is `scripts/economy_smoke.json`, while `CLAUDE.md` and `UNITY_SETUP.md` say Unity and the harness both play `smoke.json` by default. Compare Unity with the harness run on the same script. The documents or the default should be brought into line by the session that owns `rts/src/Game`.
+- Unity's `SimulationHost` plays `scripts/economy_smoke.json` by default, not the harness default `smoke.json`. Compare Unity with the harness run on the same script, as `UNITY_SETUP.md` describes. `CLAUDE.md` said otherwise until 16 Nov 2026 and was corrected.
 
 ## What comes next, in order
 
