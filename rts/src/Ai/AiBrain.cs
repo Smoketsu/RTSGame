@@ -1125,8 +1125,9 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView foe in _view.VisibleEnemies)
                 {
-                    if (foe.Definition.Weapon == null)
+                    if (foe.Definition.Weapon == null || foe.IsWorker)
                     {
+                        // Unarmed units and workers (armed since P-003, but they flee or gather rather than fight) are not army power.
                         continue;
                     }
                     foreach (AiUnitView unit in army)

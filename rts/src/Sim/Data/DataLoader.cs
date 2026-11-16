@@ -179,6 +179,11 @@ namespace Rts.Sim.Data
             StateHasher tuningHasher = new StateHasher();
             foreach (KeyValuePair<string, JsonValue> pair in tuningRoots)
             {
+                if (pair.Key == HarnessBatchTuning.FilePath)
+                {
+                    // Read by the balance harness only, so it must not change any state hash.
+                    continue;
+                }
                 tuningHasher.Write(pair.Key);
                 tuningHasher.Write(byPath[pair.Key].Text);
             }
@@ -280,7 +285,8 @@ namespace Rts.Sim.Data
                 if (path != MatchTuning.FilePath && path != HqTuning.FilePath && path != MomentumTuning.FilePath
                     && path != StatusTuning.FilePath && path != FloodTuning.FilePath && path != SupplyTuning.FilePath
                     && path != EarthTuning.FilePath && path != OnlineTuning.FilePath && path != HarnessTuning.FilePath
-                    && path != TerrainTuning.FilePath && path != CombatTuning.FilePath && path != EconomyTuning.FilePath)
+                    && path != TerrainTuning.FilePath && path != CombatTuning.FilePath && path != EconomyTuning.FilePath
+                    && path != HarnessBatchTuning.FilePath)
                 {
                     throw new DataValidationException(path, string.Empty, "is not a known tuning file");
                 }
@@ -297,7 +303,8 @@ namespace Rts.Sim.Data
                 new HarnessTuning(RequireTuningRoot(roots, HarnessTuning.FilePath)),
                 new TerrainTuning(RequireTuningRoot(roots, TerrainTuning.FilePath)),
                 new CombatTuning(RequireTuningRoot(roots, CombatTuning.FilePath)),
-                new EconomyTuning(RequireTuningRoot(roots, EconomyTuning.FilePath)));
+                new EconomyTuning(RequireTuningRoot(roots, EconomyTuning.FilePath)),
+                new HarnessBatchTuning(RequireTuningRoot(roots, HarnessBatchTuning.FilePath)));
         }
 
         /// <summary>Looks up a tuning file's parsed root, failing with a file-level error when the file was not supplied.</summary>

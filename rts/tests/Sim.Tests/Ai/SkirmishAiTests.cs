@@ -582,6 +582,36 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(controller.Memory.AttacksStarted, Is.EqualTo(1));
         }
 
+        /// <summary>Visible enemy workers are not army power: 8 Windrunners facing 30 Tenders keep attacking, but facing 30 Graspers (army) they retreat.</summary>
+        [Test]
+        public void Retreat_IgnoresEnemyWorkersButCountsEnemyArmy()
+        {
+            // Retreats counted when the 8-supply army meets 30 supply of the given enemy unit, standing 3 tiles from the army.
+            int RetreatsAgainst(string enemyDefinition)
+            {
+                Simulation sim = GreyboxWithHqs();
+                for (int i = 0; i < 8; i++)
+                {
+                    Spawn(sim, "skai.windrunner", P0, "20", "20");
+                }
+                for (int i = 0; i < 30; i++)
+                {
+                    Spawn(sim, enemyDefinition, P1, "23", "20");
+                }
+                SkirmishAiController controller = new SkirmishAiController(P0, ExactAggressive());
+                controller.OnMatchStart(sim);
+                controller.Memory.AttackThreshold = 8;
+                controller.Memory.Stance = AiStance.Attack;
+                controller.Memory.AttackStaged = true;
+                // Full strength, so only the power comparison can cause a retreat.
+                controller.Memory.AttackStartSupply = 8;
+                ThinkNow(sim, controller);
+                return controller.Memory.Retreats;
+            }
+            Assert.That(RetreatsAgainst("water.tender"), Is.EqualTo(0), "workers are not army power");
+            Assert.That(RetreatsAgainst("water.grasper"), Is.EqualTo(1), "30 supply of army outguns 8 supply");
+        }
+
         /// <summary>Spec test 10: a visible enemy soldier inside the base draws the army; one outside defend_radius_tiles does not; a hit on an own unit in the base also does.</summary>
         [Test]
         public void Defend_ReactsToVisibleThreatsAndHitsInsideTheBase()

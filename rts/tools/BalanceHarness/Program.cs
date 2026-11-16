@@ -10,6 +10,8 @@
 // for the current tick (AiHost.ThinkAll). In a match with two or more teams the run stops early once MatchOutcome is decided,
 // and every run prints "OUTCOME winner=<team number or draw> tick=<n>" (or "OUTCOME undecided tick=<n>") before STATE_HASH,
 // where n is the last tick stepped.
+// Batch mode (Phase 2 step 5, spec rts/docs/specs/balance_harness.md): --batch runs N AI-versus-AI games per matchup per map in worker processes
+// (--worker) and writes a balance report; see BatchRunner. Everything above is the single-run mode and is unchanged.
 // Replays (ADR-009): --record <file> routes every command (script and AI) and every step through a ReplayRecorder and, after the
 // final STATE_HASH line, writes the binary replay and prints "REPLAY_RECORDED file=<path> ticks=<n> commands=<n> checkpoints=<n>";
 // tools/ReplayCheck re-simulates that file. Without --record the run is exactly as before.
@@ -46,6 +48,11 @@ namespace Rts.Tools.BalanceHarness
         {
             try
             {
+                if (BatchOptions.IsBatchMode(args))
+                {
+                    // Batch mode (--batch coordinator or --worker process): see BatchRunner. Single-run options are errors there.
+                    return BatchRunner.Run(BatchOptions.Parse(args), output, error);
+                }
                 HarnessOptions options = HarnessOptions.Parse(args);
                 DataSet data = DataLoader.Load(ReadDataFolder(options.DataDirectory));
                 // Script to run: --script, else <data dir>/scripts/smoke.json.
@@ -195,7 +202,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Reads every *.json file under the data folder recursively, with data-root-relative forward-slash paths, in ordinal path order.</summary>
-        private static List<DataSourceFile> ReadDataFolder(string directory)
+        internal static List<DataSourceFile> ReadDataFolder(string directory)
         {
             if (!Directory.Exists(directory))
             {

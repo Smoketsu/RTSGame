@@ -1,0 +1,37 @@
+// harness_batch.json: Batch settings of the full-scale balance harness (sizes, seeds, matchups, maps, statistics bands, HQ floor trial arena, determinism spot check). Read by rts/tools/BalanceHarness only; no simulation system reads it, so the loader leaves this file out of the tuning digest (changing it never changes a state hash). Part of rts/data/tuning; every value is a starting value for playtesting; spec: rts/docs/specs/balance_harness.md.
+{
+  "$schema_version": 1,
+  "$doc": "Batch run settings of the balance harness: reduced CI size, base seed, which matchups and maps are played, the AI profile, the win-rate band and the HQ floor trial arena.",
+  // Reduced batch size used by --ci. Unit: games per matchup per map (count). Range: 1 to 500. Source: PHASE2_PLAN exit test ("for example 20").
+  "ci_games_per_matchup_per_map": 20,
+  // Seed every game seed is derived from (SeedDerivation). Unit: integer. Range: 0 to 2147483647. Source: PLACEHOLDER (the design proposal date, 26 Oct 2026, with the year first).
+  "base_seed": 20261026,
+  // Faction pairs played, each "a_vs_b" with a before b in ordinal order, both factions with an hq_unit; mirrors measure spawn bias. Unit: matchup IDs. Range: 1 to 64 entries. Source: Matchups and balance (add earth_vs_water when Earth lands).
+  "matchups": ["skai_vs_skai", "skai_vs_water", "water_vs_water"],
+  // Maps played; an empty list means every map with exactly 2 spawns, in ordinal ID order. Unit: map IDs. Range: 0 to 32 entries. Source: Matchups and balance.
+  "maps": [],
+  // Skirmish AI profile both slots play, so results measure factions and not AI styles. Unit: profile ID (a file under rts/data/ai). Range: an existing profile. Source: Matchups and balance.
+  "ai_profile": "aggressive",
+  // Tick limit per game; a game still undecided there counts as undecided. Unit: seconds. Range: 300 to 7200. Source: PLACEHOLDER.
+  "max_game_seconds": 2400,
+  // Lower edge of the acceptable win rate of the first-named faction. Unit: fraction. Range: 0 to 0.5. Source: Balance philosophy (PLACEHOLDER band).
+  "win_rate_band_min": 0.45,
+  // Upper edge of the acceptable win rate of the first-named faction. Unit: fraction. Range: 0.5 to 1. Source: Balance philosophy (PLACEHOLDER band).
+  "win_rate_band_max": 0.55,
+  // Width of the Wilson confidence interval (1.96 is 95 percent). Unit: z-score. Range: 1 to 4. Source: standard statistics.
+  "confidence_z": 1.96,
+  // Warn when more of a cell's games than this fraction are undecided. Unit: fraction. Range: 0 to 1. Source: PLACEHOLDER.
+  "max_undecided_fraction": 0.1,
+  // Matchup the water_vs_earth_median_max_seconds limit of harness.json applies to. Unit: matchup ID. Range: "a_vs_b" with a before b. Source: Balance philosophy.
+  "median_cap_matchup": "earth_vs_water",
+  // Longest HQ floor trial; an HQ alive at the end is reported as "> N s" and passes. Unit: seconds. Range: 30 to 1800. Source: PLACEHOLDER.
+  "hq_floor_max_test_seconds": 300,
+  // Side of the flat square arena of the HQ floor trial. Unit: tiles. Range: 32 to 128. Source: PLACEHOLDER.
+  "hq_arena_size_tiles": 48,
+  // Gap between the HQ's weapon reach and the nearest attacker at spawn in the HQ floor trial. Unit: tiles. Range: 0 to 16. Source: PLACEHOLDER.
+  "hq_floor_standoff_tiles": 2,
+  // Games per (map, matchup) re-run in fresh processes to check determinism; 0 turns the check off. Unit: games (count). Range: 0 to 10. Source: PLACEHOLDER.
+  "verify_games_per_cell": 2,
+  // Games per worker process call. Unit: games (count). Range: 1 to 500. Source: PLACEHOLDER.
+  "chunk_games": 25
+}
