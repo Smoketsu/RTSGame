@@ -14,6 +14,7 @@ using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
+using Rts.Sim.Economy;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Teams;
@@ -291,6 +292,14 @@ namespace Rts.Sim.Tests.Ai
                 if (sim.Map.Core != null)
                 {
                     isPublic |= (sim.Map.Core.Centre - goal.Value).LengthSquared() <= Fix64.FromInt(3);
+                }
+                // Resource field positions are public map data (skirmish_ai_v2.md section 0): a relocating HQ and the workers following it
+                // go to the stand-off point beside a field (relocate_stand_off_tiles, 3 tiles, plus the standable adjustment).
+                foreach (ResourceFieldState field in sim.Resources.All)
+                {
+                    // Centre of the field's tile. Unit: tiles.
+                    FixVec2 fieldCentre = new FixVec2(Fix64.FromInt(field.X) + Fix64.Half, Fix64.FromInt(field.Y) + Fix64.Half);
+                    isPublic |= (fieldCentre - goal.Value).LengthSquared() <= Fix64.FromInt(20);
                 }
                 if (!isPublic && !sim.Vision.IsTileExplored(team, goal.Value.X.FloorToInt(), goal.Value.Y.FloorToInt()))
                 {
@@ -797,7 +806,10 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(result.CommandCount, Is.GreaterThan(20), "the AIs actually played");
             Assert.That(result.Rejections, Is.Empty);
             Assert.That(result.VisionViolations, Is.Empty);
-            Assert.That(controllers[0].Memory.ThinkCount, Is.GreaterThan(150));
+            // The AI thinks every 10 ticks (0.5 s at 20 ticks per second) until the match ends: since skirmish_ai_v2.md package B the
+            // match may be decided before tick 2000 (a starved HQ relocates to a field it must fight for), so the check is relative.
+            Assert.That(controllers[0].Memory.ThinkCount, Is.GreaterThanOrEqualTo(result.LastTick / 10 - 1));
+            Assert.That(controllers[0].Memory.ThinkCount, Is.GreaterThan(100));
         }
 
         /// <summary>

@@ -156,9 +156,13 @@ namespace Rts.Ai
         /// <summary>Centre of the field's tile. Unit: tiles.</summary>
         public FixVec2 Centre { get; }
 
+        /// <summary>What the field held at the start of the match (public map data). Unit: resource units. Range: 1 to 1000000.</summary>
+        public int StartAmount { get; }
+
         /// <summary>Stores the field.</summary>
-        public AiFieldView(int index, int x, int y, ResourceKind kind, int remaining, FixVec2 centre)
+        public AiFieldView(int index, int x, int y, ResourceKind kind, int remaining, FixVec2 centre, int startAmount)
         {
+            StartAmount = startAmount;
             Index = index;
             X = x;
             Y = y;
@@ -466,7 +470,7 @@ namespace Rts.Ai
             List<AiFieldView> fields = new List<AiFieldView>();
             foreach (ResourceFieldState field in sim.Resources.All)
             {
-                fields.Add(new AiFieldView(field.Index, field.X, field.Y, field.Kind, field.Remaining, terrain.CentreOf(terrain.IndexOf(field.X, field.Y))));
+                fields.Add(new AiFieldView(field.Index, field.X, field.Y, field.Kind, field.Remaining, terrain.CentreOf(terrain.IndexOf(field.X, field.Y)), field.Initial));
             }
             view.Fields = fields.AsReadOnly();
             view.Spawns = new List<FixVec2>(sim.Map.Spawns).AsReadOnly();

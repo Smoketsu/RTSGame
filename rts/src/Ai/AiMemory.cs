@@ -1,6 +1,8 @@
 // rts/src/Ai/AiMemory.cs
 // The per-controller memory of the skirmish AI (spec section 3): stance, attack threshold, regroup timer, build attempts,
-// the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, and the command sequence counter. Part of
+// the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, the
+// known amount left in every resource field, the depots placed, the fields with no depot site and the HQ relocation state (skirmish_ai_v2.md
+// package B), and the command sequence counter. Part of
 // Rts.Ai. This is NOT simulation state and is never hashed: it lives in the controller instance (no static fields), and it is
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
@@ -38,7 +40,7 @@ namespace Rts.Ai
         /// <summary>Tick it was last seen. Unit: ticks. Range: 0 upward.</summary>
         public int LastSeenTick { get; set; }
 
-        /// <summary>Health divided by maximum health when last seen. Unit: fraction. Range: 0 to 1. Used by the kill rule (skirmish_ai_v2.md C.2 rule K). Package B also uses it.</summary>
+        /// <summary>Health divided by maximum health when last seen. Unit: fraction. Range: 0 to 1. Set by the intel rule every time the structure is seen; used by the kill rule (skirmish_ai_v2.md C.2 rule K).</summary>
         public Fix64 HealthFraction { get; set; } = Fix64.One;
     }
 
@@ -123,5 +125,36 @@ namespace Rts.Ai
 
         /// <summary>Retreats ordered so far. Unit: count. Range: 0 upward.</summary>
         public int Retreats { get; set; }
+
+        /// <summary>
+        /// Last known amount left in each field, by field index (skirmish_ai_v2.md B.2). Set to every field's start amount on the first
+        /// think; afterwards updated from the live amount only while the field's tile is visible to the team. Every economy rule reads
+        /// amounts from here. Unit: resource units. Range: each 0 to the field's start amount; empty before the first think.
+        /// </summary>
+        public int[] KnownFieldRemaining { get; set; } = System.Array.Empty<int>();
+
+        /// <summary>Depot build intents emitted so far (rule E). Unit: count. Range: 0 upward.</summary>
+        public int DepotsPlaced { get; set; }
+
+        /// <summary>Field indices around which no depot site was found; skipped as depot targets (rule E). Ascending.</summary>
+        public SortedSet<int> UnbuildableFields { get; } = new SortedSet<int>();
+
+        /// <summary>True while the HQ is moving to a new field (rule H).</summary>
+        public bool RelocationActive { get; set; }
+
+        /// <summary>Field index the relocating HQ heads for. Range: 0 to field count - 1; meaningful only while <see cref="RelocationActive"/>.</summary>
+        public int RelocationField { get; set; }
+
+        /// <summary>Where the relocating HQ goes (beside the target field). Unit: tiles. Meaningful only while <see cref="RelocationActive"/>.</summary>
+        public FixVec2 RelocationDestination { get; set; }
+
+        /// <summary>Tick the current relocation (or its last re-target) started. Unit: ticks. Range: 0 upward.</summary>
+        public int RelocationStartTick { get; set; }
+
+        /// <summary>No new relocation may start before this tick (set when a relocation ends). Unit: ticks. Range: 0 upward.</summary>
+        public int RelocationCooldownUntilTick { get; set; }
+
+        /// <summary>Relocations completed so far (statistic). Unit: count. Range: 0 upward.</summary>
+        public int Relocations { get; set; }
     }
 }

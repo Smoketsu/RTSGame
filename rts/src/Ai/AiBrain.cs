@@ -4,28 +4,45 @@
 // only know what AiWorldView exposes (own units, public map data and the team's vision).
 //
 // Rules, in this fixed order each think (each appends intents; nothing more is appended once max_commands_per_think is reached):
-//   0. Intel: remember visible enemy structures and HQs, forget those whose last tile is visible and empty, remember where enemy
-//      army units were last seen, mark enemy spawns seen empty, drop old damage reports. (Runs even without an own HQ.)
-//   1. HQ: an Uprooted HQ that is not moving and stands next to a field with resources is rooted. Otherwise the HQ is left alone
-//      (Phase 1: the HQ stays Rooted; no relocation).
+//   0. Intel: remember visible enemy structures and HQs (with their health share), forget those whose last tile is visible and empty,
+//      remember where enemy army units were last seen, mark enemy spawns seen empty, drop old damage reports, and update the known
+//      amount left in every field (only fields whose tile the team sees; the rest keep the last known amount). Runs even without an
+//      own HQ. Every economy rule reads "known remaining", never the live amount.
+//   1. HQ (rule H of skirmish_ai_v2.md B.5): an Uprooted HQ that is not moving and stands within the root reach of a field with known
+//      resources is rooted. A Rooted HQ whose home fields (every field within field_max_distance_tiles of it) hold relocate_when_home_
+//      remaining_fraction or less of their start amount relocates (UprootHq, then MoveUnit to the stand-off point beside the chosen
+//      field) when no cheaper option exists (live depots at max_live_depots, no depot building in the plan, or no income and not enough
+//      common for a depot), no threat is seen and the cooldown has passed. A relocation re-targets when its field runs out, its
+//      destination turns unsafe or relocate_timeout_seconds pass; rooting ends it (cooldown, statistics). An Uprooted HQ with no
+//      relocation (for example after a script) starts one.
 //   1b. Cycle (planetary_cycles.md section 5; the spec numbers it rule 9): when the AI's team holds the Core, the next cycle is not
 //      locked yet, no pick of the own team or a script is pending and the AI is its team's pick captain (lowest-ID player still in the
 //      match, so two AI teammates never overwrite each other), pick the first cycle of the faction's cycle_preference that is
 //      allowed next (the first allowed cycle when none of the preferences is).
-//   2. Workers gather: each idle worker (no gather loop, no move or attack-move order), ascending ID, goes to the nearest field
-//      with resources within field_max_distance_tiles of the HQ that has fewer than workers_per_field workers (else the nearest
-//      such field at all). Only while the HQ is Rooted (it is the drop-off).
+//   2. Workers gather (rule G): whenever the player has a drop-off (a complete depot or the Rooted HQ). A field is SERVED when it has
+//      known resources and lies within field_max_distance_tiles of a planned drop-off (a drop-off, or a depot under construction).
+//      Each idle worker (no gather loop, no move or attack-move order), ascending ID, goes to the nearest served field below its cap
+//      (workers_per_field for common, rare_workers_per_field for rare; else the nearest served field). With no served field (starved)
+//      it goes to the first field in target order instead (long haul). A player with no drop-off whose HQ is relocating sends idle
+//      workers after the HQ (MoveUnit). Then at most rebalance_workers_per_think of the highest-ID workers on an over-full served field
+//      move to the nearest served field below its cap.
 //   3. Structures: (a) supply: when cap - used <= supply_buffer, the cap is below the global cap and no supply-giving structure is
 //      under construction, build supply_building; (b) build order: the first step with fewer structures (built or under
 //      construction) than its count, once supply used >= at_supply_used (later steps wait). A due structure that cannot be paid
-//      yet reserves its cost, so worker training and production below leave that much in the bank. A placed structure is not
+//      yet reserves its cost (rule R: only while the player has income, that is some worker is not idle; without income the bank is
+//      spent on whatever it can buy), so worker training and production below leave that much in the bank. A placed structure is not
 //      re-tried for build_retry_seconds. Site: the first tile on Chebyshev rings build_ring_min_tiles..build_ring_max_tiles around
 //      the HQ tile (ring by ring, ascending tile index) whose 3x3 block is on the map, unblocked, not a ramp and on the HQ's
 //      height layer, whose own tile is not occupied by a unit, and that is more than field_clearance_tiles from every field.
 //      The builder is the lowest-ID gathering worker (else the lowest-ID worker).
-//   4. Train workers at the Rooted HQ while workers (queued included) < min(max_workers, workers_per_field x fields in range),
-//      one at a time, if affordable and supply is free. Workers ignore structure reservations: they are the income, and a
-//      reservation that starved them could deadlock an AI whose workers were killed.
+//   4. Expand (rule E): when the plan has a drop_off_building, no threat is seen, live depots < max_live_depots and no depot is under
+//      construction, and either the clock reached expand_at_seconds + depots placed x expand_interval_seconds or the served fields hold
+//      less than expand_when_served_remaining_fraction of their start amount, build a depot at the best site beside the first field in
+//      target order that is not served (safe fields first, nearest the HQ first; unsafe ones only while starved).
+//   4b. Train workers at the Rooted HQ while workers (queued included) < min(max_workers, workers_per_field x served common fields
+//      + rare_workers_per_field x served rare fields; at least workers_per_field while any field has resources), one at a time, if
+//      affordable and supply is free. Workers ignore structure reservations: they are the income, and a reservation that starved them
+//      could deadlock an AI whose workers were killed.
 //   5. Production (skirmish_ai_v2.md C.2 rule P; replaces the per-producer loop): repeat: the candidates are the composition units
 //      (weight above 0) that some complete producer with an empty queue, not used this think, lists in its trains and whose rare cost
 //      the rare stock minus reservations can pay; pick the one with the largest deficit d_u = w_u * (N + 1) - c_u * W (integers; ties
@@ -57,18 +74,20 @@
 //      to the HQ, regroup timer, back to Massing with a new threshold). The threshold is drawn on the first think and whenever an
 //      attack ends (group empty, retreat, no target left), never on leaving Defend. Kill (rule K): a known enemy HQ last seen at or
 //      below kill_hq_health_fraction of its health (and was last seen within kill_seen_within_seconds) is attacked by any army of kill_min_army_supply, ignoring the threshold, the tide
-//      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no field within
-//      field_max_distance_tiles has resources left, the attack threshold drops to 1 supply, the tide window is ignored, the army never
+//      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no
+//      field on the map has known resources (rule A), the attack threshold drops to 1 supply, the tide window is ignored, the army never
 //      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
 // Deleted or replaced by skirmish_ai_v2.md package C: the Massing rally at the Core (rally_at_core now moves the staging point),
 // attack reinforcement by idle army units, the per-producer production loop, and the threshold redraw on every Massing entry.
-// PACKAGE B HOOKS (marked "PACKAGE B HOOK" below): with the HQ as the only base, home is the HQ position; package B moves it with a
-// relocating HQ (rule M), and rule R makes reservations depend on income.
+// Deleted or replaced by package B: the Rooted-HQ-only gather gate and the HQ-only "fields in range" list (now served fields),
+// the worker target min(max_workers, workers_per_field x fields in range), the all-in test on fields near the HQ, and "Phase 1: the
+// HQ stays Rooted; no relocation". Home (rule M) is the relocation destination while the HQ relocates, else the HQ position.
 // Determinism: integers and Fix64 only; own units, enemies and fields walked in ascending ID or index order; squared distances;
 // ties to the lower ID or index; the only random draw is the attack threshold jitter from the controller's own generator.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
+using Rts.Sim.Data;
 using Rts.Sim.Economy;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
@@ -114,15 +133,63 @@ namespace Rts.Ai
             }
             // This think's working state (ledger, reservations, intents).
             Turn turn = new Turn(view, profile, plan, memory, rng, hq, intents);
-            turn.RootHq();
+            turn.Hq();
             turn.Cycle();
             turn.Gather();
             turn.Structures();
+            turn.Expand();
             turn.TrainWorkers();
             turn.Produce();
             turn.ExtraProducer();
             turn.Army();
             return intents;
+        }
+
+        /// <summary>
+        /// Test hook: what one think would see of the economy (served fields, workers wanted, live depots) without deciding anything.
+        /// Updates the intel and field memory like <see cref="Decide"/>. Returns null when the player has no HQ.
+        /// </summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The AI profile.</param>
+        /// <param name="plan">The profile's plan for the player's faction.</param>
+        /// <param name="memory">The controller's memory; updated.</param>
+        internal static EconomyProbe? Probe(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory)
+        {
+            // The own HQ (lowest ID), or null when the player has none.
+            AiUnitView? hq = FindHq(view);
+            UpdateIntel(view, profile, memory, hq);
+            if (hq == null)
+            {
+                return null;
+            }
+            if (memory.OwnSpawnIndex < 0)
+            {
+                memory.OwnSpawnIndex = NearestSpawn(view, hq.Position);
+            }
+            // This think's working state; nothing is decided.
+            Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
+            return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots);
+        }
+
+        /// <summary>The economy facts one think derives from a view (test hook, see <see cref="Probe"/>).</summary>
+        internal sealed class EconomyProbe
+        {
+            /// <summary>Indices of the served fields, ascending. Range: 0 to field count - 1.</summary>
+            public IReadOnlyList<int> Served { get; }
+
+            /// <summary>Workers wanted by rule W. Unit: workers. Range: 0 to max_workers.</summary>
+            public int WantedWorkers { get; }
+
+            /// <summary>Live depots. Unit: depots. Range: 0 upward.</summary>
+            public int LiveDepots { get; }
+
+            /// <summary>Stores the probe result.</summary>
+            public EconomyProbe(IReadOnlyList<int> served, int wantedWorkers, int liveDepots)
+            {
+                Served = served;
+                WantedWorkers = wantedWorkers;
+                LiveDepots = liveDepots;
+            }
         }
 
         /// <summary>
@@ -219,6 +286,25 @@ namespace Rts.Ai
         /// <summary>Rule 0: updates the memory from what the team sees now.</summary>
         private static void UpdateIntel(AiWorldView view, AiProfile profile, AiMemory memory, AiUnitView? hq)
         {
+            // Known field amounts: start amounts on the first think, then the live amount of every field whose tile the team sees.
+            if (memory.KnownFieldRemaining.Length != view.Fields.Count)
+            {
+                // Fresh known amounts, one per field. Unit: resource units.
+                int[] known = new int[view.Fields.Count];
+                // Field position in the list. Range: 0 to field count - 1.
+                for (int i = 0; i < known.Length; i++)
+                {
+                    known[i] = view.Fields[i].StartAmount;
+                }
+                memory.KnownFieldRemaining = known;
+            }
+            foreach (AiFieldView field in view.Fields)
+            {
+                if (view.IsVisible(field.X, field.Y))
+                {
+                    memory.KnownFieldRemaining[field.Index] = field.Remaining;
+                }
+            }
             // IDs of enemies visible now, for the "seen gone" test.
             SortedSet<EntityId> visible = new SortedSet<EntityId>();
             // Nearest visible enemy army unit to the HQ, and its squared distance. Unit: squared tiles.
@@ -387,11 +473,56 @@ namespace Rts.Ai
             /// <summary>The known low enemy HQ that rule K attacks this think, or null (set by <see cref="Army"/>).</summary>
             private KnownStructure? _kill;
 
-            /// <summary>Fields with resources within field_max_distance_tiles of the HQ, in index order.</summary>
-            private readonly List<AiFieldView> _fieldsInRange = new List<AiFieldView>();
+            /// <summary>Served fields (known resources, within field_max_distance_tiles of a planned drop-off), in index order (B.3).</summary>
+            private readonly List<AiFieldView> _served = new List<AiFieldView>();
 
-            /// <summary>True when all_in_when_mined_out is set and no field in range has resources left: attack with everything, never retreat.</summary>
-            private bool AllIn => _profile.AllInWhenMinedOut && _fieldsInRange.Count == 0;
+            /// <summary>Positions of the planned drop-offs: complete drop-offs and the Rooted HQ, then depots under construction. Unit: tiles.</summary>
+            private readonly List<FixVec2> _plannedDropOffs = new List<FixVec2>();
+
+            /// <summary>True when a complete drop-off exists (a complete depot or the Rooted HQ).</summary>
+            private bool _hasDropOff;
+
+            /// <summary>Live depots: own drop-off structures under construction, or complete with a field of known resources in reach. Unit: depots. Range: 0 upward.</summary>
+            private int _liveDepots;
+
+            /// <summary>True while an own depot is under construction.</summary>
+            private bool _depotUnderConstruction;
+
+            /// <summary>True when some field on the map has known resources.</summary>
+            private bool _anyLive;
+
+            /// <summary>True when at least one own worker is not idle (rule R's income test).</summary>
+            private bool _income;
+
+            /// <summary>Sum of the known remaining amounts of the home fields (every field within reach of the HQ position). Unit: resource units. Range: 0 upward.</summary>
+            private int _homeRemaining;
+
+            /// <summary>Sum of the start amounts of the home fields. Unit: resource units. Range: 0 upward.</summary>
+            private int _homeStart;
+
+            /// <summary>True when no field is served (skirmish_ai_v2.md B.3 "starved").</summary>
+            private bool Starved => _served.Count == 0;
+
+            /// <summary>True when all_in_when_mined_out is set and no field on the map has known resources (rule A): attack with everything, never retreat.</summary>
+            private bool AllIn => _profile.AllInWhenMinedOut && !_anyLive;
+
+            /// <summary>True when a threat is seen inside the base this think (the army rules' definition, used by E and H).</summary>
+            private bool UnderThreat => _threatCount > 0 || _latestHit != null;
+
+            /// <summary>Known remaining amount of a field. Unit: resource units. Range: 0 upward.</summary>
+            private int Known(AiFieldView field)
+            {
+                return _memory.KnownFieldRemaining[field.Index];
+            }
+
+            /// <summary>Squared reach of a drop-off, field_max_distance_tiles squared. Unit: squared tiles.</summary>
+            private Fix64 ReachSquared => _profile.FieldMaxDistanceTiles * _profile.FieldMaxDistanceTiles;
+
+            /// <summary>Workers a field may hold: workers_per_field for common, rare_workers_per_field for rare. Unit: workers.</summary>
+            private int CapOf(AiFieldView field)
+            {
+                return field.Kind == ResourceKind.Common ? _profile.WorkersPerField : _profile.RareWorkersPerField;
+            }
 
             /// <summary>Captures the think's inputs and starts the ledger from the view's stock.</summary>
             public Turn(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory, DeterministicRandom rng, AiUnitView hq, List<AiIntent> intents)
@@ -407,15 +538,79 @@ namespace Rts.Ai
                 _rare = view.Rare;
                 _supplyUsed = view.SupplyUsed;
                 // Largest worked distance, squared. Unit: squared tiles.
-                Fix64 reachSquared = profile.FieldMaxDistanceTiles * profile.FieldMaxDistanceTiles;
+                Fix64 reachSquared = ReachSquared;
+                foreach (AiUnitView unit in view.OwnUnits)
+                {
+                    if (unit.IsWorker && unit.GatherState != GatherState.Idle)
+                    {
+                        _income = true;
+                    }
+                    if (unit.IsHq && unit.HqState == HqState.Rooted && !unit.IsUnderConstruction)
+                    {
+                        _hasDropOff = true;
+                        _plannedDropOffs.Add(unit.Position);
+                    }
+                    else if (unit.IsStructure && unit.Definition.Economy.IsDropOff)
+                    {
+                        _plannedDropOffs.Add(unit.Position);
+                        if (unit.IsUnderConstruction)
+                        {
+                            _depotUnderConstruction = true;
+                            _liveDepots++;
+                        }
+                        else
+                        {
+                            _hasDropOff = true;
+                            if (AnyLiveFieldWithin(unit.Position))
+                            {
+                                _liveDepots++;
+                            }
+                        }
+                    }
+                }
                 foreach (AiFieldView field in view.Fields)
                 {
-                    if (field.Remaining > 0 && (field.Centre - hq.Position).LengthSquared() <= reachSquared)
+                    if (Known(field) > 0)
                     {
-                        _fieldsInRange.Add(field);
+                        _anyLive = true;
+                        if (IsNearAny(_plannedDropOffs, field.Centre))
+                        {
+                            _served.Add(field);
+                        }
+                    }
+                    if ((field.Centre - hq.Position).LengthSquared() <= reachSquared)
+                    {
+                        _homeRemaining += Known(field);
+                        _homeStart += field.StartAmount;
                     }
                 }
                 ScanThreat();
+            }
+
+            /// <summary>True when some field with known resources lies within field_max_distance_tiles of <paramref name="point"/>.</summary>
+            private bool AnyLiveFieldWithin(FixVec2 point)
+            {
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    if (Known(field) > 0 && (field.Centre - point).LengthSquared() <= ReachSquared)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>True when <paramref name="point"/> is within field_max_distance_tiles of any of <paramref name="places"/>.</summary>
+            private bool IsNearAny(List<FixVec2> places, FixVec2 point)
+            {
+                foreach (FixVec2 place in places)
+                {
+                    if ((place - point).LengthSquared() <= ReachSquared)
+                    {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             /// <summary>Appends an intent unless the per-think cap is reached; returns false when it was dropped.</summary>
@@ -476,29 +671,208 @@ namespace Rts.Ai
                 Emit(AiIntent.PickCycle(choice));
             }
 
-            /// <summary>Rule 1: roots an Uprooted, idle HQ that stands next to a field with resources.</summary>
-            public void RootHq()
+            /// <summary>
+            /// Rule 1 (rule H of skirmish_ai_v2.md B.5): roots an Uprooted, idle HQ that stands within root reach of a field with known
+            /// resources; ends a finished relocation; starts, steers and re-targets relocations (see the class header).
+            /// </summary>
+            public void Hq()
             {
-                if (_hq.HqState != HqState.Uprooted || _hq.HasMoveTarget)
+                if (_hq.HqState == HqState.Rooted)
                 {
+                    if (_memory.RelocationActive)
+                    {
+                        // The relocation is over: the HQ stands on its new field.
+                        _memory.RelocationActive = false;
+                        _memory.RelocationCooldownUntilTick = _view.Tick + _view.SecondsToTicks(_profile.RelocateCooldownSeconds);
+                        _memory.Relocations++;
+                    }
+                    TriggerRelocation();
                     return;
                 }
+                if (_hq.HqState != HqState.Uprooted)
+                {
+                    // Rooting or uprooting: nothing to order until the switch is done.
+                    return;
+                }
+                if (!_hq.HasMoveTarget && CanRootHere())
+                {
+                    Emit(AiIntent.RootHq(_hq.Id));
+                    return;
+                }
+                if (!_memory.RelocationActive)
+                {
+                    if (!_hq.HasMoveTarget)
+                    {
+                        // An Uprooted HQ nobody sent anywhere (for example after a script): relocate it.
+                        // Candidate fields measured from where it stands.
+                        List<AiFieldView> candidates = RelocationCandidates();
+                        if (candidates.Count > 0)
+                        {
+                            BeginRelocation(candidates[0]);
+                            Emit(AiIntent.Move(_hq.Id, _memory.RelocationDestination));
+                        }
+                    }
+                    return;
+                }
+                // True when the target changed this think, so the HQ must be sent to the new destination even while moving.
+                bool retargeted = Retarget();
+                if (retargeted || !_hq.HasMoveTarget)
+                {
+                    Emit(AiIntent.Move(_hq.Id, _memory.RelocationDestination));
+                }
+            }
+
+            /// <summary>
+            /// Rule H step 1: true when the Uprooted HQ may root where it stands. With no relocation running, a field with known resources
+            /// within the root reach is enough. While relocating, only the relocation's own target field counts (the nearly empty home
+            /// fields it is leaving must not pull it back down), or any live field in reach once no candidate field is left (step 4).
+            /// </summary>
+            private bool CanRootHere()
+            {
+                if (!_memory.RelocationActive)
+                {
+                    return LiveFieldInRootReach();
+                }
+                // Target field of the running relocation.
+                AiFieldView target = _view.Fields[_memory.RelocationField];
+                // Root reach squared. Unit: squared tiles.
+                Fix64 reachSquared = _view.HqRootMaxDistanceTiles * _view.HqRootMaxDistanceTiles;
+                if (Known(target) > 0 && (target.Centre - _hq.Position).LengthSquared() <= reachSquared)
+                {
+                    return true;
+                }
+                return RelocationCandidates().Count == 0 && LiveFieldInRootReach();
+            }
+
+            /// <summary>True when a field with known resources lies within the HQ root reach (tuning/hq.json) of the HQ.</summary>
+            private bool LiveFieldInRootReach()
+            {
                 // Root reach squared. Unit: squared tiles.
                 Fix64 reachSquared = _view.HqRootMaxDistanceTiles * _view.HqRootMaxDistanceTiles;
                 foreach (AiFieldView field in _view.Fields)
                 {
-                    if (field.Remaining > 0 && (field.Centre - _hq.Position).LengthSquared() <= reachSquared)
+                    if (Known(field) > 0 && (field.Centre - _hq.Position).LengthSquared() <= reachSquared)
                     {
-                        Emit(AiIntent.RootHq(_hq.Id));
-                        return;
+                        return true;
                     }
                 }
+                return false;
             }
 
-            /// <summary>Rule 2: sends idle workers to fields.</summary>
+            /// <summary>Rule H step 2: a Rooted HQ whose home fields are nearly empty and that has no cheaper option uproots and heads for a new field.</summary>
+            private void TriggerRelocation()
+            {
+                if (_memory.RelocationActive || UnderThreat || _view.Tick < _memory.RelocationCooldownUntilTick)
+                {
+                    return;
+                }
+                // Share of the home fields' start amount still known to be there, as the test home <= fraction x start (no home fields: 0 <= anything).
+                if (Fix64.FromInt(_homeRemaining) > _profile.RelocateWhenHomeRemainingFraction * Fix64.FromInt(_homeStart))
+                {
+                    return;
+                }
+                // Depot the plan builds, or null when it builds none.
+                UnitDefinition? depot = _plan.DropOffBuildingId.Length > 0 ? _view.Content.Units[_plan.DropOffBuildingId] : null;
+                // True when a depot is a cheaper way to reach new fields than moving the HQ.
+                bool cheaperOption = depot != null && _liveDepots < _profile.MaxLiveDepots && (_income || _common >= depot.CostCommon);
+                if (cheaperOption)
+                {
+                    return;
+                }
+                // Candidate fields measured from the HQ position, excluding the home fields.
+                List<AiFieldView> candidates = RelocationCandidates();
+                if (candidates.Count == 0)
+                {
+                    return;
+                }
+                BeginRelocation(candidates[0]);
+                Emit(AiIntent.UprootHq(_hq.Id));
+            }
+
+            /// <summary>
+            /// Fields a relocation may head for, in target order from the HQ position: not within field_max_distance_tiles of an own depot
+            /// (a drop-off structure, complete or not) and not a home field (within field_max_distance_tiles of the HQ position, so a
+            /// relocating HQ never picks the base it is leaving, nor, after a re-target, the fields around where it stands).
+            /// </summary>
+            private List<AiFieldView> RelocationCandidates()
+            {
+                // Positions of the own depots (drop-off structures, not the HQ).
+                List<FixVec2> depots = new List<FixVec2>();
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && unit.Definition.Economy.IsDropOff)
+                    {
+                        depots.Add(unit.Position);
+                    }
+                }
+                // Candidates left after the filters, in target order.
+                List<AiFieldView> result = new List<AiFieldView>();
+                foreach (AiFieldView field in TargetOrder(_hq.Position))
+                {
+                    if (IsNearAny(depots, field.Centre) || (field.Centre - _hq.Position).LengthSquared() <= ReachSquared)
+                    {
+                        continue;
+                    }
+                    result.Add(field);
+                }
+                return result;
+            }
+
+            /// <summary>Where the HQ stops for <paramref name="field"/>: stand_off tiles (at most half the root distance) from its centre toward the HQ, on a standable tile.</summary>
+            private FixVec2 DestinationFor(AiFieldView field)
+            {
+                // Distance kept from the field centre. Unit: tiles. Range: 0.5 to half the root distance.
+                Fix64 standOff = Fix64.Min(_profile.RelocateStandOffTiles, _view.HqRootMaxDistanceTiles / 2);
+                return Standable(field.Centre.MoveTowards(_hq.Position, standOff));
+            }
+
+            /// <summary>Records a relocation to <paramref name="field"/> in the memory.</summary>
+            private void BeginRelocation(AiFieldView field)
+            {
+                _memory.RelocationActive = true;
+                _memory.RelocationField = field.Index;
+                _memory.RelocationDestination = DestinationFor(field);
+                _memory.RelocationStartTick = _view.Tick;
+            }
+
+            /// <summary>
+            /// Rule H step 4: while relocating, chooses again when the target field is known empty, its destination is unsafe and a safe
+            /// candidate exists, or the timeout has passed. Returns true when the destination changed.
+            /// </summary>
+            private bool Retarget()
+            {
+                // Target field of the running relocation.
+                AiFieldView target = _view.Fields[_memory.RelocationField];
+                // True when the target has no known resources left.
+                bool depleted = Known(target) <= 0;
+                // True when the relocation has taken too long.
+                bool timedOut = _view.Tick >= _memory.RelocationStartTick + _view.SecondsToTicks(_profile.RelocateTimeoutSeconds);
+                // True when the destination is now close to the enemy.
+                bool unsafeDestination = IsUnsafe(_memory.RelocationDestination);
+                if (!depleted && !timedOut && !unsafeDestination)
+                {
+                    return false;
+                }
+                // Candidate fields measured from where the HQ stands.
+                List<AiFieldView> candidates = RelocationCandidates();
+                if (candidates.Count == 0)
+                {
+                    // Keep moving to the old destination; rooting happens wherever a live field is within reach.
+                    return false;
+                }
+                if (!depleted && !timedOut && IsUnsafe(candidates[0].Centre))
+                {
+                    // Only unsafe alternatives: stay on the old target.
+                    return false;
+                }
+                BeginRelocation(candidates[0]);
+                return true;
+            }
+
+            /// <summary>Rule 2 (rule G of skirmish_ai_v2.md B.5): sends idle workers to served fields, long hauls when starved, follows a relocating HQ, rebalances.</summary>
             public void Gather()
             {
-                if (_hq.HqState != HqState.Rooted || _fieldsInRange.Count == 0)
+                if (!_hasDropOff && !_memory.RelocationActive)
                 {
                     return;
                 }
@@ -511,32 +885,97 @@ namespace Rts.Ai
                         assigned[unit.GatherFieldIndex]++;
                     }
                 }
+                // Target order from the HQ position, computed once for the long haul (empty unless starved with a drop-off).
+                List<AiFieldView> haul = _hasDropOff && Starved ? TargetOrder(_hq.Position) : new List<AiFieldView>();
                 foreach (AiUnitView worker in _view.OwnUnits)
                 {
                     if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving)
                     {
                         continue;
                     }
-                    // Nearest field under the per-field cap, else nearest field in range at all.
+                    if (!_hasDropOff)
+                    {
+                        // Rule G3: follow the relocating HQ (workers already at the destination stay).
+                        if ((worker.Position - _memory.RelocationDestination).LengthSquared() > AtRallySquared)
+                        {
+                            Emit(AiIntent.Move(worker.Id, _memory.RelocationDestination));
+                        }
+                        continue;
+                    }
+                    // Nearest served field under its cap, else nearest served field at all.
                     AiFieldView? field = NearestField(worker.Position, assigned, true) ?? NearestField(worker.Position, assigned, false);
+                    if (field == null && haul.Count > 0)
+                    {
+                        // Rule G2: long haul to the first field in target order under its cap, else the first.
+                        field = haul[0];
+                        foreach (AiFieldView candidate in haul)
+                        {
+                            if (assigned[candidate.Index] < CapOf(candidate))
+                            {
+                                field = candidate;
+                                break;
+                            }
+                        }
+                    }
                     if (field == null || !Emit(AiIntent.Gather(worker.Id, field.Index)))
                     {
                         continue;
                     }
                     assigned[field.Index]++;
                 }
+                if (_hasDropOff)
+                {
+                    Rebalance(assigned);
+                }
             }
 
-            /// <summary>The in-range field nearest <paramref name="from"/>, ties to the lowest index; with <paramref name="underCap"/> only fields below workers_per_field.</summary>
+            /// <summary>
+            /// Rule G4: for each served field in index order holding more workers than its cap, the highest-ID excess workers (at most
+            /// rebalance_workers_per_think in total) are sent to the nearest served field below its cap.
+            /// </summary>
+            private void Rebalance(int[] assigned)
+            {
+                // Moves still allowed this think. Unit: workers. Range: 0 to rebalance_workers_per_think.
+                int budget = _profile.RebalanceWorkersPerThink;
+                foreach (AiFieldView field in _served)
+                {
+                    // Workers above the cap on this field. Unit: workers.
+                    int excess = assigned[field.Index] - CapOf(field);
+                    // Own units in descending ID order: the highest-ID workers on this field move first.
+                    for (int i = _view.OwnUnits.Count - 1; i >= 0 && excess > 0 && budget > 0; i--)
+                    {
+                        AiUnitView worker = _view.OwnUnits[i];
+                        if (!worker.IsWorker || worker.GatherFieldIndex != field.Index)
+                        {
+                            continue;
+                        }
+                        // Nearest served field below its cap, other than the full one (it is at or over its cap, so it never qualifies).
+                        AiFieldView? target = NearestField(worker.Position, assigned, true);
+                        if (target == null)
+                        {
+                            return;
+                        }
+                        if (Emit(AiIntent.Gather(worker.Id, target.Index)))
+                        {
+                            assigned[field.Index]--;
+                            assigned[target.Index]++;
+                            excess--;
+                            budget--;
+                        }
+                    }
+                }
+            }
+
+            /// <summary>The served field nearest <paramref name="from"/>, ties to the lowest index; with <paramref name="underCap"/> only fields below their cap.</summary>
             private AiFieldView? NearestField(FixVec2 from, int[] assigned, bool underCap)
             {
                 // Best candidate so far, or null.
                 AiFieldView? best = null;
                 // Squared distance of the best field. Unit: squared tiles.
                 Fix64 bestSquared = Fix64.Zero;
-                foreach (AiFieldView field in _fieldsInRange)
+                foreach (AiFieldView field in _served)
                 {
-                    if (underCap && assigned[field.Index] >= _profile.WorkersPerField)
+                    if (underCap && assigned[field.Index] >= CapOf(field))
                     {
                         continue;
                     }
@@ -594,41 +1033,59 @@ namespace Rts.Ai
                 return count;
             }
 
-            /// <summary>Places <paramref name="definition"/> if the retry time passed, it is affordable, a builder and a site exist; reserves its cost when only money is short.</summary>
-            private void TryBuild(UnitDefinition definition)
+            /// <summary>
+            /// Places <paramref name="definition"/> if the retry time passed, it is affordable, a builder and a site exist; reserves its cost
+            /// when only money is short and the player has income (rule R). With <paramref name="site"/> given the structure goes on that
+            /// tile (rule E's depot site), otherwise on the first good tile around the HQ. Returns true when a build intent was emitted.
+            /// </summary>
+            private bool TryBuild(UnitDefinition definition, (int X, int Y)? site = null)
             {
                 // Ticks between attempts at one structure. Unit: ticks.
                 int retryTicks = _view.SecondsToTicks(_profile.BuildRetrySeconds);
                 if (_memory.LastBuildAttemptTick.TryGetValue(definition.Id, out int last) && _view.Tick < last + retryTicks)
                 {
-                    return;
+                    return false;
                 }
                 if (!HasSupply(definition))
                 {
-                    return;
+                    return false;
                 }
                 if (_common - _reserveCommon < definition.CostCommon || _rare - _reserveRare < definition.CostRare)
                 {
-                    _reserveCommon += definition.CostCommon;
-                    _reserveRare += definition.CostRare;
-                    return;
+                    // Rule R: hold the cost only while workers are earning; without income the bank is spent on whatever it can buy.
+                    if (_income)
+                    {
+                        _reserveCommon += definition.CostCommon;
+                        _reserveRare += definition.CostRare;
+                    }
+                    return false;
                 }
                 // Worker that places the structure, or null when the player has none.
                 AiUnitView? builder = PickBuilder();
                 if (builder == null)
                 {
-                    return;
+                    return false;
                 }
                 _memory.LastBuildAttemptTick[definition.Id] = _view.Tick;
-                if (!TryFindSite(out int x, out int y))
+                // Tile of the new structure.
+                int x = 0;
+                int y = 0;
+                if (site != null)
                 {
-                    return;
+                    x = site.Value.X;
+                    y = site.Value.Y;
+                }
+                else if (!TryFindSite(out x, out y))
+                {
+                    return false;
                 }
                 if (Emit(AiIntent.Build(builder.Id, definition.Id, x, y)))
                 {
                     Pay(definition);
                     _reservedSites.Add(_view.IndexOf(x, y));
+                    return true;
                 }
+                return false;
             }
 
             /// <summary>The lowest-ID gathering worker, else the lowest-ID worker, else null.</summary>
@@ -717,6 +1174,217 @@ namespace Rts.Ai
                 return true;
             }
 
+            /// <summary>True when <paramref name="point"/> is unsafe (skirmish_ai_v2.md B.3): near a known enemy structure, an uncleared enemy spawn or a recently seen enemy army.</summary>
+            private bool IsUnsafe(FixVec2 point)
+            {
+                // Squared safety radius. Unit: squared tiles.
+                Fix64 radiusSquared = _profile.ExpandSafeRadiusTiles * _profile.ExpandSafeRadiusTiles;
+                foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
+                {
+                    if ((known.Position - point).LengthSquared() <= radiusSquared)
+                    {
+                        return true;
+                    }
+                }
+                // Spawn index. Range: 0 to spawn count - 1.
+                for (int i = 0; i < _view.Spawns.Count; i++)
+                {
+                    if (i != _memory.OwnSpawnIndex && !_memory.ClearedSpawns.Contains(i) && (_view.Spawns[i] - point).LengthSquared() <= radiusSquared)
+                    {
+                        return true;
+                    }
+                }
+                // Oldest tick at which a seen enemy army still counts. Unit: ticks.
+                int armyFreshAfter = _view.Tick - _view.SecondsToTicks(_profile.EnemyArmyMemorySeconds);
+                return _memory.HasLastSeenEnemy && _memory.LastSeenEnemyTick >= armyFreshAfter
+                    && (_memory.LastSeenEnemyPosition - point).LengthSquared() <= radiusSquared;
+            }
+
+            /// <summary>
+            /// Target order (skirmish_ai_v2.md B.3) from <paramref name="from"/>: fields with known resources (at least expand_min_field_remaining
+            /// when any qualify), safe ones first, each group by squared distance from <paramref name="from"/> then field index; unsafe
+            /// ones are listed only while starved.
+            /// </summary>
+            private List<AiFieldView> TargetOrder(FixVec2 from)
+            {
+                // Fields that may be targets.
+                List<AiFieldView> pool = new List<AiFieldView>();
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    if (Known(field) >= _profile.ExpandMinFieldRemaining)
+                    {
+                        pool.Add(field);
+                    }
+                }
+                if (pool.Count == 0)
+                {
+                    foreach (AiFieldView field in _view.Fields)
+                    {
+                        if (Known(field) > 0)
+                        {
+                            pool.Add(field);
+                        }
+                    }
+                }
+                // Pool split by safety.
+                List<AiFieldView> safe = new List<AiFieldView>();
+                List<AiFieldView> unsafeFields = new List<AiFieldView>();
+                foreach (AiFieldView field in pool)
+                {
+                    (IsUnsafe(field.Centre) ? unsafeFields : safe).Add(field);
+                }
+                safe.Sort((a, b) => CompareByDistance(a, b, from));
+                unsafeFields.Sort((a, b) => CompareByDistance(a, b, from));
+                if (Starved)
+                {
+                    safe.AddRange(unsafeFields);
+                }
+                return safe;
+            }
+
+            /// <summary>Orders two fields by squared distance from <paramref name="from"/>, then by index (a total order, so the sort is deterministic).</summary>
+            private static int CompareByDistance(AiFieldView a, AiFieldView b, FixVec2 from)
+            {
+                // Squared distances of the two fields. Unit: squared tiles.
+                Fix64 da = (a.Centre - from).LengthSquared();
+                Fix64 db = (b.Centre - from).LengthSquared();
+                int byDistance = da.CompareTo(db);
+                return byDistance != 0 ? byDistance : a.Index.CompareTo(b.Index);
+            }
+
+            /// <summary>Rule E (skirmish_ai_v2.md B.5): builds a depot beside the first unserved field in target order when one is due.</summary>
+            public void Expand()
+            {
+                if (_plan.DropOffBuildingId.Length == 0 || UnderThreat || _liveDepots >= _profile.MaxLiveDepots || _depotUnderConstruction)
+                {
+                    return;
+                }
+                // Clock time from which the next depot is due. Unit: seconds.
+                Fix64 dueSeconds = _profile.ExpandAtSeconds + _profile.ExpandIntervalSeconds * _memory.DepotsPlaced;
+                // Known and start amounts of the served fields. Unit: resource units.
+                int servedKnown = 0;
+                int servedStart = 0;
+                foreach (AiFieldView field in _served)
+                {
+                    servedKnown += Known(field);
+                    servedStart += field.StartAmount;
+                }
+                // True when the served fields are running low (starved counts as empty).
+                bool low = Starved || Fix64.FromInt(servedKnown) < _profile.ExpandWhenServedRemainingFraction * Fix64.FromInt(servedStart);
+                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
+                {
+                    return;
+                }
+                // The first field in target order that is neither served nor known to have no depot site.
+                AiFieldView? target = null;
+                foreach (AiFieldView field in TargetOrder(_hq.Position))
+                {
+                    if (!_served.Contains(field) && !_memory.UnbuildableFields.Contains(field.Index))
+                    {
+                        target = field;
+                        break;
+                    }
+                }
+                if (target == null)
+                {
+                    return;
+                }
+                if (!TryFindDepotSite(target, out int x, out int y))
+                {
+                    _memory.UnbuildableFields.Add(target.Index);
+                    return;
+                }
+                if (TryBuild(_view.Content.Units[_plan.DropOffBuildingId], (x, y)))
+                {
+                    _memory.DepotsPlaced++;
+                }
+            }
+
+            /// <summary>
+            /// The depot site beside <paramref name="target"/>: the tile on Chebyshev rings depot_ring_min_tiles to depot_ring_max_tiles that
+            /// passes <see cref="IsGoodSite"/> on the target's height layer and has the lowest sum of squared distances to the live fields
+            /// within field_max_distance_tiles of the target (a later tile must score strictly lower). False when none passes.
+            /// </summary>
+            private bool TryFindDepotSite(AiFieldView target, out int siteX, out int siteY)
+            {
+                // Height layer of the target field's tile; the depot must stand on it. Range: 0 to 7.
+                byte baseHeight = _view.HeightAt(target.X, target.Y);
+                // True once a site has been found, and the best score so far. Unit: squared tiles.
+                bool found = false;
+                Fix64 bestScore = Fix64.Zero;
+                siteX = 0;
+                siteY = 0;
+                // Ring distance from the target tile. Unit: tiles. Range: depot_ring_min_tiles to depot_ring_max_tiles.
+                for (int ring = _profile.DepotRingMinTiles; ring <= _profile.DepotRingMaxTiles; ring++)
+                {
+                    // Row offset. Unit: tiles. Range: -ring to ring.
+                    for (int dy = -ring; dy <= ring; dy++)
+                    {
+                        // Column offset. Unit: tiles. Range: -ring to ring.
+                        for (int dx = -ring; dx <= ring; dx++)
+                        {
+                            if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != ring || !IsGoodSite(target.X + dx, target.Y + dy, baseHeight))
+                            {
+                                continue;
+                            }
+                            // Centre of the candidate tile. Unit: tiles.
+                            FixVec2 tileCentre = _view.CentreOf(target.X + dx, target.Y + dy);
+                            // Sum of squared distances to the live fields near the target. Unit: squared tiles.
+                            Fix64 score = Fix64.Zero;
+                            foreach (AiFieldView field in _view.Fields)
+                            {
+                                if (Known(field) > 0 && (field.Centre - target.Centre).LengthSquared() <= ReachSquared)
+                                {
+                                    score += (field.Centre - tileCentre).LengthSquared();
+                                }
+                            }
+                            if (!found || score < bestScore)
+                            {
+                                found = true;
+                                bestScore = score;
+                                siteX = target.X + dx;
+                                siteY = target.Y + dy;
+                            }
+                        }
+                    }
+                }
+                return found;
+            }
+
+            /// <summary>
+            /// Workers wanted (rule W): workers_per_field per served common field plus rare_workers_per_field per served rare field, at
+            /// least workers_per_field while any field has resources, at most max_workers. Unit: workers. Range: 0 to max_workers.
+            /// </summary>
+            public int WantedWorkers()
+            {
+                // Sum of the caps of the served fields. Unit: workers.
+                int target = 0;
+                foreach (AiFieldView field in _served)
+                {
+                    target += CapOf(field);
+                }
+                if (_anyLive)
+                {
+                    target = Math.Max(target, _profile.WorkersPerField);
+                }
+                return Math.Min(_profile.MaxWorkers, target);
+            }
+
+            /// <summary>Indices of the served fields, ascending (test hook through <see cref="Probe"/>).</summary>
+            public List<int> ServedIndices()
+            {
+                // Indices copied from the served list. Unit: field index.
+                List<int> indices = new List<int>();
+                foreach (AiFieldView field in _served)
+                {
+                    indices.Add(field.Index);
+                }
+                return indices;
+            }
+
+            /// <summary>Live depots of this think (test hook through <see cref="Probe"/>). Unit: depots.</summary>
+            public int LiveDepots => _liveDepots;
+
             /// <summary>Rule 4: trains one worker at a time at the Rooted HQ up to the target.</summary>
             public void TrainWorkers()
             {
@@ -725,8 +1393,8 @@ namespace Rts.Ai
                 {
                     return;
                 }
-                // Workers wanted: workers_per_field per field in range, at most max_workers. Unit: workers.
-                int target = Math.Min(_profile.MaxWorkers, _profile.WorkersPerField * _fieldsInRange.Count);
+                // Workers wanted. Unit: workers.
+                int target = WantedWorkers();
                 // Workers alive plus workers queued anywhere. Unit: workers.
                 int count = 0;
                 foreach (AiUnitView unit in _view.OwnUnits)
@@ -778,7 +1446,9 @@ namespace Rts.Ai
                     }
                 }
                 // Upper bound on units bought this think (one per producer), a guard against a loop that never ends. Unit: units.
-                int guard = _view.OwnUnits.Count;
+                int guard = _view.OwnUnits.Count + _plan.Composition.Count;
+                // Units the bank cannot pay while the player has no income: they hold no reservation, so cheaper units may be bought instead (rule R).
+                SortedSet<string> unaffordable = new SortedSet<string>(StringComparer.Ordinal);
                 // Purchase number. Range: 0 to guard.
                 for (int bought = 0; bought < guard; bought++)
                 {
@@ -788,7 +1458,7 @@ namespace Rts.Ai
                     {
                         // Definition of this composition unit.
                         UnitDefinition candidate = _view.Content.Units[pair.Key];
-                        if (pair.Value > 0 && candidate.CostRare <= _rare - _reserveRare && FindFreeProducer(pair.Key) != null)
+                        if (pair.Value > 0 && !unaffordable.Contains(pair.Key) && candidate.CostRare <= _rare - _reserveRare && FindFreeProducer(pair.Key) != null)
                         {
                             candidates.Add(pair.Key);
                         }
@@ -805,8 +1475,12 @@ namespace Rts.Ai
                     UnitDefinition definition = _view.Content.Units[choice];
                     if (!CanPay(definition) || !HasSupply(definition))
                     {
-                        // The head of the queue waits: hold its cost so cheaper units do not jump ahead.
-                        // PACKAGE B HOOK (rule R): reserve only while the player has income.
+                        // The head of the queue waits: hold its cost so cheaper units do not jump ahead (rule R: only while the player has income).
+                        if (!_income)
+                        {
+                            unaffordable.Add(choice);
+                            continue;
+                        }
                         _reserveCommon += definition.CostCommon;
                         _reserveRare += definition.CostRare;
                         return;
@@ -1074,12 +1748,12 @@ namespace Rts.Ai
             }
 
             /// <summary>
-            /// The home anchor of the army: where it rallies and retreats to. PACKAGE B HOOK (rule M): return RelocationDestination while
-            /// a relocation is active. With the HQ as the only base it is the HQ position. Unit: tiles.
+            /// The home anchor of the army: where it rallies and retreats to (rule M): the relocation destination while the HQ relocates,
+            /// else the HQ position. Unit: tiles.
             /// </summary>
             private FixVec2 Home()
             {
-                return _hq.Position;
+                return _memory.RelocationActive ? _memory.RelocationDestination : _hq.Position;
             }
 
             /// <summary>Massing: start the attack when ready (or at once for rule K), otherwise gather idle army units at the home rally point.</summary>

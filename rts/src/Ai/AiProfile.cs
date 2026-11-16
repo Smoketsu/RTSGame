@@ -6,8 +6,12 @@
 // Require* helpers, so every error is a DataValidationException naming the file and the field, for example
 // "ai/standard.json: field 'attack_army_supply' is missing". Decimals are Fix64 (parsed exactly), never floating point.
 // Differences from rts/docs/specs/skirmish_ai.md section 2 (written before the economy, HQ and vision code existed):
-//   * no expansion keys (expand_*, max_bases, base_site_taken_radius_tiles, drop_off_building) and no HQ relocation key: the
-//     Phase 1 roster has no drop-off structure and the HQ stays Rooted, so the AI plays one base;
+//   * the expansion keys now exist (skirmish_ai_v2.md package B): expand_at_seconds, expand_interval_seconds,
+//     expand_when_served_remaining_fraction, max_live_depots, expand_min_field_remaining, expand_safe_radius_tiles,
+//     enemy_army_memory_seconds, depot_ring_min_tiles, depot_ring_max_tiles, rebalance_workers_per_think and the per-faction optional
+//     drop_off_building; the HQ relocation keys relocate_when_home_remaining_fraction, relocate_stand_off_tiles,
+//     relocate_timeout_seconds and relocate_cooldown_seconds; and rare_workers_per_field. max_bases and base_site_taken_radius_tiles
+//     of skirmish_ai.md stay unused (the depot rules replace them);
 //   * added keys for numbers the spec hard-coded or left implicit: field_max_distance_tiles, build_ring_min_tiles,
 //     build_ring_max_tiles, field_clearance_tiles, rally_distance_tiles and damage_memory_seconds; the attack staging keys
 //     stage_distance_tiles, stage_radius_tiles, stage_gather_fraction and stage_timeout_seconds (the army gathers short of the
@@ -19,7 +23,8 @@
 //     holds the Core);
 //   * skirmish_ai_v2.md package C (army): defend_hold_seconds, kill_hq_health_fraction, kill_seen_within_seconds, kill_min_army_supply, extra_producer_bank_common
 //     and max_producers; rally_at_core now moves the attack group's staging point to the Core (the massing army rallies at home).
-//     The expansion keys of packages A and B are not built yet.
+//     field_max_distance_tiles now means the distance from an own drop-off (not the HQ) and all_in_when_mined_out means "no field on the map
+//     has known resources" (package B).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -87,11 +92,18 @@ namespace Rts.Ai
         /// </summary>
         public IReadOnlyList<string> CyclePreference { get; }
 
+        /// <summary>
+        /// Drop-off structure the AI builds at a new base (skirmish_ai_v2.md B.1), for example "skai.perch_depot". Range: empty (the plan
+        /// builds no depots; the AI still relocates its HQ), or a structure of the faction with footprint 1 and is_drop_off.
+        /// </summary>
+        public string DropOffBuildingId { get; }
+
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
             IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
-            IReadOnlyList<string>? cyclePreference = null)
+            IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null)
         {
+            DropOffBuildingId = dropOffBuildingId ?? string.Empty;
             CyclePreference = cyclePreference ?? Array.Empty<string>();
             FactionId = factionId;
             WorkerUnitId = workerUnitId;
@@ -119,13 +131,13 @@ namespace Rts.Ai
         /// <summary>Most commands one decision may submit; later intents are dropped. Unit: commands. Range: 1 to 200.</summary>
         public int MaxCommandsPerThink { get; }
 
-        /// <summary>Workers sent to one resource field before the next field is used. Unit: workers. Range: 1 to 8.</summary>
+        /// <summary>Workers sent to one served common resource field before the next field is used (skirmish_ai_v2.md B.1: common fields only). Unit: workers. Range: 1 to 8.</summary>
         public int WorkersPerField { get; }
 
         /// <summary>Worker count the AI stops training at. Unit: workers. Range: 1 to 100.</summary>
         public int MaxWorkers { get; }
 
-        /// <summary>Fields farther than this from the own HQ are never worked. Unit: tiles. Range: 2 to 64.</summary>
+        /// <summary>A field is served (worked from a drop-off) when its centre is this close to an own drop-off: the Rooted HQ, a complete depot or a depot under construction. Unit: tiles. Range: 2 to 64.</summary>
         public Fix64 FieldMaxDistanceTiles { get; }
 
         /// <summary>Build supply when free supply is at or below this. Unit: supply. Range: 0 to 40.</summary>
@@ -189,9 +201,9 @@ namespace Rts.Ai
         public Fix64 RegroupSeconds { get; }
 
         /// <summary>
-        /// When true and no field within field_max_distance_tiles of the HQ has resources left (the base is mined out, so no
-        /// reinforcements will come), the AI goes all in: it attacks with any army regardless of the threshold and the tide window
-        /// and never retreats. Unit: boolean. Range: true or false.
+        /// When true and no field on the whole map has known resources left (skirmish_ai_v2.md B.5 rule A; no reinforcements will
+        /// come), the AI goes all in: it attacks with any army regardless of the threshold and the tide window and never retreats.
+        /// Unit: boolean. Range: true or false.
         /// </summary>
         public bool AllInWhenMinedOut { get; }
 
@@ -218,6 +230,51 @@ namespace Rts.Ai
 
         /// <summary>Most own structures that train a composition unit (complete or under construction). Unit: structures. Range: 1 to 30.</summary>
         public int MaxProducers { get; }
+
+        /// <summary>Workers sent to each served rare field (skirmish_ai_v2.md B.1). Unit: workers. Range: 0 to 8.</summary>
+        public int RareWorkersPerField { get; }
+
+        /// <summary>Earliest time for the first depot by the clock. Unit: seconds. Range: 0 to 1800.</summary>
+        public Fix64 ExpandAtSeconds { get; }
+
+        /// <summary>Seconds added to <see cref="ExpandAtSeconds"/> per depot already placed. Unit: seconds. Range: 0 to 900.</summary>
+        public Fix64 ExpandIntervalSeconds { get; }
+
+        /// <summary>Expand early when the served fields hold less than this share of their start amount. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 ExpandWhenServedRemainingFraction { get; }
+
+        /// <summary>Most live depots (rule E); 0 turns depots off. Unit: depots. Range: 0 to 6.</summary>
+        public int MaxLiveDepots { get; }
+
+        /// <summary>A field below this is not an expansion or relocation target unless no field qualifies. Unit: resource units. Range: 1 to 1000000.</summary>
+        public int ExpandMinFieldRemaining { get; }
+
+        /// <summary>A target this close to a known enemy structure, an uncleared enemy spawn or a recently seen enemy army is unsafe. Unit: tiles. Range: 2 to 64.</summary>
+        public Fix64 ExpandSafeRadiusTiles { get; }
+
+        /// <summary>How long the last seen enemy army position counts for safety. Unit: seconds. Range: 0 to 600.</summary>
+        public Fix64 EnemyArmyMemorySeconds { get; }
+
+        /// <summary>Innermost Chebyshev ring around the target field searched for a depot site. Unit: tiles. Range: 1 to 10.</summary>
+        public int DepotRingMinTiles { get; }
+
+        /// <summary>Outermost Chebyshev ring around the target field searched for a depot site. Unit: tiles. Range: depot_ring_min_tiles to 20.</summary>
+        public int DepotRingMaxTiles { get; }
+
+        /// <summary>Most workers moved off an over-full field per think (rule G rebalance). Unit: workers. Range: 0 to 20.</summary>
+        public int RebalanceWorkersPerThink { get; }
+
+        /// <summary>The HQ may relocate once its home fields hold this share or less of their start amount. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 RelocateWhenHomeRemainingFraction { get; }
+
+        /// <summary>The relocating HQ stops this far from the target field centre toward its old position (capped at half the root distance). Unit: tiles. Range: 0.5 to 32.</summary>
+        public Fix64 RelocateStandOffTiles { get; }
+
+        /// <summary>A relocation not rooted after this long re-targets from where the HQ stands. Unit: seconds. Range: 10 to 600.</summary>
+        public Fix64 RelocateTimeoutSeconds { get; }
+
+        /// <summary>No new relocation this soon after rooting. Unit: seconds. Range: 0 to 600.</summary>
+        public Fix64 RelocateCooldownSeconds { get; }
 
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
@@ -261,6 +318,21 @@ namespace Rts.Ai
             KillMinArmySupply = root.RequireInt("kill_min_army_supply", 1, 200);
             ExtraProducerBankCommon = root.RequireInt("extra_producer_bank_common", 0, 100000);
             MaxProducers = root.RequireInt("max_producers", 1, 30);
+            RareWorkersPerField = root.RequireInt("rare_workers_per_field", 0, 8);
+            ExpandAtSeconds = root.RequireFix64("expand_at_seconds", "0", "1800");
+            ExpandIntervalSeconds = root.RequireFix64("expand_interval_seconds", "0", "900");
+            ExpandWhenServedRemainingFraction = root.RequireFix64("expand_when_served_remaining_fraction", "0", "1");
+            MaxLiveDepots = root.RequireInt("max_live_depots", 0, 6);
+            ExpandMinFieldRemaining = root.RequireInt("expand_min_field_remaining", 1, 1000000);
+            ExpandSafeRadiusTiles = root.RequireFix64("expand_safe_radius_tiles", "2", "64");
+            EnemyArmyMemorySeconds = root.RequireFix64("enemy_army_memory_seconds", "0", "600");
+            DepotRingMinTiles = root.RequireInt("depot_ring_min_tiles", 1, 10);
+            DepotRingMaxTiles = root.RequireInt("depot_ring_max_tiles", DepotRingMinTiles, 20);
+            RebalanceWorkersPerThink = root.RequireInt("rebalance_workers_per_think", 0, 20);
+            RelocateWhenHomeRemainingFraction = root.RequireFix64("relocate_when_home_remaining_fraction", "0", "1");
+            RelocateStandOffTiles = root.RequireFix64("relocate_stand_off_tiles", "0.5", "32");
+            RelocateTimeoutSeconds = root.RequireFix64("relocate_timeout_seconds", "10", "600");
+            RelocateCooldownSeconds = root.RequireFix64("relocate_cooldown_seconds", "0", "600");
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -326,7 +398,11 @@ namespace Rts.Ai
                 "retreat_power_ratio", "engagement_radius_tiles", "stage_distance_tiles", "stage_radius_tiles", "stage_gather_fraction",
                 "stage_timeout_seconds", "focus_radius_tiles", "defend_radius_tiles", "defend_recall_supply", "damage_memory_seconds",
                 "regroup_seconds", "all_in_when_mined_out", "rally_at_core", "defend_hold_seconds", "kill_hq_health_fraction",
-                "kill_seen_within_seconds", "kill_min_army_supply", "extra_producer_bank_common", "max_producers", "factions");
+                "kill_seen_within_seconds", "kill_min_army_supply", "extra_producer_bank_common", "max_producers", "rare_workers_per_field",
+                "expand_at_seconds", "expand_interval_seconds", "expand_when_served_remaining_fraction", "max_live_depots",
+                "expand_min_field_remaining", "expand_safe_radius_tiles", "enemy_army_memory_seconds", "depot_ring_min_tiles",
+                "depot_ring_max_tiles", "rebalance_workers_per_think", "relocate_when_home_remaining_fraction", "relocate_stand_off_tiles",
+                "relocate_timeout_seconds", "relocate_cooldown_seconds", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
@@ -396,7 +472,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply", "cycle_preference");
+                "attack_tide_override_supply", "cycle_preference", "drop_off_building");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -492,8 +568,20 @@ namespace Rts.Ai
                     }
                 }
             }
+            // Optional drop-off structure ID ("" when the key is absent: no depots).
+            string dropOff = string.Empty;
+            if (node.TryGetMember("drop_off_building", out JsonValue? dropOffNode))
+            {
+                dropOff = dropOffNode.AsString();
+                // Definition of the depot structure.
+                UnitDefinition dropOffDefinition = RequireUnit(dropOffNode, dropOff, faction.Id, content);
+                if (dropOffDefinition.Economy.FootprintTiles != 1 || !dropOffDefinition.Economy.IsDropOff)
+                {
+                    throw dropOffNode.Fail("must be a structure with footprint 1 and is_drop_off true (found '" + dropOff + "')");
+                }
+            }
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly());
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff);
         }
 
         /// <summary>True when <paramref name="ids"/> holds <paramref name="id"/> (ordinal comparison).</summary>

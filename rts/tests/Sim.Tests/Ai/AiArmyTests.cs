@@ -78,15 +78,20 @@ namespace Rts.Sim.Tests.Ai
             record!.SetStock(common, rare);
         }
 
-        /// <summary>Skai base: HQ at (7, 7), six workers (so no worker is wanted), three Roosts and a Windspire, then the army; returns the producer IDs (roosts first).</summary>
+        /// <summary>Skai base: HQ at (7, 7), six workers of which one gathers (so no worker is wanted and the player has income), three Roosts and a Windspire, then the army; returns the producer IDs (roosts first).</summary>
         private List<EntityId> SkaiBase(Simulation sim, int windrunners, int archers)
         {
             Spawn(sim, "skai.great_aerie", P0, "7", "7");
+            // First worker, which is then sent to gather so the player has income (rule R: reservations are held only with income).
+            EntityId gatherer = EntityId.None;
             // Worker index. Range: 0 to 5.
             for (int i = 0; i < 6; i++)
             {
-                Spawn(sim, "skai.fledgling", P0, "6", (8 + i / 2.0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                EntityId worker = Spawn(sim, "skai.fledgling", P0, "6", (8 + i / 2.0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                gatherer = i == 0 ? worker : gatherer;
             }
+            sim.Submit(new GatherCommand(sim.Clock.Tick, P0, _sequence++, gatherer, 0));
+            sim.Step();
             List<EntityId> producers = new List<EntityId>
             {
                 Spawn(sim, "skai.roost", P0, "13.5", "6.5"),
@@ -230,7 +235,7 @@ namespace Rts.Sim.Tests.Ai
         public void C3_RareCandidate_IsSkippedUntilRareIsInStock()
         {
             // Roc Rider (150 common, 50 rare) has the largest deficit: Windrunner weight 3 against Roc Rider 1 with 3 Windrunners.
-            AiProfile profile = Edited("\"skai.windrunner\": 3, \"skai.talon_archer\": 1", "\"skai.windrunner\": 3, \"skai.roc_rider\": 1");
+            AiProfile profile = Edited("\"skai.windrunner\": 3, \"skai.talon_archer\": 1, \"skai.roc_rider\": 1", "\"skai.windrunner\": 3, \"skai.roc_rider\": 1");
             Simulation sim = Greybox();
             List<EntityId> producers = SkaiBase(sim, 3, 0);
             SetStock(sim, P0, 300, 0);

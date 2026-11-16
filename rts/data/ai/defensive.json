@@ -1,18 +1,18 @@
 // rts/data/ai/defensive.json: the defensive skirmish AI profile. Part of rts/data/ai; DataLoader keeps the parsed file in DataSet.AiProfiles and Rts.Ai.AiProfile.Parse validates it (spec: rts/docs/specs/skirmish_ai.md). Builds a bigger army before attacking, defends its base, retreats early and times attacks to the tide.
 {
   "$schema_version": 1,
-  "$doc": "Defensive skirmish AI: a fuller economy, a larger army before the first attack, early retreats and tide-timed attacks. Every number is a placeholder tuned so AI-versus-AI on greybox_1v1 ends inside the 6000-tick Phase 1 exit run.",
+  "$doc": "Defensive skirmish AI: a fuller economy, a larger army before the first attack, early retreats and tide-timed attacks. Every number is a placeholder; AI-versus-AI on greybox_1v1 is checked within the 24000-tick exit run (rts/data/scripts/ai_vs_ai.json).",
   // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "defensive",
   // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
   "think_interval_seconds": 0.5,
   // Most commands one decision may submit; later intents are dropped. Unit: commands. Range: 1 to 200. Source: placeholder.
   "max_commands_per_think": 40,
-  // Workers sent to one resource field before the next field is used. Unit: workers. Range: 1 to 8. Source: Core gameplay loop (Opening: gather); placeholder.
+  // Workers sent to one served common field before the next field is used (rare fields: rare_workers_per_field). Unit: workers. Range: 1 to 8. Source: Core gameplay loop (Opening: gather); placeholder.
   "workers_per_field": 3,
-  // Worker count the AI stops training at. Unit: workers. Range: 1 to 100. Source: placeholder.
-  "max_workers": 10,
-  // Fields farther than this from the own HQ are never worked (keeps workers in the base). Unit: tiles. Range: 2 to 64. Source: placeholder.
+  // Worker count the AI stops training at (the real target also depends on the served fields, rule W). Unit: workers. Range: 1 to 100. Source: skirmish_ai_v2.md B.1; placeholder.
+  "max_workers": 24,
+  // A field is served (worked from a drop-off) when its centre is this close to an own drop-off: the Rooted HQ, a complete depot or a depot under construction. Unit: tiles. Range: 2 to 64. Source: skirmish_ai_v2.md B.1; placeholder.
   "field_max_distance_tiles": 10,
   // Build a supply structure when free supply is at or below this. Unit: supply. Range: 0 to 40. Source: Core gameplay loop (Opening: build supply); placeholder.
   "supply_buffer": 3,
@@ -54,7 +54,7 @@
   "damage_memory_seconds": 3,
   // Time after a retreat before the next attack may start. Unit: seconds. Range: 0 to 120. Source: placeholder.
   "regroup_seconds": 20,
-  // Go all in once no field within field_max_distance_tiles has resources left: attack with any army, ignore the tide window, never retreat. Unit: boolean. Range: true or false. Source: Economy (fields run out); placeholder.
+  // Go all in once no field on the whole map has known resources: attack with any army, ignore the tide window, never retreat. Unit: boolean. Range: true or false. Source: skirmish_ai_v2.md B.5 rule A; placeholder.
   "all_in_when_mined_out": true,
   // When true and the own team does not hold the Core, the attack group stages at the Core centre instead of short of the target (the massing army always rallies at home). Unit: boolean. Range: true or false. Source: Win condition and twists / Holding the Core; PLACEHOLDER (skirmish_ai_v2.md C.2 rule G).
   "rally_at_core": false,
@@ -70,6 +70,36 @@
   "extra_producer_bank_common": 400,
   // Most own structures that train a composition unit (complete or under construction). Unit: structures. Range: 1 to 30. Source: skirmish_ai_v2.md C.2 rule X; placeholder.
   "max_producers": 8,
+  // Workers sent to each served rare field (a served common field takes workers_per_field). Unit: workers. Range: 0 to 8. Source: skirmish_ai_v2.md B.5 rule G; placeholder.
+  "rare_workers_per_field": 2,
+  // Earliest time for the first depot by the clock (a field running low brings it forward). Unit: seconds. Range: 0 to 1800. Source: Core gameplay loop (Expansion 3 to 9 min); placeholder.
+  "expand_at_seconds": 240,
+  // Seconds added to expand_at_seconds for every depot already placed. Unit: seconds. Range: 0 to 900. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_interval_seconds": 150,
+  // Expand early when the served fields hold less than this share of their start amount. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_when_served_remaining_fraction": 0.5,
+  // Most live depots (under construction, or complete with a field that has resources in reach); 0 turns depots off. Unit: depots. Range: 0 to 6. Source: skirmish_ai_v2.md B.1; placeholder.
+  "max_live_depots": 2,
+  // A field holding less than this is not an expansion or relocation target unless no field qualifies. Unit: resource units. Range: 1 to 1000000. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_min_field_remaining": 300,
+  // A target this close to a known enemy structure, an uncleared enemy spawn or a recently seen enemy army is unsafe. Unit: tiles. Range: 2 to 64. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_safe_radius_tiles": 14,
+  // How long the last seen enemy army position counts for safety. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
+  "enemy_army_memory_seconds": 60,
+  // Innermost Chebyshev ring around the target field searched for a depot site. Unit: tiles. Range: 1 to 10. Source: skirmish_ai_v2.md B.1; placeholder.
+  "depot_ring_min_tiles": 3,
+  // Outermost Chebyshev ring around the target field searched for a depot site. Unit: tiles. Range: depot_ring_min_tiles to 20. Source: skirmish_ai_v2.md B.1; placeholder.
+  "depot_ring_max_tiles": 6,
+  // Most workers moved off an over-full field per think. Unit: workers. Range: 0 to 20. Source: skirmish_ai_v2.md B.1; placeholder.
+  "rebalance_workers_per_think": 2,
+  // The HQ may relocate once its home fields hold this share or less of their start amount (and no cheaper option exists). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_when_home_remaining_fraction": 0.1,
+  // Where the relocating HQ stops: this far from the target field centre toward its old position (capped at half the HQ root distance). Unit: tiles. Range: 0.5 to 32. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_stand_off_tiles": 3,
+  // A relocation not rooted after this long re-targets from where the HQ stands. Unit: seconds. Range: 10 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_timeout_seconds": 120,
+  // No new relocation this soon after the HQ rooted. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_cooldown_seconds": 60,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {
@@ -77,6 +107,8 @@
       "worker_unit": "skai.fledgling",
       // Structure built when free supply runs low. Unit: unit ID. Range: a skai structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
       "supply_building": "skai.roost",
+      // Drop-off structure built at a new base (rule E). Optional. Unit: unit ID. Range: a skai structure with footprint 1 and is_drop_off, or absent for no depots. Source: skirmish_ai_v2.md B.1; placeholder.
+      "drop_off_building": "skai.perch_depot",
       // Build order: keep at least count of structure once supply used reaches at_supply_used (strict order). Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: Core gameplay loop (Opening: first production building); placeholder.
       "build_order": [
         { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
@@ -84,8 +116,8 @@
         { "structure": "skai.windspire", "count": 1, "at_supply_used": 10 },
         { "structure": "skai.windspire", "count": 2, "at_supply_used": 16 }
       ],
-      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Skai Riders / Unit concepts; placeholder (common-cost units only: the main bases hold no rare field).
-      "composition": { "skai.windrunner": 3, "skai.talon_archer": 1 },
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Skai Riders / Unit concepts; placeholder (the Roc Rider costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
+      "composition": { "skai.windrunner": 3, "skai.talon_archer": 1, "skai.roc_rider": 1 },
       // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (Skai strike at low tide); placeholder.
       "attack_tide_min": 0,
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups (Skai strike at low tide); placeholder.
@@ -100,6 +132,8 @@
       "worker_unit": "water.tender",
       // Structure built when free supply runs low. Unit: unit ID. Range: a water structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
       "supply_building": "water.tidepool",
+      // Drop-off structure built at a new base (rule E). Optional. Unit: unit ID. Range: a water structure with footprint 1 and is_drop_off, or absent for no depots. Source: skirmish_ai_v2.md B.1; placeholder.
+      "drop_off_building": "water.pearl_depot",
       // Build order: keep at least count of structure once supply used reaches at_supply_used (strict order). Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: Core gameplay loop (Opening: first production building); placeholder.
       "build_order": [
         { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
@@ -107,8 +141,8 @@
         { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
         { "structure": "water.shell_forge", "count": 2, "at_supply_used": 16 }
       ],
-      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; placeholder (common-cost units only).
-      "composition": { "water.grasper": 3, "water.shellback": 1 },
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; placeholder (the Ink Lobber costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
+      "composition": { "water.grasper": 3, "water.shellback": 1, "water.ink_lobber": 1 },
       // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (the water player times attacks for high tide); placeholder.
       "attack_tide_min": 0.5,
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups; placeholder.

@@ -35,6 +35,9 @@ namespace Rts.Ai
 
         /// <summary>PickCycleCommand(cycle id): the AI's team holds the Core and chooses the next Planetary Cycle.</summary>
         PickCycle = 7,
+
+        /// <summary>UprootHqCommand(unit = the HQ): a relocation begins (skirmish_ai_v2.md B.5 rule H).</summary>
+        UprootHq = 8,
     }
 
     /// <summary>One decided action. Immutable.</summary>
@@ -107,6 +110,9 @@ namespace Rts.Ai
         /// <summary>Root an Uprooted HQ.</summary>
         public static AiIntent RootHq(EntityId hq) => new AiIntent(AiIntentKind.RootHq, hq, -1, string.Empty, 0, 0, FixVec2.Zero);
 
+        /// <summary>Uproot a Rooted HQ so it can move to a new field.</summary>
+        public static AiIntent UprootHq(EntityId hq) => new AiIntent(AiIntentKind.UprootHq, hq, -1, string.Empty, 0, 0, FixVec2.Zero);
+
         /// <summary>Builds the command for this intent.</summary>
         /// <param name="tick">Tick to schedule. Unit: ticks.</param>
         /// <param name="issuer">The AI's player.</param>
@@ -127,6 +133,8 @@ namespace Rts.Ai
                     return new MoveUnitCommand(tick, issuer, sequence, Unit, Point);
                 case AiIntentKind.RootHq:
                     return new RootHqCommand(tick, issuer, sequence, Unit);
+                case AiIntentKind.UprootHq:
+                    return new UprootHqCommand(tick, issuer, sequence, Unit);
                 case AiIntentKind.AttackUnit:
                     return new AttackUnitCommand(tick, issuer, sequence, Unit, Target);
                 case AiIntentKind.PickCycle:
