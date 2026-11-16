@@ -75,3 +75,17 @@ The same executable becomes the AI-versus-AI balance harness. Planned shape, wit
   strongest HQ-killing army (the survivability floor `hq_floor_seconds` at `hq_floor_supply`).
 - Write results as a machine-readable file (JSON or CSV) plus a short text summary, so CI can fail a build whose balance drifts.
 - Keep the determinism check: every game still ends with a `STATE_HASH`, and replaying a seed must reproduce it.
+
+## Batch mode (Phase 2 step 5)
+
+`--batch` plays N AI-versus-AI games per matchup per map in parallel worker processes (this same executable with `--worker`) and writes
+`report.md`, `results.jsonl` and `hq_floor.jsonl` to `--out` (default `rts/build/harness`). Spec: `rts/docs/specs/balance_harness.md`; settings:
+`rts/data/tuning/harness_batch.json`.
+
+```
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --batch [--ci | --games N] [--jobs J] [--maps a,b] [--matchups x_vs_y,...]
+    [--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]
+```
+
+Exit codes: 0 every hard limit passed or deferred (or `--report-only`), 1 error, 2 a hard limit failed, 3 the determinism spot check failed.
+The report never depends on `--jobs`. The single-run mode above is unchanged.
