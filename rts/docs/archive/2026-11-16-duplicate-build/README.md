@@ -12,9 +12,5 @@ On 16 Nov 2026 a cloud session started on the old `phase-0/foundations` branch, 
 
 ## What was not kept in the tree
 
-- The duplicate simulation code and its tests. The last state of that work is preserved on the branch `archive/2026-11-16-phase-1a-duplicate` (the head of the branch `claude/phase-1a-exit`, plus a notice marking it as an archive; tags could not be pushed from the session that did the clean-up: 231 passing tests on that codebase, reviewed by the Opus sim-reviewer up to the combat merge). It shares no history with `main` and cannot be merged; it is a reference only.
+- The duplicate simulation code and its tests. The developer deleted its branches on 16 Nov 2026, so that code no longer exists anywhere; the designs worth reusing are in the spec in this folder.
 - The concept art, art brief, proposals, tools and agent definitions from that day: these were copied to `main` unchanged and are current.
-
-## Branches checked as safe to delete on 16 Nov 2026
-
-`phase-0/foundations`, `phase-0/foundations-pr`, `phase-1/prototype`, `phase-2/vertical-slice` (their content is all in `main`), and `claude/game-dev-plan-concept-7107ge`, `claude/phase-1a-systems-spec`, `claude/phase-1a-terrain`, `claude/phase-1a-pathing`, `claude/phase-1a-combat`, `claude/phase-1a-exit` (the duplicate build). `docs/STATUS.md` says whether they are gone yet.

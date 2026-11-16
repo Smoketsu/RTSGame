@@ -14,11 +14,9 @@ Why this warning exists: until 16 Nov 2026 the repository's default branch on Gi
 | Branch | What it is |
 | --- | --- |
 | `main` | Current. Everything below is here. |
-| `archive/2026-11-16-phase-1a-duplicate` | Reference only, never merge. The duplicate Phase 1A build made on 16 Nov 2026 from Phase 0 by mistake; unrelated history. See `docs/archive/2026-11-16-duplicate-build/README.md`. |
-| `phase-0/foundations`, `phase-0/foundations-pr`, `phase-1/prototype`, `phase-2/vertical-slice` | Old phase branches whose content is all in `main`. Checked on 16 Nov 2026 and safe to delete; the developer asked for them to be deleted. If they still exist, do not build on them. |
-| `claude/game-dev-plan-concept-7107ge`, `claude/phase-1a-systems-spec`, `claude/phase-1a-terrain`, `claude/phase-1a-pathing`, `claude/phase-1a-combat`, `claude/phase-1a-exit` | The duplicate build's working branches. Everything useful was copied to `main` or kept on the archive branch. Checked on 16 Nov 2026 and safe to delete; the developer asked for them to be deleted. If they still exist, do not build on them. |
+| `phase-1/prototype` | Old Phase 1 branch whose content is all in `main`. Checked on 16 Nov 2026 and safe to delete. Do not build on it. |
 
-The cloud session that did this clean-up could not delete branches (its git access does not allow removing refs), so the deletion has to be done from GitHub's Branches page or from a session on the developer's PC. Remove the two "safe to delete" rows once they are gone. New work goes on `main` or on a short-lived branch merged back into it.
+The developer deleted every other old branch on 16 Nov 2026, including the duplicate Phase 1A build and its archive branch; that code is gone, and what was worth keeping is in `docs/archive/2026-11-16-duplicate-build/`. New work goes on `main` or on a short-lived branch merged back into it.
 
 ## Where the project stands
 
@@ -58,7 +56,7 @@ The cloud session that did this clean-up could not delete branches (its git acce
 
 ## What comes next, in order
 
-1. Compare the developer's 16 Nov decisions with the code (`proposals/P-003-decisions-to-apply.md`) and turn the differences into spec changes.
+1. The developer chooses which rows of `proposals/P-003-decisions-to-apply.md` to build (compared with the code on 16 Nov: 4 of 14 already hold); those become spec changes.
 2. Build Phase 2 step 5 (balance harness) and step 8 (campaign scripting) from their specs.
 3. Phase 2 step 9, the Unity HUD and menus: done by the session on the developer's PC, which has the Unity Editor.
 4. Art: the art direction is settled (`art/CONCEPT_BRIEF.md`, table of approved designs). Approved units and buildings go to 3D through the pipeline trialled in `art/models/trial2`.
