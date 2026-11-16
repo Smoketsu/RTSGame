@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/art/models/batch1/`: models for the Tidecaller and Leviathan and a second Stormcaller (2,810 Tripo credits left). `docs/art/concept/turnarounds4/`: five sheets redrawn after the second review (Talon Marksman shouldering the rifle, Pummeler with heavier arms, water worker with a solid face, Roc Rider bigger with tucked legs and wing crystals, Thunderhead with its bird head). Kept so far as models: Skai worker, Spoutling.
+
 - Balance harness batch mode (Phase 2 step 5, spec `docs/specs/balance_harness.md`; Sim-side changes reviewed by the sim-reviewer): `--batch` runs N AI-versus-AI games per matchup per map in worker processes with derived seeds and writes `report.md`, `results.jsonl` and `hq_floor.jsonl`; win rate with a Wilson interval, match length, HQ time-to-kill, the hard limits, a determinism spot check, `--ci` and `--report-only`. New `tuning/harness_batch.json`, required by the loader but left out of the content digest so state hashes do not change. The skirmish AI no longer counts enemy workers as army power when deciding to retreat. First reduced batch: HQ survivability floor FAIL (6.6 s against 20 s), water-versus-earth cap DEFERRED.
 
 - `docs/art/models/batch1/`: six 3D models generated with Tripo multi-view from the kept sheets (Skai worker, Talon Marksman, Stormcaller; water worker, Pummeler, Spoutling), with the cut views; 110 credits each, 3,140 left. `docs/art/concept/turnarounds3/`: four sheets redrawn after review (Roc Rider with vents and metal feathers, Thunderhead with underwing pods and guns, Tidecaller and Leviathan with the approved coral). Both await the developer's marks.
