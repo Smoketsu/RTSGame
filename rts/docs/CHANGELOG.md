@@ -27,6 +27,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/art/models/batch1/`: six 3D models generated with Tripo multi-view from the kept sheets (Skai worker, Talon Marksman, Stormcaller; water worker, Pummeler, Spoutling), with the cut views; 110 credits each, 3,140 left. `docs/art/concept/turnarounds3/`: four sheets redrawn after review (Roc Rider with vents and metal feathers, Thunderhead with underwing pods and guns, Tidecaller and Leviathan with the approved coral). Both await the developer's marks.
+
 - `docs/art/concept/turnarounds2/`: front, side and back model sheets for ten units (Skai worker, Talon Marksman, Stormcaller, Roc Rider, Thunderhead; water worker, Pummeler, Spoutling, Tidecaller, Leviathan), awaiting the developer's marks before 3D generation.
 
 - Spec `docs/specs/p003_rules.md`: build-ready rules for the P-003 changes (uphill ranged penalty, armed workers, ranged hit delay, the Shellback's always-on dome shield, unit separation), in two build packages, with its row in the specs index.
