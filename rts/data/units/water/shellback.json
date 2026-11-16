@@ -40,7 +40,20 @@
     "range_tiles": 2,
     // Time between two hits. Unit: seconds. Range: 0.05 to 60. Source: placeholder.
     "cooldown_seconds": 1.0,
+    // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-003 row 4 (developer, 16 Nov 2026: 2 ticks = 100 ms); placeholder.
+    "hit_delay_ticks": 2,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder.
     "can_target": ["ground", "water"]
+  },
+  // Dome shield, always on: absorbs ranged hits fired from outside the dome at the Shellback or at its owner's and allies' units inside it. Melee hits and shots fired from inside the dome pass. Every number is a placeholder for playtesting.
+  "shield_dome": {
+    // Dome radius around the unit's centre; a unit is inside when its centre is within it. Unit: tiles. Range: 0.5 to 16. Source: P-003 row 6 (dome blocks ranged attacks in a radius); placeholder default chosen 16 Nov 2026.
+    "radius_tiles": 3,
+    // Damage the dome absorbs before it goes down. Unit: health points. Range: 1 to 100000. Source: P-003 row 6; placeholder default chosen 16 Nov 2026.
+    "pool": 150,
+    // Time without absorbing a hit before the pool starts to refill. Unit: seconds. Range: 0 to 60. Source: P-003 row 6; placeholder default chosen 16 Nov 2026.
+    "regen_delay_seconds": 4,
+    // Refill rate while refilling; a dome that went down comes back up only when its pool is full again. Unit: health points per second. Range: 0.01 to 10000. Source: P-003 row 6; placeholder.
+    "regen_per_second": 25
   }
 }

@@ -119,6 +119,11 @@ namespace Rts.Sim.Core
                 }
                 unit.Economy.WriteHash(hasher);
                 unit.Flood.WriteHash(hasher);
+                hasher.Write(unit.ShieldDome != null);
+                if (unit.ShieldDome != null)
+                {
+                    unit.ShieldDome.WriteHash(hasher);
+                }
             }
             hasher.Write(_factions.Count);
             foreach (FactionDefinition faction in _factions.Values)

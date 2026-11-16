@@ -200,7 +200,7 @@ namespace Rts.Sim.Tests.Statuses
             {
                 if (tick == sim.Clock.Tick && sim.Units.TryGet(new EntityId(attackerId), out Unit? attacker) && sim.Units.TryGet(new EntityId(targetId), out Unit? target))
                 {
-                    StatusSystem.ApplyDrenchHit(sim, attacker, target);
+                    StatusSystem.ApplyDrenchHit(sim, attacker.Id, attacker.Owner, target);
                 }
             }
         }

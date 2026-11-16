@@ -35,6 +35,8 @@
   },
   // Extra distance beyond weapon range within which an attack-moving unit notices and chases an enemy before shooting. Unit: tiles. Range: 0 to 20. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "acquire_range_bonus_tiles": 2,
+  // Damage multiplier for a ranged hit on a target standing on higher ground than the attacker (target tile height above the attacker's eye height: its tile height, plus 1 on a ramp). Melee hits, air attackers and air targets are unaffected. Unit: fraction of damage. Range: 0.1 to 1. Source: P-003 row 1 (developer, 16 Nov 2026).
+  "uphill_ranged_damage_multiplier": 0.75,
   // Armour type given to a unit whose file has no "armour_type". Unit: armour type name. Range: one of "armour_types". Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "default_armour_type": "light"
 }

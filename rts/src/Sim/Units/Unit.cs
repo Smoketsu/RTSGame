@@ -140,6 +140,15 @@ namespace Rts.Sim.Units
         /// <summary>True while the unit is still being constructed.</summary>
         public bool IsUnderConstruction => ConstructionTicksRemaining > 0;
 
+        /// <summary>Dome shield pool left (P-003 row 6). Unit: health points (fixed-point). Range: 0 to the definition's dome pool; 0 for a unit without a dome. Hashed.</summary>
+        public Fix64 ShieldPool { get; private set; }
+
+        /// <summary>True while the dome is down: its pool emptied and has not yet refilled completely. Range: true or false; false without a dome. Hashed.</summary>
+        public bool ShieldDown { get; private set; }
+
+        /// <summary>Tick on which the dome last absorbed damage. Unit: ticks. Range: -1 (never) upward. Hashed.</summary>
+        public int ShieldLastAbsorbTick { get; private set; }
+
         /// <summary>Creates a unit at full health. Internal: use the simulation's spawn path so the ID and events are handled.</summary>
         internal Unit(EntityId id, PlayerId owner, UnitDefinition definition, FixVec2 position, int spawnTick)
         {
@@ -172,6 +181,9 @@ namespace Rts.Sim.Units
             GatherTicksRemaining = 0;
             ProductionTicksRemaining = 0;
             ConstructionTicksRemaining = 0;
+            ShieldPool = definition.ShieldDome != null ? definition.ShieldDome.Pool : Fix64.Zero;
+            ShieldDown = false;
+            ShieldLastAbsorbTick = -1;
         }
 
         /// <summary>Starts or replaces a straight-line move order.</summary>
@@ -201,6 +213,19 @@ namespace Rts.Sim.Units
         internal void SetHealth(Fix64 health)
         {
             Health = Fix64.Clamp(health, Fix64.Zero, Definition.MaxHealth);
+        }
+
+        /// <summary>Sets the dome state. Internal: combat system (and tests). The pool is clamped to 0 up to the dome's pool.</summary>
+        /// <param name="pool">New pool. Unit: health points. Range: clamped to 0..Pool.</param>
+        /// <param name="down">True while the dome is down.</param>
+        /// <param name="lastAbsorbTick">Tick of the last absorbed hit. Unit: ticks. Range: -1 or more.</param>
+        internal void SetShield(Fix64 pool, bool down, int lastAbsorbTick)
+        {
+            // Largest pool this unit's dome can hold. Unit: health points. Range: 0 without a dome.
+            Fix64 max = Definition.ShieldDome != null ? Definition.ShieldDome.Pool : Fix64.Zero;
+            ShieldPool = Fix64.Clamp(pool, Fix64.Zero, max);
+            ShieldDown = down;
+            ShieldLastAbsorbTick = lastAbsorbTick;
         }
 
         /// <summary>Sets the weapon cooldown. Internal: combat system only.</summary>
@@ -412,6 +437,9 @@ namespace Rts.Sim.Units
             }
             hasher.Write(ProductionTicksRemaining);
             hasher.Write(ConstructionTicksRemaining);
+            hasher.Write(ShieldPool);
+            hasher.Write(ShieldDown);
+            hasher.Write(ShieldLastAbsorbTick);
             Statuses.WriteHash(hasher);
         }
     }

@@ -192,9 +192,10 @@ namespace Rts.Sim.Statuses
         /// counter). Emits drench_hit with the count reached and whether it grounded.
         /// </summary>
         /// <param name="sim">The stepping simulation.</param>
-        /// <param name="attacker">The unit that fired.</param>
+        /// <param name="attacker">ID of the unit that fired (it may be gone when a delayed hit lands).</param>
+        /// <param name="attackerOwner">Owner of the attacker at fire time; None for neutral.</param>
         /// <param name="target">The unit that was hit.</param>
-        internal static void ApplyDrenchHit(Simulation sim, Unit attacker, Unit target)
+        internal static void ApplyDrenchHit(Simulation sim, EntityId attacker, PlayerId attackerOwner, Unit target)
         {
             RequireStepping(sim);
             if (target.EffectiveLayer != MovementLayer.Air)
@@ -212,14 +213,14 @@ namespace Rts.Sim.Statuses
             set.SetDrench(set.DrenchHits + 1, now);
             // Hits counted including this one. Unit: hits. Range: 1 to spoutling_drench_hits_to_ground.
             int hits = set.DrenchHits;
-            ApplySlow(sim, target, StatusTuning.DrenchSourceKey, tuning.DrenchSlowMultiplier, rates.DrenchSlowTicks, attacker.Owner);
+            ApplySlow(sim, target, StatusTuning.DrenchSourceKey, tuning.DrenchSlowMultiplier, rates.DrenchSlowTicks, attackerOwner);
             // True when this hit grounded the target.
             bool grounded = false;
             if (hits >= tuning.SpoutlingDrenchHitsToGround)
             {
-                grounded = ApplyGrounded(sim, target, rates.GroundedTicks, StatusTuning.DrenchSourceKey, attacker.Owner);
+                grounded = ApplyGrounded(sim, target, rates.GroundedTicks, StatusTuning.DrenchSourceKey, attackerOwner);
             }
-            sim.Events.Add(new DrenchHitEvent(now, target.Id, attacker.Id, hits, grounded));
+            sim.Events.Add(new DrenchHitEvent(now, target.Id, attacker, hits, grounded));
         }
 
         /// <summary>

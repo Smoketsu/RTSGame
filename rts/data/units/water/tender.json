@@ -29,5 +29,20 @@
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
   "armour_type": "light",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder for Phase 1 unit docs.
-  "sight_range_tiles": 8
+  "sight_range_tiles": 8,
+  // Weapon: weak melee strike so workers can defend themselves. Every number is a placeholder for playtesting.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: P-003 row 3 (developer: workers get a weak melee weapon); placeholder.
+    "damage": 3,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: "kinetic", "blast" or "drench" (names in tuning/combat.json). Source: P-003 row 3; placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: P-003 row 3 (melee); placeholder.
+    "range_tiles": 0.3,
+    // Time between two hits. Unit: seconds. Range: 0.05 to 60. Source: placeholder.
+    "cooldown_seconds": 1.0,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder (melee reaches ground and water, as the Grasper).
+    "can_target": ["ground", "water"],
+    // Ticks between firing and the hit landing. Unit: ticks. Range: 0 for melee. Source: P-003 row 4.
+    "hit_delay_ticks": 0
+  }
 }

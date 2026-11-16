@@ -1002,7 +1002,8 @@ namespace Rts.Sim.Tests.Factions
                 }
             }
             Assert.That(wet, Is.GreaterThan(20));
-            Assert.That(StatusTestWorld.UnitOf(final, 5).Definition.Id, Is.EqualTo("water.grasper"));
+            // P-003 armed-first targeting: the Aerie now shoots the armed Pummeler (unit 5) before the unarmed Tidepool, so the Tidepool is the survivor to check.
+            Assert.That(StatusTestWorld.UnitOf(final, 4).Definition.Id, Is.EqualTo("water.tidepool"));
         }
     }
 }

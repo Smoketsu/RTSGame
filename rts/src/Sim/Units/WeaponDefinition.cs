@@ -39,6 +39,12 @@ namespace Rts.Sim.Units
         /// <summary>True when every landed hit counts as a drench hit on an air target (Spoutling): three hits ground it, each slows it. Range: true or false; false for every other weapon. Set by the optional applies_drench key of the weapon object.</summary>
         public bool AppliesDrench { get; }
 
+        /// <summary>Largest hit delay the schema accepts. Unit: ticks. Range: fixed schema bound, 10.</summary>
+        public const int MaxHitDelayTicks = 10;
+
+        /// <summary>Ticks between firing and the hit landing; the hit is bound to its target at fire time. Unit: ticks. Range: 0 to <see cref="MaxHitDelayTicks"/>; 0 for a melee weapon.</summary>
+        public int HitDelayTicks { get; }
+
         /// <summary>True when <see cref="RangeTiles"/> is at most <see cref="MeleeMaxRangeTiles"/>.</summary>
         public bool IsMelee => RangeTiles <= MeleeMaxRangeTiles;
 
@@ -51,8 +57,9 @@ namespace Rts.Sim.Units
         /// <param name="canTargetWater">May hit the water layer.</param>
         /// <param name="canTargetAir">May hit the air layer.</param>
         /// <param name="appliesDrench">True when each landed hit calls the status system's drench rule. Default false.</param>
+        /// <param name="hitDelayTicks">Ticks between firing and landing. Unit: ticks. Range: 0 to 10; 0 for melee. Default 0.</param>
         public WeaponDefinition(Fix64 damage, string damageType, Fix64 rangeTiles, Fix64 cooldownSeconds,
-            bool canTargetGround, bool canTargetWater, bool canTargetAir, bool appliesDrench = false)
+            bool canTargetGround, bool canTargetWater, bool canTargetAir, bool appliesDrench = false, int hitDelayTicks = 0)
         {
             if (damage <= Fix64.Zero)
             {
@@ -74,6 +81,14 @@ namespace Rts.Sim.Units
             {
                 throw new ArgumentException("weapon can_target must allow at least one layer.", nameof(canTargetGround));
             }
+            if (hitDelayTicks < 0 || hitDelayTicks > MaxHitDelayTicks)
+            {
+                throw new ArgumentOutOfRangeException(nameof(hitDelayTicks), "weapon hit_delay_ticks must be 0 to " + MaxHitDelayTicks + ".");
+            }
+            if (hitDelayTicks > 0 && rangeTiles <= MeleeMaxRangeTiles)
+            {
+                throw new ArgumentOutOfRangeException(nameof(hitDelayTicks), "must be 0 for a melee weapon (range_tiles 1.5 or less)");
+            }
             Damage = damage;
             DamageType = damageType;
             RangeTiles = rangeTiles;
@@ -82,6 +97,7 @@ namespace Rts.Sim.Units
             CanTargetWater = canTargetWater;
             CanTargetAir = canTargetAir;
             AppliesDrench = appliesDrench;
+            HitDelayTicks = hitDelayTicks;
         }
 
         /// <summary>True when the weapon may hit a unit on <paramref name="layer"/>.</summary>
@@ -108,6 +124,7 @@ namespace Rts.Sim.Units
             hasher.Write(CanTargetWater);
             hasher.Write(CanTargetAir);
             hasher.Write(AppliesDrench);
+            hasher.Write(HitDelayTicks);
         }
     }
 }

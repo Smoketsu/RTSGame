@@ -491,7 +491,7 @@ namespace Rts.Sim.Tests.Combat
             Assert.That(data.Content.Units["water.grasper"].Weapon!.IsMelee, Is.True);
             Assert.That(data.Content.Units["water.grasper"].Weapon!.CanTarget(MovementLayer.Air), Is.False);
             Assert.That(data.Content.Units["skai.roc_rider"].ArmourType, Is.EqualTo("armoured"));
-            Assert.That(data.Content.Units["skai.fledgling"].Weapon, Is.Null, "workers are unarmed");
+            Assert.That(data.Content.Units["skai.fledgling"].Weapon!.IsMelee, Is.True, "workers carry a weak melee weapon (P-003 row 3)");
             Assert.That(data.Content.Units["skai.fledgling"].SightRangeTiles, Is.EqualTo(Fix64.FromInt(8)));
             // Table lookup through the rules the loader put on the catalog.
             Assert.That(data.Content.Combat.IsNeutral, Is.False);

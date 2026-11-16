@@ -35,6 +35,12 @@ namespace Rts.Sim.Combat
         /// <summary>Extra distance beyond weapon range within which an attack-moving unit chases a target. Unit: tiles (fixed-point). Range: 0 to 20.</summary>
         public Fix64 AcquireRangeBonusTiles { get; }
 
+        /// <summary>Damage multiplier for a ranged hit on higher ground (P-003 row 1). Unit: fraction of damage (fixed-point). Range: 0.1 to 1; 1 means no penalty.</summary>
+        public Fix64 UphillRangedDamageMultiplier { get; }
+
+        /// <summary>Smallest accepted uphill multiplier. Unit: fraction. Range: fixed schema bound, 0.1.</summary>
+        private static readonly Fix64 MinUphillMultiplier = Fix64.Parse("0.1");
+
         /// <summary>Armour type given to units whose data names none. Range: one of the armour type names; empty when <see cref="IsNeutral"/>.</summary>
         public string DefaultArmourType { get; }
 
@@ -53,6 +59,7 @@ namespace Rts.Sim.Combat
             IsNeutral = true;
             AcquireRangeBonusTiles = Fix64.Zero;
             DefaultArmourType = string.Empty;
+            UphillRangedDamageMultiplier = Fix64.One;
         }
 
         /// <summary>
@@ -64,7 +71,22 @@ namespace Rts.Sim.Combat
         /// <param name="defaultArmourType">Armour type for units that name none. Range: a key of the inner tables.</param>
         public CombatRules(IReadOnlyDictionary<string, IReadOnlyDictionary<string, Fix64>> multipliers,
             Fix64 acquireRangeBonusTiles, string defaultArmourType)
+            : this(multipliers, acquireRangeBonusTiles, defaultArmourType, Fix64.One)
         {
+        }
+
+        /// <summary>Builds validated rules including the uphill ranged multiplier. Same checks as the 3-argument constructor.</summary>
+        /// <param name="multipliers">Fraction for each (damage type, armour type) pair. Range: 0 to 3; one entry per pair.</param>
+        /// <param name="acquireRangeBonusTiles">Extra chase distance for attack-moving units. Unit: tiles. Range: 0 to 20.</param>
+        /// <param name="defaultArmourType">Armour type for units that name none. Range: a key of the inner tables.</param>
+        /// <param name="uphillRangedDamageMultiplier">Damage fraction for a ranged hit on higher ground. Unit: fraction. Range: 0.1 to 1.</param>
+        public CombatRules(IReadOnlyDictionary<string, IReadOnlyDictionary<string, Fix64>> multipliers,
+            Fix64 acquireRangeBonusTiles, string defaultArmourType, Fix64 uphillRangedDamageMultiplier)
+        {
+            if (uphillRangedDamageMultiplier < MinUphillMultiplier || uphillRangedDamageMultiplier > Fix64.One)
+            {
+                throw new ArgumentOutOfRangeException(nameof(uphillRangedDamageMultiplier), "The uphill ranged damage multiplier must be 0.1 to 1.");
+            }
             if (multipliers == null)
             {
                 throw new ArgumentNullException(nameof(multipliers));
@@ -108,6 +130,7 @@ namespace Rts.Sim.Combat
             IsNeutral = false;
             AcquireRangeBonusTiles = acquireRangeBonusTiles;
             DefaultArmourType = defaultArmourType;
+            UphillRangedDamageMultiplier = uphillRangedDamageMultiplier;
         }
 
         /// <summary>True when <paramref name="name"/> is a damage type (always true for neutral rules).</summary>
@@ -176,6 +199,7 @@ namespace Rts.Sim.Combat
             hasher.Write(IsNeutral);
             hasher.Write(AcquireRangeBonusTiles);
             hasher.Write(DefaultArmourType);
+            hasher.Write(UphillRangedDamageMultiplier);
             hasher.Write(_table.Count);
             foreach (KeyValuePair<string, SortedDictionary<string, Fix64>> row in _table)
             {

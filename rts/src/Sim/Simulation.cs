@@ -10,7 +10,10 @@
 //   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 //   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
 //   5. movement
-//   6. combat (CombatSystem: cooldowns, targeting, damage, deaths; units in ascending ID order)
+//   6. combat (CombatSystem), in this order: 6a dome regen (units with a shield_dome, ascending ID; also collects the active domes);
+//      6b land due hits (PendingHits.TakeDue, in (land tick, sequence) order; a hit whose target is gone is dropped); 6c the unit loop
+//      (cooldown, target with armed-first acquisition, fire: damage fixed at fire time with the uphill multiplier, dome absorption,
+//      then land at once or queue for hit_delay_ticks; ascending ID order); 6d deaths (sorted by victim, then killer)
 //   7. economy (EconomySystem: worker gather loops, production queues, construction, supply; units in ascending ID order)
 //   8. faction mechanics in ascending mechanic ID order
 //   9. cycles and Core (CycleSystem.Step: holder or capturer that left the match, who stands in the Core, the capture state machine,
@@ -154,6 +157,12 @@ namespace Rts.Sim
         /// <summary>Registry the mechanics are created from.</summary>
         private readonly FactionMechanicRegistry _mechanicRegistry;
 
+        /// <summary>Ranged hits fired but not yet landed (P-003 row 4). Written by CombatSystem only; hashed right after the units.</summary>
+        internal PendingHitQueue PendingHits { get; } = new PendingHitQueue();
+
+        /// <summary>Number of ranged hits in flight. Unit: hits. Range: 0 upward. For hosts and tests.</summary>
+        public int PendingHitCount => PendingHits.Count;
+
         /// <summary>Reused hasher so hashing allocates nothing per tick.</summary>
         private readonly StateHasher _hasher = new StateHasher();
 
@@ -203,6 +212,14 @@ namespace Rts.Sim
             // Every status duration must convert to at least one tick at this match's tick rate; failing here names the
             // tuning key at start instead of throwing from inside a step.
             StatusRates.Validate(Tuning.Status, this);
+            // Every dome's refill rate must stay above 0 per tick, else a down dome could never come back; units in ordinal ID order.
+            foreach (UnitDefinition definition in Content.Units.Values)
+            {
+                if (definition.ShieldDome != null && Clock.PerSecondToPerTick(definition.ShieldDome.RegenPerSecond) <= Fix64.Zero)
+                {
+                    throw new InvalidOperationException("Unit '" + definition.Id + "' has shield_dome.regen_per_second so small that it is 0 per tick at this tick rate.");
+                }
+            }
             // No definition may change once the match is running; the digest below would otherwise go stale.
             Content.Freeze();
             // Content digest covers definitions, the tuning texts, the map and the cycle definitions, so mismatched data shows at tick 0.
@@ -473,6 +490,7 @@ namespace Rts.Sim
 
         /// <summary>
         /// Hashes the whole simulation state in a fixed order: content digest, clock, RNG, ID allocator, players, units,
+        /// pending hits (count, next sequence, entries in landing order),
         /// terrain, vision, resource fields, cycles and Core, mechanics, damage modifier IDs, speed modifier IDs, hand-over policy. Safe to call between steps; the result is never 0.
         /// </summary>
         public ulong ComputeStateHash()
@@ -484,6 +502,7 @@ namespace Rts.Sim
             EntityIds.WriteHash(_hasher);
             Players.WriteHash(_hasher);
             Units.WriteHash(_hasher);
+            PendingHits.WriteHash(_hasher);
             Terrain.WriteHash(_hasher);
             Vision.WriteHash(_hasher);
             Resources.WriteHash(_hasher);

@@ -6,8 +6,22 @@
 // unit definitions and CombatRules (rts/data/tuning/combat.json).
 //
 // Rules in one place:
-//   * Order of work per unit: tick the weapon cooldown down, resolve a target, fire if in range and ready, then
+//   * Order within the step (P-003, rts/docs/specs/p003_rules.md A.3): 6a dome regen (units with a shield_dome, ascending ID; also
+//     lists the active domes), 6b land the hits that fall due this tick (PendingHitQueue, in (land tick, sequence) order), 6c the
+//     unit loop, 6d deaths. Units hit to 0 health in 6b still act in 6c (all units act within the tick) but cannot be targeted.
+//   * Order of work per unit (6c): tick the weapon cooldown down, resolve a target, fire if in range and ready, then
 //     steer an attack-move order.
+//   * Armed first (P-003 row 3): a unit is armed when EffectiveWeapon is not null (workers carry a weak melee weapon; an Uprooted
+//     HQ and a structure under construction count as unarmed). A new pick takes the minimum of (armed first, squared distance,
+//     EntityId). Armed-first applies only to a new pick: a kept target is never swapped for an armed one (units never switch on their own).
+//   * Uphill (P-003 row 1): a ranged hit from a surface unit on a target standing on higher ground (target tile height above the
+//     attacker's tile height, plus 1 when the attacker is on a ramp) is multiplied by UphillRangedDamageMultiplier, after the damage
+//     table and before the damage modifiers. Melee, air attackers and air targets are exempt.
+//   * Hit delay (P-003 row 4): damage is fixed at fire time. With hit_delay_ticks 0 the hit lands at once; otherwise it is queued
+//     (hashed) and lands on its tick wherever the target is, even after the attacker died. A target that is gone by then drops it.
+//   * Dome (P-003 row 6): at fire time a ranged shot at a unit that stands inside an allied (or own) dome, fired from outside it, is
+//     absorbed by the dome pool, lowest dome unit ID first; overflow passes on. Absorbed shots are never queued. Melee and shots
+//     fired from inside the dome pass.
 //   * Reach: a target is in range when centre distance minus both radii is at most the range, i.e. the centre
 //     distance is at most range + attackerRadius + targetRadius (compared squared). The range is the weapon's, changed by
 //     the active Planetary Cycle for surface ranged units (CycleSystem.EffectiveRangeTiles, Windstorm), for both fire and acquire reach.
@@ -25,7 +39,7 @@
 //   * Plain move orders: the unit does NOT stop or chase, but it still fires at an enemy that is within weapon range
 //     while it walks, whenever the cooldown allows. This keeps "retreat" orders meaningful (running units shoot back
 //     at what is already in range, but never turn around).
-//   * Damage = weapon damage x table multiplier x product of the registered IDamageModifier multipliers (ascending
+//   * Damage = weapon damage x table multiplier (x uphill multiplier) x product of the registered IDamageModifier multipliers (ascending
 //     modifier ID). A hit that takes health to 0 does not remove the target at once: all units act within the same
 //     tick (so two units that would kill each other both fire), then the dead are removed in ascending ID order,
 //     each as UnitKilledEvent followed by UnitRemovedEvent("killed"). A unit at 0 health can no longer be targeted.
@@ -59,11 +73,15 @@ namespace Rts.Sim.Combat
             /// <summary>The unit whose hit was lethal.</summary>
             public readonly EntityId Killer;
 
-            /// <summary>Stores the pair.</summary>
-            public PendingKill(EntityId victim, EntityId killer)
+            /// <summary>Owner of the killer at fire time; None for neutral. The killer may be gone when a delayed hit lands.</summary>
+            public readonly PlayerId KillerOwner;
+
+            /// <summary>Stores the triple.</summary>
+            public PendingKill(EntityId victim, EntityId killer, PlayerId killerOwner)
             {
                 Victim = victim;
                 Killer = killer;
+                KillerOwner = killerOwner;
             }
         }
 
@@ -76,11 +94,21 @@ namespace Rts.Sim.Combat
             List<EntityId> ids = sim.Units.IdsSnapshot();
             // Lethal hits of this tick in the order they happened.
             List<PendingKill> kills = new List<PendingKill>();
+            // 6a: IDs of the dome units that can absorb this tick, ascending. Per-tick scratch, not state.
+            List<EntityId> domes = RegenDomes(sim);
+            // 6b: hits falling due this tick, in (land tick, sequence) order.
+            List<PendingHit> due = new List<PendingHit>();
+            sim.PendingHits.TakeDue(sim.Clock.Tick, due);
+            foreach (PendingHit hit in due)
+            {
+                Land(sim, hit, kills);
+            }
+            // 6c: the unit loop.
             foreach (EntityId id in ids)
             {
                 if (sim.Units.TryGet(id, out Unit? unit))
                 {
-                    StepUnit(sim, rules, unit, kills);
+                    StepUnit(sim, rules, unit, kills, domes);
                 }
             }
             // Total order: victim ID, then killer ID. Two lethal hits on one victim in a tick are possible; List.Sort is not stable,
@@ -99,27 +127,74 @@ namespace Rts.Sim.Combat
                 {
                     continue;
                 }
-                // Owner of the killer; None when the killer was removed earlier (cannot happen within one step, kept defensive).
-                PlayerId killerOwner = sim.Units.TryGet(kill.Killer, out Unit? killer) ? killer.Owner : PlayerId.None;
-                sim.Events.Add(new UnitKilledEvent(sim.Clock.Tick, kill.Victim, kill.Killer, victim.Owner, killerOwner));
+                sim.Events.Add(new UnitKilledEvent(sim.Clock.Tick, kill.Victim, kill.Killer, victim.Owner, kill.KillerOwner));
                 sim.RemoveUnit(kill.Victim, "killed");
             }
         }
 
+        /// <summary>
+        /// The weapon the unit can use now: its definition's, or null while it is under construction or an HQ that is not Rooted
+        /// (or when it has none). A unit is armed when this is not null.
+        /// </summary>
+        internal static WeaponDefinition? EffectiveWeapon(Unit u)
+        {
+            WeaponDefinition? weapon = u.Definition.Weapon;
+            if (weapon != null && (u.IsUnderConstruction || (u.Definition.Hq != null && u.HqState != HqState.Rooted)))
+            {
+                return null;
+            }
+            return weapon;
+        }
+
+        /// <summary>
+        /// 6a: refills dome pools and brings back domes that are full again (ShieldDomeUpEvent), units in ascending ID order.
+        /// Returns the IDs of the active domes (alive, up, built, owned), ascending.
+        /// </summary>
+        private static List<EntityId> RegenDomes(Simulation sim)
+        {
+            // Active dome IDs, ascending.
+            List<EntityId> active = new List<EntityId>();
+            // Current tick. Unit: ticks.
+            int tick = sim.Clock.Tick;
+            foreach (Unit unit in sim.Units.All)
+            {
+                // The unit's dome definition, or null for an ordinary unit.
+                ShieldDomeDefinition? dome = unit.Definition.ShieldDome;
+                if (dome == null)
+                {
+                    continue;
+                }
+                // Ticks without absorbing before the refill starts. Unit: ticks. Range: 0 to 1200.
+                int delay = sim.Clock.SecondsToTicks(dome.RegenDelaySeconds);
+                // Refill per tick. Unit: health points per tick. Range: above 0 (checked at Start).
+                Fix64 rate = sim.Clock.PerSecondToPerTick(dome.RegenPerSecond);
+                if (unit.ShieldPool < dome.Pool && (unit.ShieldLastAbsorbTick < 0 || tick - unit.ShieldLastAbsorbTick >= delay))
+                {
+                    unit.SetShield(Fix64.Min(dome.Pool, unit.ShieldPool + rate), unit.ShieldDown, unit.ShieldLastAbsorbTick);
+                }
+                if (unit.ShieldDown && unit.ShieldPool == dome.Pool)
+                {
+                    unit.SetShield(unit.ShieldPool, false, unit.ShieldLastAbsorbTick);
+                    sim.Events.Add(new ShieldDomeUpEvent(tick, unit.Id));
+                }
+                if (unit.Health > Fix64.Zero && !unit.ShieldDown && !unit.IsUnderConstruction && unit.Owner.IsValid)
+                {
+                    active.Add(unit.Id);
+                }
+            }
+            return active;
+        }
+
         /// <summary>Cooldown, targeting, firing and attack-move steering for one unit.</summary>
-        private static void StepUnit(Simulation sim, CombatRules rules, Unit unit, List<PendingKill> kills)
+        private static void StepUnit(Simulation sim, CombatRules rules, Unit unit, List<PendingKill> kills, List<EntityId> domes)
         {
             if (unit.CooldownTicksRemaining > 0)
             {
                 unit.SetCooldownTicks(unit.CooldownTicksRemaining - 1);
             }
             // The unit's weapon; null for workers and other unarmed units.
-            WeaponDefinition? weapon = unit.Definition.Weapon;
-            if (weapon != null && (unit.IsUnderConstruction || (unit.Definition.Hq != null && unit.HqState != HqState.Rooted)))
-            {
-                // An HQ fires only while Rooted, and a structure only once it is built.
-                weapon = null;
-            }
+            // An HQ fires only while Rooted, and a structure only once it is built (EffectiveWeapon).
+            WeaponDefinition? weapon = EffectiveWeapon(unit);
             // True when the unit already had a target at the start of this tick (it may have just died or gone out of reach).
             bool hadTarget = unit.AttackTarget.IsValid;
             // The unit being fought this tick, or null.
@@ -142,7 +217,7 @@ namespace Rts.Sim.Combat
                         }
                         if (unit.CooldownTicksRemaining == 0)
                         {
-                            Fire(sim, rules, unit, weapon, target, kills);
+                            Fire(sim, rules, unit, weapon, target, kills, domes);
                         }
                     }
                     else if (unit.IsAttackMoving)
@@ -234,6 +309,8 @@ namespace Rts.Sim.Combat
             // Best candidate so far and its squared centre distance. Unit: squared tiles. Range: 0 or more.
             Unit? best = null;
             Fix64 bestDistanceSquared = Fix64.Zero;
+            // Rank of the best candidate: 0 armed, 1 unarmed. Range: 0 or 1.
+            int bestRank = 1;
             // Team whose fog of war limits automatic acquisition (TeamId.None for a neutral attacker, which targets nothing anyway).
             TeamId attackerTeam = sim.Players.TeamOf(unit.Owner);
             foreach (Unit candidate in sim.Units.All)
@@ -245,11 +322,14 @@ namespace Rts.Sim.Combat
                 }
                 // Squared centre distance to this candidate. Unit: squared tiles. Range: 0 or more.
                 Fix64 distanceSquared = (candidate.Position - unit.Position).LengthSquared();
-                // Ascending-ID iteration plus a strict comparison gives the lowest ID on ties.
-                if (best == null || distanceSquared < bestDistanceSquared)
+                // Rank of this candidate: 0 armed, 1 unarmed. Range: 0 or 1.
+                int rank = EffectiveWeapon(candidate) != null ? 0 : 1;
+                // Armed first, then nearer; ascending-ID iteration plus strict comparisons give the lowest ID on ties.
+                if (best == null || rank < bestRank || (rank == bestRank && distanceSquared < bestDistanceSquared))
                 {
                     best = candidate;
                     bestDistanceSquared = distanceSquared;
+                    bestRank = rank;
                 }
             }
             if (best != null)
@@ -288,17 +368,107 @@ namespace Rts.Sim.Combat
             return delta.LengthSquared() <= reach * reach;
         }
 
-        /// <summary>Applies one hit: damage, event, cooldown, and a pending kill when health reaches 0.</summary>
-        private static void Fire(Simulation sim, CombatRules rules, Unit attacker, WeaponDefinition weapon, Unit target, List<PendingKill> kills)
+        /// <summary>True when a ranged hit from <paramref name="attacker"/> on <paramref name="target"/> is uphill (A.4.1): neither is airborne and the target's tile is higher than the attacker's eye.</summary>
+        private static bool IsUphill(Simulation sim, Unit attacker, Unit target, WeaponDefinition weapon)
         {
+            if (weapon.IsMelee || attacker.EffectiveLayer == MovementLayer.Air || target.EffectiveLayer == MovementLayer.Air)
+            {
+                return false;
+            }
+            // Tile the attacker stands on; a ramp lifts its eye by one level (the vision rule).
+            Rts.Sim.Terrain.TerrainTile from = sim.Terrain[sim.Terrain.TileOf(attacker.Position)];
+            // Tile the target stands on.
+            Rts.Sim.Terrain.TerrainTile to = sim.Terrain[sim.Terrain.TileOf(target.Position)];
+            return to.Height > from.Height + (from.IsRamp ? 1 : 0);
+        }
+
+        /// <summary>Fires one shot: damage fixed now, shot event, cooldown, dome absorption, then the hit lands at once or is queued.</summary>
+        private static void Fire(Simulation sim, CombatRules rules, Unit attacker, WeaponDefinition weapon, Unit target, List<PendingKill> kills, List<EntityId> domes)
+        {
+            // Current tick. Unit: ticks.
+            int tick = sim.Clock.Tick;
             // Damage after the table multiplier. Unit: health points. Range: 0 or more.
             Fix64 damage = weapon.Damage * rules.GetMultiplier(weapon.DamageType, target.ArmourType);
+            if (IsUphill(sim, attacker, target, weapon))
+            {
+                damage = damage * rules.UphillRangedDamageMultiplier;
+            }
             foreach (IDamageModifier modifier in sim.DamageModifiers)
             {
                 // Mechanic multiplier for this hit; a negative answer counts as 0 so damage never heals.
                 Fix64 factor = Fix64.Max(Fix64.Zero, modifier.OutgoingDamageMultiplier(sim, attacker));
                 damage = damage * factor;
             }
+            // Tick the hit lands. Unit: ticks. Range: the current tick to current tick + 10.
+            int landTick = tick + weapon.HitDelayTicks;
+            sim.Events.Add(new ShotFiredEvent(tick, attacker.Id, target.Id, landTick, weapon.IsMelee));
+            // Ticks until the next shot, at least 1 so a very short cooldown still spaces the hits. Unit: ticks. Range: 1 or more.
+            attacker.SetCooldownTicks(Math.Max(1, sim.Clock.SecondsToTicks(weapon.CooldownSeconds)));
+            if (!weapon.IsMelee && damage > Fix64.Zero && target.Owner.IsValid)
+            {
+                // Damage still to place after the domes. Unit: health points. Range: 0 up to the shot's damage.
+                Fix64 remaining = damage;
+                // True when at least one dome absorbed something.
+                bool absorbedAny = false;
+                foreach (EntityId domeId in domes)
+                {
+                    if (remaining <= Fix64.Zero)
+                    {
+                        break;
+                    }
+                    if (!sim.Units.TryGet(domeId, out Unit? dome) || dome.Health <= Fix64.Zero || dome.ShieldDown || dome.Definition.ShieldDome == null
+                        || !sim.Players.AreAllied(dome.Owner, target.Owner))
+                    {
+                        continue;
+                    }
+                    // Dome radius and its square. Unit: tiles and squared tiles. Range: 0.5 to 16.
+                    Fix64 radius = dome.Definition.ShieldDome.RadiusTiles;
+                    Fix64 radiusSquared = radius * radius;
+                    if ((target.Position - dome.Position).LengthSquared() > radiusSquared || (attacker.Position - dome.Position).LengthSquared() <= radiusSquared)
+                    {
+                        continue;
+                    }
+                    // Damage this dome takes. Unit: health points. Range: 0 to the dome's pool.
+                    Fix64 absorbed = Fix64.Min(remaining, dome.ShieldPool);
+                    if (absorbed <= Fix64.Zero)
+                    {
+                        continue;
+                    }
+                    remaining = remaining - absorbed;
+                    absorbedAny = true;
+                    dome.SetShield(dome.ShieldPool - absorbed, false, tick);
+                    sim.Events.Add(new ShieldDomeHitEvent(tick, dome.Id, attacker.Id, target.Id, absorbed, dome.ShieldPool));
+                    if (dome.ShieldPool == Fix64.Zero)
+                    {
+                        dome.SetShield(Fix64.Zero, true, tick);
+                        sim.Events.Add(new ShieldDomeDownEvent(tick, dome.Id));
+                    }
+                }
+                if (absorbedAny && remaining <= Fix64.Zero)
+                {
+                    return;
+                }
+                damage = remaining;
+            }
+            if (weapon.HitDelayTicks == 0)
+            {
+                Land(sim, new PendingHit(landTick, 0, attacker.Id, attacker.Owner, target.Id, damage, weapon.AppliesDrench), kills);
+            }
+            else
+            {
+                sim.PendingHits.Enqueue(landTick, attacker.Id, attacker.Owner, target.Id, damage, weapon.AppliesDrench);
+            }
+        }
+
+        /// <summary>Lands one hit (A.4.5): dropped when the target is gone or dead; otherwise damage (0 on an invulnerable target), event, drench and a pending kill.</summary>
+        private static void Land(Simulation sim, PendingHit hit, List<PendingKill> kills)
+        {
+            if (!sim.Units.TryGet(hit.Target, out Unit? target) || target.Health <= Fix64.Zero)
+            {
+                return;
+            }
+            // Damage dealt. Unit: health points. Range: 0 or more.
+            Fix64 damage = hit.Damage;
             if (target.IsInvulnerable)
             {
                 // Last Stand: the hit lands but does nothing (reported with damage 0).
@@ -309,17 +479,15 @@ namespace Rts.Sim.Combat
                 target.SetHealth(target.Health - damage);
                 HqSystem.AfterDamage(sim, target);
             }
-            sim.Events.Add(new UnitDamagedEvent(sim.Clock.Tick, attacker.Id, target.Id, damage, target.Health));
-            if (weapon.AppliesDrench)
+            sim.Events.Add(new UnitDamagedEvent(sim.Clock.Tick, hit.Attacker, target.Id, damage, target.Health));
+            if (hit.AppliesDrench)
             {
                 // Spoutling drench: the status system counts the hit, slows the flyer and grounds it at the threshold (statuses.md 4). It ignores targets that are not in the air.
-                StatusSystem.ApplyDrenchHit(sim, attacker, target);
+                StatusSystem.ApplyDrenchHit(sim, hit.Attacker, hit.AttackerOwner, target);
             }
-            // Ticks until the next shot, at least 1 so a very short cooldown still spaces the hits. Unit: ticks. Range: 1 or more.
-            attacker.SetCooldownTicks(Math.Max(1, sim.Clock.SecondsToTicks(weapon.CooldownSeconds)));
             if (target.Health <= Fix64.Zero)
             {
-                kills.Add(new PendingKill(target.Id, attacker.Id));
+                kills.Add(new PendingKill(target.Id, hit.Attacker, hit.AttackerOwner));
             }
         }
     }

@@ -32,7 +32,7 @@ Unity writes a `.meta` file next to every file and folder here when the project 
 3. statuses (`StatusSystem.BeginTick`: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 4. HQ timers (`HqSystem`: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
 5. movement
-6. combat (`CombatSystem`: cooldowns, targeting, damage, deaths; units in ascending ID order)
+6. combat (`CombatSystem`: 6a dome regen, 6b land due hits, 6c cooldowns, armed-first targeting and firing, 6d deaths; units in ascending ID order)
 7. economy (`EconomySystem`: worker gather loops, production queues, construction, supply; units in ascending ID order)
 8. faction mechanics in ascending mechanic ID order
 9. cycles and Core (`CycleSystem.Step`: a holder or capturer that left the match, who stands in the Core, the capture state machine, hold accrual, the cumulative Core win, the lock of the next Planetary Cycle, the shift and quake paths, quake damage). A cycle that shifts on tick S is read by movement and combat from tick S + 1.
@@ -65,7 +65,7 @@ The host loop is: `Submit` commands for tick >= `Clock.Tick`, call `Step()`, rea
 | `Vision/` | Fog of war (`sim.Vision`): per-team visible and explored grids with the high-ground rule, short airborne sight, query API and the combat hook. See `rts/docs/specs/fog_of_war.md`. |
 | `Statuses/` | The shared status system: `UnitStatusSet` (Grounded, slows, drench counter), `StatusSystem` (step 3 and the apply methods), `StatusKind`, `SlowEntry`. See `rts/docs/specs/statuses.md`. |
 | `Units/` | `Unit`, `UnitDefinition`, `WeaponDefinition`, `UnitRegistry`, `MovementLayer`, `MovementSystem`, and the mobile HQ: `HqDefinition`, `HqState`, `HqSystem` (root and uproot countdowns, Last Stand, defeat on HQ death), plus `UnitEconomyDefinition` (build time, worker, drop-off, trains, static defence, footprint, supply provided). A unit file may carry `armour_type`, `sight_range_tiles`, a `weapon` object, an `hq` object and the economy keys; see `rts/data/README.md`. |
-| `Combat/` | `CombatSystem` (targeting, attack-move, cooldowns, damage, death, run after movement each tick), `CombatRules` (damage and armour table from `tuning/combat.json`), `IDamageModifier` (hook for mechanics such as Momentum). |
+| `Combat/` | `CombatSystem` (targeting, attack-move, cooldowns, damage, death, run after movement each tick), `CombatRules` (damage and armour table from `tuning/combat.json`), `IDamageModifier` (hook for mechanics such as Momentum), `PendingHit` and `PendingHitQueue` (hashed ranged hits in flight). |
 | `Economy/` | `EconomySystem` (worker gather loops, production queues, construction, footprints, supply), `EconomyRules` (supply cost, drop-off lookup, spawn tile), `ResourceFields` and `ResourceFieldState` (live field amounts from the map, hashed) and `GatherState`. Per-player stock and supply live on `Teams/Player`. See `Economy/README.md`. |
 | `Factions/` | `IFactionMechanic`, `FactionMechanicRegistry`, `BuiltInMechanics`, and one subfolder per faction (`Skai/`, `Water/`, `Earth/`, `Fire/`). |
 | `Cycles/` | Planetary Cycles and Core capture on the match clock (`sim.Cycles`): `CycleSystem` (schedule, lock and shift, quake paths and damage, the capture state machine, hold accrual, the Core win, state hash), `CycleRules` (pure schedule maths and `CaptureStep`) and the `cycle` speed and damage modifiers. See `Cycles/README.md` and `rts/docs/specs/planetary_cycles.md`. |

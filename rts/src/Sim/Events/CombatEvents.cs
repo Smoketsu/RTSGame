@@ -1,5 +1,5 @@
 // rts/src/Sim/Events/CombatEvents.cs
-// The events the combat system emits: a unit was damaged, a unit was killed. Part of Rts.Sim.Events.
+// The events the combat system emits: a shot was fired, a unit was damaged, a unit was killed, and the dome shield events (hit, down, up). Part of Rts.Sim.Events.
 // Per hit the order is fixed: UnitDamagedEvent when the blow lands; for a lethal blow, UnitKilledEvent and then
 // UnitRemovedEvent("killed") follow at the end of the combat step, in ascending victim ID order.
 using Rts.Sim.Core;
@@ -66,5 +66,109 @@ namespace Rts.Sim.Events
 
         /// <summary>One-line description for logs.</summary>
         public override string Describe() => Killer + " (" + KillerOwner + ") killed " + Victim + " (" + VictimOwner + ").";
+    }
+
+    /// <summary>A weapon fired (every shot, at fire time, before any dome event). The hit lands on <see cref="LandTick"/> unless a dome absorbs it.</summary>
+    public sealed class ShotFiredEvent : SimEvent
+    {
+        /// <summary>The unit that fired.</summary>
+        public EntityId Attacker { get; }
+
+        /// <summary>The unit aimed at.</summary>
+        public EntityId Target { get; }
+
+        /// <summary>Tick the hit lands. Unit: ticks. Range: the firing tick up to firing tick + 10 (equal for a zero-delay weapon).</summary>
+        public int LandTick { get; }
+
+        /// <summary>True for a melee weapon (range 1.5 tiles or less).</summary>
+        public bool IsMelee { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public ShotFiredEvent(int tick, EntityId attacker, EntityId target, int landTick, bool isMelee) : base(tick)
+        {
+            Attacker = attacker;
+            Target = target;
+            LandTick = landTick;
+            IsMelee = isMelee;
+        }
+
+        /// <summary>Machine-readable kind name: "shot_fired".</summary>
+        public override string Kind => "shot_fired";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Attacker + " fired at " + Target + " (lands tick " + LandTick + (IsMelee ? ", melee)." : ").");
+    }
+
+    /// <summary>A dome shield absorbed part or all of a ranged hit.</summary>
+    public sealed class ShieldDomeHitEvent : SimEvent
+    {
+        /// <summary>The unit whose dome absorbed.</summary>
+        public EntityId Dome { get; }
+
+        /// <summary>The unit that fired.</summary>
+        public EntityId Attacker { get; }
+
+        /// <summary>The unit the shot was aimed at.</summary>
+        public EntityId Target { get; }
+
+        /// <summary>Damage absorbed. Unit: health points. Range: above 0.</summary>
+        public Fix64 Absorbed { get; }
+
+        /// <summary>Dome pool left after absorbing. Unit: health points. Range: 0 up to the dome's pool.</summary>
+        public Fix64 PoolLeft { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public ShieldDomeHitEvent(int tick, EntityId dome, EntityId attacker, EntityId target, Fix64 absorbed, Fix64 poolLeft) : base(tick)
+        {
+            Dome = dome;
+            Attacker = attacker;
+            Target = target;
+            Absorbed = absorbed;
+            PoolLeft = poolLeft;
+        }
+
+        /// <summary>Machine-readable kind name: "shield_dome_hit".</summary>
+        public override string Kind => "shield_dome_hit";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Dome + " dome absorbed " + Absorbed + " of " + Attacker + "'s shot at " + Target + " (" + PoolLeft + " left).";
+    }
+
+    /// <summary>A dome shield's pool reached 0 and the dome is down.</summary>
+    public sealed class ShieldDomeDownEvent : SimEvent
+    {
+        /// <summary>The unit whose dome went down.</summary>
+        public EntityId Dome { get; }
+
+        /// <summary>Builds the event from its field.</summary>
+        public ShieldDomeDownEvent(int tick, EntityId dome) : base(tick)
+        {
+            Dome = dome;
+        }
+
+        /// <summary>Machine-readable kind name: "shield_dome_down".</summary>
+        public override string Kind => "shield_dome_down";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Dome + " dome is down.";
+    }
+
+    /// <summary>A dome shield that was down has refilled completely and is up again.</summary>
+    public sealed class ShieldDomeUpEvent : SimEvent
+    {
+        /// <summary>The unit whose dome came back up.</summary>
+        public EntityId Dome { get; }
+
+        /// <summary>Builds the event from its field.</summary>
+        public ShieldDomeUpEvent(int tick, EntityId dome) : base(tick)
+        {
+            Dome = dome;
+        }
+
+        /// <summary>Machine-readable kind name: "shield_dome_up".</summary>
+        public override string Kind => "shield_dome_up";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Dome + " dome is up again.";
     }
 }

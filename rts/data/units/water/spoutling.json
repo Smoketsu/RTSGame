@@ -38,6 +38,8 @@
     "range_tiles": 5,
     // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: placeholder for Phase 1 unit docs.
     "cooldown_seconds": 1.0,
+    // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-003 row 4 (developer, 16 Nov 2026: 2 ticks = 100 ms); placeholder.
+    "hit_delay_ticks": 2,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: Factions / unit concepts; placeholder.
     "can_target": ["air", "ground", "water"],
     // Whether each landed hit counts as a drench hit on an air target: each hit slows the flyer and the third hit within the reset time grounds it (tuning/statuses.json). Unit: boolean (true or false). Range: true or false; false when absent. Source: Factions / Water faction / Unit concepts (Spoutling Drench).

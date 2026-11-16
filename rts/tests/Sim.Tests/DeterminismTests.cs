@@ -82,11 +82,13 @@ namespace Rts.Sim.Tests
         /// step 1, whose tuning/online.json keys (input_delay_ticks, catch_up_max_ticks_per_update) are also in the tuning text.
         /// Re-pinned for the Phase 2 cycles review fixes: tuning/economy.json gained starting_worker_search_radius_tiles (a key and its
         /// comment are in the tuning text, which is in the content digest). No behaviour of this script changed.
+        /// Re-pinned for P-003 package A (rts/docs/specs/p003_rules.md): new combat tuning key, hit_delay_ticks and worker weapons and the Shellback dome in
+        /// the unit texts, and new hashed state (pending hit queue, dome fields). No other behaviour of this script was intended to change.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x6386ad6f613a4354UL;
+        private const ulong GoldenFinalHash = 0x4819b06a8be1a132UL;
 
         [Test]
         public void GoldenHash_IsPinned()

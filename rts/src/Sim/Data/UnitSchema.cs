@@ -76,7 +76,7 @@ namespace Rts.Sim.Data
             {
                 return null;
             }
-            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench");
+            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench", "hit_delay_ticks");
             // Damage per hit. Unit: health points (fixed-point). Range: 0.01 to 100000.
             Fix64 damage = weapon.RequireFix64("damage", "0.01", "100000");
             // Damage type name; must be one of the damage types in tuning/combat.json.
@@ -120,7 +120,29 @@ namespace Rts.Sim.Data
             }
             // Optional switch: every landed hit counts as a drench hit on air targets (Spoutling). Range: true or false; false when absent.
             bool appliesDrench = weapon.TryGetMember("applies_drench", out JsonValue? drenchNode) && drenchNode.AsBool();
-            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench);
+            // Ticks between firing and landing. Unit: ticks. Range: 0 to 10; 0 when absent; must be 0 for a melee weapon.
+            int hitDelay = weapon.TryGetMember("hit_delay_ticks", out JsonValue? delayNode) ? delayNode.AsInt(0, WeaponDefinition.MaxHitDelayTicks) : 0;
+            if (hitDelay > 0 && range <= WeaponDefinition.MeleeMaxRangeTiles)
+            {
+                throw delayNode!.Fail("must be 0 for a melee weapon (range_tiles 1.5 or less)");
+            }
+            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench, hitDelay);
+        }
+
+        /// <summary>Reads the optional shield_dome object (all four keys required inside it). Returns null when absent.</summary>
+        /// <param name="root">The unit file's root object.</param>
+        public static ShieldDomeDefinition? ReadShieldDome(JsonValue root)
+        {
+            if (!root.TryGetMember("shield_dome", out JsonValue? dome))
+            {
+                return null;
+            }
+            dome.RejectUnknownKeys("radius_tiles", "pool", "regen_delay_seconds", "regen_per_second");
+            return new ShieldDomeDefinition(
+                dome.RequireFix64("radius_tiles", "0.5", "16"),
+                dome.RequireFix64("pool", "1", "100000"),
+                dome.RequireFix64("regen_delay_seconds", "0", "60"),
+                dome.RequireFix64("regen_per_second", "0.01", "10000"));
         }
 
         /// <summary>

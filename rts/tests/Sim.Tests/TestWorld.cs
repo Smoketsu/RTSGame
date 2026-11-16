@@ -85,6 +85,30 @@ namespace Rts.Sim.Tests
         }
 
         /// <summary>
+        /// A 64 by 64 map with two terraces and no fields: tile height 0 for x below 32 and 1 for x of 32 or more; tile (31, 20) is a
+        /// ramp. Spawns at (4, 4) and (60, 60). For uphill and separation tests.
+        /// </summary>
+        public static MapDefinition TerracedMap()
+        {
+            // Tile heights, row-major (index = y * 64 + x). Range: 0 or 1.
+            byte[] heights = new byte[FlatMapSize * FlatMapSize];
+            // Ramp flags, row-major. Range: true only at tile (31, 20).
+            bool[] ramps = new bool[FlatMapSize * FlatMapSize];
+            // Tile row being filled. Unit: tiles. Range: 0 to 63.
+            for (int y = 0; y < FlatMapSize; y++)
+            {
+                // Tile column being filled. Unit: tiles. Range: 32 to 63 (the high terrace).
+                for (int x = 32; x < FlatMapSize; x++)
+                {
+                    heights[y * FlatMapSize + x] = 1;
+                }
+            }
+            ramps[20 * FlatMapSize + 31] = true;
+            return new MapDefinition("test_terraced", "Test Terraced", FlatMapSize, FlatMapSize,
+                new List<FixVec2> { FixVec2.FromInts(4, 4), FixVec2.FromInts(60, 60) }, heights, ramps, null, null);
+        }
+
+        /// <summary>
         /// A flat 64 by 64 map with three resource fields, for economy tests: a common field with 12 units at tile (10, 10) (three
         /// trips of 5, 5 and 2), a rare field with 50 at (30, 10) and a large common field with 1500 at (50, 50). Spawns at (4, 4) and (60, 60).
         /// </summary>
