@@ -7,3 +7,5 @@ Not built yet. Phase 1 (Prototype, Skai vs water, Jan-Mar 2027) adds here:
 - Flood redistribution, with tides, applied in a fixed tile order so every peer computes the same result.
 
 Flood limits are data in `rts/data/tuning/flood.json`, not constants in code.
+
+`TileBlockers.BuiltWall` marks a worker-built wall: it blocks ground movement and flood flow, and water already on the tile stays until the tide retreats.

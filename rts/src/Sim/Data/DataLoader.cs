@@ -461,6 +461,11 @@ namespace Rts.Sim.Data
         }
 
         /// <summary>One step of <see cref="CheckRequirementCycles"/>: visits <paramref name="id"/> and everything it requires.</summary>
+        /// <param name="content">The loaded content, whose units' requires lists are followed.</param>
+        /// <param name="unitFiles">Unit ID to its file path, for error messages. Range: every unit ID.</param>
+        /// <param name="id">The unit ID to visit. Range: a key of content.Units.</param>
+        /// <param name="done">Per visited ID: false while on the current path, true once fully explored.</param>
+        /// <param name="path">The IDs from the start node to here. Range: 0 to the number of units.</param>
         private static void VisitRequirement(ContentCatalog content, SortedDictionary<string, string> unitFiles, string id, SortedDictionary<string, bool> done, List<string> path)
         {
             if (done.TryGetValue(id, out bool finished))
@@ -471,13 +476,17 @@ namespace Rts.Sim.Data
                 }
                 // Cycle: the path from the first occurrence of id to the end, rotated to start at its ordinally lowest ID.
                 List<string> cycle = path.GetRange(path.IndexOf(id), path.Count - path.IndexOf(id));
+                // The ordinally lowest ID in the cycle, where the printed cycle starts.
                 string lowest = cycle[0];
                 foreach (string member in cycle)
                 {
                     lowest = string.CompareOrdinal(member, lowest) < 0 ? member : lowest;
                 }
+                // Index of lowest in cycle. Range: 0 to cycle.Count - 1.
                 int at = cycle.IndexOf(lowest);
+                // The cycle starting and ending at lowest (Count + 1 entries).
                 List<string> rotated = new List<string>();
+                // Position in the rotated list. Range: 0 to cycle.Count.
                 for (int i = 0; i <= cycle.Count; i++)
                 {
                     rotated.Add(cycle[(at + i) % cycle.Count]);

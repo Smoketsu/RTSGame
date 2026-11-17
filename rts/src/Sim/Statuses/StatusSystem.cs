@@ -143,9 +143,11 @@ namespace Rts.Sim.Statuses
             StatusRates rates = new StatusRates(sim.Tuning.Status, sim);
             // Units grounded or refreshed. Unit: units. Range: 0 upward.
             int grounded = 0;
+            // False for an ownerless caster, which grounds nobody.
+            bool casterOwned = caster.Owner.IsValid;
             foreach (Unit unit in sim.Units.All)
             {
-                if (unit.Health <= Fix64.Zero || !unit.Owner.IsValid || !caster.Owner.IsValid || !sim.Players.AreEnemies(caster.Owner, unit.Owner)
+                if (unit.Health <= Fix64.Zero || !unit.Owner.IsValid || !casterOwned || !sim.Players.AreEnemies(caster.Owner, unit.Owner)
                     || unit.Definition.Layer != MovementLayer.Air)
                 {
                     continue;
