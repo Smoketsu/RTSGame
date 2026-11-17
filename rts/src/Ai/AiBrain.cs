@@ -93,7 +93,14 @@
 //      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
 // Package C (skirmish_ai_v3.md C.4 and C.7) replaces, while its switch is on: the plan's composition by the counter-mix weights (use_counter_mix:
 // AiCounter.Mix from the enemy model and unit data; read by rules P, X and T) and rule E's clock gate and target order (use_rare_priority:
-// when rare-cost units weigh at least rare_need_weight_share of the mix and no rare field is served, a depot is due at once and rare sites come first).
+// when rare-cost units weigh at least rare_need_weight_share of the mix and no rare field is served, rare sites come first; since package C2 it no
+// longer lifts the clock gate).
+// Package C2 (skirmish_ai_v3.md C2, each part behind a profile key whose off value is package C): use_predictor_mix scores the counter-mix
+// by the fight predictor (AiCounter.PredictorMix) with confidence from sighted units only; rule G (rare_bank_soft_cap > 0): rare fields have
+// cap 0 while the rare bank is at or above the cap, so their workers move to the nearest common field and 4b counts them as 0; rule SD:
+// raid_min_supply (a raid needs strength = supply of visible enemy army units near the drop-off + 1 for a recent hit) and
+// static_defence_max_value_share (step 2 builds only while own defences plus the new one are worth at most that share of the army; step 3
+// is never capped); rule E: use_early_expansion makes the clock gate early_expansion_seconds while no rare field is served.
 // Rule S now also treats a Defend that this think's threat would start as Defend (the scout is not taken on the first think of a Defend), and the
 // unreachable-waypoint skip waits until the move order has taken effect (AiMemory.ScoutOrderEffectiveTick).
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
@@ -550,10 +557,17 @@ namespace Rts.Ai
             /// <summary>Squared reach of a drop-off, field_max_distance_tiles squared. Unit: squared tiles.</summary>
             private Fix64 ReachSquared => _profile.FieldMaxDistanceTiles * _profile.FieldMaxDistanceTiles;
 
-            /// <summary>Workers a field may hold: workers_per_field for common, rare_workers_per_field for rare. Unit: workers.</summary>
+            /// <summary>
+            /// Workers a field may hold: workers_per_field for common, rare_workers_per_field for rare, and 0 for rare while rare_bank_soft_cap
+            /// is on (above 0) and the rare bank is at or above it (C2.3). Unit: workers.
+            /// </summary>
             private int CapOf(AiFieldView field)
             {
-                return field.Kind == ResourceKind.Common ? _profile.WorkersPerField : _profile.RareWorkersPerField;
+                if (field.Kind == ResourceKind.Common)
+                {
+                    return _profile.WorkersPerField;
+                }
+                return _profile.RareBankSoftCap > 0 && _view.Rare >= _profile.RareBankSoftCap ? 0 : _profile.RareWorkersPerField;
             }
 
             /// <summary>The enemy model M(t) per army type (B.3) this think; empty when use_enemy_model is off. Unit: units. Range: above 0 each.</summary>
@@ -1113,9 +1127,15 @@ namespace Rts.Ai
                 AiFieldView? best = null;
                 // Squared distance of the best field. Unit: squared tiles.
                 Fix64 bestSquared = Fix64.Zero;
+                // True when some served field may hold workers at all; the fallback skips cap-0 fields then (C2.3). Unit: boolean.
+                bool anyOpen = false;
                 foreach (AiFieldView field in _served)
                 {
-                    if (underCap && assigned[field.Index] >= CapOf(field))
+                    anyOpen |= CapOf(field) > 0;
+                }
+                foreach (AiFieldView field in _served)
+                {
+                    if ((underCap && assigned[field.Index] >= CapOf(field)) || (!underCap && anyOpen && CapOf(field) == 0))
                     {
                         continue;
                     }
@@ -1416,22 +1436,28 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>
-            /// Rule RS (skirmish_ai_v3.md C.7): true when use_rare_priority is on, the mix weights of units with a rare cost sum to at least
-            /// rare_need_weight_share x mix_resolution, and no served field holds the rare resource.
-            /// </summary>
-            private bool RarePriority()
+            /// <summary>True when some served field holds the rare resource. Unit: boolean.</summary>
+            private bool RareServed()
             {
-                if (!_profile.UseRarePriority)
-                {
-                    return false;
-                }
                 foreach (AiFieldView field in _served)
                 {
                     if (field.Kind == ResourceKind.Rare)
                     {
-                        return false;
+                        return true;
                     }
+                }
+                return false;
+            }
+
+            /// <summary>
+            /// Rule RS (skirmish_ai_v3.md C.7, C2.5: it only reorders rule E's targets now): true when use_rare_priority is on, the mix weights of units with a rare cost sum to at least
+            /// rare_need_weight_share x mix_resolution, and no served field holds the rare resource.
+            /// </summary>
+            private bool RarePriority()
+            {
+                if (!_profile.UseRarePriority || RareServed())
+                {
+                    return false;
                 }
                 // Mix weight of the units that cost rare. Unit: weight units. Range: 0 upward.
                 int rareWeight = 0;
@@ -1557,10 +1583,11 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView dropOff in dropOffs)
                 {
-                    // Sum of the raiders' positions and their number.
+                    // Sum of the raiders' positions and their number, and their supply (the raid strength of C2.4, plus 1 for a hit below).
                     Fix64 sumX = Fix64.Zero;
                     Fix64 sumY = Fix64.Zero;
                     int raiders = 0;
+                    int strength = 0;
                     foreach (AiUnitView enemy in _view.VisibleEnemies)
                     {
                         if (enemy.IsArmy && (enemy.Position - dropOff.Position).LengthSquared() <= radiusSquared)
@@ -1568,11 +1595,11 @@ namespace Rts.Ai
                             sumX += enemy.Position.X;
                             sumY += enemy.Position.Y;
                             raiders++;
+                            strength += _view.SupplyOf(enemy.Definition);
                         }
                     }
                     // Where the activity is, and whether there is any.
                     FixVec2 at = raiders > 0 ? new FixVec2(sumX / raiders, sumY / raiders) : dropOff.Position;
-                    bool active = raiders > 0;
                     // Tick of the newest hit near the drop-off. Unit: ticks.
                     int newest = -1;
                     foreach (DamageReport report in _memory.RecentDamage.Values)
@@ -1584,10 +1611,11 @@ namespace Rts.Ai
                             {
                                 at = report.Position;
                             }
-                            active = true;
                         }
                     }
-                    if (!active)
+                    // A recent hit within the radius adds 1 to the strength (C2.4 step 1); raid_min_supply 1 is package C.
+                    strength += newest >= 0 ? 1 : 0;
+                    if (strength < _profile.RaidMinSupply)
                     {
                         continue;
                     }
@@ -1777,6 +1805,40 @@ namespace Rts.Ai
                 return found;
             }
 
+            /// <summary>
+            /// C2.4 step 2: true when static_defence_max_value_share is 0 (off), or the value of own static defences (complete or under
+            /// construction, anywhere) plus the one step 4 would build is at most that share of the value of the own complete army units
+            /// (the scout included); also true when no defence fits (nothing would be built anyway).
+            /// </summary>
+            private bool WithinValueCap()
+            {
+                if (_profile.StaticDefenceMaxValueShare <= Fix64.Zero)
+                {
+                    return true;
+                }
+                // The defence a raid build would pick.
+                UnitDefinition? next = PickDefence(new List<MovementLayer>());
+                if (next == null)
+                {
+                    return true;
+                }
+                // D (own defences) and A (own army) in resource units. Range: 0 upward.
+                Fix64 defences = Fix64.Zero;
+                Fix64 army = Fix64.Zero;
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && unit.Definition.Economy.IsStaticDefence)
+                    {
+                        defences += AiCounter.Value(unit.Definition, _profile);
+                    }
+                    else if (unit.IsArmy && !unit.IsUnderConstruction)
+                    {
+                        army += AiCounter.Value(unit.Definition, _profile);
+                    }
+                }
+                return defences + AiCounter.Value(next, _profile) <= _profile.StaticDefenceMaxValueShare * army;
+            }
+
             /// <summary>Picks a defence for <paramref name="layers"/> and builds it at the best site around <paramref name="origin"/>.</summary>
             private void BuildDefence(FixVec2 origin, FixVec2 toward, List<MovementLayer> layers)
             {
@@ -1822,6 +1884,11 @@ namespace Rts.Ai
                     }
                     if (raids >= _profile.StaticDefenceAfterRaids && StaticDefencesNear(dropOff.Position) < _profile.StaticDefenceMaxPerBase)
                     {
+                        if (!WithinValueCap())
+                        {
+                            // C2.4 step 2: the defences would outweigh the army; no build this think (step 3 is still tried).
+                            break;
+                        }
                         BuildDefence(dropOff.Position, _memory.RaidPosition[dropOff.Id], new List<MovementLayer>());
                         return;
                     }
@@ -1861,9 +1928,14 @@ namespace Rts.Ai
                 }
                 // True when the served fields are running low (starved counts as empty).
                 bool low = Starved || Fix64.FromInt(servedKnown) < _profile.ExpandWhenServedRemainingFraction * Fix64.FromInt(servedStart);
-                // Rule RS: a needed rare resource brings the depot forward (the clock gate only; every other gate stays).
+                // C2.5: while no rare field is served, the first rare depot is due at early_expansion_seconds (the other gates stay).
+                if (_profile.UseEarlyExpansion && !RareServed())
+                {
+                    dueSeconds = Fix64.Min(dueSeconds, _profile.EarlyExpansionSeconds);
+                }
+                // Rule RS: a needed rare resource puts rare sites first in the target order.
                 bool rarePriority = RarePriority();
-                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low && !rarePriority)
+                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
                 {
                     return;
                 }

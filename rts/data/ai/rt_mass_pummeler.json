@@ -176,6 +176,22 @@
   "unanswered_layer_min_supply": 3,
   // Rule RS: mix weight share of rare-cost units at which rule E ignores its clock gate. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.7; placeholder.
   "rare_need_weight_share": 0.25,
+  // Predictor mix: C2.2 replaces the counter-mix scoring (C.4 steps 1 to 3) by the fight predictor's advantage of each candidate purchase. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C2.2; placeholder.
+  "use_predictor_mix": false,
+  // Predictor mix: common-resource purchase each candidate unit is valued by (and added to the own army before the fight is predicted). Unit: resource units (common). Range: 50 to 100000. Source: skirmish_ai_v3.md C2.2; placeholder.
+  "mix_eval_budget_common": 600,
+  // Predictor mix: rare a candidate may plan beyond the rare bank, so rare units are valued before the first rare arrives. Unit: resource units (rare). Range: 0 to 100000. Source: skirmish_ai_v3.md C2.2; placeholder.
+  "mix_rare_allowance": 100,
+  // Rule G: rare fields take no workers while the rare bank is at or above this; 0 turns the cap off. Unit: resource units (rare). Range: 0 to 100000; 0 = off. Source: skirmish_ai_v3.md C2.3; placeholder.
+  "rare_bank_soft_cap": 0,
+  // Rule SD step 1: raid strength (supply of visible enemy army units near a drop-off, plus 1 for a recent hit there) that counts as a raid; 1 is package C. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C2.4; placeholder.
+  "raid_min_supply": 1,
+  // Rule SD step 2: own static defences (complete or building) may be worth at most this share of the army's value; 0 turns the cap off. Unit: fraction. Range: 0 to 10; 0 = off. Source: skirmish_ai_v3.md C2.4; placeholder.
+  "static_defence_max_value_share": 0,
+  // Rule E: while no rare field is served, the first rare depot is due at early_expansion_seconds instead of the clock of expand_at_seconds. Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md C2.5; placeholder.
+  "use_early_expansion": false,
+  // Rule E: clock gate of the first rare depot while use_early_expansion is on and no rare field is served. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v3.md C2.5; placeholder.
+  "early_expansion_seconds": 0,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

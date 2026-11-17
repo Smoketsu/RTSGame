@@ -2,7 +2,9 @@
 // The counter-mix of skirmish_ai_v3.md C.3 and C.4: the unit pool of a faction computed from data, the Lanchester score of every pool
 // unit (and static defence) against the enemy model, and the integer mix weights that replace the plan's composition when
 // use_counter_mix is on. Part of Rts.Ai. Everything is computed from UnitDefinition and the damage table (FightPredictor helpers); no
-// faction or unit ID is named here. Fix64 and integers only, ordinal ID order everywhere, no random draws, no static state.
+// faction or unit ID is named here. Package C2 (skirmish_ai_v3.md C2.2, use_predictor_mix) adds PredictorMix: the pool units are scored by
+// the fight predictor's advantage of the own army plus a purchase against the enemy model at equal value, and the confidence comes from
+// sighted units only; Mix calls it when the switch is on and Score then only chooses static defences. Fix64 and integers only, ordinal ID order everywhere, no random draws, no static state.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -122,6 +124,10 @@ namespace Rts.Ai
         /// <returns>Weight per unit ID in ordinal order. Unit: weight units. Range: 0 to mix_resolution each.</returns>
         internal static SortedDictionary<string, int> Mix(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory)
         {
+            if (profile.UsePredictorMix)
+            {
+                return PredictorMix(view, profile, plan, memory);
+            }
             // The enemy model, as counts and as entries.
             SortedDictionary<string, Fix64> counts = AiIntel.ModelCounts(view, profile, memory);
             List<FightEntry> enemies = Entries(view, counts);
@@ -157,6 +163,22 @@ namespace Rts.Ai
             Fix64 k = enemies.Count == 0 || keptSum <= Fix64.Zero
                 ? Fix64.Zero
                 : profile.CounterWeight * Fix64.Min(Fix64.One, known / profile.CounterFullConfidenceSupply);
+            return Integers(profile, plan, scores.Keys, k, kept, keptSum);
+        }
+
+        /// <summary>
+        /// The integer mix of C.4 step 4 (also C2.2 step 7): floor(mix_resolution x ((1 - k) x base share + k x kept share)) for every
+        /// pool unit and every base-composition unit.
+        /// </summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="plan">The plan (base composition).</param>
+        /// <param name="poolIds">Pool unit IDs.</param>
+        /// <param name="k">Confidence. Unit: fraction. Range: 0 to counter_weight.</param>
+        /// <param name="kept">Kept weight per unit ID (the others are absent). Unit: score or advantage weight. Range: above 0.</param>
+        /// <param name="keptSum">Sum of the kept weights. Range: 0 upward.</param>
+        private static SortedDictionary<string, int> Integers(AiProfile profile, AiFactionPlan plan, IEnumerable<string> poolIds, Fix64 k,
+            SortedDictionary<string, Fix64> kept, Fix64 keptSum)
+        {
             // Total of the base weights. Unit: weight units. Range: 1 upward.
             int baseTotal = 0;
             foreach (int weight in plan.Composition.Values)
@@ -164,7 +186,7 @@ namespace Rts.Ai
                 baseTotal += weight;
             }
             // Step 4: the integer mix over the pool and the base keys.
-            SortedSet<string> ids = new SortedSet<string>(scores.Keys, StringComparer.Ordinal);
+            SortedSet<string> ids = new SortedSet<string>(poolIds, StringComparer.Ordinal);
             ids.UnionWith(plan.Composition.Keys);
             // (1 - k) x mix_resolution, the share of the base composition. Unit: weight units.
             Fix64 baseShare = (Fix64.One - k) * profile.MixResolution;
@@ -181,6 +203,154 @@ namespace Rts.Ai
                 mix[id] = (value + MixTolerance).FloorToInt();
             }
             return mix;
+        }
+
+        /// <summary>The value of one unit (C2.2 step 1): cost_common + counter_rare_cost_weight x cost_rare. Unit: resource units. Range: 0 upward.</summary>
+        /// <param name="unit">A unit or structure definition.</param>
+        /// <param name="profile">The profile (rare cost weight).</param>
+        internal static Fix64 Value(UnitDefinition unit, AiProfile profile)
+        {
+            return Fix64.FromInt(unit.CostCommon) + profile.CounterRareCostWeight * Fix64.FromInt(unit.CostRare);
+        }
+
+        /// <summary>
+        /// The predictor mix (C2.2): each pool unit is scored by the fight predictor's advantage of the own army plus a purchase of that
+        /// unit against the enemy model scaled to equal value; units within counter_keep_fraction of the best share the counter weight;
+        /// confidence comes from sighted supply only.
+        /// </summary>
+        private static SortedDictionary<string, int> PredictorMix(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory)
+        {
+            // Pool, and the model entries with a value above 0 (a zero-cost definition is skipped, step 2).
+            List<UnitDefinition> pool = Pool(view, plan.FactionId);
+            List<FightEntry> enemies = new List<FightEntry>();
+            // V(E): value of the enemy model. Unit: resource units. Range: above 0 once any entry is kept.
+            Fix64 enemyValue = Fix64.Zero;
+            foreach (FightEntry entry in Entries(view, AiIntel.ModelCounts(view, profile, memory)))
+            {
+                // Value of one unit of this entry. Unit: resource units.
+                Fix64 each = Value(entry.Definition, profile);
+                if (each > Fix64.Zero)
+                {
+                    enemies.Add(entry);
+                    enemyValue += entry.Count * each;
+                }
+            }
+            // The kept advantage weights and their sum (step 5); stay empty when nothing is scored.
+            SortedDictionary<string, Fix64> kept = new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
+            Fix64 keptSum = Fix64.Zero;
+            if (enemies.Count > 0)
+            {
+                // O: own complete army units except the scout, with their real health.
+                List<AiUnitView> own = new List<AiUnitView>();
+                // V(O): value of that army. Unit: resource units.
+                Fix64 ownValue = Fix64.Zero;
+                foreach (AiUnitView unit in view.OwnUnits)
+                {
+                    if (unit.IsArmy && !unit.IsUnderConstruction && unit.Id != memory.ScoutId)
+                    {
+                        own.Add(unit);
+                        ownValue += Value(unit.Definition, profile);
+                    }
+                }
+                List<FightEntry> ownEntries = FightPredictor.Group(own);
+                // Budget B and the equal-value factor f of step 3. Unit: resource units; ratio.
+                Fix64 budget = Fix64.FromInt(profile.MixEvalBudgetCommon);
+                Fix64 factor = (ownValue + budget) / enemyValue;
+                List<FightEntry> scaled = new List<FightEntry>();
+                foreach (FightEntry entry in enemies)
+                {
+                    scaled.Add(new FightEntry(entry.Definition, entry.Count * factor, entry.Health * factor));
+                }
+                PredictorSettings settings = PredictorSettings.From(profile);
+                // Advantage per pool unit (step 4) and the best of them. Unit: ratio.
+                SortedDictionary<string, Fix64> advantages = new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
+                Fix64 top = Fix64.Zero;
+                foreach (UnitDefinition unit in pool)
+                {
+                    // Units of this type the budget buys (common limit, rare limit). Unit: units.
+                    Fix64 buy = Fix64.Zero;
+                    Fix64 rareBuy = Fix64.Zero;
+                    bool limited = false;
+                    if (unit.CostCommon > 0)
+                    {
+                        buy = budget / Fix64.FromInt(unit.CostCommon);
+                        limited = true;
+                    }
+                    if (unit.CostRare > 0)
+                    {
+                        rareBuy = Fix64.FromInt(view.Rare + profile.MixRareAllowance) / Fix64.FromInt(unit.CostRare);
+                        buy = limited ? Fix64.Min(buy, rareBuy) : rareBuy;
+                        limited = true;
+                    }
+                    // Advantage of the own army plus the purchase. 0 when the unit costs nothing or nothing is bought.
+                    Fix64 advantage = Fix64.Zero;
+                    if (limited && buy > Fix64.Zero)
+                    {
+                        advantage = FightPredictor.Predict(WithPurchase(ownEntries, unit, buy), scaled, false, view.Content.Combat, settings).Advantage;
+                    }
+                    advantages[unit.Id] = advantage;
+                    top = Fix64.Max(top, advantage);
+                }
+                // Step 5: kept units and weights.
+                // Advantage a unit must reach to be kept. Unit: ratio.
+                Fix64 floor = profile.CounterKeepFraction * top;
+                foreach (KeyValuePair<string, Fix64> pair in advantages)
+                {
+                    if (top > Fix64.Zero && pair.Value > Fix64.Zero && pair.Value >= floor)
+                    {
+                        kept[pair.Key] = pair.Value - floor;
+                        keptSum += pair.Value - floor;
+                    }
+                }
+                if (kept.Count > 0 && keptSum <= Fix64.Zero)
+                {
+                    // Only possible with counter_keep_fraction 1: every kept unit weighs 1.
+                    foreach (string id in new List<string>(kept.Keys))
+                    {
+                        kept[id] = Fix64.One;
+                    }
+                    keptSum = Fix64.FromInt(kept.Count);
+                }
+            }
+            // Step 6: confidence from sighted supply only. Unit: supply.
+            Fix64 seen = Fix64.Zero;
+            foreach (KeyValuePair<string, Fix64> pair in AiIntel.SeenCounts(view, profile, memory))
+            {
+                if (view.Content.Units.TryGetValue(pair.Key, out UnitDefinition? definition))
+                {
+                    seen += pair.Value * Fix64.FromInt(view.SupplyOf(definition));
+                }
+            }
+            // Confidence. Unit: fraction. Range: 0 to counter_weight.
+            Fix64 k = kept.Count == 0 ? Fix64.Zero : profile.CounterWeight * Fix64.Min(Fix64.One, seen / profile.CounterFullConfidenceSupply);
+            return Integers(profile, plan, pool.ConvertAll(u => u.Id), k, kept, keptSum);
+        }
+
+        /// <summary>The own army entries with <paramref name="count"/> more units of <paramref name="unit"/> at full health (C2.2 step 4), ordinal order kept.</summary>
+        private static List<FightEntry> WithPurchase(List<FightEntry> army, UnitDefinition unit, Fix64 count)
+        {
+            // The new list; the unit's entry is replaced or inserted at its ordinal place.
+            List<FightEntry> result = new List<FightEntry>();
+            bool placed = false;
+            foreach (FightEntry entry in army)
+            {
+                if (!placed && string.CompareOrdinal(entry.Definition.Id, unit.Id) >= 0)
+                {
+                    placed = true;
+                    if (string.Equals(entry.Definition.Id, unit.Id, StringComparison.Ordinal))
+                    {
+                        result.Add(new FightEntry(unit, entry.Count + count, entry.Health + count * unit.MaxHealth));
+                        continue;
+                    }
+                    result.Add(new FightEntry(unit, count, count * unit.MaxHealth));
+                }
+                result.Add(entry);
+            }
+            if (!placed)
+            {
+                result.Add(new FightEntry(unit, count, count * unit.MaxHealth));
+            }
+            return result;
         }
     }
 }
