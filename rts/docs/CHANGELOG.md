@@ -7,6 +7,12 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Skirmish AI v3, package A (measuring tools), spec `docs/specs/skirmish_ai_v3.md`, 17 Nov 2026; no `src/Sim` or `src/Ai` change:
+  - New unit: the Reef Runner (`water.reef_runner`), the water scout, trained at the Tidepool. It cannot hit air.
+  - Balance harness: `--ladder` (profile A against B, both seats, pass bar from `scripts/ai_eval/ai_eval.json`) and `--response` (ten scripted-opponent scenarios, five responder profiles `ai/rt_*.json`). `GameRecord` and batch result lines carry `profile_slot0` and `profile_slot1`.
+  - Baseline in `docs/reports/ai_v3_2026-11-17/`: `aggressive` against itself wins 135 of 288 (46.9 percent, as expected for a mirror); the v2 AI passes 0 of 10 response scenarios. These are the numbers packages B to D must beat.
+  - Shipped data changed, so hashes changed: headless smoke is `9ece0ce1b0338423`, economy_smoke `38db6dd44d0ec48b`, pinned v2 reference `ai_vs_ai` `9422f0628a36cfca`. Older replays no longer re-simulate. Unity parity must be re-checked on the PC.
+
 - `data/maps/prototype_1v1.json`: a rare node (600) at every spot except the starting bases, asked for by the developer on 16 Nov 2026: beside each natural (30, 13), flank shelf (18, 66) and low basin (40, 18), each with its 180-degree image; 22 fields in all, appended after the earlier ones so indices are unchanged. The AI's expected natural depot tiles move to (27, 13) and (68, 82), still exact mirrors.
 
 - Skirmish AI v2, packages A and B (spec `docs/specs/skirmish_ai_v2.md`), AI code reviewed by the sim-reviewer; no `src/Sim` change:
