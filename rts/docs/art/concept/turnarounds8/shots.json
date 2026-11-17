@@ -1,0 +1,22 @@
+// rts/docs/art/concept/turnarounds8/shots.json: shot list for the eighth set of model sheets, the water faction scout (seahorse on a wheel) after the developer pick of 17 Nov 2026, read by rts/tools/ConceptArt/generate.py. Fields per shot: id = output file name without extension (text); size = image size WxH in pixels (1536x1024); quality = API quality enum (high); references = repository-relative paths of reference images (list); prompt = shot text appended to the style text. style = shared text prepended to every prompt.
+{
+  // Shared style text prepended to every prompt. Unit: text.
+  "style": "Orthographic character model sheet for a 3D modeller, science fiction strategy game unit rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single unit in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view facing away. The unit stands still in a neutral symmetric pose. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  "shots": [
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "water_scout_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint: the design to keep, then the sheet style and palette. Unit: repository-relative paths.
+      "references": [
+        "rts/docs/art/concept/round23/water_scout_seahorse.jpg",
+        "rts/docs/art/concept/turnarounds5/water_worker_sheet.jpg"
+      ],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The first reference image is the approved concept of the Tide water faction's scout, a seahorse (the design to keep). The second reference image is the existing Water Worker model sheet, for the sheet layout, style and palette only (do not copy the octopus). Draw the same single seahorse, same design, colours and proportions (sea-green faceted body, rose-coral armour bands, rose-coral fan crest of tall blades, turquoise lights, a needle launcher in the snout, a small rose-coral back fin, the small dark backpack with a turquoise light), apart from ONE change: the hover pad is gone. CHANGE: the curled tail instead wraps around the hub of a single chunky wheel that the seahorse rides like a unicycle. The wheel is clearly a wheel in every view: a thick tyre with chunky tread blocks in dark sea-green, a rose-coral rim and a turquoise hub light, standing upright on the ground directly under the body, about as wide (thick) as the seahorse's chest. In the FRONT and BACK views the wheel is seen edge-on as a narrow upright tyre with visible tread blocks, centred directly under the body. In the SIDE view (facing left) the wheel is a full circle with the rim, spokes or hub and the turquoise hub light visible, and the tail is coiled once around the axle at the hub. The seahorse stands upright and balanced over the wheel in a neutral pose, symmetric left and right in the front and back views. Exactly one wheel in each view: no hover pad, no skid, no base plate, no second wheel. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze around the unit. No red anywhere, no text."
+    }
+  ]
+}
