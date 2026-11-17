@@ -104,7 +104,7 @@
   "use_scouting": false,
   // Enemy model on: the AI remembers which enemy army unit types it has seen (with decay) and which it implies from enemy structures. Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md B.1; placeholder.
   "use_enemy_model": false,
-  // Counter-mix on (reserved for package C: the switch is parsed and its dependency on use_enemy_model is validated, nothing reads it yet). Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md B.1; placeholder.
+  // Counter-mix on: the plan composition is replaced by counter-mix weights computed from the enemy model and the unit data. Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md C.4; placeholder.
   "use_counter_mix": false,
   // First scout is wanted from this time. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
   "scout_first_seconds": 40,
@@ -128,6 +128,54 @@
   "enemy_model_floor_fraction": 0.25,
   // Count implied for each unit type a known enemy structure trains. Unit: units. Range: 0 to 20. Source: skirmish_ai_v3.md B.1; placeholder.
   "enemy_model_implied_count": 1,
+  // Rule T on: the AI builds the producer of the best counter unit when none of its structures trains it. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C.5; placeholder.
+  "use_tech_on_demand": false,
+  // Rule SD on: the AI builds static defences at raided bases and against a layer nothing answers. Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md C.6; placeholder.
+  "use_static_defence": false,
+  // Rule RS on: rare-cost units in the mix bring the first rare depot forward. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C.7; placeholder.
+  "use_rare_priority": false,
+  // Fight predictor: longest time a side needs (also "never"). Unit: seconds. Range: 10 to 36000. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_max_seconds": 600,
+  // Fight predictor: shortest time a side needs. Unit: seconds. Range: 0.01 to 10. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_min_seconds": 0.05,
+  // Fight predictor: share of the range head start subtracted from a time. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_range_weight": 1,
+  // Fight predictor: longest range head start. Unit: seconds. Range: 0 to 60. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_range_headstart_max_seconds": 5,
+  // Fight predictor: share of shield domes counted as extra health against ranged damage. Unit: fraction. Range: 0 to 2. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_dome_weight": 1,
+  // Fight predictor: cap of the advantage ratio. Unit: ratio. Range: 1 to 10000. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_max_advantage": 100,
+  // Counter-mix: weight of the counter share against the base composition at full confidence. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_weight": 0.7,
+  // Counter-mix: known enemy army supply at which the confidence is full. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_full_confidence_supply": 8,
+  // Counter-mix: a unit is kept when its score is at least this share of the best score. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_keep_fraction": 0.5,
+  // Counter-mix: weight of a unit's rare cost in its score cost. Unit: ratio. Range: 0 to 20. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_rare_cost_weight": 2,
+  // Counter-mix: floor of the damage an enemy is assumed to deal to a unit. Unit: health points per second. Range: 0.01 to 1000. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_min_incoming_dps": 1,
+  // Counter-mix: the mix weights are integers out of this many. Unit: weight units. Range: 10 to 100000. Source: skirmish_ai_v3.md C.4; placeholder.
+  "mix_resolution": 1000,
+  // Rule T: builds a producer when the best missing unit's mix weight is at least this share of mix_resolution. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.5; placeholder.
+  "tech_min_weight_share": 0.15,
+  // Rule SD: raid starts within this long count. Unit: seconds. Range: 10 to 1800. Source: skirmish_ai_v3.md C.6; placeholder.
+  "raided_window_seconds": 120,
+  // Rule SD: quiet time at a drop-off after which new activity is a new raid. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md C.6; placeholder.
+  "raided_gap_seconds": 20,
+  // Rule SD: raids in the window that call for a static defence. Unit: raids. Range: 1 to 20. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_after_raids": 2,
+  // Rule SD: most own static defences near one base. Unit: structures. Range: 0 to 6, and not above supply.json static_defences_per_base_max. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_max_per_base": 2,
+  // Rule SD: innermost Chebyshev ring around the drop-off searched for a site. Unit: tiles. Range: 1 to 10. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_ring_min_tiles": 2,
+  // Rule SD: outermost Chebyshev ring searched for a site. Unit: tiles. Range: static_defence_ring_min_tiles to 12. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_ring_max_tiles": 4,
+  // Rule SD: model supply of a layer that nothing answers before a defence is built at the HQ. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C.6; placeholder.
+  "unanswered_layer_min_supply": 3,
+  // Rule RS: mix weight share of rare-cost units at which rule E ignores its clock gate. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.7; placeholder.
+  "rare_need_weight_share": 0.25,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

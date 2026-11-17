@@ -30,6 +30,11 @@
 //     scout_retry_seconds, scout_max_losses, scout_route_max_waypoints, scout_merge_tiles and scout_air_max_cost, the enemy model keys
 //     enemy_model_hold_seconds, enemy_model_decay_seconds, enemy_model_floor_fraction and enemy_model_implied_count, and the per-faction
 //     optional scout_unit.
+//   * skirmish_ai_v3.md package C (build the right army): the switches use_tech_on_demand, use_static_defence and use_rare_priority (each
+//     needs use_enemy_model; the first and the last also need use_counter_mix), the predictor_* keys (fight predictor), the counter_* keys
+//     and mix_resolution (counter-mix), tech_min_weight_share, raided_window_seconds, raided_gap_seconds, static_defence_after_raids,
+//     static_defence_max_per_base, static_defence_ring_min_tiles, static_defence_ring_max_tiles, unanswered_layer_min_supply and
+//     rare_need_weight_share.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -294,7 +299,7 @@ namespace Rts.Ai
         /// <summary>The enemy model is updated and read. Unit: boolean. Range: true or false.</summary>
         public bool UseEnemyModel { get; }
 
-        /// <summary>Counter-mix switch (read from package C on). Unit: boolean. Range: true or false; true needs <see cref="UseEnemyModel"/>.</summary>
+        /// <summary>Counter-mix switch (skirmish_ai_v3.md C.4): the plan composition is replaced by counter-mix weights. Unit: boolean. Range: true or false; true needs <see cref="UseEnemyModel"/>.</summary>
         public bool UseCounterMix { get; }
 
         /// <summary>First scout is wanted from this time. Unit: seconds. Range: 0 to 600.</summary>
@@ -329,6 +334,78 @@ namespace Rts.Ai
 
         /// <summary>Count implied for each unit type a known enemy structure trains. Unit: units. Range: 0 to 20.</summary>
         public int EnemyModelImpliedCount { get; }
+
+        /// <summary>Rule T (tech on demand) is on. Unit: boolean. Range: true or false; true needs <see cref="UseCounterMix"/>.</summary>
+        public bool UseTechOnDemand { get; }
+
+        /// <summary>Rule SD (static defence) is on. Unit: boolean. Range: true or false; true needs <see cref="UseEnemyModel"/>.</summary>
+        public bool UseStaticDefence { get; }
+
+        /// <summary>Rule RS (rare priority) is on. Unit: boolean. Range: true or false; true needs <see cref="UseCounterMix"/>.</summary>
+        public bool UseRarePriority { get; }
+
+        /// <summary>Longest time a side needs in the fight predictor (also "never"). Unit: seconds. Range: 10 to 36000.</summary>
+        public Fix64 PredictorMaxSeconds { get; }
+
+        /// <summary>Shortest time a side needs in the fight predictor. Unit: seconds. Range: 0.01 to 10.</summary>
+        public Fix64 PredictorMinSeconds { get; }
+
+        /// <summary>Share of the range head start subtracted from a predicted time. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 PredictorRangeWeight { get; }
+
+        /// <summary>Longest range head start. Unit: seconds. Range: 0 to 60.</summary>
+        public Fix64 PredictorRangeHeadstartMaxSeconds { get; }
+
+        /// <summary>Share of shield domes counted as extra health against ranged damage. Unit: fraction. Range: 0 to 2.</summary>
+        public Fix64 PredictorDomeWeight { get; }
+
+        /// <summary>Cap of the predicted advantage ratio. Unit: ratio. Range: 1 to 10000.</summary>
+        public Fix64 PredictorMaxAdvantage { get; }
+
+        /// <summary>Weight of the counter share against the base composition at full confidence. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 CounterWeight { get; }
+
+        /// <summary>Known enemy army supply at which the counter-mix has full confidence. Unit: supply. Range: 1 to 200.</summary>
+        public Fix64 CounterFullConfidenceSupply { get; }
+
+        /// <summary>A unit is kept in the counter share when its score is at least this share of the best score. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 CounterKeepFraction { get; }
+
+        /// <summary>Weight of a unit's rare cost in its counter-score cost. Unit: ratio. Range: 0 to 20.</summary>
+        public Fix64 CounterRareCostWeight { get; }
+
+        /// <summary>Floor of the damage an enemy is assumed to deal to a unit in the counter-score. Unit: health points per second. Range: 0.01 to 1000.</summary>
+        public Fix64 CounterMinIncomingDps { get; }
+
+        /// <summary>The mix weights are integers out of this many. Unit: weight units. Range: 10 to 100000.</summary>
+        public int MixResolution { get; }
+
+        /// <summary>Rule T builds a producer when the best missing unit's mix weight is at least this share of the resolution. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 TechMinWeightShare { get; }
+
+        /// <summary>Raid starts within this long count towards static defence. Unit: seconds. Range: 10 to 1800.</summary>
+        public Fix64 RaidedWindowSeconds { get; }
+
+        /// <summary>Quiet time at a drop-off after which new activity there is a new raid. Unit: seconds. Range: 0 to 600.</summary>
+        public Fix64 RaidedGapSeconds { get; }
+
+        /// <summary>Raids in the window that call for a static defence. Unit: raids. Range: 1 to 20.</summary>
+        public int StaticDefenceAfterRaids { get; }
+
+        /// <summary>Most own static defences near one base for rule SD. Unit: structures. Range: 0 to 6 (not above supply.json static_defences_per_base_max, checked by a test).</summary>
+        public int StaticDefenceMaxPerBase { get; }
+
+        /// <summary>Innermost Chebyshev ring around a drop-off searched for a static defence site. Unit: tiles. Range: 1 to 10.</summary>
+        public int StaticDefenceRingMinTiles { get; }
+
+        /// <summary>Outermost Chebyshev ring searched for a static defence site. Unit: tiles. Range: ring min to 12.</summary>
+        public int StaticDefenceRingMaxTiles { get; }
+
+        /// <summary>Model supply of a layer that nothing answers before rule SD builds a defence at the HQ. Unit: supply. Range: 1 to 200.</summary>
+        public int UnansweredLayerMinSupply { get; }
+
+        /// <summary>Mix weight share of rare-cost units at which rule RS drops rule E's clock gate. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 RareNeedWeightShare { get; }
 
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
@@ -405,6 +482,42 @@ namespace Rts.Ai
             EnemyModelDecaySeconds = root.RequireFix64("enemy_model_decay_seconds", "1", "3600");
             EnemyModelFloorFraction = root.RequireFix64("enemy_model_floor_fraction", "0", "1");
             EnemyModelImpliedCount = root.RequireInt("enemy_model_implied_count", 0, 20);
+            UseTechOnDemand = root.RequireBool("use_tech_on_demand");
+            UseStaticDefence = root.RequireBool("use_static_defence");
+            UseRarePriority = root.RequireBool("use_rare_priority");
+            if (UseTechOnDemand && !UseCounterMix)
+            {
+                throw root.Require("use_tech_on_demand").Fail("requires use_counter_mix to be true as well");
+            }
+            if (UseRarePriority && !UseCounterMix)
+            {
+                throw root.Require("use_rare_priority").Fail("requires use_counter_mix to be true as well");
+            }
+            if (UseStaticDefence && !UseEnemyModel)
+            {
+                throw root.Require("use_static_defence").Fail("requires use_enemy_model to be true as well");
+            }
+            PredictorMaxSeconds = root.RequireFix64("predictor_max_seconds", "10", "36000");
+            PredictorMinSeconds = root.RequireFix64("predictor_min_seconds", "0.01", "10");
+            PredictorRangeWeight = root.RequireFix64("predictor_range_weight", "0", "1");
+            PredictorRangeHeadstartMaxSeconds = root.RequireFix64("predictor_range_headstart_max_seconds", "0", "60");
+            PredictorDomeWeight = root.RequireFix64("predictor_dome_weight", "0", "2");
+            PredictorMaxAdvantage = root.RequireFix64("predictor_max_advantage", "1", "10000");
+            CounterWeight = root.RequireFix64("counter_weight", "0", "1");
+            CounterFullConfidenceSupply = root.RequireFix64("counter_full_confidence_supply", "1", "200");
+            CounterKeepFraction = root.RequireFix64("counter_keep_fraction", "0", "1");
+            CounterRareCostWeight = root.RequireFix64("counter_rare_cost_weight", "0", "20");
+            CounterMinIncomingDps = root.RequireFix64("counter_min_incoming_dps", "0.01", "1000");
+            MixResolution = root.RequireInt("mix_resolution", 10, 100000);
+            TechMinWeightShare = root.RequireFix64("tech_min_weight_share", "0", "1");
+            RaidedWindowSeconds = root.RequireFix64("raided_window_seconds", "10", "1800");
+            RaidedGapSeconds = root.RequireFix64("raided_gap_seconds", "0", "600");
+            StaticDefenceAfterRaids = root.RequireInt("static_defence_after_raids", 1, 20);
+            StaticDefenceMaxPerBase = root.RequireInt("static_defence_max_per_base", 0, 6);
+            StaticDefenceRingMinTiles = root.RequireInt("static_defence_ring_min_tiles", 1, 10);
+            StaticDefenceRingMaxTiles = root.RequireInt("static_defence_ring_max_tiles", StaticDefenceRingMinTiles, 12);
+            UnansweredLayerMinSupply = root.RequireInt("unanswered_layer_min_supply", 1, 200);
+            RareNeedWeightShare = root.RequireFix64("rare_need_weight_share", "0", "1");
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -477,7 +590,12 @@ namespace Rts.Ai
                 "relocate_timeout_seconds", "relocate_cooldown_seconds", "use_scouting", "use_enemy_model", "use_counter_mix",
                 "scout_first_seconds", "scout_interval_seconds", "scout_retry_seconds", "scout_max_losses", "scout_route_max_waypoints",
                 "scout_merge_tiles", "scout_air_max_cost", "enemy_model_hold_seconds", "enemy_model_decay_seconds",
-                "enemy_model_floor_fraction", "enemy_model_implied_count", "factions");
+                "enemy_model_floor_fraction", "enemy_model_implied_count", "use_tech_on_demand", "use_static_defence", "use_rare_priority",
+                "predictor_max_seconds", "predictor_min_seconds", "predictor_range_weight", "predictor_range_headstart_max_seconds",
+                "predictor_dome_weight", "predictor_max_advantage", "counter_weight", "counter_full_confidence_supply", "counter_keep_fraction",
+                "counter_rare_cost_weight", "counter_min_incoming_dps", "mix_resolution", "tech_min_weight_share", "raided_window_seconds",
+                "raided_gap_seconds", "static_defence_after_raids", "static_defence_max_per_base", "static_defence_ring_min_tiles",
+                "static_defence_ring_max_tiles", "unanswered_layer_min_supply", "rare_need_weight_share", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
