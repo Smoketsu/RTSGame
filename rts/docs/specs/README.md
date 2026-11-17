@@ -38,6 +38,12 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | --- | --- | --- | --- |
 | [skirmish_ai_v2.md](skirmish_ai_v2.md) | A: Perch and Pearl Depots, doubled common fields, expansion fields on all three maps, greybox 180-degree fix. B: AI expansion by depot and by HQ relocation, anti-freeze rules. C: production mix fix (failing test first), home rally, attack groups, Defend hysteresis, finishing low HQs. D: `--ai-check` exit criteria on the 18 review scenarios | after the AI trace review | skirmish AI, economy, HQ (built); build A, B, C, D in order |
 
+## Skirmish AI v3 (P-004 stages 1 to 3, 17 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [skirmish_ai_v3.md](skirmish_ai_v3.md) | A: harness `--ladder` (profile A vs B, both seats, 65 percent of at least 200 decided games) and `--response` scenarios, Reef Runner water scout. B: scouting and the enemy model. C: fight predictor, counter-mix from unit data, tech on demand, static defence, rare priority. D: predictor-driven attacks and retreats, target choice and worker harass, measured defence, unit control. Versions coexist by profile switches (`aggressive_s1` to `_s3`); no `rts/src/Sim` change | P-004 | skirmish AI v2 packages A to C (built); build A, B, C, D in order |
+
 ## Shared decisions (resolved across specs)
 
 **Step order** (the `Simulation.cs` header is authoritative; Phase 2 adds step 9, the coordinator makes the edit): 1. clear events; 2. apply commands in (issuer, sequence) order; 3. statuses (`StatusSystem.BeginTick`); 4. HQ timers (`HqSystem.Step`); 5. movement, then separation (`UnitSeparation`); 6. combat; 7. economy; 8. faction mechanics in ascending ordinal ID (`flooding` before `momentum`); 9. **cycles and Core** (`CycleSystem.Step`: out-of-match sides, presence, capture, hold accrual, Core win, lock, shift and quake paths, quake damage); 10. vision recompute; 11. state hash every interval; 12. advance the clock. A status applied by combat on tick t wipes Momentum on tick t and changes movement from tick t+1; a cycle that starts on tick S changes movement and combat from tick S+1; the hash and the AI read end-of-tick vision and Core state.

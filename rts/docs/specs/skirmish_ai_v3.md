@@ -79,7 +79,7 @@ Four 2-spawn maps x 3 matchups x 24 = 288 games, so 200 decided games are reacha
 
 ### A.3 Reef Runner (new unit) `rts/data/units/water/reef_runner.json`
 
-ID `water.reef_runner`, display name `"Reef Runner"` (placeholder; creature and name come from concept art). Role: the water counterpart of the Windrunner (cheap, fast, light, weak scout). Copy the structure and comment style of `skai/windrunner.json`; every tuning comment ends `Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.`; `$doc` and the line-1 header say it is the water scout.
+ID `water.reef_runner`, display name `"Reef Runner"` (named by the developer 17 Nov 2026; the creature is a seahorse riding a single wheel, concept sheet `rts/docs/art/concept/turnarounds8/water_scout_sheet.jpg`). Role: the water counterpart of the Windrunner (cheap, fast, light, weak scout), armed with a needle launcher in its snout: a light ranged needle shot. Copy the structure and comment style of `skai/windrunner.json`; the `display_name` comment cites the developer's naming (17 Nov 2026); every tuning comment ends `Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.`; `$doc`, the line-1 header and the weapon comment say it is the water scout, a seahorse on a single wheel firing light needle shots from its snout.
 
 | Key | `skai.windrunner` | `water.reef_runner` | Note |
 | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ Harness: `ResponseRunner` (new) runs one scenario through the single-run path (e
 
 prints `RESPONSE <script> <check> PASS|FAIL <metric>=<value> ...` per scenario and a final `RESPONSE_SUMMARY passed=<n> of=<m>`; exit 0 all passed, 1 error, 2 any failed. NUnit tests call the same `ResponseRunner`.
 
-### A.5 Package A tests (`rts/tests/Sim.Tests/Harness/LadderTests.cs`, `ResponseTests.cs`; `Data/Reef RunnerTests.cs`)
+### A.5 Package A tests (`rts/tests/Sim.Tests/Harness/LadderTests.cs`, `ResponseTests.cs`; `Data/ReefRunnerTests.cs`)
 
 - **A-1 Seat rule.** g = 0, 1, 2, 3: slot 0 plays A, A, B, B; with `skai_vs_water`, slot 0 faction skai, water, skai, water.
 - **A-2 Same profile twice.** `GameRunner.Play` with (aggressive, aggressive) twice: identical `GameRecord` lines; the line holds both profile fields.
@@ -225,7 +225,7 @@ Derived (read by C and D; pure functions of memory, view and profile):
 ### B.4 Package B tests (`rts/tests/Sim.Tests/Ai/AiIntelTests.cs`, hand-built views as in the existing AI tests)
 
 - **B-1 Scout timing and unit.** Skai view at 39 s: no scout order; at 40 s with an idle Roost: `TrainUnit(roost, skai.windrunner)`. Water: `TrainUnit(tidepool, water.reef_runner)`. No think ever orders a worker as scout (assert over 200 thinks of B-10).
-- **B-2 Route.** greybox_1v1, P0 HQ at (7, 7): waypoint 0 is spawn 1 (56, 56); then field centres by distance from it with `scout_merge_tiles` 8: first (59.5, 53.5) replaced by the merged pair rule, so the expected list is (56, 56), (42.5, 53.5), (51.5, 14.5), (12.5, 49.5), (21.5, 10.5) wait-free order computed by the rule; the builder computes the list once by hand from the field table, writes it into the test with a comment, and checks it has no field within 8 tiles of an earlier waypoint and no field within 10 tiles of (8, 8).
+- **B-2 Route.** greybox_1v1, P0 HQ at (7, 7): waypoint 0 is spawn 1 (56, 56); fields 0 and 1 are excluded (within 10 tiles of the own spawn); the rest sorted by distance from (56, 56) with `scout_merge_tiles` 8 give exactly (56, 56), (42.5, 53.5) [field 8], (51.5, 14.5) [11], (12.5, 49.5) [10], (21.5, 10.5) [6]. Merged away: fields 2 and 3 (into the spawn), 9 (into 8), 5 (into 11), 4 (into 10), 7 (into 6).
 - **B-3 Steer.** Waypoint tile visible: next think the scout gets `MoveUnit` to waypoint 1; not visible and moving: no order.
 - **B-4 Death.** Scout missing: `ScoutLosses` 1, nothing trained until 30 s later. After 3 losses: never trained again; an idle own Roc Rider (cost 200) is borrowed instead.
 - **B-5 Borrowed flyer released.** Borrowed scout finishes its route: `ScoutId` None and the unit receives a Massing rally order next think.
@@ -425,7 +425,7 @@ Existing tests and hashes affected:
 ## Out of scope
 
 - Stages 4 to 6 of P-004 (openings, difficulty levels, faction mechanics such as flooding, momentum, the Core and cycles, self-play tuning).
-- Combat, unit and map tuning; the Reef Runner's final name and model (PC session: placeholder model per ID).
+- Combat, unit and map tuning; the Reef Runner's 3D model (PC session: placeholder model per ID until the art pipeline delivers one).
 - Drench grounding, splash, dome placement and regeneration in the predictor; path-aware danger avoidance for scouts; switching `harness_batch.json` `ai_profile` (Q5).
 - Any `rts/src/Sim` change.
 

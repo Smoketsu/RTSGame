@@ -46,6 +46,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Spec `docs/specs/skirmish_ai_v3.md` (stages 1 to 3 of P-004) in four packages: A harness `--ladder` and `--response` modes, `scripts/ai_eval/ai_eval.json`, responder profiles and the Reef Runner (`water.reef_runner`, placeholder numbers mirroring the Windrunner's); B scouting and the enemy model; C fight predictor, counter-mix computed from unit data, tech on demand, static defence; D attacks and retreats by the predictor, target choice, measured defence, unit control. Old and new behaviour coexist by profile switches; no `src/Sim` change.
+
 - The water scout is named the Reef Runner (developer, 17 Nov 2026); its data ID will be `water.reef_runner`. Model `docs/art/models/batch1/water_reef_runner.glb` generated from the turnarounds8 sheet, awaiting the developer's mark (1,680 Tripo credits left).
 
 - `docs/art/concept/turnarounds8/`: model sheet for the water scout. The developer picked the seahorse from round 23 on 17 Nov 2026 and asked for a wheel in place of the hover pad: its tail coils around the axle of a single wheel. Awaiting the developer's mark before 3D generation.
