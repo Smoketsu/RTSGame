@@ -242,6 +242,45 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(PlayerOf(rejected.Sim, P0).Common, Is.EqualTo(100));
         }
 
+        /// <summary>WC-5 (armed worker): an attack order from an armed worker (shipped workers are armed since P-003) cancels the build with new_order and a full refund.</summary>
+        [Test]
+        public void Wc05b_AttackOrderFromAnArmedWorker_CancelsTheBuild()
+        {
+            DataSet data = TestData.LoadAll();
+            Simulation sim = new Simulation(new SimulationConfig(data.CreateMatchSettings(1234), data.Content,
+                new List<PlayerSetup> { new PlayerSetup(P0, new TeamId(0), "skai", "Skai"), new PlayerSetup(P1, new TeamId(1), "water", "Water") },
+                BuiltInMechanics.CreateRegistry(), data.Tuning, data.RequireMap("greybox_1v1")));
+            sim.Start();
+            EntityId worker = Spawn(sim, "skai.fledgling", P0, 20, 9);
+            EntityId enemy = Spawn(sim, "water.tender", P1, 24, 9);
+            Assert.That(Get(sim, worker).Definition.Weapon, Is.Not.Null, "the shipped worker is armed");
+            // Common stock before the order. Unit: resource units.
+            int before = PlayerOf(sim, P0).Common;
+            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), worker, "skai.perch_depot", 21, 7));
+            Assert.That(PlayerOf(sim, P0).Common, Is.LessThan(before));
+            List<SimEvent> events = Do(sim, new AttackUnitCommand(sim.Clock.Tick, P0, Seq(), worker, enemy));
+            Assert.That(Reasons(events), Is.Empty);
+            BuildOrderCancelledEvent cancelled = First<BuildOrderCancelledEvent>(events);
+            Assert.That(cancelled.Reason, Is.EqualTo("new_order"));
+            Assert.That(PlayerOf(sim, P0).Common, Is.EqualTo(before), "full refund");
+            AssertNoOrder(Get(sim, worker));
+        }
+
+        /// <summary>A blocked site approached diagonally: the worker stops just outside reach and the order is still cancelled as site_blocked, not unreachable.</summary>
+        [Test]
+        public void Wc07b_BlockedSiteApproachedDiagonally_IsSiteBlocked()
+        {
+            Simulation sim = TestWorld.StartedEconomy();
+            EntityId worker = Spawn(sim, TestWorld.WorkerId, P0, 13, 7);
+            // A flying spotter explores the site (flyers never occupy a tile).
+            Spawn(sim, TestWorld.FlyerId, P0, 20, 14);
+            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), worker, TestWorld.BarracksId, 20, 14));
+            Do(sim, new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, Seq(), TestWorld.TowerId, P1, At(20, 14)));
+            List<SimEvent> events = StepCollect(sim, 120);
+            Assert.That(First<BuildOrderCancelledEvent>(events).Reason, Is.EqualTo("site_blocked"));
+            Assert.That(PlayerOf(sim, P0).Common, Is.EqualTo(200));
+        }
+
         /// <summary>WC-6: a worker removed or killed mid-placement refunds its order and no structure appears.</summary>
         [Test]
         public void Wc06_WorkerKilledMidPlacement()

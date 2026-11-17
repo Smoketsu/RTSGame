@@ -320,6 +320,7 @@ namespace Rts.Sim.Commands
                 {
                     count++;
                 }
+                // Definition of another worker's pending structure (the out value is unused without an order).
                 if (other.Owner == owner && other.BuildState != BuildOrderState.None
                     && sim.Content.Units.TryGetValue(other.BuildDefinitionId, out UnitDefinition? pending) && pending.Economy.IsStaticDefence
                     && (sim.Terrain.CentreOf(sim.Terrain.IndexOf(other.BuildTileX, other.BuildTileY)) - dropOff.Position).LengthSquared() <= radiusSquared)

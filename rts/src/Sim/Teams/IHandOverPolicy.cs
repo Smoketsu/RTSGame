@@ -30,6 +30,7 @@ namespace Rts.Sim.Teams
         /// the leaver's units are destroyed and play continues; in 1v1 the opponent wins, which
         /// <see cref="MatchOutcome"/> already reports. Resources are only ever handed over on leaving; allies never share
         /// resources while both play.
+        /// A policy that transfers units to another owner must call <c>EconomySystem.CancelBuild</c> first for every worker with a pending build order, so the order is refunded to the leaver.
         /// </summary>
         /// <param name="sim">The stepping simulation.</param>
         /// <param name="player">The player who left; its <see cref="Player.State"/> is already the new state.</param>

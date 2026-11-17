@@ -140,6 +140,7 @@ namespace Rts.Sim.Economy
                     continue;
                 }
                 used[unit.Owner] += EconomyRules.SupplyOf(sim, unit.Definition);
+                // Definition of the structure a pending build order will place; the out value is unused when the unit has no order.
                 if (unit.BuildState != BuildOrderState.None && sim.Content.Units.TryGetValue(unit.BuildDefinitionId, out UnitDefinition? pendingDefinition))
                 {
                     used[unit.Owner] += EconomyRules.SupplyOf(sim, pendingDefinition);
@@ -263,11 +264,13 @@ namespace Rts.Sim.Economy
             // Refund amounts. Unit: resource units. Range: 0 upward.
             int refundCommon = 0;
             int refundRare = 0;
+            // Definition of the structure whose cost is refunded; null when the ID is unknown (nothing to refund).
             if (sim.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? definition))
             {
                 refundCommon = definition.CostCommon;
                 refundRare = definition.CostRare;
             }
+            // The player who gets the refund; absent when the owner left the registry.
             if (sim.Players.TryGet(worker.Owner, out Player? owner))
             {
                 owner.AddResource(ResourceKind.Common, refundCommon);
@@ -306,6 +309,7 @@ namespace Rts.Sim.Economy
         /// <summary>Advances one worker's build order by one tick (specs/worker_construction.md section 3.2).</summary>
         private static void StepBuild(Simulation sim, Unit worker)
         {
+            // Definition of the structure being built; a missing one drops the order.
             if (!sim.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? definition))
             {
                 worker.ClearBuildOrder();
@@ -335,8 +339,10 @@ namespace Rts.Sim.Economy
                 }
                 else if (!worker.HasMoveTarget)
                 {
-                    // Movement gave up or something cleared the order: the site cannot be reached.
-                    CancelBuild(sim, worker, "unreachable", true);
+                    // Movement gave up or something cleared the order. A blocked or occupied site is approached from the side and the
+                    // worker can stop just outside reach, so name that reason first; otherwise the site cannot be reached.
+                    string? stopProblem = SiteProblem(sim, tile);
+                    CancelBuild(sim, worker, stopProblem ?? "unreachable", true);
                 }
                 return;
             }

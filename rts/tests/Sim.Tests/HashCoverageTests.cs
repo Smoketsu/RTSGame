@@ -94,6 +94,13 @@ namespace Rts.Sim.Tests
                 Case("Unit.CarriedKind", w => w.Worker.SetCarried(ResourceKind.Rare, 3)),
                 Case("Unit.ProductionQueue + ProductionTicksRemaining", w => w.Barracks.EnqueueProduction(TestWorld.RunnerId, 50)),
                 Case("Unit.ConstructionTicksRemaining", w => w.Barracks.SetConstructionTicks(30)),
+                // The build order fields: the setters move the state too, so each case sets a different field value on top of ToSite or Placing.
+                Case("Unit.BuildState", w => w.Worker.StartPlacing(0)),
+                Case("Unit.BuildDefinitionId", w => w.Worker.SetBuildOrder(TestWorld.TowerId, 5, 5, -1)),
+                Case("Unit.BuildTileX", w => w.Worker.SetBuildOrder(TestWorld.BarracksId, 6, 5, -1)),
+                Case("Unit.BuildTileY", w => w.Worker.SetBuildOrder(TestWorld.BarracksId, 5, 6, -1)),
+                Case("Unit.BuildTicksRemaining", w => { w.Worker.SetBuildOrder(TestWorld.BarracksId, 5, 5, -1); w.Worker.StartPlacing(9); }),
+                Case("Unit.BuildResumeFieldIndex", w => w.Worker.SetBuildOrder(TestWorld.BarracksId, 5, 5, 1)),
                 Case("Unit.Statuses (Grounded)", w => w.Flyer.Statuses.SetGrounded(100, "x")),
                 Case("Unit.Statuses (slow multiplier)", w => w.Flyer.Statuses.ReplaceSlowAt(0, new SlowEntry("base", Fix64.Parse("0.25"), 500, P0))),
                 Case("Unit.Statuses (slow end tick)", w => w.Flyer.Statuses.ReplaceSlowAt(0, new SlowEntry("base", Fix64.Half, 501, P0))),
