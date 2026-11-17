@@ -124,16 +124,16 @@ namespace Rts.Ai
         }
 
         /// <summary>
-        /// The model count M(t) per enemy army type (B.3): the larger of the effective count (visible now, or the remembered count x its
-        /// decay factor) and the count implied by known enemy structures that train the type. Types with a count of 0 are left out.
+        /// The sighted part of the model, Eff(t) of B.3: per enemy army type the larger of the count visible now and the remembered
+        /// count x its decay factor; implied counts are not included (C2.2 step 6 takes its confidence from this part only).
         /// </summary>
         /// <param name="view">What the AI may know this think.</param>
         /// <param name="profile">The profile.</param>
         /// <param name="memory">The memory (read only).</param>
-        /// <returns>Count per definition ID in ordinal order. Unit: units. Range: above 0.</returns>
-        internal static SortedDictionary<string, Fix64> ModelCounts(AiWorldView view, AiProfile profile, AiMemory memory)
+        /// <returns>Count per definition ID in ordinal order. Unit: units. Range: 0 upward.</returns>
+        internal static SortedDictionary<string, Fix64> SeenCounts(AiWorldView view, AiProfile profile, AiMemory memory)
         {
-            // M(t) being built. Unit: units.
+            // Eff(t) being built. Unit: units.
             SortedDictionary<string, Fix64> counts = new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
             // Visible enemy army units per type now.
             SortedDictionary<string, int> visible = VisibleByType(view);
@@ -151,6 +151,21 @@ namespace Rts.Ai
                     counts[pair.Key] = Fix64.FromInt(pair.Value);
                 }
             }
+            return counts;
+        }
+
+        /// <summary>
+        /// The model count M(t) per enemy army type (B.3): the larger of the effective count (visible now, or the remembered count x its
+        /// decay factor) and the count implied by known enemy structures that train the type. Types with a count of 0 are left out.
+        /// </summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The memory (read only).</param>
+        /// <returns>Count per definition ID in ordinal order. Unit: units. Range: above 0.</returns>
+        internal static SortedDictionary<string, Fix64> ModelCounts(AiWorldView view, AiProfile profile, AiMemory memory)
+        {
+            // M(t) being built, starting from the sighted part. Unit: units.
+            SortedDictionary<string, Fix64> counts = SeenCounts(view, profile, memory);
             // Count implied for each type a known structure trains. Unit: units.
             Fix64 implied = Fix64.FromInt(profile.EnemyModelImpliedCount);
             foreach (KnownStructure known in memory.KnownEnemyStructures.Values)

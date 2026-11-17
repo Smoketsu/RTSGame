@@ -318,8 +318,7 @@ namespace Rts.Ai
             {
                 dpsY += y.Count * AverageDps(y.Definition, xs, yUphill, rules);
             }
-            // Deviation from C.1 step 7 (worked example C-2): when Y cannot hurt X at all, Y's reach is the count-weighted mean range of its
-            // armed entries (not 0), so C-2's head start is (5 - 1) / 3 = 4/3 as the table says.
+            // When Y cannot hurt X at all, Y's reach is the count-weighted mean range of its armed entries (C.1 step 7, as revised by C2.0).
             // Y's weapon reach against X. Unit: tiles. Range: 0 upward.
             Fix64 reachY = dpsY > Fix64.Zero ? ReachOf(ys, xs, yUphill, rules, dpsY) : MeanRange(ys);
             if (reachX > reachY)

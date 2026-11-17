@@ -339,22 +339,6 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(BuildsOf(Decide(sim, S2, again), "water.coral_turret").Count, Is.EqualTo(0));
         }
 
-        /// <summary>C-14: rare units weigh 400 of 1000 and no rare field is served: the depot goes to the rare flank at 100 s, before the 240 s clock; without rule RS it waits.</summary>
-        [Test]
-        public void C14_RarePriority()
-        {
-            AiProfile rare = S2Edited(SkaiBase, "{ \"skai.windrunner\": 3, \"skai.roc_rider\": 2 }");
-            AiProfile plain = S2Edited(SkaiBase, "{ \"skai.windrunner\": 3, \"skai.roc_rider\": 2 }", "\"use_rare_priority\": true", "\"use_rare_priority\": false");
-            Simulation sim = Greybox();
-            Base(sim, "skai.great_aerie", "skai.fledgling", "skai.roost");
-            StepTo(sim, 2000);
-            Assert.That(BuildsOf(Decide(sim, plain, new AiMemory()), "skai.perch_depot").Count, Is.EqualTo(0));
-            List<AiIntent> depots = BuildsOf(Decide(sim, rare, new AiMemory()), "skai.perch_depot");
-            Assert.That(depots.Count, Is.EqualTo(1));
-            // Field 10 is at tile (12, 49): the depot stands 3 to 6 tiles from it.
-            Assert.That(Math.Max(Math.Abs(depots[0].TileX - 12), Math.Abs(depots[0].TileY - 49)), Is.InRange(3, 6));
-        }
-
         /// <summary>C-15: every shipped profile's static_defence_max_per_base is within supply.json's static_defences_per_base_max.</summary>
         [Test]
         public void C15_ProfilesRespectTheBaseCap()
@@ -381,6 +365,325 @@ namespace Rts.Sim.Tests.Ai
             DataValidationException defence = Expect.Throws<DataValidationException>(() => Edit("\"use_enemy_model\": true", "\"use_enemy_model\": false", "\"use_counter_mix\": true", "\"use_counter_mix\": false",
                 "\"use_tech_on_demand\": true", "\"use_tech_on_demand\": false", "\"use_rare_priority\": true", "\"use_rare_priority\": false"));
             Assert.That(defence.Message, Does.Contain("use_static_defence").And.Contain("use_enemy_model"));
+        }
+
+        // ------------------------------------------------------------------ Package C2 (skirmish_ai_v3.md C2.8)
+
+        /// <summary>The shipped package C2 candidate profile, as loaded (mix_eval_budget_common was retuned after the spec; see the C2 report).</summary>
+        private static AiProfile S2bShipped => AiProfile.FromDataSet(Data, "aggressive_s2b");
+
+        /// <summary>The package C2 candidate with the spec's counter_weight 0.7 and mix_eval_budget_common 600, the values the C2.8 test numbers assume (every other value as shipped; the shipped file retuned the budget; the confidence weight is only normalised here).</summary>
+        private static AiProfile S2b
+        {
+            get
+            {
+                // The shipped file text with the spec's confidence weight put back.
+                string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s2b.json")).Replace("\r\n", "\n");
+                Assert.That(System.Text.RegularExpressions.Regex.IsMatch(text, "\"counter_weight\": [0-9.]+,"), Is.True, "aggressive_s2b counter_weight");
+                text = System.Text.RegularExpressions.Regex.Replace(text, "\"counter_weight\": [0-9.]+,", "\"counter_weight\": 0.7,");
+                return AiProfile.Parse(System.Text.RegularExpressions.Regex.Replace(text, "\"mix_eval_budget_common\": [0-9]+,", "\"mix_eval_budget_common\": 600,"), "ai/aggressive_s2b.json", Data.Content);
+            }
+        }
+
+        /// <summary>The ID of P0's HQ.</summary>
+        private static EntityId HqId(Simulation sim)
+        {
+            foreach (AiUnitView unit in AiWorldView.Build(sim, P0).OwnUnits)
+            {
+                if (unit.IsHq)
+                {
+                    return unit.Id;
+                }
+            }
+            throw new AssertionException("no HQ");
+        }
+
+        /// <summary>Asserts a mix against the expected weights (units not listed must be 0).</summary>
+        private static void AssertMix(SortedDictionary<string, int> mix, params (string Id, int Weight)[] expected)
+        {
+            // Expected weight per unit ID.
+            SortedDictionary<string, int> want = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            foreach ((string Id, int Weight) pair in expected)
+            {
+                want[pair.Id] = pair.Weight;
+            }
+            foreach (KeyValuePair<string, int> pair in mix)
+            {
+                want.TryGetValue(pair.Key, out int weight);
+                Assert.That(pair.Value, Is.EqualTo(weight), pair.Key);
+            }
+        }
+
+        /// <summary>The standard water mix of C2-1 and C2-5 (a Pummeler-heavy counter share).</summary>
+        private static (string Id, int Weight)[] PummelerMix => new[] { ("water.grasper", 850), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.reef_runner", 0) };
+
+        /// <summary>A coordinate text for the i-th spawned unit, so units do not stack. Unit: tiles.</summary>
+        private static string Row(int i)
+        {
+            return (9 + i).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>C2-1: water against 6 Pummelers keeps only the Pummeler, with or without rare in the bank.</summary>
+        [Test]
+        public void C2_1_WaterAgainstPummelers()
+        {
+            Simulation sim = Greybox("water", "water");
+            Spawn(sim, "water.grand_shell", P0, "7", "7");
+            AiMemory memory = new AiMemory();
+            Believe(memory, "water.grasper", 6, sim.Clock.Tick);
+            AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
+            SetStock(sim, P0, 0, 400);
+            AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
+        }
+
+        /// <summary>C2-2: water against 4 Roc Riders buys Spoutlings; with 4 Spoutlings already owned it adds Shellbacks.</summary>
+        [Test]
+        public void C2_2_WaterAgainstRocRiders()
+        {
+            Simulation sim = Greybox("water", "skai");
+            Spawn(sim, "water.grand_shell", P0, "7", "7");
+            AiMemory memory = new AiMemory();
+            Believe(memory, "skai.roc_rider", 4, sim.Clock.Tick);
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 750));
+            // Own Spoutling number. Range: 0 to 3.
+            for (int i = 0; i < 4; i++)
+            {
+                Spawn(sim, "water.spoutling", P0, "9", Row(i));
+            }
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 750), ("water.ink_lobber", 50), ("water.spoutling", 50));
+        }
+
+        /// <summary>C2-3 and C2-4: Skai against 6 Pummelers keeps the Roc Rider; against 8 Windrunners it keeps Windrunner and Talon.</summary>
+        [Test]
+        public void C2_3_and_4_Skai()
+        {
+            Simulation sim = Greybox("skai", "water");
+            Spawn(sim, "skai.great_aerie", P0, "7", "7");
+            AiMemory pummelers = new AiMemory();
+            Believe(pummelers, "water.grasper", 6, sim.Clock.Tick);
+            AssertMix(MixOf(sim, S2b, "skai", pummelers), ("skai.windrunner", 128), ("skai.talon_archer", 85), ("skai.roc_rider", 742), ("skai.stormcaller", 42));
+            AiMemory windrunners = new AiMemory();
+            Believe(windrunners, "skai.windrunner", 8, sim.Clock.Tick);
+            AssertMix(MixOf(sim, S2b, "skai", windrunners), ("skai.windrunner", 581), ("skai.talon_archer", 332), ("skai.roc_rider", 42), ("skai.stormcaller", 42));
+        }
+
+        /// <summary>C2-5: the traced situation: with 5 Pummelers, 2 Shellbacks and a Spoutling against the blind water army, only the Pummeler is kept.</summary>
+        [Test]
+        public void C2_5_TracedSituation()
+        {
+            Simulation sim = Greybox("water", "water");
+            Spawn(sim, "water.grand_shell", P0, "7", "7");
+            // Own army: unit and count; row of the next unit.
+            int row = 0;
+            foreach ((string id, int count) in new[] { ("water.grasper", 5), ("water.shellback", 2), ("water.spoutling", 1) })
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    Spawn(sim, id, P0, "9", Row(row++));
+                }
+            }
+            AiMemory memory = new AiMemory();
+            Believe(memory, "water.grasper", 3, sim.Clock.Tick);
+            Believe(memory, "water.shellback", 1, sim.Clock.Tick);
+            Believe(memory, "water.ink_lobber", 1, sim.Clock.Tick);
+            Believe(memory, "water.spoutling", 1, sim.Clock.Tick);
+            Believe(memory, "water.reef_runner", 1, sim.Clock.Tick);
+            AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
+        }
+
+        /// <summary>C2-6: implied units never raise the confidence; sightings do; the switch off keeps the package C confidence.</summary>
+        [Test]
+        public void C2_6_ConfidenceFromSightings()
+        {
+            Simulation sim = Greybox("water", "water");
+            Spawn(sim, "water.grand_shell", P0, "7", "7");
+            AiMemory memory = new AiMemory();
+            memory.KnownEnemyStructures.Add(new EntityId(500), new KnownStructure { DefinitionId = "water.tidepool", Position = FixVec2.FromInts(50, 50) });
+            memory.KnownEnemyStructures.Add(new EntityId(501), new KnownStructure { DefinitionId = "water.shell_forge", Position = FixVec2.FromInts(52, 50) });
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 500), ("water.shellback", 166), ("water.ink_lobber", 166), ("water.spoutling", 166));
+            Believe(memory, "water.grasper", 2, sim.Clock.Tick);
+            // Confidence 0.7 x 4 / 8 = 0.35: base share 650 of 1000, so a unit that is not kept holds floor(650 / 6) = 108.
+            SortedDictionary<string, int> half = MixOf(sim, S2b, "water", memory);
+            Assert.That(half["water.reef_runner"], Is.EqualTo(0));
+            Assert.That(half["water.grasper"], Is.GreaterThan(500));
+            Assert.That(half["water.shellback"], Is.EqualTo(108));
+            // The package C scoring (switch off, aggressive_s2) on the same model: implied units give full confidence 0.7, so an unkept unit (the Ink Lobber or the Spoutling) holds floor(300 / 6) = 50.
+            SortedDictionary<string, int> old = MixOf(sim, S2, "water", memory);
+            Assert.That(Math.Min(old["water.ink_lobber"], old["water.spoutling"]), Is.EqualTo(50));
+        }
+
+        /// <summary>The Decide result as comparable text lines (kind, unit, definition, tile, field).</summary>
+        private static List<string> Lines(List<AiIntent> intents)
+        {
+            return intents.ConvertAll(i => i.Kind + " " + i.Unit + " " + i.DefinitionId + " " + i.TileX + "," + i.TileY + " " + i.Field);
+        }
+
+        /// <summary>C2-13: the same inputs twice give the same mix and intents without a random draw; own units given in another order give the same mix.</summary>
+        [Test]
+        public void C2_13_DeterministicAndPure()
+        {
+            // Mix of a water base with the own army spawned in the given order.
+            SortedDictionary<string, int> MixWith(string[] order)
+            {
+                Simulation own = Greybox("water", "water");
+                Spawn(own, "water.grand_shell", P0, "7", "7");
+                for (int i = 0; i < order.Length; i++)
+                {
+                    Spawn(own, order[i], P0, "9", Row(i));
+                }
+                AiMemory seen = new AiMemory();
+                Believe(seen, "water.grasper", 3, own.Clock.Tick);
+                Believe(seen, "water.spoutling", 2, own.Clock.Tick);
+                return MixOf(own, S2b, "water", seen);
+            }
+            SortedDictionary<string, int> a = MixWith(new[] { "water.grasper", "water.shellback", "water.spoutling", "water.grasper" });
+            SortedDictionary<string, int> b = MixWith(new[] { "water.spoutling", "water.grasper", "water.grasper", "water.shellback" });
+            Assert.That(new List<KeyValuePair<string, int>>(b), Is.EqualTo(new List<KeyValuePair<string, int>>(a)));
+            Simulation sim = Greybox("water", "water");
+            Base(sim, "water.grand_shell", "water.tender", "water.tidepool");
+            Spawn(sim, "water.reef_runner", P1, "11", "11");
+            AiFactionPlan plan = S2b.RequireFaction("water");
+            DeterministicRandom rng1 = new DeterministicRandom(1);
+            DeterministicRandom rng2 = new DeterministicRandom(1);
+            AiMemory m1 = new AiMemory { AttackThreshold = 8 };
+            AiMemory m2 = new AiMemory { AttackThreshold = 8 };
+            List<string> first = Lines(AiBrain.Decide(AiWorldView.Build(sim, P0, m1.KnownFieldRemaining), S2b, plan, m1, rng1));
+            List<string> second = Lines(AiBrain.Decide(AiWorldView.Build(sim, P0, m2.KnownFieldRemaining), S2b, plan, m2, rng2));
+            Assert.That(second, Is.EqualTo(first));
+            Assert.That(rng2.DrawCount, Is.EqualTo(rng1.DrawCount));
+            // The package C2 mix draws nothing: the same think with the switch off draws the same number.
+            DeterministicRandom rng3 = new DeterministicRandom(1);
+            AiMemory m3 = new AiMemory { AttackThreshold = 8 };
+            AiBrain.Decide(AiWorldView.Build(sim, P0, m3.KnownFieldRemaining), S2, S2.RequireFaction("water"), m3, rng3);
+            Assert.That(rng3.DrawCount, Is.EqualTo(rng1.DrawCount));
+        }
+
+        /// <summary>A water base for P0 with an enemy force near the HQ and optionally a hit on the HQ, a standing turret and Pummelers; returns the turret builds of one think.</summary>
+        private List<AiIntent> RaidThink(AiProfile profile, string enemyFaction, string[] enemies, bool hit, out AiMemory memory, int grassers = 0, bool turret = false)
+        {
+            Simulation sim = Greybox("water", enemyFaction);
+            Base(sim, "water.grand_shell", "water.tender", "water.tidepool");
+            // Extra supply structures so the Pummelers and the turret fit under the supply cap. Number. Range: 0 to 3.
+            for (int i = 0; i < 4; i++)
+            {
+                Spawn(sim, "water.tidepool", P0, (16.5 + 3 * i).ToString(System.Globalization.CultureInfo.InvariantCulture), "6.5");
+            }
+            // Own Pummeler number. Range: 0 to grassers - 1.
+            for (int i = 0; i < grassers; i++)
+            {
+                Spawn(sim, "water.grasper", P0, "9", (9 + i % 3).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            if (turret)
+            {
+                Spawn(sim, "water.coral_turret", P0, "10.5", "9.5");
+            }
+            // Enemy number. Range: 0 to enemies - 1.
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                Spawn(sim, enemies[i], P1, (11 + i * 0.5).ToString(System.Globalization.CultureInfo.InvariantCulture), "11");
+            }
+            memory = new AiMemory();
+            if (hit)
+            {
+                memory.RecentDamage[HqId(sim)] = new DamageReport { Tick = sim.Clock.Tick - 10, Position = FixVec2.FromInts(7, 7) };
+            }
+            return BuildsOf(Decide(sim, profile, memory), "water.coral_turret");
+        }
+
+        /// <summary>C2-8: a raid needs strength raid_min_supply: a lone Reef Runner and a hit is 2 and does not count at 3; two Windrunners and a hit is 3 and does; at 1 the lone scout counts.</summary>
+        [Test]
+        public void C2_8_RaidStrength()
+        {
+            AiProfile three = S2Edited("\"raid_min_supply\": 1,", "\"raid_min_supply\": 3,");
+            List<AiIntent> lone = RaidThink(three, "water", new[] { "water.reef_runner" }, true, out AiMemory loneMemory);
+            Assert.That(lone.Count, Is.EqualTo(0));
+            Assert.That(loneMemory.RaidLog.Count, Is.EqualTo(0));
+            List<AiIntent> pair = RaidThink(three, "skai", new[] { "skai.windrunner", "skai.windrunner" }, true, out AiMemory pairMemory);
+            Assert.That(pairMemory.RaidLog.Count, Is.EqualTo(1));
+            Assert.That(pair.Count, Is.EqualTo(1));
+            Assert.That(Math.Max(Math.Abs(pair[0].TileX - 7), Math.Abs(pair[0].TileY - 7)), Is.InRange(2, 4));
+            List<AiIntent> one = RaidThink(S2, "water", new[] { "water.reef_runner" }, true, out AiMemory oneMemory);
+            Assert.That(oneMemory.RaidLog.Count, Is.EqualTo(1));
+            Assert.That(one.Count, Is.EqualTo(1));
+        }
+
+        /// <summary>C2-9: the value cap: 6 Pummelers (600) cannot carry a 100 defence at 0.15, 7 can; with one turret 13 cannot, 14 can; share 0 builds with no army; the unanswered-layer step is never capped.</summary>
+        [Test]
+        public void C2_9_ValueCap()
+        {
+            AiProfile capped = S2Edited("\"static_defence_max_value_share\": 0,", "\"static_defence_max_value_share\": 0.15,");
+            string[] raider = { "water.reef_runner" };
+            Assert.That(RaidThink(capped, "water", raider, false, out _, 6).Count, Is.EqualTo(0));
+            Assert.That(RaidThink(capped, "water", raider, false, out _, 7).Count, Is.EqualTo(1));
+            Assert.That(RaidThink(capped, "water", raider, false, out _, 13, true).Count, Is.EqualTo(0));
+            Assert.That(RaidThink(capped, "water", raider, false, out _, 14, true).Count, Is.EqualTo(1));
+            Assert.That(RaidThink(S2, "water", raider, false, out _, 0).Count, Is.EqualTo(1), "share 0 is off");
+            // Step 3 (an unanswered layer) ignores the cap: C-13 with no army still orders the turret.
+            Simulation sim = Greybox("water", "skai");
+            Base(sim, "water.grand_shell", "water.tender", "water.tidepool");
+            AiMemory memory = new AiMemory();
+            Believe(memory, "skai.roc_rider", 2, sim.Clock.Tick);
+            Assert.That(BuildsOf(Decide(sim, capped, memory), "water.coral_turret").Count, Is.EqualTo(1));
+        }
+
+        /// <summary>C2-10: the early expansion is its own switch: on at 0 s the rare depot is built at once; rule RS alone only reorders; 60 s gates it; a served rare field does not trigger it.</summary>
+        [Test]
+        public void C2_10_EarlyExpansion()
+        {
+            string rareMix = "{ \"skai.windrunner\": 3, \"skai.roc_rider\": 2 }";
+            AiProfile early = S2Edited(SkaiBase, rareMix);
+            AiProfile noEarly = S2Edited(SkaiBase, rareMix, "\"use_early_expansion\": true", "\"use_early_expansion\": false");
+            AiProfile sixty = S2Edited(SkaiBase, rareMix, "\"early_expansion_seconds\": 0", "\"early_expansion_seconds\": 60");
+            // (a) the first think that can pay.
+            Simulation sim = Greybox();
+            Base(sim, "skai.great_aerie", "skai.fledgling", "skai.roost");
+            StepTo(sim, 100);
+            List<AiIntent> depots = BuildsOf(Decide(sim, early, new AiMemory()), "skai.perch_depot");
+            Assert.That(depots.Count, Is.EqualTo(1));
+            Assert.That(Math.Max(Math.Abs(depots[0].TileX - 12), Math.Abs(depots[0].TileY - 49)), Is.InRange(3, 6));
+            // (b) switch off, rule RS on: nothing at 100 s; at 240 s the depot goes to the rare site.
+            StepTo(sim, 2000);
+            Assert.That(BuildsOf(Decide(sim, noEarly, new AiMemory()), "skai.perch_depot").Count, Is.EqualTo(0));
+            StepTo(sim, 4800);
+            List<AiIntent> late = BuildsOf(Decide(sim, noEarly, new AiMemory()), "skai.perch_depot");
+            Assert.That(late.Count, Is.EqualTo(1));
+            Assert.That(Math.Max(Math.Abs(late[0].TileX - 12), Math.Abs(late[0].TileY - 49)), Is.InRange(3, 6));
+            // (c) 60 s: none at 59.5 s, one at 60 s.
+            Simulation timed = Greybox();
+            Base(timed, "skai.great_aerie", "skai.fledgling", "skai.roost");
+            StepTo(timed, 1190);
+            Assert.That(BuildsOf(Decide(timed, sixty, new AiMemory()), "skai.perch_depot").Count, Is.EqualTo(0));
+            StepTo(timed, 1200);
+            Assert.That(BuildsOf(Decide(timed, sixty, new AiMemory()), "skai.perch_depot").Count, Is.EqualTo(1));
+            // (d) a rare field already served: nothing before 240 s.
+            Simulation served = Greybox();
+            Base(served, "skai.great_aerie", "skai.fledgling", "skai.roost");
+            Spawn(served, "skai.perch_depot", P0, "9.5", "49.5");
+            StepTo(served, 2000);
+            Assert.That(BuildsOf(Decide(served, early, new AiMemory()), "skai.perch_depot").Count, Is.EqualTo(0));
+        }
+
+        /// <summary>C2-14: validation: the predictor mix needs the counter-mix, a missing key is named, and the shipped candidate loads with its C2.6 values.</summary>
+        [Test]
+        public void C2_14_Validation()
+        {
+            DataValidationException both = Expect.Throws<DataValidationException>(() => S2Edited("\"use_predictor_mix\": false,", "\"use_predictor_mix\": true,", "\"use_counter_mix\": true", "\"use_counter_mix\": false",
+                "\"use_tech_on_demand\": true", "\"use_tech_on_demand\": false", "\"use_rare_priority\": true", "\"use_rare_priority\": false"));
+            Assert.That(both.Message, Does.Contain("use_predictor_mix").And.Contain("use_counter_mix").And.Contain("aggressive_s2.json"));
+            DataValidationException missing = Expect.Throws<DataValidationException>(() => S2Edited("\"raid_min_supply\": 1,", string.Empty));
+            Assert.That(missing.Message, Does.Contain("raid_min_supply"));
+            AiProfile b = S2bShipped;
+            Assert.That(b.UsePredictorMix, Is.True);
+            Assert.That(b.RareBankSoftCap, Is.EqualTo(300));
+            Assert.That(b.RaidMinSupply, Is.EqualTo(3));
+            Assert.That(b.StaticDefenceMaxValueShare == Fix64.Parse("0.15"), Is.True);
+            Assert.That(b.MixEvalBudgetCommon, Is.EqualTo(1200), "retuned from 600");
+            Assert.That(b.CounterWeight == Fix64.Parse("0.7"), Is.True);
+            Assert.That(b.CounterKeepFraction == Fix64.Parse("0.9"), Is.True);
+            Assert.That(b.CounterRareCostWeight == Fix64.One, Is.True);
+            Assert.That(b.UseEarlyExpansion, Is.True);
+            Assert.That(S2.UsePredictorMix, Is.False);
+            Assert.That(S2.RaidMinSupply, Is.EqualTo(1));
         }
     }
 }

@@ -60,3 +60,51 @@ Both ablation profiles are committed as `rts/data/ai/abl_s2_no_rare.json` and `a
 ### Package C2 diagnosis traces (17 Nov 2026)
 
 Evidence for `rts/docs/specs/skirmish_ai_v3.md` Package C2 (C2.1): five ladder games of the B ablation re-traced with the ladder seed 20261117 (`--trace --profile-a abl_s2_blind --profile-b aggressive_s2 --seed 20261117 --game N`; each ends on the tick of its `ladder.jsonl` record): `traces/c2_prototype_water_g0.txt`, `c2_prototype_water_g2.txt`, `c2_twin_chokes_water_g0.txt`, `c2_twin_chokes_water_g2.txt` and `c2_greybox_skai_g0.txt`; and `traces/c2_equal_cost_fights.txt`, equal-cost army fights in the simulation from scratch command scripts (setup in its header).
+
+## Package C2: `aggressive_s2b` (counter-mix revision)
+
+Gate result: **MISSED** (see the plain statement below). Four full ladders were run (one gate run and the three retunes the spec allows), every one 288 games, Release, 4 workers, 21 to 25 minutes, `aggressive_s2b` against `abl_s2_blind`, seed 20261117:
+
+- `ladder_c2_s2b_vs_blind/` (run 1 (spec values)): `LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=288 wins=172 fraction=0.597 bar=0.650 FAIL`
+- `ladder_c2_s2b_vs_blind_run2/` (run 2 (counter_weight 0.5)): `LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=288 wins=154 fraction=0.535 bar=0.650 FAIL`
+- `ladder_c2_s2b_vs_blind_run3/` (run 3 (budget 1200; SHIPPED)): `LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=288 wins=176 fraction=0.611 bar=0.650 FAIL`
+- `ladder_c2_s2b_vs_blind_run4/` (run 4 (budget 1200, share 0.5)): `LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=288 wins=171 fraction=0.594 bar=0.650 FAIL`
+
+Candidate wins per cell (of 24 decided games each; the cell floor is 9 wins = 0.375, the gate wants 0.350, so 9 of 24 is the lowest passing count):
+
+| map / matchup | run 1 | run 2 | run 3 (shipped) | run 4 |
+| --- | ---: | ---: | ---: | ---: |
+| greybox_1v1 / skai_vs_skai | 14 | 11 | 12 | 12 |
+| greybox_1v1 / skai_vs_water | 11 | 8 | 12 | 8 |
+| greybox_1v1 / water_vs_water | 15 | 12 | 16 | 18 |
+| long_lowland / skai_vs_skai | 13 | 10 | 14 | 14 |
+| long_lowland / skai_vs_water | 17 | 18 | 17 | 18 |
+| long_lowland / water_vs_water | 21 | 20 | 18 | 19 |
+| prototype_1v1 / skai_vs_skai | 23 | 21 | 20 | 17 |
+| prototype_1v1 / skai_vs_water | 12 | 12 | 12 | 12 |
+| prototype_1v1 / water_vs_water | 15 | 14 | 17 | 17 |
+| twin_chokes / skai_vs_skai | 5 | 10 | 11 | 11 |
+| twin_chokes / skai_vs_water | 12 | 12 | 12 | 11 |
+| twin_chokes / water_vs_water | 14 | 6 | 15 | 14 |
+
+Shipped `aggressive_s2b` (run 3: `mix_eval_budget_common` 1200, every other value as the spec) passes the ladder part of the gate (0.611 of 288, lowest cell 11 of 24 = 0.458). It fails the response part: `response_aggressive_s2b.txt` has `RESPONSE_SUMMARY passed=3 of=10`; excluding the water `armoured_answer` (decision Q-C2-1) that is 3 of 9, the gate wants 5. Run 4 (`static_defence_max_value_share` 0.5) passes 5 of 9 (both `raid` files join the three; `response_aggressive_s2b_share05.txt`) but its ladder is 171 of 288 = 0.594 with greybox Skai versus water at 8 of 24 = 0.333 (below 0.35). No single value passed both parts; the three allowed retunes are used. The two gate parts are therefore not met together.
+
+Response lines of the shipped profile: air_answer skai and water PASS; armoured_answer skai FAIL (share_gain -0.033, needs a gain; base share 0.462, share 0.429), armoured_answer water FAIL (expected, Q-C2-1: share_gain -0.090); trade skai FAIL (0.860 of 1.0; killed 74, lost 86), trade water PASS (1.038); raid skai and water FAIL (static_defence_near_raided_base=false, part 2 passes); turtle skai and water FAIL (package D).
+
+Tuning evidence (all in this folder): `c2_tuning_cell_probes.txt` (24-game probes of the twin_chokes Skai mirror, the worst cell of run 1 at 5 of 24, for single-value variants), `c2_tuning_raid_grid.txt` (both `raid` scenarios over `static_defence_max_value_share` 0, 0.15, 0.3, 0.5, 1, 2 times `raid_min_supply` 1 to 4; the pass pattern is noisy, share 0.5 passes both at `raid_min_supply` 2, 3 and 4).
+
+Traces (`traces/`): `c2_final_prototype_water_g0.txt` and `c2_final_prototype_water_g2.txt` (prototype_1v1 water mirror, `aggressive_s2b` shipped against `abl_s2_blind`, ladder seed 20261117, games 0 and 2; the candidate wins both, game 0 as slot 1 at tick 12895 and game 2 as slot 0 at tick 17808), and `c2_final_twin_chokes_skai_g14_loss.txt` (the worst cell, twin_chokes Skai mirror, a lost game, candidate slot 0, ends tick 7104 in the ladder).
+
+C2.1-style columns for the two water traces (summed from the 30-second lines; `trained` counts units, `lost` counts units; common and rare are gathered totals; first army unit is the first 30-second line with an army, so at most 30 s late):
+
+| Game | Side | First army unit | Static defences (max seen / destroyed) | Reef Runners trained = lost | Shellbacks | Pummelers | Ink Lobbers | Spoutlings | Common / rare gathered | Rare bank at 300 s / peak |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| g0 | `aggressive_s2b` (slot 1) | at or before 90 s | 0 / 0 | 3 = 3 | 8 | 75 | 4 | 16 | 14230 / 1200 | 435 / 680 |
+| g0 | blind (slot 0) | at or before 90 s | 0 / 0 | 6 = 6 | 8 | 70 | 7 | 26 | 14725 / 1200 | 355 / 670 |
+| g2 | `aggressive_s2b` (slot 0) | at or before 90 s | 2 / 1 | 3 = 3 | 14 | 118 | 5 | 27 | 21000 / 1885 | 395 / 1010 |
+| g2 | blind (slot 1) | at or before 90 s | 0 / 0 | 3 = 3 | 10 | 90 | 11 | 34 | 18785 / 2400 | 355 / 1130 |
+
+Package C had the reacting side build 25 and 31 Reef Runners and 6 to 10 destroyed turrets in the same games (the C2.1 table); now it builds the 3 scout Reef Runners and 0 to 2 turrets. The rare bank still reaches 680 to 1130 at its peak (blind and candidate alike), so the cap of 300 does not stop rare piling up; why was not investigated. Spent-resource columns are not in the 30-second lines and are not reported.
+
+Reading of the worst cell: in the twin_chokes Skai mirror both sides end with almost the same army (9 Roc Riders, 3 Stormcallers each in game 14: rare-limited) and the result follows the seat (the candidate as slot 0 won 4 of 12, as slot 1 7 of 12 in run 3), so the cell is close to a coin flip with a seat effect and the predictor mix is not what loses it once `counter_weight` is 0.7 and `mix_eval_budget_common` 1200. In run 1 (budget 600) the same cell was 5 of 24; `counter_weight` 0.5 gave 10 of 24 there but lowered the total to 154.
+

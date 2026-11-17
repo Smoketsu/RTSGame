@@ -242,9 +242,9 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>The probe of P0's economy on the current view.</summary>
-        private static AiBrain.EconomyProbe Probe(Simulation sim, AiMemory? memory = null)
+        private static AiBrain.EconomyProbe Probe(Simulation sim, AiMemory? memory = null, AiProfile? custom = null)
         {
-            AiProfile profile = Aggressive;
+            AiProfile profile = custom ?? Aggressive;
             return AiBrain.Probe(AiWorldView.Build(sim, P0), profile, profile.RequireFaction("skai"), memory ?? new AiMemory())!;
         }
 
@@ -710,6 +710,52 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(gathers[1].Field, Is.EqualTo(4));
             Assert.That(gathers[2].Unit, Is.EqualTo(c));
             Assert.That(gathers[2].Field, Is.EqualTo(0), "the rare field is at its cap: the nearest served field takes the third worker");
+        }
+
+        /// <summary>
+        /// C2-7: with rare_bank_soft_cap 300 and the rare bank at 300, a served rare field's cap is 0: its two workers move to the common
+        /// fields (highest ID first), an idle worker goes to a common field and the worker target drops the rare field's 2; at 299 or with
+        /// the cap off nothing moves.
+        /// </summary>
+        [Test]
+        public void C2_7_RareWorkerCap()
+        {
+            AiProfile capped = Edited("\"rare_bank_soft_cap\": 0,", "\"rare_bank_soft_cap\": 300,");
+            // A game with a depot serving rare field 4, one worker on common field 0 and two on the rare field; returns the two rare workers.
+            Simulation Setup(int rare, out EntityId rareLow, out EntityId rareHigh, out EntityId idle)
+            {
+                Simulation sim = Game(workers: 0);
+                SpawnAtTile(sim, "skai.perch_depot", P0, 8, 60);
+                Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 0);
+                rareLow = SpawnAtTile(sim, "skai.fledgling", P0, 6, 9);
+                rareHigh = SpawnAtTile(sim, "skai.fledgling", P0, 6, 9);
+                Gather(sim, P0, rareLow, 4);
+                Gather(sim, P0, rareHigh, 4);
+                idle = SpawnAtTile(sim, "skai.fledgling", P0, 6, 9);
+                SetStock(sim, P0, 0, rare);
+                return sim;
+            }
+            Simulation atCap = Setup(300, out EntityId low, out EntityId high, out EntityId idle);
+            Assert.That(Probe(atCap, null, capped).WantedWorkers, Is.EqualTo(6), "two served common fields x 3 and 0 for the rare field");
+            List<AiIntent> gathers = Of(Decide(atCap, P0, capped), AiIntentKind.Gather);
+            Assert.That(gathers.Count, Is.EqualTo(3));
+            Assert.That(gathers[0].Unit, Is.EqualTo(idle));
+            Assert.That(gathers[1].Unit, Is.EqualTo(high), "the higher ID leaves the rare field first");
+            Assert.That(gathers[2].Unit, Is.EqualTo(low));
+            foreach (AiIntent gather in gathers)
+            {
+                Assert.That(gather.Field, Is.Not.EqualTo(4));
+            }
+            Simulation below = Setup(299, out _, out _, out EntityId idleBelow);
+            Assert.That(Probe(below, null, capped).WantedWorkers, Is.EqualTo(8));
+            List<AiIntent> kept = Of(Decide(below, P0, capped), AiIntentKind.Gather);
+            Assert.That(kept.Count, Is.EqualTo(1), "only the idle worker is sent");
+            Assert.That(kept[0].Unit, Is.EqualTo(idleBelow));
+            Simulation off = Setup(5000, out _, out _, out EntityId idleOff);
+            Assert.That(Probe(off).WantedWorkers, Is.EqualTo(8));
+            List<AiIntent> same = Of(DecideP0(off), AiIntentKind.Gather);
+            Assert.That(same.Count, Is.EqualTo(1));
+            Assert.That(same[0].Unit, Is.EqualTo(idleOff));
         }
 
         /// <summary>B-11: starved with the HQ Rooted and a live field 43 tiles away: an idle worker is sent to it.</summary>

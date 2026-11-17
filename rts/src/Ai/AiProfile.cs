@@ -35,6 +35,9 @@
 //     and mix_resolution (counter-mix), tech_min_weight_share, raided_window_seconds, raided_gap_seconds, static_defence_after_raids,
 //     static_defence_max_per_base, static_defence_ring_min_tiles, static_defence_ring_max_tiles, unanswered_layer_min_supply and
 //     rare_need_weight_share.
+//   * skirmish_ai_v3.md package C2 (counter-mix revision): use_predictor_mix (needs use_counter_mix), mix_eval_budget_common,
+//     mix_rare_allowance, rare_bank_soft_cap, raid_min_supply, static_defence_max_value_share, use_early_expansion and
+//     early_expansion_seconds (every profile file carries them; the "off" values reproduce package C).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -407,6 +410,30 @@ namespace Rts.Ai
         /// <summary>Mix weight share of rare-cost units at which rule RS drops rule E's clock gate. Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 RareNeedWeightShare { get; }
 
+        /// <summary>C2.2: the counter-mix is scored by the fight predictor. Unit: boolean. Range: true or false; true needs <see cref="UseCounterMix"/>.</summary>
+        public bool UsePredictorMix { get; }
+
+        /// <summary>C2.2: common purchase each candidate unit is valued by. Unit: resource units (common). Range: 50 to 100000.</summary>
+        public int MixEvalBudgetCommon { get; }
+
+        /// <summary>C2.2: rare a candidate may plan beyond the rare bank. Unit: resource units (rare). Range: 0 to 100000.</summary>
+        public int MixRareAllowance { get; }
+
+        /// <summary>C2.3: rare fields take no workers while the rare bank is at or above this; 0 is off. Unit: resource units (rare). Range: 0 to 100000.</summary>
+        public int RareBankSoftCap { get; }
+
+        /// <summary>C2.4: raid strength that counts as a raid; 1 is package C. Unit: supply. Range: 1 to 200.</summary>
+        public int RaidMinSupply { get; }
+
+        /// <summary>C2.4: own static defences may be worth at most this share of the army value; 0 is off. Unit: fraction. Range: 0 to 10.</summary>
+        public Fix64 StaticDefenceMaxValueShare { get; }
+
+        /// <summary>C2.5: while no rare field is served, rule E's clock gate is <see cref="EarlyExpansionSeconds"/>. Unit: boolean. Range: true or false.</summary>
+        public bool UseEarlyExpansion { get; }
+
+        /// <summary>C2.5: clock gate of rule E while no rare field is served and <see cref="UseEarlyExpansion"/> is on. Unit: seconds. Range: 0 to 1800.</summary>
+        public Fix64 EarlyExpansionSeconds { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -518,6 +545,18 @@ namespace Rts.Ai
             StaticDefenceRingMaxTiles = root.RequireInt("static_defence_ring_max_tiles", StaticDefenceRingMinTiles, 12);
             UnansweredLayerMinSupply = root.RequireInt("unanswered_layer_min_supply", 1, 200);
             RareNeedWeightShare = root.RequireFix64("rare_need_weight_share", "0", "1");
+            UsePredictorMix = root.RequireBool("use_predictor_mix");
+            if (UsePredictorMix && !UseCounterMix)
+            {
+                throw root.Require("use_predictor_mix").Fail("requires use_counter_mix to be true as well");
+            }
+            MixEvalBudgetCommon = root.RequireInt("mix_eval_budget_common", 50, 100000);
+            MixRareAllowance = root.RequireInt("mix_rare_allowance", 0, 100000);
+            RareBankSoftCap = root.RequireInt("rare_bank_soft_cap", 0, 100000);
+            RaidMinSupply = root.RequireInt("raid_min_supply", 1, 200);
+            StaticDefenceMaxValueShare = root.RequireFix64("static_defence_max_value_share", "0", "10");
+            UseEarlyExpansion = root.RequireBool("use_early_expansion");
+            EarlyExpansionSeconds = root.RequireFix64("early_expansion_seconds", "0", "1800");
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -595,7 +634,9 @@ namespace Rts.Ai
                 "predictor_dome_weight", "predictor_max_advantage", "counter_weight", "counter_full_confidence_supply", "counter_keep_fraction",
                 "counter_rare_cost_weight", "counter_min_incoming_dps", "mix_resolution", "tech_min_weight_share", "raided_window_seconds",
                 "raided_gap_seconds", "static_defence_after_raids", "static_defence_max_per_base", "static_defence_ring_min_tiles",
-                "static_defence_ring_max_tiles", "unanswered_layer_min_supply", "rare_need_weight_share", "factions");
+                "static_defence_ring_max_tiles", "unanswered_layer_min_supply", "rare_need_weight_share", "use_predictor_mix", "mix_eval_budget_common",
+                "mix_rare_allowance", "rare_bank_soft_cap", "raid_min_supply", "static_defence_max_value_share", "use_early_expansion",
+                "early_expansion_seconds", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
