@@ -51,11 +51,17 @@ namespace Rts.Sim.Combat
         /// <param name="target">Unit the hit is bound to.</param>
         /// <param name="damage">Final damage. Unit: health points. Range: 0 or more.</param>
         /// <param name="appliesDrench">True when the hit applies Drench on landing.</param>
-        internal void Enqueue(int landTick, EntityId attacker, PlayerId attackerOwner, EntityId target, Fix64 damage, bool appliesDrench)
+        /// <param name="sourceDefinitionId">Attacker's definition ID when the hit has a blast, else "".</param>
+        /// <param name="splashDamage">Blast base damage. Unit: health points. Range: 0 or more.</param>
+        /// <param name="splashLayers">Blast layer bit mask. Range: 0 to 7.</param>
+        /// <param name="blastFallback">Blast centre when the target is gone. Unit: tiles.</param>
+        internal void Enqueue(int landTick, EntityId attacker, PlayerId attackerOwner, EntityId target, Fix64 damage, bool appliesDrench,
+            string sourceDefinitionId = "", Fix64 splashDamage = default, byte splashLayers = 0, FixVec2 blastFallback = default)
         {
             // Sequence of this hit. Unit: count. Range: 0 upward.
             long sequence = NextSequence++;
-            _hits.Add(new HitKey(landTick, sequence), new PendingHit(landTick, sequence, attacker, attackerOwner, target, damage, appliesDrench));
+            _hits.Add(new HitKey(landTick, sequence), new PendingHit(landTick, sequence, attacker, attackerOwner, target, damage, appliesDrench,
+                sourceDefinitionId, splashDamage, splashLayers, blastFallback));
         }
 
         /// <summary>
@@ -101,7 +107,8 @@ namespace Rts.Sim.Combat
                     // The entry being replaced; its attacker, owner and drench flag are kept.
                     PendingHit old = pair.Value;
                     _hits.Remove(pair.Key);
-                    _hits.Add(new HitKey(landTick, sequence), new PendingHit(landTick, sequence, old.Attacker, old.AttackerOwner, target, damage, old.AppliesDrench));
+                    _hits.Add(new HitKey(landTick, sequence), new PendingHit(landTick, sequence, old.Attacker, old.AttackerOwner, target, damage, old.AppliesDrench,
+                        old.SourceDefinitionId, old.SplashDamage, old.SplashLayers, old.BlastFallback));
                     return;
                 }
             }
@@ -122,6 +129,10 @@ namespace Rts.Sim.Combat
                 hasher.Write(hit.Target);
                 hasher.Write(hit.Damage);
                 hasher.Write(hit.AppliesDrench);
+                hasher.Write(hit.SourceDefinitionId);
+                hasher.Write(hit.SplashDamage);
+                hasher.Write(hit.SplashLayers);
+                hasher.Write(hit.BlastFallback);
             }
         }
     }

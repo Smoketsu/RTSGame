@@ -164,9 +164,10 @@ namespace Rts.Sim.Tests.Harness
             string folder = TestDataFolder();
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder }, out string output, out _), Is.EqualTo(0));
             // Re-pinned again for the missing roster (specs/missing_roster.md R2-9): old values 03674dfb1efc68b7 and 93762ddc16910b23, outcomes unchanged.
-            Assert.That(output, Does.Contain("STATE_HASH=a65a7eea003009f4\n"));
+            // Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): old value a65a7eea003009f4, outcome unchanged (undecided, tick 599).
+            Assert.That(output, Does.Contain("STATE_HASH=c399aaafed8cf945\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=aff851b30f63e4f8\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=9a71eaccaab510c5\n"));
         }
 
         /// <summary>The shipped data set.</summary>

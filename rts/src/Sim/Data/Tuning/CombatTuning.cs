@@ -32,6 +32,9 @@ namespace Rts.Sim.Data
         /// <summary>Damage multiplier for a ranged hit on higher ground. Unit: fraction of damage. Range: 0.1 to 1. Source: P-003 row 1 (developer, 16 Nov 2026).</summary>
         public Fix64 UphillRangedDamageMultiplier { get; }
 
+        /// <summary>Fraction of a weapon's damage each splash victim takes before its own armour multiplier; flat across the radius. Unit: fraction of weapon damage. Range: 0.05 to 1. Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 1.4).</summary>
+        public Fix64 SplashDamageFraction { get; }
+
         /// <summary>Armour type given to a unit whose file has no "armour_type". Unit: armour type name. Range: one of <see cref="ArmourTypes"/>. Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.</summary>
         public string DefaultArmourType { get; }
 
@@ -42,7 +45,7 @@ namespace Rts.Sim.Data
         /// <param name="root">The parsed file (root must be an object).</param>
         public CombatTuning(JsonValue root)
         {
-            root.RejectUnknownKeys("damage_types", "armour_types", "multipliers", "acquire_range_bonus_tiles", "uphill_ranged_damage_multiplier", "default_armour_type");
+            root.RejectUnknownKeys("damage_types", "armour_types", "multipliers", "acquire_range_bonus_tiles", "uphill_ranged_damage_multiplier", "splash_damage_fraction", "default_armour_type");
             DamageTypes = ReadNames(root.Require("damage_types"));
             ArmourTypes = ReadNames(root.Require("armour_types"));
             // The multipliers object: exactly one row per damage type.
@@ -64,6 +67,7 @@ namespace Rts.Sim.Data
             }
             AcquireRangeBonusTiles = root.RequireFix64("acquire_range_bonus_tiles", "0", "20");
             UphillRangedDamageMultiplier = root.RequireFix64("uphill_ranged_damage_multiplier", "0.1", "1");
+            SplashDamageFraction = root.RequireFix64("splash_damage_fraction", "0.05", "1");
             DefaultArmourType = root.RequireNonEmptyString("default_armour_type");
             if (!ContainsName(ArmourTypes, DefaultArmourType))
             {
@@ -86,7 +90,7 @@ namespace Rts.Sim.Data
         /// <summary>Builds the runtime rules the combat system uses. Hosts set them on the content catalog; the data loader already does.</summary>
         public CombatRules CreateRules()
         {
-            return new CombatRules(_multipliers, AcquireRangeBonusTiles, DefaultArmourType, UphillRangedDamageMultiplier);
+            return new CombatRules(_multipliers, AcquireRangeBonusTiles, DefaultArmourType, UphillRangedDamageMultiplier, SplashDamageFraction);
         }
 
         /// <summary>Reads a non-empty list of distinct names made of lower-case letters, digits and underscores.</summary>

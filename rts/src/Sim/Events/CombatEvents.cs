@@ -1,5 +1,5 @@
 // rts/src/Sim/Events/CombatEvents.cs
-// The events the combat system emits: a shot was fired, a unit was damaged, a unit was killed, and the dome shield events (hit, down, up). Part of Rts.Sim.Events.
+// The events the combat system emits: a shot was fired, a unit was damaged, a blast fell, a unit was killed, and the dome shield events (hit, down, up). Part of Rts.Sim.Events.
 // Per hit the order is fixed: UnitDamagedEvent when the blow lands; for a lethal blow, UnitKilledEvent and then
 // UnitRemovedEvent("killed") follow at the end of the combat step, in ascending victim ID order.
 using Rts.Sim.Core;
@@ -132,6 +132,41 @@ namespace Rts.Sim.Events
 
         /// <summary>One-line description for logs.</summary>
         public override string Describe() => Dome + " dome absorbed " + Absorbed + " of " + Attacker + "'s shot at " + Target + " (" + PoolLeft + " left).";
+    }
+
+    /// <summary>A weapon's blast landed (combat_mechanics.md 1.6). Once per blast, also with 0 victims, before the victims' UnitDamagedEvents. Presentation and tools only; nothing reads it inside the simulation.</summary>
+    public sealed class BlastEvent : SimEvent
+    {
+        /// <summary>The unit that fired (it may be gone).</summary>
+        public EntityId Attacker { get; }
+
+        /// <summary>Owner of the attacker at fire time. Range: a valid player.</summary>
+        public PlayerId AttackerOwner { get; }
+
+        /// <summary>Where the blast fell. Unit: tiles. Range: inside the map.</summary>
+        public FixVec2 Centre { get; }
+
+        /// <summary>The weapon's blast radius. Unit: tiles. Range: above 0 to 4.</summary>
+        public Fix64 RadiusTiles { get; }
+
+        /// <summary>Enemy units inside the radius that the blast reached (before dome absorption). Unit: units. Range: 0 or more.</summary>
+        public int Victims { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public BlastEvent(int tick, EntityId attacker, PlayerId attackerOwner, FixVec2 centre, Fix64 radiusTiles, int victims) : base(tick)
+        {
+            Attacker = attacker;
+            AttackerOwner = attackerOwner;
+            Centre = centre;
+            RadiusTiles = radiusTiles;
+            Victims = victims;
+        }
+
+        /// <summary>Machine-readable kind name: "blast".</summary>
+        public override string Kind => "blast";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Attacker + " blast at " + Centre + " radius " + RadiusTiles + " reached " + Victims + " units.";
     }
 
     /// <summary>A dome shield's pool reached 0 and the dome is down.</summary>

@@ -22,6 +22,11 @@
 //   * Dome (P-003 row 6): at fire time a ranged shot at a unit that stands inside an allied (or own) dome, fired from outside it, is
 //     absorbed by the dome pool, lowest dome unit ID first; overflow passes on. Absorbed shots are never queued. Melee and shots
 //     fired from inside the dome pass.
+//   * Blast (combat_mechanics.md package 1): a weapon with splash_radius_tiles above 0 also damages, when its hit lands, every other enemy unit
+//     on a layer the weapon can target whose edge is inside the radius around the target's position (or its fire-time position if it is gone):
+//     weapon damage x combat.json splash_damage_fraction x the damage modifiers (fixed at fire time), then each victim's own armour row; no uphill
+//     multiplier, no drench, no friendly fire. Victims are collected in ascending ID order before any is damaged. Domes absorb a victim's share when
+//     the blast centre is outside the dome (AbsorbByDomes, shared with fire time). A shell fully absorbed at fire time makes no blast.
 //   * Reach: a target is in range when centre distance minus both radii is at most the range, i.e. the centre
 //     distance is at most range + attackerRadius + targetRadius (compared squared). The range is the weapon's, changed by
 //     the active Planetary Cycle for surface ranged units (CycleSystem.EffectiveRangeTiles, Windstorm), for both fire and acquire reach.
@@ -101,7 +106,7 @@ namespace Rts.Sim.Combat
             sim.PendingHits.TakeDue(sim.Clock.Tick, due);
             foreach (PendingHit hit in due)
             {
-                Land(sim, hit, kills);
+                Land(sim, hit, kills, domes);
             }
             // 6c: the unit loop.
             foreach (EntityId id in ids)
@@ -393,11 +398,19 @@ namespace Rts.Sim.Combat
             {
                 damage = damage * rules.UphillRangedDamageMultiplier;
             }
+            // True when this weapon's hit carries a blast.
+            bool hasBlast = weapon.SplashRadiusTiles > Fix64.Zero;
+            // Base damage each blast victim takes before its own armour. Unit: health points. Range: 0 or more; 0 without a blast.
+            Fix64 splashBase = hasBlast ? weapon.Damage * rules.SplashDamageFraction : Fix64.Zero;
             foreach (IDamageModifier modifier in sim.DamageModifiers)
             {
                 // Mechanic multiplier for this hit; a negative answer counts as 0 so damage never heals.
                 Fix64 factor = Fix64.Max(Fix64.Zero, modifier.OutgoingDamageMultiplier(sim, attacker));
                 damage = damage * factor;
+                if (hasBlast)
+                {
+                    splashBase = splashBase * factor;
+                }
             }
             // Tick the hit lands. Unit: ticks. Range: the current tick to current tick + 10.
             int landTick = tick + weapon.HitDelayTicks;
@@ -407,87 +420,193 @@ namespace Rts.Sim.Combat
             if (!weapon.IsMelee && damage > Fix64.Zero && target.Owner.IsValid)
             {
                 // Damage still to place after the domes. Unit: health points. Range: 0 up to the shot's damage.
-                Fix64 remaining = damage;
-                // True when at least one dome absorbed something.
-                bool absorbedAny = false;
-                foreach (EntityId domeId in domes)
+                Fix64 remaining = AbsorbByDomes(sim, domes, attacker.Id, attacker.Position, target, damage);
+                if (remaining <= Fix64.Zero)
                 {
-                    if (remaining <= Fix64.Zero)
-                    {
-                        break;
-                    }
-                    if (!sim.Units.TryGet(domeId, out Unit? dome) || dome.Health <= Fix64.Zero || dome.ShieldDown || dome.Definition.ShieldDome == null
-                        || !sim.Players.AreAllied(dome.Owner, target.Owner))
-                    {
-                        continue;
-                    }
-                    // Dome radius and its square. Unit: tiles and squared tiles. Range: 0.5 to 16.
-                    Fix64 radius = dome.Definition.ShieldDome.RadiusTiles;
-                    Fix64 radiusSquared = radius * radius;
-                    if ((target.Position - dome.Position).LengthSquared() > radiusSquared || (attacker.Position - dome.Position).LengthSquared() <= radiusSquared)
-                    {
-                        continue;
-                    }
-                    // Damage this dome takes. Unit: health points. Range: 0 to the dome's pool.
-                    Fix64 absorbed = Fix64.Min(remaining, dome.ShieldPool);
-                    if (absorbed <= Fix64.Zero)
-                    {
-                        continue;
-                    }
-                    remaining = remaining - absorbed;
-                    absorbedAny = true;
-                    dome.SetShield(dome.ShieldPool - absorbed, false, tick);
-                    sim.Events.Add(new ShieldDomeHitEvent(tick, dome.Id, attacker.Id, target.Id, absorbed, dome.ShieldPool));
-                    if (dome.ShieldPool == Fix64.Zero)
-                    {
-                        dome.SetShield(Fix64.Zero, true, tick);
-                        sim.Events.Add(new ShieldDomeDownEvent(tick, dome.Id));
-                    }
-                }
-                if (absorbedAny && remaining <= Fix64.Zero)
-                {
+                    // The dome caught the whole shell: no hit, no blast (combat_mechanics.md 1.1 step 8).
                     return;
                 }
                 damage = remaining;
             }
+            // Attacker definition ID when the hit has a blast, else "". Range: a unit definition ID or "".
+            string sourceId = hasBlast ? attacker.Definition.Id : string.Empty;
+            // Layers the blast reaches, from the weapon. Unit: bit mask. Range: 0 to 7 (bit 0 ground, bit 1 water, bit 2 air); 0 without a blast.
+            byte splashLayers = hasBlast ? (byte)((weapon.CanTargetGround ? 1 : 0) | (weapon.CanTargetWater ? 2 : 0) | (weapon.CanTargetAir ? 4 : 0)) : (byte)0;
+            // Blast centre if the target is gone at landing. Unit: tiles. Range: inside the map; zero without a blast.
+            FixVec2 fallback = hasBlast ? target.Position : FixVec2.Zero;
             if (weapon.HitDelayTicks == 0)
             {
-                Land(sim, new PendingHit(landTick, 0, attacker.Id, attacker.Owner, target.Id, damage, weapon.AppliesDrench), kills);
+                Land(sim, new PendingHit(landTick, 0, attacker.Id, attacker.Owner, target.Id, damage, weapon.AppliesDrench, sourceId, splashBase, splashLayers, fallback), kills, domes);
             }
             else
             {
-                sim.PendingHits.Enqueue(landTick, attacker.Id, attacker.Owner, target.Id, damage, weapon.AppliesDrench);
+                sim.PendingHits.Enqueue(landTick, attacker.Id, attacker.Owner, target.Id, damage, weapon.AppliesDrench, sourceId, splashBase, splashLayers, fallback);
             }
         }
 
-        /// <summary>Lands one hit (A.4.5): dropped when the target is gone or dead; otherwise damage (0 on an invulnerable target), event, drench and a pending kill.</summary>
-        private static void Land(Simulation sim, PendingHit hit, List<PendingKill> kills)
+        /// <summary>
+        /// Lets the allied domes that cover <paramref name="victim"/> absorb <paramref name="damage"/>, lowest dome ID first (combat_mechanics.md 1.1 step 7).
+        /// A dome absorbs when it is up, the victim's centre is inside its radius and <paramref name="from"/> is outside it. Updates pools and
+        /// emits ShieldDomeHitEvent and ShieldDomeDownEvent. Used at fire time (from = attacker position) and for blast victims (from = blast centre).
+        /// Returns the damage left after all domes.
+        /// </summary>
+        /// <param name="domes">Active dome unit IDs, ascending (this tick's list).</param>
+        /// <param name="attackerId">Unit credited in the events.</param>
+        /// <param name="from">Where the damage comes from. Unit: tiles.</param>
+        /// <param name="victim">The unit that would take the damage.</param>
+        /// <param name="damage">Damage before the domes. Unit: health points. Range: above 0.</param>
+        private static Fix64 AbsorbByDomes(Simulation sim, List<EntityId> domes, EntityId attackerId, FixVec2 from, Unit victim, Fix64 damage)
         {
-            if (!sim.Units.TryGet(hit.Target, out Unit? target) || target.Health <= Fix64.Zero)
+            // Current tick. Unit: ticks.
+            int tick = sim.Clock.Tick;
+            // Damage still to place after the domes. Unit: health points. Range: 0 up to damage.
+            Fix64 remaining = damage;
+            foreach (EntityId domeId in domes)
+            {
+                if (remaining <= Fix64.Zero)
+                {
+                    break;
+                }
+                if (!sim.Units.TryGet(domeId, out Unit? dome) || dome.Health <= Fix64.Zero || dome.ShieldDown || dome.Definition.ShieldDome == null
+                    || !sim.Players.AreAllied(dome.Owner, victim.Owner))
+                {
+                    continue;
+                }
+                // Dome radius and its square. Unit: tiles and squared tiles. Range: 0.5 to 16.
+                Fix64 radius = dome.Definition.ShieldDome.RadiusTiles;
+                Fix64 radiusSquared = radius * radius;
+                if ((victim.Position - dome.Position).LengthSquared() > radiusSquared || (from - dome.Position).LengthSquared() <= radiusSquared)
+                {
+                    continue;
+                }
+                // Damage this dome takes. Unit: health points. Range: 0 to the dome's pool.
+                Fix64 absorbed = Fix64.Min(remaining, dome.ShieldPool);
+                if (absorbed <= Fix64.Zero)
+                {
+                    continue;
+                }
+                remaining = remaining - absorbed;
+                dome.SetShield(dome.ShieldPool - absorbed, false, tick);
+                sim.Events.Add(new ShieldDomeHitEvent(tick, dome.Id, attackerId, victim.Id, absorbed, dome.ShieldPool));
+                if (dome.ShieldPool == Fix64.Zero)
+                {
+                    dome.SetShield(Fix64.Zero, true, tick);
+                    sim.Events.Add(new ShieldDomeDownEvent(tick, dome.Id));
+                }
+            }
+            return remaining;
+        }
+
+        /// <summary>
+        /// Lands one hit (A.4.5): the primary target takes it unless it is gone or dead (damage, 0 on an invulnerable target, event, drench, pending kill);
+        /// then, when the hit carries a blast, the blast falls even if the primary is gone (combat_mechanics.md 1.1, 1.3).
+        /// </summary>
+        /// <param name="domes">Active dome unit IDs of this tick, ascending.</param>
+        private static void Land(Simulation sim, PendingHit hit, List<PendingKill> kills, List<EntityId> domes)
+        {
+            // True when the primary target is still registered (alive or at 0 health this tick).
+            bool registered = sim.Units.TryGet(hit.Target, out Unit? target);
+            if (registered && target!.Health > Fix64.Zero)
+            {
+                // Damage dealt. Unit: health points. Range: 0 or more.
+                Fix64 damage = hit.Damage;
+                if (target.IsInvulnerable)
+                {
+                    // Last Stand: the hit lands but does nothing (reported with damage 0).
+                    damage = Fix64.Zero;
+                }
+                else
+                {
+                    target.SetHealth(target.Health - damage);
+                    HqSystem.AfterDamage(sim, target);
+                }
+                sim.Events.Add(new UnitDamagedEvent(sim.Clock.Tick, hit.Attacker, target.Id, damage, target.Health));
+                if (hit.AppliesDrench)
+                {
+                    // Spoutling drench: the status system counts the hit, slows the flyer and grounds it at the threshold (statuses.md 4). It ignores targets that are not in the air.
+                    StatusSystem.ApplyDrenchHit(sim, hit.Attacker, hit.AttackerOwner, target);
+                }
+                if (target.Health <= Fix64.Zero)
+                {
+                    kills.Add(new PendingKill(target.Id, hit.Attacker, hit.AttackerOwner));
+                }
+            }
+            if (hit.HasBlast)
+            {
+                // Blast centre: the target's position now if it is still registered, else where it stood at fire time. Unit: tiles.
+                FixVec2 centre = registered ? target!.Position : hit.BlastFallback;
+                Blast(sim, hit, centre, kills, domes);
+            }
+        }
+
+        /// <summary>
+        /// Resolves a blast (combat_mechanics.md 1.1 steps 3 to 11): collects the enemy victims on the weapon's layers within the radius
+        /// (ascending ID, before anyone is damaged), reports it, then damages each victim with its own armour, domes, Last Stand and kill credit.
+        /// </summary>
+        /// <param name="centre">Blast centre. Unit: tiles.</param>
+        private static void Blast(Simulation sim, PendingHit hit, FixVec2 centre, List<PendingKill> kills, List<EntityId> domes)
+        {
+            if (!sim.Content.Units.TryGetValue(hit.SourceDefinitionId, out UnitDefinition? source) || source.Weapon == null)
             {
                 return;
             }
-            // Damage dealt. Unit: health points. Range: 0 or more.
-            Fix64 damage = hit.Damage;
-            if (target.IsInvulnerable)
+            // Weapon whose blast this is (frozen catalogue). Gives the damage type and radius.
+            WeaponDefinition weapon = source.Weapon;
+            // Damage table of this match.
+            CombatRules rules = sim.Content.Combat;
+            // Victims in ascending ID order. Scratch, not state.
+            List<Unit> victims = new List<Unit>();
+            foreach (Unit v in sim.Units.All)
             {
-                // Last Stand: the hit lands but does nothing (reported with damage 0).
-                damage = Fix64.Zero;
+                if (v.Id == hit.Target || v.Health <= Fix64.Zero || !v.Owner.IsValid || !hit.AttackerOwner.IsValid
+                    || !sim.Players.AreEnemies(hit.AttackerOwner, v.Owner))
+                {
+                    continue;
+                }
+                // Bit of the victim's layer in the layer mask. Range: 1, 2 or 4.
+                int layerBit = 1 << (int)v.EffectiveLayer;
+                if ((hit.SplashLayers & layerBit) == 0)
+                {
+                    continue;
+                }
+                // Largest centre distance that still counts: radius plus the victim's own radius. Unit: tiles. Range: up to 4 plus a unit radius.
+                Fix64 reach = weapon.SplashRadiusTiles + v.Definition.Radius;
+                // Offset from the blast centre to the victim. Unit: tiles.
+                FixVec2 delta = v.Position - centre;
+                if (delta.X.Abs() > reach || delta.Y.Abs() > reach || delta.LengthSquared() > reach * reach)
+                {
+                    continue;
+                }
+                victims.Add(v);
             }
-            else
+            sim.Events.Add(new BlastEvent(sim.Clock.Tick, hit.Attacker, hit.AttackerOwner, centre, weapon.SplashRadiusTiles, victims.Count));
+            foreach (Unit v in victims)
             {
-                target.SetHealth(target.Health - damage);
-                HqSystem.AfterDamage(sim, target);
-            }
-            sim.Events.Add(new UnitDamagedEvent(sim.Clock.Tick, hit.Attacker, target.Id, damage, target.Health));
-            if (hit.AppliesDrench)
-            {
-                // Spoutling drench: the status system counts the hit, slows the flyer and grounds it at the threshold (statuses.md 4). It ignores targets that are not in the air.
-                StatusSystem.ApplyDrenchHit(sim, hit.Attacker, hit.AttackerOwner, target);
-            }
-            if (target.Health <= Fix64.Zero)
-            {
-                kills.Add(new PendingKill(target.Id, hit.Attacker, hit.AttackerOwner));
+                // Damage after the victim's own armour row. Unit: health points. Range: 0 or more.
+                Fix64 damage = hit.SplashDamage * rules.GetMultiplier(weapon.DamageType, v.ArmourType);
+                if (damage > Fix64.Zero)
+                {
+                    // Damage left after domes covering the victim, fired from the blast centre.
+                    damage = AbsorbByDomes(sim, domes, hit.Attacker, centre, v, damage);
+                    if (damage <= Fix64.Zero)
+                    {
+                        continue;
+                    }
+                }
+                if (v.IsInvulnerable)
+                {
+                    damage = Fix64.Zero;
+                }
+                else
+                {
+                    v.SetHealth(v.Health - damage);
+                    HqSystem.AfterDamage(sim, v);
+                }
+                sim.Events.Add(new UnitDamagedEvent(sim.Clock.Tick, hit.Attacker, v.Id, damage, v.Health));
+                if (v.Health <= Fix64.Zero)
+                {
+                    kills.Add(new PendingKill(v.Id, hit.Attacker, hit.AttackerOwner));
+                }
             }
         }
     }

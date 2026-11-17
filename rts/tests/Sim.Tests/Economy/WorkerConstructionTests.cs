@@ -728,7 +728,8 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(secondError, Is.EqualTo(firstError));
             Assert.That(firstError.Split('\n').Length, Is.LessThanOrEqualTo(2), "only the scripted hq_rooted warning");
             // Re-pinned for the missing roster (specs/missing_roster.md R2-9): the content digest now includes the three new unit files. Old value 93762ddc16910b23; outcome unchanged.
-            Assert.That(first, Does.Contain("STATE_HASH=aff851b30f63e4f8\n"));
+            // Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): old value aff851b30f63e4f8, outcome unchanged (undecided, tick 1499).
+            Assert.That(first, Does.Contain("STATE_HASH=9a71eaccaab510c5\n"));
         }
     }
 }

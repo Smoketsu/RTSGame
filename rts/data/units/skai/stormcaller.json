@@ -1,7 +1,7 @@
 // rts/data/units/skai/stormcaller.json: Stormcaller, the Skai ground area bombardment unit. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Stormcaller unit definition for the skai faction (ground bombardment with blast damage, slow cooldown, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. The area splash and the Downdraft grounding are design notes only: Phase 1 has no splash radius or Downdraft field.",
+  "$doc": "Stormcaller unit definition for the skai faction (ground bombardment with blast damage, slow cooldown, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Its shell has a blast (splash_radius_tiles); the Downdraft grounding is a design note only: it has no field yet.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.stormcaller",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (Stormcaller).
@@ -12,7 +12,7 @@
   "kind": "unit",
   // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Skai Riders / Unit concepts (Stormcaller is ground).
   "layer": "ground",
-  // Design note, not a value: the Stormcaller's shots splash over an area (Unit concepts). The Phase 1 weapon schema has no splash radius, so each shot hits one target for now.
+  // Design note, not a value: the Stormcaller's shots splash over an area (Unit concepts); see weapon.splash_radius_tiles.
   // Design note, not a value: Downdraft grounds flyers in an area (Unit concepts, grounding). It is a Phase 1 follow-up with no field yet, so the Stormcaller does not target air.
   // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder.
   "max_health": 90,
@@ -44,6 +44,8 @@
     "cooldown_seconds": 2.5,
     // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-003 row 4 (developer, 16 Nov 2026: 2 ticks = 100 ms); placeholder.
     "hit_delay_ticks": 2,
+    // Radius of the blast around the point the hit lands; every enemy unit on a layer this weapon can target whose edge is within it takes splash damage (combat.json splash_damage_fraction of the damage, then its own armour). 0 means no blast. Unit: tiles. Range: 0 to 4 (0 when absent). Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 1.4).
+    "splash_radius_tiles": 1.0,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder.
     "can_target": ["ground", "water"]
   }

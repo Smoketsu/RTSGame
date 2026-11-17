@@ -29,8 +29,24 @@ namespace Rts.Sim.Combat
         /// <summary>True when the landed hit counts as a drench hit (Spoutling).</summary>
         public readonly bool AppliesDrench;
 
-        /// <summary>Stores every field.</summary>
-        public PendingHit(int landTick, long sequence, EntityId attacker, PlayerId attackerOwner, EntityId target, Fix64 damage, bool appliesDrench)
+        /// <summary>Definition ID of the attacker, used at landing to read the weapon's damage type and blast radius. Unit: definition ID. Range: "" when the hit has no blast.</summary>
+        public readonly string SourceDefinitionId;
+
+        /// <summary>Base damage each blast victim takes before its own armour (splashBase, combat_mechanics.md 1.2). Unit: health points. Range: 0 or more; 0 without a blast.</summary>
+        public readonly Fix64 SplashDamage;
+
+        /// <summary>Layers the blast reaches, decided at fire time. Unit: bit mask. Range: bit 0 ground, bit 1 water, bit 2 air; 0 without a blast.</summary>
+        public readonly byte SplashLayers;
+
+        /// <summary>Where the blast falls when the target is no longer registered at landing: the target's position at fire time. Unit: tiles. Range: inside the map; zero vector without a blast.</summary>
+        public readonly FixVec2 BlastFallback;
+
+        /// <summary>True when the hit carries a blast.</summary>
+        public bool HasBlast => SourceDefinitionId.Length > 0;
+
+        /// <summary>Stores every field. The four blast fields default to "no blast".</summary>
+        public PendingHit(int landTick, long sequence, EntityId attacker, PlayerId attackerOwner, EntityId target, Fix64 damage, bool appliesDrench,
+            string sourceDefinitionId = "", Fix64 splashDamage = default, byte splashLayers = 0, FixVec2 blastFallback = default)
         {
             LandTick = landTick;
             Sequence = sequence;
@@ -39,6 +55,10 @@ namespace Rts.Sim.Combat
             Target = target;
             Damage = damage;
             AppliesDrench = appliesDrench;
+            SourceDefinitionId = sourceDefinitionId;
+            SplashDamage = splashDamage;
+            SplashLayers = splashLayers;
+            BlastFallback = blastFallback;
         }
     }
 }
