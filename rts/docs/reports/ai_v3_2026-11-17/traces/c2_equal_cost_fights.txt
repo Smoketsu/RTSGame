@@ -1,0 +1,26 @@
+# rts/docs/reports/ai_v3_2026-11-17/traces/c2_equal_cost_fights.txt
+# Equal-cost fights in the simulation used by rts/docs/specs/skirmish_ai_v3.md C2.1 (17 Nov 2026). Scratch command scripts, not committed:
+# map greybox_1v1, players without AI, an HQ for each side at (7,7) and (57,57) (spawned first, entity IDs 1 and 2), the armies spawned in rows of 5
+# from the corner (24,24) for side A / (40,40) for side B (16 tiles apart; "51 tiles" = corners (14,14) and (50,50)), every army unit given
+# attack_move to the enemy HQ at tick 2, seed 1, 8000 ticks, run with: BalanceHarness --data rts/data --script <file>.
+# Each pair is played twice: as written (A is slot 0) and swapped (A is slot 1). "winner" is the team that destroyed the other HQ.
+# Format: A vs B (OUTCOME as written) | swapped: (OUTCOME with the sides swapped)
+{"water.grasper":15} vs {"water.ink_lobber":8} (['OUTCOME winner=0 tick=1176']) | swapped: (['OUTCOME winner=1 tick=1007'])
+{"water.grasper":15} vs {"water.grasper":6,"water.shellback":2,"water.ink_lobber":2,"water.spoutling":2} (['OUTCOME winner=0 tick=1159']) | swapped: (['OUTCOME winner=1 tick=992'])
+{"water.reef_runner":20} vs {"water.grasper":15} (['OUTCOME winner=1 tick=1045']) | swapped: (['OUTCOME winner=0 tick=1317'])
+{"water.shellback":8} vs {"water.grasper":14} (['OUTCOME winner=1 tick=1058']) | swapped: (['OUTCOME winner=0 tick=1369'])
+{"water.grasper":7,"water.reef_runner":8} vs {"water.grasper":13} (['OUTCOME winner=1 tick=1234']) | swapped: (['OUTCOME winner=0 tick=1497'])
+{"water.grasper":8,"water.shellback":3,"water.reef_runner":4} vs {"water.grasper":6,"water.shellback":2,"water.ink_lobber":2,"water.spoutling":2} (['OUTCOME winner=0 tick=1224']) | swapped: (['OUTCOME winner=1 tick=1133'])
+{"water.grasper":10,"water.ink_lobber":3} vs {"water.grasper":15} (['OUTCOME winner=1 tick=1138']) | swapped: (['OUTCOME winner=1 tick=1207'])
+# 51 tiles apart:
+{"water.grasper":8,"water.shellback":3,"water.reef_runner":4} vs {"water.grasper":6,"water.shellback":2,"water.ink_lobber":2,"water.spoutling":2} (['OUTCOME winner=0 tick=1441']) | swapped: (['OUTCOME winner=0 tick=1355'])
+{"water.grasper":15} vs {"water.grasper":6,"water.shellback":2,"water.ink_lobber":2,"water.spoutling":2} (['OUTCOME winner=0 tick=1334']) | swapped: (['OUTCOME winner=1 tick=1189'])
+{"water.grasper":7,"water.shellback":4} vs {"water.grasper":13} (['OUTCOME winner=1 tick=1458']) | swapped: (['OUTCOME winner=0 tick=1511'])
+{"water.grasper":10,"water.reef_runner":7} vs {"water.grasper":15} (['OUTCOME winner=1 tick=1173']) | swapped: (['OUTCOME winner=0 tick=1243'])
+# Skai (16 tiles; undecided = the survivors could not destroy the Great Aerie in 8000 ticks, so these say nothing):
+{"skai.roc_rider":4} vs {"skai.windrunner":11} (['OUTCOME undecided tick=7999']) | swapped: (['OUTCOME undecided tick=7999'])
+{"skai.talon_archer":8} vs {"skai.windrunner":11} (['OUTCOME undecided tick=7999']) | swapped: (['OUTCOME undecided tick=7999'])
+{"skai.roc_rider":8} vs {"skai.windrunner":9,"skai.talon_archer":6,"skai.roc_rider":2,"skai.stormcaller":2} (['OUTCOME winner=1 tick=1214']) | swapped: (['OUTCOME undecided tick=7999'])
+{"skai.windrunner":13,"skai.talon_archer":7} vs {"skai.windrunner":9,"skai.talon_archer":6,"skai.roc_rider":2,"skai.stormcaller":2} (['OUTCOME winner=1 tick=1499']) | swapped: (['OUTCOME undecided tick=7999'])
+# Water against Skai:
+{"water.grasper":10,"water.spoutling":4} vs {"skai.windrunner":9,"skai.talon_archer":6,"skai.roc_rider":2} (['OUTCOME winner=1 tick=1288']) | swapped: (['OUTCOME winner=1 tick=1181'])

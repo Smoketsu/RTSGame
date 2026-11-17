@@ -1,5 +1,5 @@
 <!-- rts/docs/specs/skirmish_ai_v3.md -->
-<!-- Build spec for stages 1 to 3 of proposal P-004 (approved by the developer 17 Nov 2026): harness ladder and response tests plus the Reef Runner water scout (package A), scouting and the enemy model (B), fight predictor, counter-mix, tech on demand, static defence and rare priority (C), predictor-driven attacks, target choice, measured defence and unit control (D). Extends rts/docs/specs/skirmish_ai_v2.md and the rules in the header of rts/src/Ai/AiBrain.cs. Part of rts/docs/specs (index: README.md). -->
+<!-- Build spec for stages 1 to 3 of proposal P-004 (approved by the developer 17 Nov 2026): harness ladder and response tests plus the Reef Runner water scout (package A), scouting and the enemy model (B), fight predictor, counter-mix, tech on demand, static defence and rare priority (C), the counter-mix revision after the package C review: predictor-scored mix, confidence from sightings, raid strength and value cap for static defence, rare-worker cap and the early expansion as its own switch (C2), predictor-driven attacks, target choice, measured defence and unit control (D). Extends rts/docs/specs/skirmish_ai_v2.md and the rules in the header of rts/src/Ai/AiBrain.cs. Part of rts/docs/specs (index: README.md). -->
 # Spec: Skirmish AI v3 (know the enemy, build the right army, choose fights)
 
 ## 0. Goal and ground rules
@@ -26,6 +26,7 @@ One code base. Each new behaviour sits behind a boolean profile switch; with eve
 | `aggressive.json`, `defensive.json` | none (v2 behaviour, unchanged) | keys added in B, C, D |
 | `aggressive_s1.json` | stage 1 | B |
 | `aggressive_s2.json` | stages 1 and 2 | C |
+| `aggressive_s2b.json` | stages 1 and 2 with the C2 revision (C2.7) | C2 |
 | `aggressive_s3.json` | stages 1 to 3 | D |
 | `rt_*.json` (5 responder profiles) | none | A |
 
@@ -257,13 +258,14 @@ For attacker type x (side X) and target type y (side Y):
 - `dps(x, y) = x.Weapon.Damage x mult x up / x.Weapon.CooldownSeconds` when x has a weapon and `x.Weapon.CanTarget(y layer)`; else 0. Evaluated left to right.
 
 Time for side X to kill side Y (`T(X, Y)`):
+0. Empty sides, checked first and in this order: Y has no entry: `T = predictor_min_seconds`. X has no entry (Y has some): `T = predictor_max_seconds` (an empty side never kills). This is what C-6 needs: B empty gives T(A, B) = 0.05 and T(B, A) = 600, so `AWins` true and Advantage 100. (Revised by C2.0: the earlier text let an empty X fall through step 3 to step 4 and get `predictor_min_seconds`, which contradicted C-6.)
 1. `Hittable(x)` = entries y of Y that x can target. `D(x) = (sum over Hittable(x) of y.Health x dps(x, y)) / (sum over Hittable(x) of y.Health)`; 0 when x is unarmed or nothing is hittable.
 2. `DPS = sum over x of x.Count x D(x)`; `Ranged` = the same over x with `!Weapon.IsMelee`.
 3. Unhittable: entries y no armed x of X can target. If any such y is armed and `dps(y, x') > 0` for some x' in X: `T = predictor_max_seconds`. Otherwise those y are ignored.
-4. `HP = sum of Health over the other entries of Y`. Y empty after step 3: `T = predictor_min_seconds`.
+4. `HP = sum of Health over the other entries of Y`. No entry of Y left after step 3 (every entry was unhittable and harmless): `T = predictor_min_seconds`.
 5. `Dome = predictor_dome_weight x sum over y of y.Count x y.ShieldDome.Pool` (entries with a dome).
 6. `DPS == 0`: `T = predictor_max_seconds`. Else `T = (HP + Dome x Ranged / DPS) / DPS`, capped at `predictor_max_seconds`.
-7. Range head start (only when `T < predictor_max_seconds`): `rX = (sum of x.Count x D(x) x x.Weapon.RangeTiles) / DPS`; `rY` the same for Y against X (0 when Y's DPS is 0); `vY` = mean `SpeedTilesPerSecond` of Y's armed entries weighted by Count. When `rX > rY`: `head = predictor_range_headstart_max_seconds` if `vY == 0`, else `min((rX - rY) / vY, predictor_range_headstart_max_seconds)`; `T = max(predictor_min_seconds, T - predictor_range_weight x head)`.
+7. Range head start (only when `T < predictor_max_seconds`): `rX = (sum of x.Count x D(x) x x.Weapon.RangeTiles) / DPS`; `rY` the same for Y against X; when Y's DPS against X is 0 (Y cannot hurt X), `rY` = the Count-weighted mean `Weapon.RangeTiles` of Y's armed entries (0 when none is armed), as worked example C-2 uses (Pummelers cannot hit Roc Riders, rY = 1, head = (5 - 1) / 3 = 4/3; revised by C2.0, the earlier text said 0); `vY` = mean `SpeedTilesPerSecond` of Y's armed entries weighted by Count. When `rX > rY`: `head = predictor_range_headstart_max_seconds` if `vY == 0`, else `min((rX - rY) / vY, predictor_range_headstart_max_seconds)`; `T = max(predictor_min_seconds, T - predictor_range_weight x head)`.
 
 Result: `TimeAKillsB = T(A, B)`, `TimeBKillsA = T(B, A)`; `AWins = TimeAKillsB < TimeBKillsA` (ties: false, the defender holds); `Advantage = min(predictor_max_advantage, TimeBKillsA / max(TimeAKillsB, predictor_min_seconds))`. A empty: `AWins` false, `Advantage` 0.
 
@@ -438,3 +440,180 @@ Existing tests and hashes affected:
 - **Q5. Which profile the balance batch uses.** Default: after D's ladder passes, the coordinator switches `harness_batch.json` `ai_profile` to `aggressive_s3` in a separate change; `defensive.json` stays v2.
 - **Q6. Borrowing a Roc Rider as scout.** `scout_air_max_cost` 250 lets the AI send a Roc Rider. Default: yes.
 - **Q7. Early water anti-air.** Starting rare is 0 and the Spoutling costs 25 rare, so before its first rare depot water's only anti-air is the Coral Turret (rule SD step 3). Default: leave the data as it is.
+
+## Package C2: counter-mix revision
+
+Written 17 Nov 2026 after the package C review. Applies on top of package C; package D is unchanged except that it reads the mix of C2.2 when the new switch is on. Every rule below sits behind a switch or a key whose "off" value reproduces package C exactly, so `aggressive`, `defensive`, `aggressive_s1` and the `rt_*` profiles play as before (A-11 stays green) and `abl_s2_blind` plays exactly as before (C2-11).
+
+### C2.0 Text fixes to C.1 (no code change)
+
+The builder found two places where C.1's text contradicted its own worked examples; `FightPredictor.cs` implements the examples, and C.1 now says the same:
+
+1. **Empty sides (C.1 new step 0, step 4).** Y empty: `T = predictor_min_seconds`; X empty (Y not): `T = predictor_max_seconds`; both checked before step 1, in that order. The old text sent an empty X through step 3 to step 4 and gave it `predictor_min_seconds`, so B empty would have given `AWins` false against C-6.
+2. **Reach when Y cannot hurt X (C.1 step 7).** `rY` is the Count-weighted mean `Weapon.RangeTiles` of Y's armed entries (0 when none is armed), not 0. C-2's head start 4/3 = (5 - 1) / 3 needs it.
+
+Builder: delete the "Deviation from C.1 step 7" comment in `FightPredictor.cs` (the spec now matches) and cite C.1 step 7 instead; C-1 to C-7 stay as they are.
+
+### C2.1 Diagnosis
+
+**What was run.** The B ablation ladder (`aggressive_s2` against `abl_s2_blind`, 288 games, 43.8 percent) lost 0 of 24 water mirrors on prototype_1v1 and 2 of 24 on twin_chokes. Five of its games were re-traced (ladder seed 20261117, cap 2400 s; each trace ends on the same tick as its `ladder.jsonl` record) and saved under `rts/docs/reports/ai_v3_2026-11-17/traces/`:
+
+```
+dotnet run -c Release --project rts/tools/BalanceHarness -- --data rts/data --trace --map <map> --matchup <matchup> --seed 20261117 \
+    --profile-a abl_s2_blind --profile-b aggressive_s2 --game <N> --out <file>
+```
+
+| Trace file | Map, matchup, game | Reacting side (`aggressive_s2`) | Winner |
+| --- | --- | --- | --- |
+| `c2_prototype_water_g0.txt` | prototype_1v1, water_vs_water, 0 | slot 1 | blind, tick 14205 |
+| `c2_prototype_water_g2.txt` | prototype_1v1, water_vs_water, 2 | slot 0 | blind, tick 19158 |
+| `c2_twin_chokes_water_g0.txt` | twin_chokes, water_vs_water, 0 | slot 1 | blind, tick 11478 |
+| `c2_twin_chokes_water_g2.txt` | twin_chokes, water_vs_water, 2 | slot 0 | blind, tick 13537 |
+| `c2_greybox_skai_g0.txt` | greybox_1v1, skai_vs_skai, 0 | slot 1 | blind, tick 11645 |
+
+**What the reacting side (R) builds and spends compared with the blind side (B)** (water mirrors; totals over the whole game; common / rare in resource units):
+
+| Game | Side | First army unit | First static defence | Static defences placed (destroyed) | Reef Runners trained = lost | Shellbacks | Pummelers | Ink Lobbers | Spoutlings | Common gathered / spent | Rare gathered / spent | Rare bank at 300 s / peak |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| prototype g0 | R | 73 s | tick 2239 (112 s) | 11 (10) | 25 | 15 | 67 | 1 | 8 | 15000 / 15150 | 1200 / 240 | 535 / 1010 |
+| prototype g0 | B | 71 s | none | 0 | 3 | 8 | 74 | 9 | 24 | 15480 / 15650 | 1620 / 960 | 340 / 675 |
+| prototype g2 | R | 71 s | tick 2310 (116 s) | 15 (10) | 31 | 19 | 76 | 1 | 10 | 18305 / 18500 | 2575 / 290 | 485 / 2285 |
+| prototype g2 | B | 73 s | none | 0 | 4 | 9 | 78 | 12 | 28 | 17000 / 17100 | 1800 / 1205 | 380 / 750 |
+| twin_chokes g0 | R | 127 s | tick 1999 (100 s) | 2 (0) | 18 | 9 | 35 | 2 | 5 | 9505 / 9700 | 600 / 205 | 550 / 550 |
+| twin_chokes g0 | B | 80 s | none | 0 | 4 | 7 | 49 | 6 | 14 | 11215 / 11125 | 600 / 590 | 355 / 445 |
+| twin_chokes g2 | R | 128 s | tick 2020 (101 s) | 11 (6) | 16 | 12 | 52 | 1 | 5 | 12265 / 12400 | 600 / 165 | 550 / 550 |
+| twin_chokes g2 | B | 79 s | none | 0 | 5 | 10 | 67 | 6 | 14 | 13735 / 13850 | 600 / 590 | 380 / 420 |
+
+Skai mirror, greybox game 0: R placed 11 Perch Towers (first at tick 1539, 77 s; 8 destroyed), gathered 12850 common against B's 15000 and lost 22 Fledglings against 1.
+
+**Candidates, confirmed or rejected:**
+
+1. **Static defence spends the army's money: confirmed, the largest single cause.** In every traced game R's first static defence comes at 77 to 116 s, right after B's scout reached R's base (on twin_chokes B's scout hit R's HQ at 97 s and R ordered a Coral Turret at tick 1999). With `static_defence_after_raids` 1 and C.6 counting any visible enemy army unit or any recent hit as raid activity, a lone 1-supply scout is a raid. R then keeps building at every raided depot: 2 to 15 defences per game, 200 to 1500 common, 9 to 11 percent of its army spending in the three games with 11 or more, most of them destroyed at forward depots. On twin_chokes the turret and its rule-R reservation pushed R's first army unit from 80 s to 127-128 s. At 240 s in prototype g2 R had 22 army supply (5 Pummelers, 4 Reef Runners, 2 Shellbacks, 1 Spoutling) against B's 31 (9 Pummelers, 1 Ink Lobber, 1 Shellback, 4 Spoutlings), with 4 turrets (400 common) at home; R lost the first fights there (2 Pummelers, 1 Shellback, 2 Reef Runners against none).
+2. **Per-cost scoring keeps cheap units that lose: confirmed, the second cause.** C.4 scores against the blind water army (3 Pummelers, 1 Shellback, 1 Ink Lobber, 1 Spoutling, 1 implied Reef Runner) are Pummeler 0.0133, Shellback 0.0073, Reef Runner 0.0068, Ink Lobber 0.0022, Spoutling 0.0016. With `counter_keep_fraction` 0.5 all three of the first are kept with shares 0.49 / 0.27 / 0.25, so at k = 0.7 a quarter of the counter share goes to Reef Runners and a quarter to Shellbacks. R trained 16 to 31 Reef Runners per game and lost every one; B trained 3 to 5 (its scouts). The score divides by cost squared, so the 75-cost Reef Runner scores close to the 100-cost Pummeler although it has 60 health against 110 and the enemy's main unit hits light armour harder. Equal-cost fights in the simulation (C2.1 table below) show the Pummeler is the best water unit against every water army tried, and that adding Reef Runners or Shellbacks to Pummelers loses.
+3. **The mix chases a model made of scout-only sightings: confirmed for the confidence, by construction (the trace does not print k).** B.3 gives every type a known structure trains an implied count of 1. When R's scout sees a Tidepool and a Shell Forge, the implied units (Pummeler 2, Spoutling 2, Reef Runner 1, Shellback 3, Ink Lobber 2 supply) already make S_E = 10, above `counter_full_confidence_supply` 8, so k = 0.7, full confidence, before a single enemy army unit was seen.
+4. **Rare units starve the common budget: rejected; the opposite happens.** R gathers rare and does not spend it: 165 to 290 rare spent of 600 to 2575 gathered, a bank of 485 to 550 at 300 s and up to 2285 at the peak, while its common bank stays below 150. The mix squeezes rare units out (weight 2, squared in the score) but rule G keeps `rare_workers_per_field` workers on every served rare field, so those workers produce nothing the AI uses.
+5. **The mix swings every think: rejected.** From 150 s to the end, every 30-second line of R lists the same three units in training (Pummelers, Shellbacks, Reef Runners); there is no back-and-forth. No hysteresis is added; the new mix (C2.2) is continuous in its inputs.
+
+**Equal-cost fights in the simulation** (scratch command scripts, not committed; results in `traces/c2_equal_cost_fights.txt`): greybox_1v1, both HQs at their spawns, armies spawned 16 tiles apart (corners at (24, 24) and (40, 40)) or 51 tiles apart ((14, 14) and (50, 50)), every unit attack-moves to the enemy HQ at tick 2; each pair is played in both seats; the winner is the side that destroys the other HQ. Costs counted as common + rare.
+
+| Side A | Side B | Result | Predictor Advantage of A (C.1) |
+| --- | --- | --- | --- |
+| 15 Pummelers (1500) | 8 Ink Lobbers (1520) | A wins both seats | 3.417 |
+| 15 Pummelers | blind mix: 6 Pummelers, 2 Shellbacks, 2 Ink Lobbers, 2 Spoutlings (1580) | A wins both seats, both distances | 1.555 |
+| 20 Reef Runners (1500) | 15 Pummelers | B wins both seats | 0.488 |
+| 8 Shellbacks (1400) | 14 Pummelers | B wins both seats | 0.551 |
+| 7 Pummelers + 8 Reef Runners (1300) | 13 Pummelers | B wins both seats | |
+| 10 Pummelers + 7 Reef Runners (1525), 51 tiles | 15 Pummelers | B wins both seats | |
+| 7 Pummelers + 4 Shellbacks (1400), 51 tiles | 13 Pummelers | B wins both seats | |
+| package C mix: 8 Pummelers, 3 Shellbacks, 4 Reef Runners (1625) | blind mix | 16 tiles: A wins both seats; 51 tiles: slot 0 wins both | 1.504 |
+| 10 Pummelers + 3 Ink Lobbers (1570) | 15 Pummelers | slot 1 wins both (seat-decided) | |
+
+So the predictor ranks water units in the same order as the simulation in every water fight tried, while C.4's per-cost score does not (it keeps Reef Runners and Shellbacks). Skai fights with this setup end undecided (the survivors cannot finish a Great Aerie), so they say nothing; the Skai side rests on the predictor alone. The C.4 composition itself is about even with the blind one at equal cost; R lost mainly because less of its money became army (finding 1), the money that did went partly to units that lose (finding 2), and its rare income went unused (finding 4).
+
+**Diagnosis in one line.** Reacting loses the water mirror because rule SD treats the enemy scout as a raid and keeps buying static defence with the army's money, and because C.4's cost-squared score with a loose keep fraction spends a third of the counter share on cheap units that lose equal-cost fights, at full confidence from implied units; the fix is a predictor-scored mix, confidence from seen units only, a raid strength threshold and a value cap on static defence, and a rare-worker cap.
+
+### C2.2 Predictor mix (replaces C.4 steps 1 to 3 when `use_counter_mix` and `use_predictor_mix`)
+
+Lives in `AiCounter` (a new `PredictorMix` beside `Mix`; `Mix` calls it when the switch is on). Computed where `Mix` is computed now (the `Turn` constructor), once per think. Names no faction or unit.
+
+Inputs: E = the model entries of B.3 (implied counts included), in ordinal order; P = the pool of C.3; O = `FightPredictor.Group` of own army units that are complete (`IsArmy`, not under construction) and are not the current scout (`ScoutId`), with their real health; base composition `w_base`; rare stock `R = view.Rare` (resource units, bank only); budget `B = mix_eval_budget_common`.
+
+1. **Value.** `v(u) = cost_common(u) + counter_rare_cost_weight x cost_rare(u)` (Fix64). `V(O) = sum over O of Count x v`; `V(E) = sum over E of Count x v`. Sums in ordinal entry order.
+2. **Nothing to score.** E empty: k = 0 and the mix is the base composition scaled (C.4 step 4 with k = 0). `V(E)` is above 0 whenever E is not empty (every army unit costs something; a definition with cost 0 is skipped from E for this sum and the scaling, and if that leaves E empty, step 2 applies).
+3. **Equal-value enemy.** `f = (V(O) + B) / V(E)`. `E_f` = E with each entry's Count and Health multiplied by f (order kept). The question asked is "which unit, added to my army, makes it beat the enemy's composition at equal value", so composition decides, not size.
+4. **Candidate armies.** For each u in P, ordinal: `n(u) = B / cost_common(u)` when `cost_rare(u) = 0`; else `n(u) = min(B / cost_common(u), (R + mix_rare_allowance) / cost_rare(u))`. A pool unit with `cost_common` 0 uses only the rare term; with both costs 0 it gets `a(u) = 0`. `O_u` = O with u's entry Count + n(u) and Health + n(u) x MaxHealth(u) (a new entry inserted at its ordinal place when O has none). `a(u) = FightPredictor.Predict(O_u, E_f, aUphill: false, rules, PredictorSettings.From(profile)).Advantage`.
+5. **Kept units and shares.** `top = max a(u)`. top = 0: nothing kept. Kept: `a(u) > 0` and `a(u) >= counter_keep_fraction x top`. Weight `w(u) = a(u) - counter_keep_fraction x top` for kept u; if the kept weights sum to 0 (only possible with `counter_keep_fraction` 1), each kept unit gets weight 1. `s(u) = w(u) / sum of kept weights`; 0 for the others.
+6. **Confidence.** `k = counter_weight x min(1, S_seen / counter_full_confidence_supply)`, where `S_seen = sum over tracked types t of Eff(t) x supply(t)` (B.3 `Eff`, implied counts excluded); k = 0 when nothing is kept. Implied entries still shape E (a known Roost still argues for anti-air) but never raise confidence.
+7. **Mix.** C.4 step 4 unchanged: `mix(u) = floor(mix_resolution x ((1 - k) x w_base(u) / sum w_base + k x s(u)))` with the existing `MixTolerance`; these integers replace `composition` for rules P, X, T and RS.
+
+Determinism: Fix64 only; every sum in ordinal entry order; P, O and E in ordinal order; the divisions in the order written; no random draws; `Predict` is pure. Ties need no rule (proportional shares; flooring per unit in ordinal order). Cost per think: at most |P| predictions (9 in the shipped data), each linear in the entry counts.
+
+Why this is honest: the advantage of `O_u` against `E_f` is the predictor's own answer to "which purchase wins this fight", including the existing army (an army of Spoutlings stops needing Spoutlings, C2-2), range head start, shield domes and layers. It inherits the predictor's blind spots (C.1 "Not modelled": no focus fire, drench, splash), listed as Q-C2-5.
+
+C.4's `Score` stays: it still chooses the static defence type (C.6 step 4) and the whole mix when `use_predictor_mix` is false.
+
+### C2.3 Rule G: rare-worker cap (when `rare_bank_soft_cap` > 0)
+
+While `view.Rare >= rare_bank_soft_cap`, `CapOf` returns 0 for rare fields. Every user of `CapOf` follows: the idle-worker target (below-cap test), rule G2's long-haul choice, rule G4's rebalance (rare-field workers are over cap and move, highest ID first, at most `rebalance_workers_per_think`, to the nearest served field below its cap; none below cap: they stay) and rule 4b's worker target (rare fields add 0). Rule G's fallback "nearest served field at all" skips fields whose cap is 0 unless every served field has cap 0. Below the cap everything is as in package C. Rule RS and rule P are unchanged.
+
+### C2.4 Rule SD revisions
+
+1. **Raid strength (C.6 step 1).** For a drop-off, `strength = (sum of supply of visible enemy army units within defend_radius_tiles of it) + (1 when a damage report within that radius is in RecentDamage)`. Activity when `strength >= raid_min_supply`. Everything else in step 1 (gap, log, raid position) is unchanged. `raid_min_supply` 1 reproduces C.6 exactly (one unit or one hit is activity).
+2. **Value cap (C.6 step 2 only).** When `static_defence_max_value_share > 0`, step 2 builds only if `D + v(d) <= static_defence_max_value_share x A`: `D` = sum of `v` over own static defences complete or under construction (anywhere), `v(d)` = the value of the defence step 4 would build, `A` = sum of `v` over own complete army units (the scout included), `v` as in C2.2 step 1. Not met: no build this think (step 3 is still tried). Step 3 (unanswered layer) is never capped, so early water anti-air (Q7, C-13) is unaffected.
+
+### C2.5 Rule RS and the early expansion (replaces C.7's clock part)
+
+- **Rule RS (`use_rare_priority`)** keeps its test (rare-cost mix weight `>= rare_need_weight_share x mix_resolution` and no served field holds the rare resource) but now changes only rule E's target order (rare sites first, as C.7). It no longer lifts the clock gate.
+- **Early expansion (`use_early_expansion`, new switch, independent of the counter-mix switches).** In rule E, `due = expand_at_seconds + expand_interval_seconds x DepotsPlaced` as in v2; when `use_early_expansion` is on and no served field holds the rare resource, `due = min(due, early_expansion_seconds)`. All other gates of rule E stay (threat, depot cap, one under construction, money through `TryBuild`).
+- Why it reproduces the old profiles: in `abl_s2_blind` the mix is always the base composition, whose rare share 286 of 1000 is above 250, so the old RS test was "no served rare field"; with `use_early_expansion` true and `early_expansion_seconds` 0 the new gate is the same test and the target order is unchanged (C2-11 pins it). In `aggressive_s2` the old lift also needed the counter-mix's rare share to stay above 250; the new one does not, so `aggressive_s2` can change slightly (accepted: it is superseded by `aggressive_s2b`; its old ladders stay on record).
+- C-14 is replaced by C2-10 (b) and (c).
+
+### C2.6 Profile keys (root; every profile file under `rts/data/ai` gets every key)
+
+| Key | Off value (every profile except `aggressive_s2b`; see C2.7 for `use_early_expansion`) | `aggressive_s2b` | Unit | Range | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| `use_predictor_mix` | false | true | boolean | requires `use_counter_mix` | C2.2 replaces C.4 steps 1 to 3. |
+| `mix_eval_budget_common` | 600 | 600 | resource units | 50 to 100000 | B of C2.2: the purchase each candidate is valued by. Placeholder. |
+| `mix_rare_allowance` | 100 | 100 | resource units | 0 to 100000 | Rare a candidate may plan beyond the bank (so rare units are valued before the first rare arrives, at most this much). Placeholder. |
+| `rare_bank_soft_cap` | 0 | 300 | resource units | 0 to 100000; 0 = off | C2.3: rare fields take no workers while the rare bank is at or above this. Placeholder. |
+| `raid_min_supply` | 1 | 3 | supply | 1 to 200 | C2.4 step 1: raid strength that counts as a raid; 1 = package C. Placeholder. |
+| `static_defence_max_value_share` | 0 | 0.15 | fraction | 0 to 10; 0 = off | C2.4 step 2: static defence value at most this share of the army value. Placeholder. |
+| `use_early_expansion` | see C2.7 | true | boolean | | C2.5: the first rare depot's clock gate is `early_expansion_seconds`. |
+| `early_expansion_seconds` | 0 | 0 | seconds | 0 to 1800 | C2.5: clock gate of rule E while no rare field is served. Placeholder. |
+
+Changed values in `aggressive_s2b` only: `counter_keep_fraction` 0.9 (was 0.5; with predictor advantages, which are ratios near 1 in even fights, 0.5 would keep almost every unit) and `counter_rare_cost_weight` 1 (the value of rare in C2.2 step 1 and C2.4; 2 counted rare twice although it piles up unspent). Both placeholders.
+
+Comments in the house format, for example `// Predictor mix: purchase each candidate unit is valued by. Unit: resource units (common). Range: 50 to 100000. Source: skirmish_ai_v3.md C2.2; placeholder.` `AiProfile.Parse` reads every new key with the `Require*` helpers, adds them to `RejectUnknownKeys`, and validates `use_predictor_mix` requires `use_counter_mix` (error names the file and both fields). Update the `AiProfile.cs` "Differences" list and the `AiBrain.cs` header (rules G, SD, E and the Package C paragraph) and the `AiCounter.cs` header.
+
+### C2.7 Profiles
+
+| File | Change |
+| --- | --- |
+| `aggressive_s2b.json` (new, id `aggressive_s2b`) | Copy of `aggressive_s2.json` with the `aggressive_s2b` column of C2.6 and the two changed values; every other value equal to `aggressive_s2` (including `static_defence_after_raids` 1, `counter_weight` 0.7 and the C.8 base compositions). Header and `$doc` say it is the package C2 candidate (listed in the 0.1 table). |
+| `abl_s2_blind.json` | New keys at their off values, `use_early_expansion` true, `early_expansion_seconds` 0. Plays exactly as before (C2-11). |
+| `aggressive_s2.json` | Same as `abl_s2_blind` for the new keys (`use_early_expansion` true, 0). |
+| `aggressive.json`, `defensive.json`, `aggressive_s1.json`, `abl_s2_no_rare.json`, `rt_*.json` | New keys at their off values, `use_early_expansion` false (none of them lifted the clock before). |
+
+### C2.8 Package C2 tests (`rts/tests/Sim.Tests/Ai/AiArmyMixTests.cs`, `AiExpansionTests` or the file holding the rule E tests, `SkirmishAiTests`)
+
+Settings for C2-1 to C2-6 unless stated: shipped unit data and damage table, C.1 predictor settings, `mix_eval_budget_common` 600, `mix_rare_allowance` 100, `counter_keep_fraction` 0.9, `counter_rare_cost_weight` 1, `counter_weight` 0.7, `counter_full_confidence_supply` 8, `mix_resolution` 1000, C.8 base compositions, model counts all seen (so `S_seen` = S_E), own army at full health. Tolerance 0.001 on advantages; mix integers exact.
+
+- **C2-1 Water against 6 Pummelers, nothing owned, rare 0.** V(E) 600, f 1. n: Pummeler 6, Ink Lobber 2.5 (100 / 40), Reef Runner 8, Shellback 3.4286, Spoutling 4. a: Pummeler 1.0000 (12.2222 s each way; a tie), Ink Lobber 0.1736, Reef Runner 0.4878, Shellback 0.5514, Spoutling 0.1228. Kept: Pummeler only. S_seen 12, k 0.7. Mix: grasper 850, shellback 50, ink_lobber 50, spoutling 50, reef_runner 0. With rare 400 (n: Ink Lobber 4, Spoutling 6; a 0.4728 and 0.2823): same mix. (C.4 gave Shellbacks and Reef Runners a share here.)
+- **C2-2 Water against 4 Roc Riders, rare 0.** V(E) 800, f 0.75. a: Pummeler 0.0397, Ink Lobber 0.0119, Reef Runner 0.0225, Shellback 0.0778 (each 600 s to kill: unhittable armed Rocs), Spoutling 0.3333 (n 4; 24.0 s against 8.0 s). Kept: Spoutling. Mix: grasper 150, shellback 50, ink_lobber 50, spoutling 750, reef_runner 0. **C2-2b**, same with 4 own Spoutlings: V(O) 500, f 1.375; a: Pummeler 0.4038, Ink Lobber 0.1877, Reef Runner 0.2692, Shellback 0.6708, Spoutling 0.3967; kept Shellback; mix grasper 150, shellback 750, ink_lobber 50, spoutling 50, reef_runner 0 (the own army already answers air, so the predictor now adds health in front of it).
+- **C2-3 Skai against 6 Pummelers, rare 0.** n: Roc Rider 2 (100 / 50), Stormcaller 2.5, Talon 6, Windrunner 8. a: Roc Rider 16.4921 (36.3810 s against 600 s), Stormcaller 0.1281, Talon 0.4500, Windrunner 0.4878. Kept: Roc Rider. Mix: windrunner 128, talon_archer 85, roc_rider 742, stormcaller 42 (same as C-9).
+- **C2-4 Skai against 8 Windrunners, rare 0.** a: Roc Rider 0.3505, Stormcaller 0.1516, Talon 0.9545, Windrunner 1.0000. Kept: Windrunner (weight 0.1) and Talon (0.0545); s 0.6471 and 0.3529. S_seen 8, k 0.7. Mix: windrunner 581, talon_archer 332, roc_rider 42, stormcaller 42.
+- **C2-5 The traced situation.** Water, own army 5 Pummelers, 2 Shellbacks, 1 Spoutling (V(O) 975); model 3 Pummelers, 1 Shellback, 1 Ink Lobber, 1 Spoutling, 1 Reef Runner (V(E) 865, S_seen 14); rare 0. f = 1575 / 865 = 1.8208. a: Pummeler 1.5376, Ink Lobber 0.8568, Reef Runner 1.1546, Shellback 1.3267, Spoutling 0.7932. Kept: Pummeler (1.3267 < 0.9 x 1.5376 = 1.3838). Mix: grasper 850, shellback 50, ink_lobber 50, spoutling 50, reef_runner 0. (C.4 on the same model kept Pummeler, Shellback and Reef Runner.)
+- **C2-6 Confidence from sightings only.** Water; model = a known enemy Tidepool and Shell Forge, nothing seen (implied 1 each: S_E 10, S_seen 0): k 0, mix = base: grasper 500, shellback 166, ink_lobber 166, spoutling 166, reef_runner 0. Same with 2 Pummelers seen (S_seen 4): k 0.35. With `use_predictor_mix` false the old C.4 path still gives k 0.7 here (C-8 to C-10 unchanged).
+- **C2-7 Rare-worker cap.** `rare_bank_soft_cap` 300; one served common field with 1 worker (cap 3), one served rare field with 2 workers, `rebalance_workers_per_think` 2. Rare 300: both rare workers get `Gather` to the common field, the higher ID first; an idle worker goes to the common field; rule 4b's target counts 3 for the two fields (not 5). Rare 299: no move, target 5. Cap 0 (off): no move at any rare stock.
+- **C2-8 Raid strength.** `raid_min_supply` 3, `static_defence_after_raids` 1, no value cap. One enemy Reef Runner (supply 1) 5 tiles from the HQ and a hit on the HQ 1 s ago: strength 2, no raid logged, no build. Two enemy Windrunners and a hit: strength 3, raid logged, `BuildStructure` of the faction defence next to the HQ. `raid_min_supply` 1: the lone Reef Runner is a raid (package C behaviour, C-12 unchanged).
+- **C2-9 Value cap.** Water, `static_defence_max_value_share` 0.15, a logged raid that calls for a defence (cost 100). Own army 6 Pummelers (A 600): 90 < 100, no build. 7 Pummelers (700): 105, build. One own turret already standing and 13 Pummelers: 0.15 x 1300 = 195 < 200, no build; 14 Pummelers: 210, build. Share 0: builds with no army. Step 3 is not capped: C-13 with no army still orders the turret.
+- **C2-10 Early expansion.** greybox_1v1 P0, enough common, no threat. (a) `use_early_expansion` true, `early_expansion_seconds` 0, no rare field served, mix with rare share 400: a depot at the rare site (field 10's depot site, as C-14) on the first think that can pay. (b) `use_early_expansion` false, `use_rare_priority` true, same mix, 100 s: no depot; at 240 s the depot goes to the rare site (RS reorders, no longer lifts the clock). (c) `use_early_expansion` true, `early_expansion_seconds` 60: none at 59.5 s, one at 60 s. (d) as (a) but a rare field is already served: no depot before 240 s.
+- **C2-11 `abl_s2_blind` unchanged.** Before changing any code, the builder runs `--trace --map prototype_1v1 --matchup water_vs_water --seed 20261117 --profile-a abl_s2_blind --profile-b abl_s2_blind --game 0` and pins the final state hash and end tick as constants in a test; after the change the same run gives the same hash and tick. A-11 stays green.
+- **C2-12 Switch off.** With `use_predictor_mix` false every C-8 to C-10 number is unchanged; with `rare_bank_soft_cap` 0, `raid_min_supply` 1 and `static_defence_max_value_share` 0, C-11 to C-13 are unchanged.
+- **C2-13 Determinism and purity.** The same view, profile, memory copy and seed twice: identical mix, intents and memory; `rng.DrawCount` unchanged by C2; O built from units given in a shuffled order gives a bit-identical mix (Group sorts); no `float`, `double` or `decimal` in changed files (the existing grep test).
+- **C2-14 Validation.** `use_predictor_mix` true with `use_counter_mix` false: error naming the file and both fields; a profile missing `raid_min_supply`: error naming it; `aggressive_s2b` loads; the shipped-profile list test includes it.
+- **C2-15 C.1 text.** C-2 and C-6 pass unchanged; the "Deviation" comment is gone from `FightPredictor.cs`.
+
+### C2.9 Gate
+
+1. `dotnet build` and `dotnet test` green; C2-1 to C2-15 and A-11 pass; `sim-reviewer` pass on the `rts/src/Ai` diff.
+2. Ladder: `dotnet run -c Release --project rts/tools/BalanceHarness -- --data rts/data --ladder --profile-a abl_s2_blind --profile-b aggressive_s2b --out rts/docs/reports/ai_v3_2026-11-17/ladder_c2_s2b_vs_blind`. Passes when at least 200 games are decided, the `fraction` in the `LADDER` line is at least 0.600, and every one of the 12 (map, matchup) cells in `ladder.md` has a candidate fraction of decided games of at least 0.350. `ai_eval.json`'s bar stays 0.65, so exit code 2 is expected and accepted when these three hold; do not edit `ai_eval.json` (Q-C2-4).
+3. Response: `--response --profile aggressive_s2b` gives `RESPONSE_SUMMARY passed=` 6 or more of 10. Likely passes: both `air_answer` (C2-2), `armoured_answer` Skai (C2-3), `trade` water (passed in package C). Uncertain: `trade` Skai (0.847 in package C; C2-4 now keeps Windrunners and Talons), and the two `raid` files (the four-Windrunner waves, strength 4 or 5, still log raids under C2.4, but package C failed part 1 because the check measures the drop-off nearest the wave spawn and the defence went next to the HQ). Expected to fail: `armoured_answer` water (by design, Q-C2-1) and both `turtle` (package D). If fewer than 6 pass, the builder reports each failing line with its metric; it does not change the checks.
+4. If the gate is missed, the builder may change only these `aggressive_s2b` values: `counter_keep_fraction`, `counter_weight`, `mix_eval_budget_common`, `mix_rare_allowance`, `rare_bank_soft_cap`, `raid_min_supply`, `static_defence_max_value_share`; at most three full ladders; every run's numbers go in the report with what changed and why. No change to `abl_s2_blind`, the combat or unit data, or the response checks.
+5. The report (`rts/docs/reports/ai_v3_2026-11-17/README.md`, new section) holds the ladder line, the 12 cells, the response summary and one traced water mirror of `aggressive_s2b` against `abl_s2_blind` on prototype_1v1 with the same columns as the C2.1 table.
+
+### C2.10 Out of scope
+
+- Package D, the response check definitions, combat and unit data, `ai_eval.json`.
+- Predictor model changes (focus fire, drench, splash); C2.2 uses `Predict` as it is.
+- Hysteresis or smoothing of the mix (finding 5 found no swing).
+- Any `rts/src/Sim` change.
+
+### C2.11 Questions for the developer (the builder uses the defaults)
+
+- **Q-C2-1. The water `armoured_answer` check wants the wrong answer.** It counts as an answer the unit with the highest damage multiplier against armoured (Ink Lobber, Spoutling), but in the simulation 15 Pummelers beat 8 Ink Lobbers at equal cost in both seats, and the predictor agrees (3.417). Recommended: redefine an answer unit as the pool unit with the highest C2.2 advantage against the scenario's enemy at equal value (computed by the harness from the same data); default until you reply: leave the check alone, it fails for water, and the gate counts 6 of the other 9.
+- **Q-C2-2. Is the 30-second rare depot part of the stage-2 AI?** It is now an explicit switch. Recommended: on in `aggressive_s2b` (the same economy as `abl_s2_blind`, so the ladder measures reaction alone) and decided again with P-004 stage 4 (openings) for later profiles.
+- **Q-C2-3. The rare-worker cap is an economy rule, not a counter rule.** It is here because the traces show rare piling up unused. Recommended: keep it in `aggressive_s2b`, 300 placeholder.
+- **Q-C2-4. Gate bar.** This spec gates `aggressive_s2b` at 60 percent with a 35 percent cell floor, while `ai_eval.json` says 0.65. Recommended: keep 0.65 in the file for packages C and D and read the 0.60 bar from the ladder line for this gate only.
+- **Q-C2-5. Predictor blind spots.** No focus fire means the predictor values health in front of damage (C2-2b adds Shellbacks to Spoutlings against Roc Riders, which focused Roc Riders would punish). Recommended: accept for C2; revisit with D.6.3's focus model in package D.
+- **Q-C2-6. Static defence value cap exempts the unanswered-layer case.** Recommended: yes, so water still gets a Coral Turret against early Roc Riders before its first rare (Q7).
