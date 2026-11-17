@@ -1,0 +1,63 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Rts.Sim -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Sim/Debug/netstandard2.1/Rts.Sim.dll
+  Rts.Net -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Net/Debug/netstandard2.1/Rts.Net.dll
+  Rts.Replay -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Replay/Debug/netstandard2.1/Rts.Replay.dll
+  Rts.Ai -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Ai/Debug/netstandard2.1/Rts.Ai.dll
+  Rts.Tools.ReplayCheck -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Tools.ReplayCheck/Debug/net8.0/Rts.Tools.ReplayCheck.dll
+  Rts.Tools.BalanceHarness -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Tools.BalanceHarness/Debug/net8.0/Rts.Tools.BalanceHarness.dll
+  Rts.Net.Tests -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Net.Tests/Debug/net8.0/Rts.Net.Tests.dll
+Test run for /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Net.Tests/Debug/net8.0/Rts.Net.Tests.dll (.NETCoreApp,Version=v8.0)
+  Rts.Replay.Tests -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Replay.Tests/Debug/net8.0/Rts.Replay.Tests.dll
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Test run for /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Replay.Tests/Debug/net8.0/Rts.Replay.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Rts.Sim.Tests -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Sim.Tests/Debug/net8.0/Rts.Sim.Tests.dll
+Test run for /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Sim.Tests/Debug/net8.0/Rts.Sim.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Failed C2_10_EarlyExpansion [58 ms]
+  Error Message:
+     Assert.That(depots.Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiArmyMixTests.C2_10_EarlyExpansion() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiArmyMixTests.cs:line 664
+
+1)    at Rts.Sim.Tests.Ai.AiArmyMixTests.C2_10_EarlyExpansion() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiArmyMixTests.cs:line 664
+
+
+  Failed B10_Fog_B11_Bounds [7 s]
+  Error Message:
+     no worker is ordered as scout
+Assert.That(sim.Units.TryGet(move.Unit, out Unit? mover) && mover.Definition.Economy.CanGather, Is.False)
+  Expected: False
+  But was:  True
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiIntelTests.B10_Fog_B11_Bounds() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiIntelTests.cs:line 574
+
+1)    at Rts.Sim.Tests.Ai.AiIntelTests.B10_Fog_B11_Bounds() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiIntelTests.cs:line 574
+
+
+
+Passed!  - Failed:     0, Passed:    27, Skipped:     0, Total:    27, Duration: 1 m 40 s - Rts.Replay.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
+
+Passed!  - Failed:     0, Passed:    33, Skipped:     0, Total:    33, Duration: 5 m 2 s - Rts.Net.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
+
+Failed!  - Failed:     2, Passed:   690, Skipped:     0, Total:   692, Duration: 14 m 20 s - Rts.Sim.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
