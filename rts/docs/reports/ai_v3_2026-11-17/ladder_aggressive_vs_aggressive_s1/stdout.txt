@@ -1,0 +1,15 @@
+cell greybox_1v1 skai_vs_skai 24/24
+cell greybox_1v1 skai_vs_water 24/24
+cell greybox_1v1 water_vs_water 24/24
+cell long_lowland skai_vs_skai 24/24
+cell long_lowland skai_vs_water 24/24
+cell long_lowland water_vs_water 24/24
+cell prototype_1v1 skai_vs_skai 24/24
+cell prototype_1v1 skai_vs_water 24/24
+cell prototype_1v1 water_vs_water 24/24
+cell twin_chokes skai_vs_skai 24/24
+cell twin_chokes skai_vs_water 24/24
+cell twin_chokes water_vs_water 24/24
+LADDER candidate=aggressive_s1 baseline=aggressive decided=288 wins=119 fraction=0.413 bar=0.450 FAIL
+elapsed 1658.3 s
+exit=2
