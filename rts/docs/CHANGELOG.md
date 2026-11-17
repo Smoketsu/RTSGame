@@ -105,6 +105,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- Skirmish AI: a build placement the simulation rejects as `tile_blocked` (an enemy structure hidden in the fog) is remembered and not retried until the tile is visible; before, one player re-sent the same rejected depot every 5 s for minutes. Tests: the rejected-site case, and two AIs on `prototype_1v1` placing their first structures on exact mirror tiles.
+
 - `SimulationConfig` takes an optional cycle list; cycle and Core state are hashed (after the resource fields) and cycle definitions are in the content digest, so every state hash changed once; golden final hash re-pinned to `0xa7a4b7d1633db334` after merging with the lockstep tuning keys.
 - Unity scripts now compile: Unity 6.6 added `UnityEngine.EntityId`, which made `EntityId` ambiguous in `SimulationHost.cs` and `SelectionController.cs`; both files alias it to `Rts.Sim.Core.EntityId`.
 - Unity compiled the simulation with nullable annotations off (354 CS8632 warnings): it reads a response file next to an asmdef only when it is named `csc.rsp`, so `Rts.Sim.rsp`, `Rts.Ai.rsp`, `Rts.Net.rsp` and `Rts.Replay.rsp` were ignored. Renamed all four to `csc.rsp` (keeping the `.meta` GUID); verified in a copy of the project that Unity now passes `-nullable:enable` and prints no CS8632.
