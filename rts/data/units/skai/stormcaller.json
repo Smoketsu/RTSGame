@@ -1,7 +1,7 @@
 // rts/data/units/skai/stormcaller.json: Stormcaller, the Skai ground area bombardment unit. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Stormcaller unit definition for the skai faction (ground bombardment with blast damage, slow cooldown, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Its shell has a blast (splash_radius_tiles); the Downdraft grounding is a design note only: it has no field yet.",
+  "$doc": "Stormcaller unit definition for the skai faction (ground bombardment with blast damage, slow cooldown, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Its shell has a blast (splash_radius_tiles); its grounding_ability is the Downdraft: an order that slams every enemy flyer near a point to the ground (rts/docs/specs/combat_mechanics.md package 4).",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.stormcaller",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (Stormcaller).
@@ -48,5 +48,14 @@
     "splash_radius_tiles": 1.0,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder.
     "can_target": ["ground", "water"]
+  },
+  // Grounding ability (Downdraft): an order to slam every enemy flyer near a point to the ground for grounded_duration_seconds (tuning/statuses.json). Source: P-005 developer decision 6 (18 Nov 2026); Factions / Grounded (Stormcaller Downdraft).
+  "grounding_ability": {
+    // Farthest point the ability can be aimed at, from the caster's centre. Unit: tiles. Range: 0.5 to 32. Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 4.3).
+    "range_tiles": 7,
+    // Radius around the aimed point; a flyer whose edge is inside it is grounded. Unit: tiles. Range: 0.5 to 8. Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 4.3).
+    "radius_tiles": 2,
+    // Time before the same unit can use the ability again. Unit: seconds. Range: 1 to 300. Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 4.3).
+    "cooldown_seconds": 30
   }
 }

@@ -167,6 +167,9 @@ namespace Rts.Sim.Units
         /// <summary>Tick on which the dome last absorbed damage. Unit: ticks. Range: -1 (never) upward. Hashed.</summary>
         public int ShieldLastAbsorbTick { get; private set; }
 
+        /// <summary>First tick the unit may cast its grounding ability again (combat_mechanics.md 4.4). Unit: ticks. Range: 0 (ready, never cast) to int.MaxValue. Hashed.</summary>
+        public int GroundingReadyTick { get; private set; }
+
         /// <summary>Creates a unit at full health. Internal: use the simulation's spawn path so the ID and events are handled.</summary>
         internal Unit(EntityId id, PlayerId owner, UnitDefinition definition, FixVec2 position, int spawnTick)
         {
@@ -250,6 +253,13 @@ namespace Rts.Sim.Units
             ShieldPool = Fix64.Clamp(pool, Fix64.Zero, max);
             ShieldDown = down;
             ShieldLastAbsorbTick = lastAbsorbTick;
+        }
+
+        /// <summary>Sets the first tick the grounding ability may be used again. Internal: StatusSystem.CastGrounding only.</summary>
+        /// <param name="tick">First ready tick. Unit: ticks. Range: 1 or more.</param>
+        internal void SetGroundingReadyTick(int tick)
+        {
+            GroundingReadyTick = tick;
         }
 
         /// <summary>Sets the weapon cooldown. Internal: combat system only.</summary>
@@ -513,6 +523,7 @@ namespace Rts.Sim.Units
             hasher.Write(ShieldPool);
             hasher.Write(ShieldDown);
             hasher.Write(ShieldLastAbsorbTick);
+            hasher.Write(GroundingReadyTick);
             Statuses.WriteHash(hasher);
         }
     }

@@ -49,6 +49,7 @@ namespace Rts.Replay.Tests
                 new SurrenderCommand(14, new PlayerId(1), 13, new PlayerId(1)),
                 new SetConnectionStateCommand(15, Script, 14, new PlayerId(1), ConnectionState.Disconnected),
                 new CastWaveCommand(16, new PlayerId(1), 15, new EntityId(18), position),
+                new CastGroundingCommand(17, new PlayerId(0), 16, new EntityId(19), position),
             };
         }
 

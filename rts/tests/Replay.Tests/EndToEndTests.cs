@@ -230,8 +230,8 @@ namespace Rts.Replay.Tests
             // Tuning file edited, and its text before and after.
             string tuningFile = Path.Combine(editedData, "tuning", "harness.json");
             string text = File.ReadAllText(tuningFile);
-            Assert.That(text, Does.Contain("\"hq_floor_seconds\": 20"));
-            File.WriteAllText(tuningFile, text.Replace("\"hq_floor_seconds\": 20", "\"hq_floor_seconds\": 21"));
+            Assert.That(text, Does.Contain("\"hq_floor_seconds\": 15"));
+            File.WriteAllText(tuningFile, text.Replace("\"hq_floor_seconds\": 15", "\"hq_floor_seconds\": 16"));
             Assert.That(Check(_aiReplayPath, editedData, out string output, out string error), Is.EqualTo(2));
             Assert.That(output, Is.Empty);
             Assert.That(error, Does.Contain("data digest"));

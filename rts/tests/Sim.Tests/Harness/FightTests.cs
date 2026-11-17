@@ -395,13 +395,13 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(rule2.Pass, Is.False);
             Assert.That(rule2.Detail, Does.Contain("drench/structure 0.25 below 0.5"));
             Assert.That(rule2.Detail, Does.Contain("drench ratio 4.00 above 2"));
-            // With the roster of R-1 and R-2 (Leviathan hits air) Skai's Roc Rider has two Water answers, so rule 1 passes on the shipped data; a threshold of 3 fails it.
+            // With the roster of R-1 and R-2 (Leviathan hits air) Skai's Roc Rider has two Water answers, so rule 1 passes on the shipped data; a threshold of 5 fails it (the Reef Runner and the Shellback count as conditional "(on water)" answers since combat_mechanics.md package 3, so the Roc Rider has four).
             Assert.That(FightChecks.Rule1NoImmunity(new List<FightRecord>(), settings, FightMatchups.Empty, data).Pass, Is.True);
-            string strict = FightTestSupport.DataWith("rule1_min_mobile_answers", "3");
+            string strict = FightTestSupport.DataWith("rule1_min_mobile_answers", "5");
             DataSet strictData = HarnessTestSupport.Load(strict);
             CheckResult rule1 = FightChecks.Rule1NoImmunity(new List<FightRecord>(), FightSettings.Load(strict, strictData), FightMatchups.Empty, strictData);
             Assert.That(rule1.Pass, Is.False);
-            Assert.That(rule1.Detail, Does.Contain("water: skai.roc_rider attacked by 2 mobile units (water.leviathan, water.spoutling), needs 3"));
+            Assert.That(rule1.Detail, Does.Contain("water: skai.roc_rider attacked by 4 mobile units (water.leviathan, water.reef_runner (on water), water.shellback (on water), water.spoutling), needs 5"));
             // Lowering the rule 2 thresholds to the shipped numbers makes that lint pass.
             string relaxed = FightTestSupport.DataWith("rule2_min_multiplier", "0.25", "rule2_max_ratio_within_type", "4");
             DataSet relaxedData = HarnessTestSupport.Load(relaxed);

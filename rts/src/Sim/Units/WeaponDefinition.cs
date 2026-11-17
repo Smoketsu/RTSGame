@@ -60,6 +60,12 @@ namespace Rts.Sim.Units
         /// <summary>Extra multiplier on this weapon's damage against structures (footprint buildings and Rooted HQs), applied after the damage table (combat_mechanics.md 2.1). Unit: multiplier of damage (fixed-point). Range: 0.1 to 4; 1 (no bonus) when absent.</summary>
         public Fix64 StructureDamageMultiplier { get; }
 
+        /// <summary>
+        /// True when the weapon may also hit units whose effective layer is Air, but only while the attacker stands on a flooded tile (combat_mechanics.md 3.1).
+        /// <see cref="CanTarget"/> does not see it (it answers the static layer list); CombatSystem.CanHitLayer does. Unit: boolean. Range: true or false; false when absent; never true when <see cref="CanTargetAir"/> is true.
+        /// </summary>
+        public bool CanTargetAirOnWater { get; }
+
         /// <summary>True when <see cref="RangeTiles"/> is at most <see cref="MeleeMaxRangeTiles"/>.</summary>
         public bool IsMelee => RangeTiles <= MeleeMaxRangeTiles;
 
@@ -75,9 +81,10 @@ namespace Rts.Sim.Units
         /// <param name="hitDelayTicks">Ticks between firing and landing. Unit: ticks. Range: 0 to 10; 0 for melee. Default 0.</param>
         /// <param name="splashRadiusTiles">Blast radius. Unit: tiles. Range: 0 to 4; 0 (the default) means no blast.</param>
         /// <param name="structureDamageMultiplier">Multiplier on damage against structures. Unit: multiplier. Range: 0.1 to 4; null (the default) means 1.</param>
+        /// <param name="canTargetAirOnWater">True to let the weapon also hit flyers while the attacker stands on a flooded tile. Unit: boolean. Range: false when <paramref name="canTargetAir"/> is true.</param>
         public WeaponDefinition(Fix64 damage, string damageType, Fix64 rangeTiles, Fix64 cooldownSeconds,
             bool canTargetGround, bool canTargetWater, bool canTargetAir, bool appliesDrench = false, int hitDelayTicks = 0,
-            Fix64 splashRadiusTiles = default, Fix64? structureDamageMultiplier = null)
+            Fix64 splashRadiusTiles = default, Fix64? structureDamageMultiplier = null, bool canTargetAirOnWater = false)
         {
             if (damage <= Fix64.Zero)
             {
@@ -117,6 +124,10 @@ namespace Rts.Sim.Units
             {
                 throw new ArgumentOutOfRangeException(nameof(structureDamageMultiplier), "weapon structure_damage_multiplier must be 0.1 to 4.");
             }
+            if (canTargetAirOnWater && canTargetAir)
+            {
+                throw new ArgumentException("weapon can_target_air_on_water is redundant: can_target already lists air.", nameof(canTargetAirOnWater));
+            }
             Damage = damage;
             DamageType = damageType;
             RangeTiles = rangeTiles;
@@ -128,6 +139,7 @@ namespace Rts.Sim.Units
             HitDelayTicks = hitDelayTicks;
             SplashRadiusTiles = splashRadiusTiles;
             StructureDamageMultiplier = structureMultiplier;
+            CanTargetAirOnWater = canTargetAirOnWater;
         }
 
         /// <summary>True when the weapon may hit a unit on <paramref name="layer"/>.</summary>
@@ -157,6 +169,7 @@ namespace Rts.Sim.Units
             hasher.Write(HitDelayTicks);
             hasher.Write(SplashRadiusTiles);
             hasher.Write(StructureDamageMultiplier);
+            hasher.Write(CanTargetAirOnWater);
         }
     }
 }

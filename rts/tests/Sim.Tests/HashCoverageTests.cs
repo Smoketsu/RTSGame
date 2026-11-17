@@ -105,6 +105,7 @@ namespace Rts.Sim.Tests
                 Case("Unit.Statuses (slow multiplier)", w => w.Flyer.Statuses.ReplaceSlowAt(0, new SlowEntry("base", Fix64.Parse("0.25"), 500, P0))),
                 Case("Unit.Statuses (slow end tick)", w => w.Flyer.Statuses.ReplaceSlowAt(0, new SlowEntry("base", Fix64.Half, 501, P0))),
                 Case("Unit.Statuses (drench counter)", w => w.Flyer.Statuses.SetDrench(2, 9)),
+                Case("Unit.GroundingReadyTick", w => w.Shooter.SetGroundingReadyTick(610)),
                 Case("Unit.LastSelfMoveTick", w => w.Shooter.MarkSelfMoved(w.Sim.Clock.Tick + 3)),
                 Case("Unit.HasLayerOverride + LayerOverride", w => w.Flyer.SetLayerOverride(MovementLayer.Ground)),
                 Case("Unit.StatusSpeedMultiplier", w => w.Flyer.SetStatusSpeedMultiplier(Fix64.Half)),

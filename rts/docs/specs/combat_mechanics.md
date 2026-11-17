@@ -80,7 +80,7 @@ Update the Stormcaller `$doc`: delete "The area splash ... are design notes only
 | `SplashLayers` | byte | bit mask | bit 0 ground, bit 1 water, bit 2 air; 0 without a blast. Set at fire time from the weapon (package 3 adds the air bit conditionally) |
 | `BlastFallback` | FixVec2 | tiles | primary target position at fire time; zero vector without a blast |
 
-`Enqueue`, the in-place `PendingHit` built for 0-delay hits, and the `Rewrite` test hook carry the new fields. `WeaponDefinition.WriteHash` appends `SplashRadiusTiles` after `HitDelayTicks` (content digest). Nothing else is stored: victims, the centre and domes touched are per-landing scratch. `HashCoverageTests` gets the four fields.
+`Enqueue`, the in-place `PendingHit` built for 0-delay hits, and the `Rewrite` test hook carry the new fields. `WeaponDefinition.WriteHash` appends `SplashRadiusTiles` after `HitDelayTicks` (content digest). Nothing else is stored: victims, the centre and domes touched are per-landing scratch. `HashCoverageTests` gets the four fields (as built, the coverage lives in `SplashTests.Hash_CoversTheFourBlastFields`; `HashCoverageTests` does not repeat it).
 
 ### 1.6 Events
 
@@ -160,6 +160,7 @@ A weapon with `can_target_air_on_water: true` may also target units whose **effe
   `internal static bool CombatSystem.CanHitLayer(Simulation sim, Unit attacker, WeaponDefinition weapon, MovementLayer layer)` = `weapon.CanTarget(layer) || (layer == Air && weapon.CanTargetAirOnWater && IsOnWater(sim, attacker))`.
   Callers: `IsValidTarget` (acquisition and keeping a target, forced or not), `AttackUnitCommand.Apply` (`cannot_target_layer` unless the rule holds when the command applies), and package 1's `SplashLayers` at fire time (the air bit is set when the weapon targets air, or when this rule holds at fire time).
 - **The tile dries mid-attack:** on the next 6c `IsValidTarget` fails, the target is dropped (a forced target too) and no new shot is fired. Hits already fired still land (P-003: a fired hit is bound to its target), and their blast keeps the air bit decided at fire time. There is **no wind-up** in this simulation (a shot fires the tick the cooldown is 0 and the target is valid), so there is no "mid-wind-up" case.
+- **Public query for hosts and tools (added in the build, as micro_benchmark.md section 7 asks):** `public static bool CombatSystem.CanAttack(Simulation sim, Unit attacker, Unit target)` = the attacker has a weapon and `CanHitLayer(sim, attacker, weapon, target.EffectiveLayer)`. Layer only; the `--fights` harness uses it for its `cannot_target` stalemate test and idle re-targeting.
 - **`WeaponDefinition.CanTarget(layer)` keeps its static meaning** (it does not see the flag). This keeps the 12 call sites in `rts/src/Ai` and `rts/tools/BalanceHarness` unchanged.
 - A Grounded flyer is on the ground layer, so this rule does not apply to it. Ordinary ground targeting does.
 

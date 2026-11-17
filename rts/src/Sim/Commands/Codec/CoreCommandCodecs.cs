@@ -1,6 +1,6 @@
 // rts/src/Sim/Commands/Codec/CoreCommandCodecs.cs
 // One codec per faction-neutral command class of rts/src/Sim/Commands: noop, spawn_unit, move_unit, remove_unit, attack_move,
-// attack_unit, stop, root_hq, uproot_hq, pick_cycle, gather, train_unit, build_structure, apply_status, surrender and
+// attack_unit, stop, root_hq, uproot_hq, pick_cycle, gather, train_unit, build_structure, apply_status, cast_grounding, surrender and
 // set_connection_state. Part of Rts.Sim.Commands.Codec (ADR-008, ADR-009). Each codec writes exactly the command's parameters, in
 // the order its constructor takes them, with CommandWriter's explicit primitives; nothing here names a faction. A new core command
 // gets a codec here and a line in RegisterAll (the Sim.Tests codec fixture fails for any Command subclass without one).
@@ -31,6 +31,7 @@ namespace Rts.Sim.Commands.Codec
             registry.Register(new TrainUnitCodec());
             registry.Register(new BuildStructureCodec());
             registry.Register(new ApplyStatusCodec());
+            registry.Register(new CastGroundingCodec());
             registry.Register(new SurrenderCodec());
             registry.Register(new SetConnectionStateCodec());
         }
@@ -313,6 +314,29 @@ namespace Rts.Sim.Commands.Codec
             int x = reader.ReadInt32();
             int y = reader.ReadInt32();
             return new BuildStructureCommand(tick, issuer, sequence, worker, definition, x, y);
+        }
+    }
+
+    /// <summary>Codec for <see cref="CastGroundingCommand"/>: caster, target (the same layout as the Water faction's cast_wave).</summary>
+    public sealed class CastGroundingCodec : CommandCodec<CastGroundingCommand>
+    {
+        /// <summary>"cast_grounding".</summary>
+        public override string Kind => CastGroundingCommand.KindName;
+
+        /// <summary>Writes caster and target.</summary>
+        protected override void Write(CastGroundingCommand command, CommandWriter writer)
+        {
+            writer.WriteEntityId(command.Caster);
+            writer.WriteFixVec2(command.Target);
+        }
+
+        /// <summary>Reads caster and target.</summary>
+        protected override CastGroundingCommand Read(CommandReader reader, int tick, PlayerId issuer, uint sequence)
+        {
+            // Fields in wire order.
+            EntityId caster = reader.ReadEntityId();
+            FixVec2 target = reader.ReadFixVec2();
+            return new CastGroundingCommand(tick, issuer, sequence, caster, target);
         }
     }
 

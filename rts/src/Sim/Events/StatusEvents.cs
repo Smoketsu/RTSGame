@@ -105,6 +105,37 @@ namespace Rts.Sim.Events
         public override string Describe() => Unit + " moved from layer " + From + " to " + To + " at " + Position + ".";
     }
 
+    /// <summary>A unit cast its grounding ability (Downdraft). Emitted after the StatusAppliedEvent and UnitLayerChangedEvent of every flyer it grounded.</summary>
+    public sealed class GroundingCastEvent : SimEvent
+    {
+        /// <summary>The casting unit.</summary>
+        public EntityId Caster { get; }
+
+        /// <summary>The caster's owner. Range: a valid player.</summary>
+        public PlayerId Owner { get; }
+
+        /// <summary>Centre of the pulse. Unit: tiles.</summary>
+        public FixVec2 Target { get; }
+
+        /// <summary>Flyers grounded or refreshed by this cast. Unit: units. Range: 0 upward.</summary>
+        public int UnitsGrounded { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public GroundingCastEvent(int tick, EntityId caster, PlayerId owner, FixVec2 target, int unitsGrounded) : base(tick)
+        {
+            Caster = caster;
+            Owner = owner;
+            Target = target;
+            UnitsGrounded = unitsGrounded;
+        }
+
+        /// <summary>Machine-readable kind name: "grounding_cast".</summary>
+        public override string Kind => "grounding_cast";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Caster + " cast its grounding ability at " + Target + ": " + UnitsGrounded + " grounded.";
+    }
+
     /// <summary>A weapon that applies drench hit an air unit.</summary>
     public sealed class DrenchHitEvent : SimEvent
     {

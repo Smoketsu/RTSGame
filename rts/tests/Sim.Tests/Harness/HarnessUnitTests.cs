@@ -151,7 +151,7 @@ namespace Rts.Sim.Tests.Harness
         [Test]
         public void FloorConsistency_MismatchExitsWithOne()
         {
-            string folder = HarnessTestSupport.CopyData(new[] { new DataEdit("tuning/hq.json", "\"survivability_floor_seconds\": 20", "\"survivability_floor_seconds\": 25") });
+            string folder = HarnessTestSupport.CopyData(new[] { new DataEdit("tuning/hq.json", "\"survivability_floor_seconds\": 15", "\"survivability_floor_seconds\": 25") });
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--batch", "--out", HarnessTestSupport.NewFolder() }, out _, out string error), Is.EqualTo(1));
             Assert.That(error, Does.Contain("tuning/hq.json survivability_floor_seconds must equal tuning/harness.json hq_floor_seconds"));
         }
@@ -165,9 +165,12 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder }, out string output, out _), Is.EqualTo(0));
             // Re-pinned again for the missing roster (specs/missing_roster.md R2-9): old values 03674dfb1efc68b7 and 93762ddc16910b23, outcomes unchanged.
             // Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): old value a65a7eea003009f4, outcome unchanged (undecided, tick 599). Re-pinned for combat mechanics package 2 (structure_damage_multiplier in the content digest): a65a7eea003009f4 became c399aaafed8cf945 in package 1 and is now 55643cc0cb0ce049; economy_smoke 9a71eaccaab510c5 is now e4127bf62b50cbc1, outcomes unchanged.
-            Assert.That(output, Does.Contain("STATE_HASH=55643cc0cb0ce049\n"));
+            // Re-pinned for F0 (specs/micro_benchmark.md 3.3, developer decision 4 of 18 Nov 2026: Rooted HQ floor 20 s to 15 s in hq.json and harness.json, both in the content digest): smoke 55643cc0cb0ce049 is now 225054de92f557a4 (undecided, tick 599), economy_smoke e4127bf62b50cbc1 is now 9cffda66d3cb0548 (undecided, tick 1499).
+            // Re-pinned for combat mechanics package 3 (specs/combat_mechanics.md: can_target_air_on_water is in the weapon digest, Reef Runner and Shellback carry it): smoke 225054de92f557a4 is now a3aada433dad3915 (undecided, tick 599), economy_smoke 9cffda66d3cb0548 is now d951951064e0b735 (undecided, tick 1499).
+            // Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability): smoke a3aada433dad3915 is now e1ab5e425ce8cb35 (undecided, tick 599), economy_smoke d951951064e0b735 is now 06d921a35888ec95 (undecided, tick 1499).
+            Assert.That(output, Does.Contain("STATE_HASH=e1ab5e425ce8cb35\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=e4127bf62b50cbc1\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=06d921a35888ec95\n"));
         }
 
         /// <summary>The shipped data set.</summary>

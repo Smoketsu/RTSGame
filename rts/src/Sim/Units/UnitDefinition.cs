@@ -74,6 +74,9 @@ namespace Rts.Sim.Units
         /// <summary>The always-on dome shield (P-003 row 6), or null for a unit without one.</summary>
         public ShieldDomeDefinition? ShieldDome { get; }
 
+        /// <summary>The grounding ability (Downdraft), or null for a unit without one (combat_mechanics.md package 4). Part of the content digest.</summary>
+        public GroundingAbilityDefinition? GroundingAbility { get; }
+
         /// <summary>Armour type given to hand-built definitions (tests, tools) that do not pass one; equals the placeholder default_armour_type in tuning/combat.json. Range: fixed text "light".</summary>
         public const string FallbackArmourType = "light";
 
@@ -183,15 +186,18 @@ namespace Rts.Sim.Units
         /// <summary>Builds a definition with the HQ, economy, airborne sight and flooding parts. The loader calls this one; the shorter constructors give <see cref="UnitFloodDefinition.None"/>.</summary>
         /// <param name="flood">The flooding rules, or null for <see cref="UnitFloodDefinition.None"/>.</param>
         /// <param name="shieldDome">The dome shield, or null for none.</param>
+        /// <param name="groundingAbility">The grounding ability, or null for none.</param>
         public UnitDefinition(string id, string displayName, string factionId, MovementLayer layer, Fix64 maxHealth,
             Fix64 speedTilesPerSecond, int supply, Fix64 radius, int costCommon, int costRare,
             string armourType, Fix64 sightRangeTiles, WeaponDefinition? weapon, HqDefinition? hq, UnitEconomyDefinition? economy,
-            Fix64? airborneSightRangeTiles, UnitFloodDefinition? flood, ShieldDomeDefinition? shieldDome = null)
+            Fix64? airborneSightRangeTiles, UnitFloodDefinition? flood, ShieldDomeDefinition? shieldDome = null,
+            GroundingAbilityDefinition? groundingAbility = null)
             : this(id, displayName, factionId, layer, maxHealth, speedTilesPerSecond, supply, radius, costCommon, costRare,
                 armourType, sightRangeTiles, weapon, hq, economy, airborneSightRangeTiles)
         {
             Flood = flood ?? UnitFloodDefinition.None;
             ShieldDome = shieldDome;
+            GroundingAbility = groundingAbility;
         }
     }
 }

@@ -1,8 +1,9 @@
 // rts/tests/Sim.Tests/Combat/NoSplashFightTests.cs
-// Regression pin for the area-damage refactor (rts/docs/specs/combat_mechanics.md 1.1 step 7 and section 5): a fight with no splash weapons (a
-// delayed lobber, direct shooters, a mortar, a dome, kills) over 300 ticks must keep its per-tick events and state hashes. The refactor itself was
-// proved byte-identical by running this same scene before and after it with the content digest and the four new pending-hit fields left out of
-// the hash (every one of the 300 tick hashes and all events matched); this test pins the result with the current digest. Part of Rts.Sim.Tests.
+// Regression pin for a fight with no splash weapons (a delayed lobber, direct shooters, a mortar, a dome, kills; rts/docs/specs/combat_mechanics.md
+// 1.1 step 7 and section 5): over 300 ticks the per-tick events and state hashes must keep today's values. The test pins those values only; it cannot
+// repeat the before/after comparison. That comparison (the area-damage refactor against the code before it, with the content digest and the four new
+// pending-hit fields left out of the hash) was a one-off check: every one of the 300 tick hashes and all events matched, confirmed by the
+// reviewer on 18 Nov 2026. Part of Rts.Sim.Tests.
 using System.Text;
 using NUnit.Framework;
 using Rts.Sim;
@@ -89,8 +90,8 @@ namespace Rts.Sim.Tests.Combat
             Assert.That(domeHits, Is.GreaterThan(0));
             Assert.That(kills, Is.GreaterThan(0));
             Assert.That(RunScene(out int _, out int _, out int _), Is.EqualTo(first), "two runs agree");
-            // Pinned 18 Nov 2026 for combat_mechanics.md package 1 (digest includes splash_damage_fraction and SplashRadiusTiles); re-pinned for package 2 (digest includes StructureDamageMultiplier), old value 3521365824097976314.
-            Assert.That(first, Is.EqualTo(18165753124669140004UL), "pin");
+            // Pinned 18 Nov 2026 for combat_mechanics.md package 1 (digest includes splash_damage_fraction and SplashRadiusTiles); re-pinned for package 2 (digest includes StructureDamageMultiplier), old value 3521365824097976314; re-pinned for F0 (hq.json and harness.json floor 20 s to 15 s are in the content digest), old value 18165753124669140004; re-pinned for combat mechanics package 3 (can_target_air_on_water in the weapon digest), old value 3305694457895044441; re-pinned for combat mechanics package 4 (grounding_ability in the digest, GroundingReadyTick in the unit hash), old value 18029847149085244240.
+            Assert.That(first, Is.EqualTo(6545833853995777457UL), "pin");
         }
     }
 }

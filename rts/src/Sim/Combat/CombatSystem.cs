@@ -27,6 +27,10 @@
 //     weapon damage x combat.json splash_damage_fraction x the damage modifiers (fixed at fire time), then each victim's own armour row; no uphill
 //     multiplier, no drench, no friendly fire. Victims are collected in ascending ID order before any is damaged. Domes absorb a victim's share when
 //     the blast centre is outside the dome (AbsorbByDomes, shared with fire time). A shell fully absorbed at fire time makes no blast.
+//   * Anti-air on water (combat_mechanics.md package 3): a weapon with can_target_air_on_water may also target a unit whose effective layer is Air
+//     while the attacker's own tile is flooded (any depth above 0, any team's water), read whenever the check runs (CanHitLayer: acquisition, keeping
+//     a target, forced or not, and the attack_unit command). A target that stops being valid when the tile dries is dropped on the next 6c; hits already
+//     fired still land, and their blast keeps the air bit decided at fire time. CanTarget stays the static layer list (AI and harness read it).
 //   * Structure multiplier (combat_mechanics.md package 2): a weapon's structure_damage_multiplier (default 1) multiplies damage against a structure
 //     target (a unit with a footprint, or an HQ that is Rooted) after the damage table and before the uphill multiplier and the modifiers. At fire
 //     time the target's state decides for the primary; at landing the victim's state decides for blast damage.
@@ -355,7 +359,33 @@ namespace Rts.Sim.Combat
                 && attacker.Owner.IsValid
                 && target.Owner.IsValid
                 && sim.Players.AreEnemies(attacker.Owner, target.Owner)
-                && weapon.CanTarget(target.EffectiveLayer);
+                && CanHitLayer(sim, attacker, weapon, target.EffectiveLayer);
+        }
+
+        /// <summary>True when the tile under <paramref name="unit"/>'s centre has water above 0 (any depth, any owner; combat_mechanics.md 3.1, Q8).</summary>
+        internal static bool IsOnWater(Simulation sim, Unit unit)
+        {
+            return sim.Terrain[sim.Terrain.TileOf(unit.Position)].IsFlooded;
+        }
+
+        /// <summary>
+        /// True when <paramref name="weapon"/> may hit a unit on <paramref name="layer"/> right now: the static layer list, or Air when the weapon has
+        /// can_target_air_on_water and <paramref name="attacker"/> stands on water (combat_mechanics.md 3.1). The target's own tile does not matter.
+        /// </summary>
+        internal static bool CanHitLayer(Simulation sim, Unit attacker, WeaponDefinition weapon, MovementLayer layer)
+        {
+            return weapon.CanTarget(layer) || (layer == MovementLayer.Air && weapon.CanTargetAirOnWater && IsOnWater(sim, attacker));
+        }
+
+        /// <summary>
+        /// True when <paramref name="attacker"/>'s weapon can hit <paramref name="target"/>'s effective layer in the current state of the match (the static
+        /// layer list, or flyers while it stands on water). Layer only: range, vision, ownership and health are not read. For hosts and tools that must
+        /// not declare a fight undecidable because of a conditional target rule. Read-only.
+        /// </summary>
+        public static bool CanAttack(Simulation sim, Unit attacker, Unit target)
+        {
+            WeaponDefinition? weapon = attacker.Definition.Weapon;
+            return weapon != null && CanHitLayer(sim, attacker, weapon, target.EffectiveLayer);
         }
 
         /// <summary>
@@ -446,8 +476,8 @@ namespace Rts.Sim.Combat
             }
             // Attacker definition ID when the hit has a blast, else "". Range: a unit definition ID or "".
             string sourceId = hasBlast ? attacker.Definition.Id : string.Empty;
-            // Layers the blast reaches, from the weapon. Unit: bit mask. Range: 0 to 7 (bit 0 ground, bit 1 water, bit 2 air); 0 without a blast.
-            byte splashLayers = hasBlast ? (byte)((weapon.CanTargetGround ? 1 : 0) | (weapon.CanTargetWater ? 2 : 0) | (weapon.CanTargetAir ? 4 : 0)) : (byte)0;
+            // Layers the blast reaches, from the weapon (air also when the attacker stands on water now). Unit: bit mask. Range: 0 to 7 (bit 0 ground, bit 1 water, bit 2 air); 0 without a blast.
+            byte splashLayers = hasBlast ? (byte)((weapon.CanTargetGround ? 1 : 0) | (weapon.CanTargetWater ? 2 : 0) | ((weapon.CanTargetAir || (weapon.CanTargetAirOnWater && IsOnWater(sim, attacker))) ? 4 : 0)) : (byte)0;
             // Blast centre if the target is gone at landing. Unit: tiles. Range: inside the map; zero without a blast.
             FixVec2 fallback = hasBlast ? target.Position : FixVec2.Zero;
             if (weapon.HitDelayTicks == 0)

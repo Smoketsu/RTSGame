@@ -123,6 +123,54 @@ namespace Rts.Sim.Statuses
         }
 
         /// <summary>
+        /// The grounding pulse (combat_mechanics.md 4.2): every live enemy unit whose definition layer is Air and whose edge is within the ability's radius of
+        /// <paramref name="target"/> (units in ascending ID order) is grounded for the shared grounded duration through <see cref="ApplyGrounded"/>, then the
+        /// caster's ready tick is set and a GroundingCastEvent is reported. The caller (CastGroundingCommand) has already checked every rejection.
+        /// Returns the number of units grounded or refreshed.
+        /// </summary>
+        /// <param name="sim">The stepping simulation.</param>
+        /// <param name="caster">The casting unit; its definition must have a grounding ability.</param>
+        /// <param name="target">Centre of the pulse. Unit: tiles. Range: inside the world bound.</param>
+        internal static int CastGrounding(Simulation sim, Unit caster, FixVec2 target)
+        {
+            RequireStepping(sim);
+            // The ability being cast; the command checks for it before calling.
+            GroundingAbilityDefinition ability = caster.Definition.GroundingAbility
+                ?? throw new InvalidOperationException("Unit '" + caster.Definition.Id + "' has no grounding_ability.");
+            // Current tick. Unit: ticks. Range: 0 upward.
+            int tick = sim.Clock.Tick;
+            // Shared Grounded length for this match.
+            StatusRates rates = new StatusRates(sim.Tuning.Status, sim);
+            // Units grounded or refreshed. Unit: units. Range: 0 upward.
+            int grounded = 0;
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Health <= Fix64.Zero || !unit.Owner.IsValid || !caster.Owner.IsValid || !sim.Players.AreEnemies(caster.Owner, unit.Owner)
+                    || unit.Definition.Layer != MovementLayer.Air)
+                {
+                    continue;
+                }
+                // Largest centre distance that still counts: radius plus the flyer's own radius. Unit: tiles. Range: 0.5 to 8 plus a unit radius.
+                Fix64 reach = ability.RadiusTiles + unit.Definition.Radius;
+                // Offset from the pulse centre to the flyer. Unit: tiles.
+                FixVec2 delta = unit.Position - target;
+                if (delta.X.Abs() > reach || delta.Y.Abs() > reach || delta.LengthSquared() > reach * reach)
+                {
+                    continue;
+                }
+                if (ApplyGrounded(sim, unit, rates.GroundedTicks, StatusTuning.GroundingSourceKey, caster.Owner))
+                {
+                    grounded++;
+                }
+            }
+            // Ticks until the caster may cast again, at least 1 (Start checks the data converts to 1 or more). Unit: ticks.
+            int cooldownTicks = Math.Max(1, sim.Clock.SecondsToTicks(ability.CooldownSeconds));
+            caster.SetGroundingReadyTick(tick + cooldownTicks);
+            sim.Events.Add(new GroundingCastEvent(tick, caster.Id, caster.Owner, target, grounded));
+            return grounded;
+        }
+
+        /// <summary>
         /// Slows a unit of any layer. The same key refreshes (new multiplier, later of the two end ticks). A new key is
         /// inserted in key order while below max_slow_sources_per_unit; at the cap it replaces the entry that ends soonest
         /// (ties: smallest key). Refreshes the status speed multiplier and emits status_applied.
