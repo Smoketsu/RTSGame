@@ -165,7 +165,7 @@
   // Rule SD: quiet time at a drop-off after which new activity is a new raid. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md C.6; placeholder.
   "raided_gap_seconds": 20,
   // Rule SD: raids in the window that call for a static defence. Unit: raids. Range: 1 to 20. Source: skirmish_ai_v3.md C.6; placeholder.
-  "static_defence_after_raids": 2,
+  "static_defence_after_raids": 1,
   // Rule SD: most own static defences near one base. Unit: structures. Range: 0 to 6, and not above supply.json static_defences_per_base_max. Source: skirmish_ai_v3.md C.6; placeholder.
   "static_defence_max_per_base": 2,
   // Rule SD: innermost Chebyshev ring around the drop-off searched for a site. Unit: tiles. Range: 1 to 10. Source: skirmish_ai_v3.md C.6; placeholder.
