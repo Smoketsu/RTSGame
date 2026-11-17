@@ -835,8 +835,9 @@ namespace Rts.Sim.Tests.Ai
         /// off in aggressive.json and defensive.json, so this value must never change unless the shipped data or the simulation changes on purpose. Unit: state hash. Range: any ulong.
         /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old value 0x9422f0628a36cfca,
         /// decided at tick 5631; new value decided at tick 7613 (winner 1 as before).
+        /// Re-pinned for the missing roster (specs/missing_roster.md R2-9): the content digest includes the three new unit files. Old value 0x368285be720371c6; outcome unchanged (winner 1, tick 7613).
         /// </summary>
-        private const ulong V2ReferenceHash = 0x368285be720371c6UL;
+        private const ulong V2ReferenceHash = 0x8b437ebc2b943b25UL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -854,11 +855,12 @@ namespace Rts.Sim.Tests.Ai
         /// End tick and final state hash of the traced game prototype_1v1, water_vs_water, seed 20261117, game 0, abl_s2_blind against abl_s2_blind, recorded before any
         /// package C2 code change (skirmish_ai_v3.md C2-11). Unit: ticks and state hash. Range: fixed by the shipped data; changes only on purpose.
         /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old values 18210 and 584d762eb253f6ce (first worker construction pin 11435 and 5c4f6eb8e55be64e, before the WC-2 review fixes).
+        /// Re-pinned for the missing roster (specs/missing_roster.md R2-9): the hash changes (old 963068ebe8578f25), the end tick does not.
         /// </summary>
         private const int BlindTraceEndTick = 11438;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "963068ebe8578f25";
+        private const string BlindTraceHash = "57b6a930c9cec707";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

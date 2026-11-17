@@ -123,6 +123,8 @@ namespace Rts.Sim.Tests.Harness
                 new DataEdit("units/skai/roc_rider.json", "\"damage\": 14", "\"damage\": 0.01"),
                 new DataEdit("units/skai/stormcaller.json", "\"damage\": 25", "\"damage\": 0.01"),
                 new DataEdit("units/skai/talon_archer.json", "\"damage\": 8", "\"damage\": 0.01"),
+                // The Thunderhead (specs/missing_roster.md) is a Skai attacker too; it must not be the fastest HQ killer of the arithmetic scenario.
+                new DataEdit("units/skai/thunderhead.json", "\"damage\": 44", "\"damage\": 0.01"),
             };
         }
 

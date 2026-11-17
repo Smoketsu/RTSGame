@@ -145,6 +145,13 @@ namespace Rts.Sim.Tests.Data
                     // HQs and buildings have their own placeholder ranges (large health, slow or no movement).
                     continue;
                 }
+                if (unit.Id == "water.leviathan")
+                {
+                    // The capstone siege unit (specs/missing_roster.md section 3.3) is derived outside the step 9 bounds: health 320, speed 1.5.
+                    Assert.That(unit.MaxHealth, Is.EqualTo(Fix64.FromInt(320)));
+                    Assert.That(unit.SpeedTilesPerSecond, Is.EqualTo(Fix64.Parse("1.5")));
+                    continue;
+                }
                 // Roster placeholder bounds (PHASE1_PLAN step 9): health 40 to 220, speed 1.8 to 5 tiles per second.
                 Assert.That(unit.MaxHealth, Is.GreaterThanOrEqualTo(Fix64.FromInt(40)).And.LessThanOrEqualTo(Fix64.FromInt(220)), unit.Id);
                 Assert.That(unit.SpeedTilesPerSecond, Is.GreaterThanOrEqualTo(Fix64.Parse("1.8")).And.LessThanOrEqualTo(Fix64.FromInt(5)), unit.Id);
