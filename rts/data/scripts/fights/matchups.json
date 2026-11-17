@@ -1,5 +1,82 @@
-// rts/data/scripts/fights/matchups.json: the matchups file of the equal-value fight mode (spec rts/docs/specs/micro_benchmark.md section 3.2): per combat unit, its job and the fight it wins and the fight it loses. Documentation, not simulation input: it lives under scripts/ so DataLoader skips it (outside the content digest); only rts/tools/BalanceHarness/FightMatchups.cs reads it. Entries are keyed by unit ID and are added by the content step (package F4); the check matchups_agree reports a combat unit without an entry as missing.
+// rts/data/scripts/fights/matchups.json: the matchups file of the equal-value fight mode (spec rts/docs/specs/micro_benchmark.md section 3.2): per combat unit, its job and the fight it wins and the fight it loses. Documentation, not simulation input: it lives under scripts/ so DataLoader skips it (outside the content digest); only rts/tools/BalanceHarness/FightMatchups.cs reads it. Entries are keyed by unit ID and were filled by package F4 from the sweep's suggested entries; the check matchups_agree reports a combat unit without an entry as missing.
 {
   "$schema_version": 1,
-  "$doc": "Per combat unit: job (designed role, 1 to 120 characters), wins and loses ({ against: combat unit ID, case: case ID of fights.json whose army values contain rule_army_value } or null). No entries yet."
+  "$doc": "Per combat unit: job (designed role, 1 to 120 characters), wins and loses ({ against: combat unit ID, case: case ID of fights.json whose army values contain rule_army_value } or null). The wins and loses are measured by --fights at rule_army_value (Q12), not intent; null means the sweep shows no such fight. Filled 18 Nov 2026 for all 11 combat units.",
+
+  // Roc Rider (skai.roc_rider): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "skai.roc_rider": {
+    "job": "heavy flyer",
+    "wins": { "against": "water.grasper", "case": "flat" },
+    "loses": { "against": "water.leviathan", "case": "flat" }
+  },
+
+  // Stormcaller (skai.stormcaller): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "skai.stormcaller": {
+    "job": "bombard",
+    "wins": { "against": "water.spoutling", "case": "flat" },
+    "loses": { "against": "water.shellback", "case": "flat" }
+  },
+
+  // Talon Marksman (skai.talon_archer): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "skai.talon_archer": {
+    "job": "core ranged",
+    "wins": { "against": "water.spoutling", "case": "flat" },
+    "loses": { "against": "water.leviathan", "case": "flat" }
+  },
+
+  // Thunderhead (skai.thunderhead): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "skai.thunderhead": {
+    "job": "bomber",
+    "wins": { "against": "water.grasper", "case": "flat" },
+    "loses": { "against": "skai.roc_rider", "case": "flat" }
+  },
+
+  // Windrunner (skai.windrunner): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "skai.windrunner": {
+    "job": "scout, raid",
+    "wins": { "against": "water.spoutling", "case": "flat" },
+    "loses": { "against": "water.leviathan", "case": "flat" }
+  },
+
+  // Pummeler (water.grasper): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "water.grasper": {
+    "job": "melee fighter",
+    "wins": { "against": "water.spoutling", "case": "flat" },
+    "loses": { "against": "skai.roc_rider", "case": "flat" }
+  },
+
+  // Brinecaster (water.ink_lobber): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "water.ink_lobber": {
+    "job": "artillery",
+    "wins": { "against": "water.spoutling", "case": "flat" },
+    "loses": { "against": "skai.roc_rider", "case": "flat" }
+  },
+
+  // Leviathan (water.leviathan): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "water.leviathan": {
+    "job": "capstone siege",
+    "wins": { "against": "skai.windrunner", "case": "flat" },
+    "loses": { "against": "water.shellback", "case": "flat" }
+  },
+
+  // Reef Runner (water.reef_runner): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "water.reef_runner": {
+    "job": "scout",
+    "wins": { "against": "water.spoutling", "case": "flat" },
+    "loses": { "against": "skai.roc_rider", "case": "flat" }
+  },
+
+  // Shellback (water.shellback): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "water.shellback": {
+    "job": "tank; dome absorbs ranged shots from outside",
+    "wins": { "against": "skai.stormcaller", "case": "flat" },
+    "loses": { "against": "skai.thunderhead", "case": "flat" }
+  },
+
+  // Spoutling (water.spoutling): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  "water.spoutling": {
+    "job": "anti-air",
+    "wins": null,
+    "loses": { "against": "water.leviathan", "case": "flat" }
+  }
 }

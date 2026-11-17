@@ -67,6 +67,8 @@ namespace Rts.Sim.Tests.Harness
             // The HQ floor trials stop after 30 s of game time so the sweep tests stay quick.
             string folder = HarnessTestSupport.CopyData(HarnessTestSupport.QuickBatch);
             Edit(folder, "units", QuickUnits, "compositions", "[]", "cases", QuickCases, "threats", QuickThreats);
+            // The shipped matchups.json names units outside the quick sweep; the quick sweeps run with no entries.
+            File.WriteAllText(Path.Combine(folder, MatchupsPath), "{ \"$schema_version\": 1 }");
             Edit(folder, more);
             return folder;
         }
