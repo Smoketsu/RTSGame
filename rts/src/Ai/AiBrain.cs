@@ -523,6 +523,14 @@ namespace Rts.Ai
             /// <summary>Served fields (known resources, within field_max_distance_tiles of a planned drop-off), in index order (B.3).</summary>
             private readonly List<AiFieldView> _served = new List<AiFieldView>();
 
+            /// <summary>
+            /// Own units plus one synthetic under-construction structure per own pending build order (a worker walking to a site or placing),
+            /// at the centre of the site tile (worker_construction.md 9.3 item 2). The rules that count or locate own structures read this list;
+            /// the real units come first in ascending ID, then the pending orders in ascending worker ID. Pending entries are never a usable
+            /// drop-off, a free producer or a unit that can be ordered.
+            /// </summary>
+            private readonly List<AiUnitView> _planned = new List<AiUnitView>();
+
             /// <summary>Positions of the planned drop-offs: complete drop-offs and the Rooted HQ, then depots under construction. Unit: tiles.</summary>
             private readonly List<FixVec2> _plannedDropOffs = new List<FixVec2>();
 
@@ -631,7 +639,19 @@ namespace Rts.Ai
                 Fix64 reachSquared = ReachSquared;
                 // DepotsPlaced counts the depots among the own units (rule E's schedule), not the orders given.
                 memory.DepotsPlaced = 0;
-                foreach (AiUnitView unit in view.OwnUnits)
+                _planned.AddRange(view.OwnUnits);
+                foreach (AiUnitView worker in view.OwnUnits)
+                {
+                    // Definition of the pending order's structure, when this worker has one.
+                    if (worker.HasBuildOrder && view.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? ordered) && view.Contains(worker.BuildTileX, worker.BuildTileY))
+                    {
+                        _planned.Add(new AiUnitView(worker.Id, worker.Owner, ordered, view.CentreOf(worker.BuildTileX, worker.BuildTileY), ordered.MaxHealth,
+                            ordered.Layer, HqState.Rooted, true, false, false, FixVec2.Zero, EntityId.None, false, GatherState.Idle, -1, Array.Empty<string>()));
+                        // The site is taken: no other structure is planned on it (so the simulation never answers site_pending).
+                        _reservedSites.Add(view.IndexOf(worker.BuildTileX, worker.BuildTileY));
+                    }
+                }
+                foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsWorker && unit.GatherState != GatherState.Idle)
                     {
@@ -938,7 +958,7 @@ namespace Rts.Ai
             {
                 // Positions of the own depots (drop-off structures, not the HQ).
                 List<FixVec2> depots = new List<FixVec2>();
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsStructure && unit.Definition.Economy.IsDropOff)
                     {
@@ -1078,7 +1098,7 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView worker in _view.OwnUnits)
                 {
-                    if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving)
+                    if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving || worker.HasBuildOrder)
                     {
                         continue;
                     }
@@ -1134,7 +1154,7 @@ namespace Rts.Ai
                     for (int i = _view.OwnUnits.Count - 1; i >= 0 && excess > 0 && budget > 0; i--)
                     {
                         AiUnitView worker = _view.OwnUnits[i];
-                        if (!worker.IsWorker || worker.GatherFieldIndex != field.Index)
+                        if (!worker.IsWorker || worker.GatherFieldIndex != field.Index || worker.HasBuildOrder)
                         {
                             continue;
                         }
@@ -1215,7 +1235,7 @@ namespace Rts.Ai
             {
                 // True while a supply-giving structure of ours is still being built.
                 bool supplyPending = false;
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     supplyPending |= unit.IsUnderConstruction && unit.Definition.Economy.ProvidesSupply > 0;
                 }
@@ -1238,12 +1258,12 @@ namespace Rts.Ai
                 }
             }
 
-            /// <summary>Own units (structures included, under construction included) of a definition. Unit: count.</summary>
+            /// <summary>Own units (structures included, under construction included, pending build orders included) of a definition. Unit: count.</summary>
             private int CountOwn(string definitionId)
             {
                 // Matches found. Unit: count.
                 int count = 0;
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (string.Equals(unit.Definition.Id, definitionId, StringComparison.Ordinal))
                     {
@@ -1280,9 +1300,8 @@ namespace Rts.Ai
                     }
                     return false;
                 }
-                // Worker that places the structure, or null when the player has none.
-                AiUnitView? builder = PickBuilder();
-                if (builder == null)
+                // A worker without a build order must exist; the one that goes is chosen once the site is known.
+                if (PickBuilder(_hq.Position) == null)
                 {
                     return false;
                 }
@@ -1300,6 +1319,14 @@ namespace Rts.Ai
                 {
                     return false;
                 }
+                // Worker that places the structure: the nearest free one to the site, never null here.
+                AiUnitView builder = PickBuilder(_view.CentreOf(x, y))!;
+                if (!_view.IsExplored(x, y))
+                {
+                    // The simulation refuses sites the team never saw (site_unexplored): walk there first; the next attempt builds.
+                    Emit(AiIntent.Move(builder.Id, _view.CentreOf(x, y)));
+                    return false;
+                }
                 if (Emit(AiIntent.Build(builder.Id, definition.Id, x, y)))
                 {
                     Pay(definition);
@@ -1309,24 +1336,31 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>The lowest-ID gathering worker, else the lowest-ID worker, else null.</summary>
-            private AiUnitView? PickBuilder()
+            /// <summary>
+            /// The own worker without a build order nearest <paramref name="site"/> (squared distance, ties to the lowest ID), whatever it is
+            /// doing (gathering, idle or carrying); null when there is none.
+            /// </summary>
+            /// <param name="site">Centre of the building site. Unit: tiles.</param>
+            private AiUnitView? PickBuilder(FixVec2 site)
             {
-                // Lowest-ID worker of any state, the fallback builder.
-                AiUnitView? any = null;
+                // Nearest free worker so far, and its squared distance. Unit: squared tiles. Range: 0 upward.
+                AiUnitView? best = null;
+                Fix64 bestSquared = Fix64.Zero;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (!unit.IsWorker)
+                    if (!unit.IsWorker || unit.HasBuildOrder)
                     {
                         continue;
                     }
-                    if (unit.GatherState != GatherState.Idle)
+                    // Squared distance of this worker to the site. Unit: squared tiles. Range: 0 upward.
+                    Fix64 squared = (unit.Position - site).LengthSquared();
+                    if (best == null || squared < bestSquared)
                     {
-                        return unit;
+                        best = unit;
+                        bestSquared = squared;
                     }
-                    any ??= unit;
                 }
-                return any;
+                return best;
             }
 
             /// <summary>The first acceptable building site around the HQ (see rule 3 in the file header).</summary>
@@ -1581,7 +1615,7 @@ namespace Rts.Ai
                 {
                     return;
                 }
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsStructure && unit.IsUnderConstruction && TrainsCompositionUnit(unit.Definition))
                     {
@@ -1705,7 +1739,7 @@ namespace Rts.Ai
             {
                 // Matches found. Unit: structures.
                 int count = 0;
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsStructure && unit.Definition.Economy.IsStaticDefence && (unit.Position - point).LengthSquared() <= ReachSquared)
                     {
@@ -1718,7 +1752,7 @@ namespace Rts.Ai
             /// <summary>True when an own static defence is under construction anywhere.</summary>
             private bool StaticDefenceUnderConstruction()
             {
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsStructure && unit.IsUnderConstruction && unit.Definition.Economy.IsStaticDefence)
                     {
@@ -1888,7 +1922,7 @@ namespace Rts.Ai
                 // D (own defences) and A (own army) in resource units. Range: 0 upward.
                 Fix64 defences = Fix64.Zero;
                 Fix64 army = Fix64.Zero;
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsStructure && unit.Definition.Economy.IsStaticDefence)
                     {
@@ -2475,7 +2509,7 @@ namespace Rts.Ai
                 }
                 // Own structures that train a composition unit, complete or under construction. Unit: structures. Range: 0 upward.
                 int producers = 0;
-                foreach (AiUnitView unit in _view.OwnUnits)
+                foreach (AiUnitView unit in _planned)
                 {
                     if (!unit.IsStructure || !TrainsCompositionUnit(unit.Definition))
                     {

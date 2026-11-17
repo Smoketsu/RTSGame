@@ -153,6 +153,18 @@ namespace Rts.Ai
                     }
                     continue;
                 }
+                if (simEvent.Tick > Memory.LastEventTickRead && simEvent is BuildOrderCancelledEvent cancelled && cancelled.Owner == Player
+                    && cancelled.Reason != "new_order")
+                {
+                    // Own build order cancelled (worker_lost, site_blocked, site_occupied or unreachable): the refund is already in the stock;
+                    // let the next think try again. A blocked site is remembered so it is not chosen again while it is in the fog.
+                    Memory.LastBuildAttemptTick.Remove(cancelled.DefinitionId);
+                    if (cancelled.Reason == "site_blocked" && sim.Terrain.Contains(cancelled.TileX, cancelled.TileY))
+                    {
+                        Memory.RejectedSites.Add(sim.Terrain.IndexOf(cancelled.TileX, cancelled.TileY));
+                    }
+                    continue;
+                }
                 if (simEvent.Tick > Memory.LastEventTickRead && simEvent is CommandRejectedEvent rejected && rejected.Reason == "tile_blocked"
                     && rejected.Command is BuildStructureCommand build && build.Issuer == Player && sim.Terrain.Contains(build.TileX, build.TileY))
                 {
