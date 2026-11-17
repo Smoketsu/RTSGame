@@ -1,10 +1,11 @@
 // rts/src/Sim/Commands/EconomyCommands.cs
-// The economy commands: gather, train a unit, build a structure. Part of Rts.Sim.Commands. All three use the usual ownership
+// The economy commands: gather, train a unit, order a worker to build a structure (walk, place, then the structure builds alone). Part of Rts.Sim.Commands. All three use the usual ownership
 // rule (the unit must belong to the issuer; the script issuer, PlayerId.None, may order any unit) and spend only the owning
 // player's resources. What the orders do each tick is documented in rts/src/Sim/Economy/EconomySystem.cs.
 using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Economy;
+using Rts.Sim.Events;
 using Rts.Sim.Teams;
 using Rts.Sim.Units;
 
@@ -32,6 +33,7 @@ namespace Rts.Sim.Commands
         /// <summary>
         /// Applies the command. Rejections, in order: unknown_unit, not_owner, cannot_gather, unknown_field, field_depleted, no_drop_off
         /// (only when the worker still carries a load and the owner has no drop-off). A worker that carries a load deposits it first.
+        /// An accepted order cancels the worker's pending build order (refund, reason new_order).
         /// </summary>
         public override CommandResult Apply(Simulation sim)
         {
@@ -58,20 +60,12 @@ namespace Rts.Sim.Commands
                 return CommandResult.Reject("field_depleted");
             }
             unit.ClearCombatOrders();
-            if (unit.CarriedAmount > 0)
+            if (unit.CarriedAmount > 0 && EconomyRules.NearestDropOff(sim, unit.Owner, unit.Position) == null)
             {
-                // Nearest drop-off for the load the worker still carries.
-                Unit? dropOff = EconomyRules.NearestDropOff(sim, unit.Owner, unit.Position);
-                if (dropOff == null)
-                {
-                    return CommandResult.Reject("no_drop_off");
-                }
-                unit.SetGather(GatherState.ToDropOff, FieldIndex, 0);
-                unit.SetMoveTarget(EconomyRules.StandablePointNear(sim, dropOff.Position, unit.EffectiveLayer));
-                return CommandResult.Ok;
+                return CommandResult.Reject("no_drop_off");
             }
-            unit.SetGather(GatherState.ToField, FieldIndex, 0);
-            unit.SetMoveTarget(EconomyRules.StandablePointNear(sim, sim.Terrain.CentreOf(sim.Terrain.IndexOf(field.X, field.Y)), unit.EffectiveLayer));
+            EconomySystem.CancelBuild(sim, unit, "new_order", false);
+            EconomySystem.StartGatherLoop(sim, unit, FieldIndex);
             return CommandResult.Ok;
         }
 
@@ -174,8 +168,10 @@ namespace Rts.Sim.Commands
     }
 
     /// <summary>
-    /// Places a structure on a tile. The structure appears at once, under construction, at construction_start_health_fraction of its
-    /// health, and finishes after its build_seconds. Phase 1 placeholder: the worker is not required to walk to the site or to stay.
+    /// Orders a worker to build a structure on a tile. The cost is paid and the supply reserved at once; the worker walks to the site,
+    /// spends worker_placement_seconds there, then the structure appears under construction (construction_start_health_fraction of
+    /// its health) and finishes by its own build_seconds without the worker, who goes back to the gather field it left. The order is
+    /// refunded if it is cancelled before the structure appears. See specs/worker_construction.md and EconomySystem.
     /// </summary>
     public sealed class BuildStructureCommand : Command
     {
@@ -206,10 +202,13 @@ namespace Rts.Sim.Commands
 
         /// <summary>
         /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker),
-        /// unknown_definition, not_a_structure (no footprint), wrong_faction, out_of_bounds, tile_blocked, tile_occupied (a ground or
-        /// water unit stands on the tile), no_base (a static defence needs an own drop-off within base_radius_tiles of the site),
-        /// static_defence_cap (static_defences_per_base_max of them already stand within base_radius_tiles of that drop-off),
-        /// insufficient_resources, supply_cap.
+        /// unknown_definition, not_a_structure (no footprint), wrong_faction, out_of_bounds, site_unexplored (the worker owner's team
+        /// has never seen the tile; checked before tile_blocked so a rejection reveals nothing), tile_blocked, tile_occupied (a ground
+        /// or water unit stands on the tile), site_pending (an own unit already has a build order for the tile), no_base (a static
+        /// defence needs an own drop-off within base_radius_tiles of the site), static_defence_cap (static_defences_per_base_max of them,
+        /// pending orders included, already stand within base_radius_tiles of that drop-off), insufficient_resources, supply_cap
+        /// (pending orders count as supply used). A rejection changes nothing. On acceptance a previous order of the worker is
+        /// cancelled (new_order, refunded), the cost is paid and the worker walks to the site.
         /// </summary>
         public override CommandResult Apply(Simulation sim)
         {
@@ -244,6 +243,10 @@ namespace Rts.Sim.Commands
             // Site tile and its centre.
             int tile = sim.Terrain.IndexOf(TileX, TileY);
             FixVec2 centre = sim.Terrain.CentreOf(tile);
+            if (!sim.Vision.IsTileExplored(sim.Players.TeamOf(worker.Owner), TileX, TileY))
+            {
+                return CommandResult.Reject("site_unexplored");
+            }
             if (sim.Terrain[tile].IsBlocked)
             {
                 return CommandResult.Reject("tile_blocked");
@@ -253,6 +256,13 @@ namespace Rts.Sim.Commands
                 if (other.EffectiveLayer != MovementLayer.Air && sim.Terrain.TileOf(other.Position) == tile)
                 {
                     return CommandResult.Reject("tile_occupied");
+                }
+            }
+            foreach (Unit other in sim.Units.All)
+            {
+                if (other.Owner == worker.Owner && other.BuildState != BuildOrderState.None && other.BuildTileX == TileX && other.BuildTileY == TileY)
+                {
+                    return CommandResult.Reject("site_pending");
                 }
             }
             if (definition.Economy.IsStaticDefence)
@@ -272,19 +282,25 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("supply_cap");
             }
+            // Gather field to resume afterwards. Unit: field index. Range: -1 or 0 to field count - 1.
+            int resume = worker.GatherState != GatherState.Idle ? worker.GatherFieldIndex : worker.BuildResumeFieldIndex;
+            // A replaced order is refunded first (its event comes before the accepted event).
+            EconomySystem.CancelBuild(sim, worker, "new_order", false);
             owner.Spend(definition.CostCommon, definition.CostRare);
-            // The new structure; the footprint blocker is added by the spawn path.
-            Unit structure = sim.SpawnUnit(definition, worker.Owner, centre);
-            structure.SetHealth(definition.MaxHealth * sim.Tuning.Economy.ConstructionStartHealthFraction);
-            structure.SetConstructionTicks(EconomyRules.BuildTicks(sim, definition));
+            worker.ClearCombatOrders();
+            worker.ClearGather();
+            worker.SetBuildOrder(DefinitionId, TileX, TileY, resume);
+            worker.SetMoveTarget(centre);
             EconomySystem.RecomputeSupply(sim);
+            sim.Events.Add(new BuildOrderAcceptedEvent(sim.Clock.Tick, worker.Id, worker.Owner, DefinitionId, TileX, TileY, definition.CostCommon, definition.CostRare));
             return CommandResult.Ok;
         }
 
         /// <summary>
         /// Checks the per-base static defence limit for a site. Returns null when the site is fine, otherwise the rejection:
         /// no_base when the owner has no drop-off within base_radius_tiles of the site, static_defence_cap when that drop-off's base
-        /// already holds static_defences_per_base_max of the owner's static defences (under construction ones count).
+        /// already holds static_defences_per_base_max of the owner's static defences (under construction ones and pending build
+        /// orders for static defences sited in that base count).
         /// </summary>
         private static CommandResult? CheckStaticDefenceCap(Simulation sim, PlayerId owner, FixVec2 site)
         {
@@ -301,6 +317,12 @@ namespace Rts.Sim.Commands
             foreach (Unit other in sim.Units.All)
             {
                 if (other.Owner == owner && other.Definition.Economy.IsStaticDefence && (other.Position - dropOff.Position).LengthSquared() <= radiusSquared)
+                {
+                    count++;
+                }
+                if (other.Owner == owner && other.BuildState != BuildOrderState.None
+                    && sim.Content.Units.TryGetValue(other.BuildDefinitionId, out UnitDefinition? pending) && pending.Economy.IsStaticDefence
+                    && (sim.Terrain.CentreOf(sim.Terrain.IndexOf(other.BuildTileX, other.BuildTileY)) - dropOff.Position).LengthSquared() <= radiusSquared)
                 {
                     count++;
                 }

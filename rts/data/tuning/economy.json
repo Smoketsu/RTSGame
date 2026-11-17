@@ -22,6 +22,8 @@
   "interact_range_tiles": 1.5,
   // Health a structure starts with when placed, as a fraction of its maximum; it gains the rest evenly over its build_seconds. Unit: fraction of max health (0.1 = 10%). Range: 0.01 to 1. Source: Economy (structures are built by workers); placeholder.
   "construction_start_health_fraction": 0.1,
+  // Time a worker spends at the site, once it has walked there, before the structure appears; the structure then finishes by its own build_seconds without the worker. Unit: seconds. Range: 0.05 to 30. Source: developer decision 18 Nov 2026 ("Workers should have to go over and spend a couple seconds constructing"); placeholder.
+  "worker_placement_seconds": 2.0,
   // How many rings of tiles around a producer are searched for a free tile when a trained unit appears (ring 1 is the eight neighbours). Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.
   "spawn_search_radius_tiles": 3,
   // Workers each player starts with beside the HQ in a standard match start (StandardMatchStart). Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.

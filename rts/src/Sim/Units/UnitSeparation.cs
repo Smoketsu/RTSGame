@@ -22,10 +22,10 @@ namespace Rts.Sim.Units
             return tuning.SeparationStrength > Fix64.Zero || tuning.SidestepStrength > Fix64.Zero || tuning.CrowdArrivalRadiusTiles > Fix64.Zero;
         }
 
-        /// <summary>Whether a unit takes part in separation (B.2): not a gathering worker, and not an air unit when air separation is off.</summary>
+        /// <summary>Whether a unit takes part in separation (B.2): not a gathering or building worker, and not an air unit when air separation is off.</summary>
         private static bool IsParticipant(Unit unit, TerrainTuning tuning)
         {
-            if (unit.GatherState != GatherState.Idle)
+            if (unit.GatherState != GatherState.Idle || unit.BuildState != BuildOrderState.None)
             {
                 return false;
             }

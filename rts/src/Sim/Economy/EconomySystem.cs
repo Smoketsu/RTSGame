@@ -18,12 +18,27 @@
 //   complete (and, for an HQ, Rooted); at 0 the unit appears on the first free tile next to the producer (EconomyRules.
 //   TryFindSpawnPosition) and UnitTrainedEvent is emitted; with no free tile it waits and retries next tick. A queued unit
 //   reserves its supply and its cost is paid when queued; there is no refund (placeholder).
-// Construction: a structure placed by BuildStructureCommand starts at construction_start_health_fraction of its health
-//   and gains the rest evenly over build_seconds; while under construction it is no drop-off, producer or supply source and
-//   its weapon is off. StructureCompletedEvent is emitted at the end.
+// Build orders (BuildOrderState; specs/worker_construction.md): BuildStructureCommand pays the cost, records the order on the
+//   worker and sends it to the site (ToSite). StepBuild runs after StepGather and before StepProduction, when the worker has
+//   BuildState != None.
+//   * ToSite: within reach (interact range plus the structure's radius, to the site centre) the worker stops, the site is
+//     checked (blocked by a structure, or a non-air unit stands on the tile) and the placement countdown of
+//     worker_placement_seconds starts (BuildOrderStartedEvent). A site failure cancels the order (site_blocked or
+//     site_occupied); a walk that ends short cancels it (unreachable). Both refund the cost and send the worker back to the
+//     gather field it left.
+//   * Placing: counts down one tick per step; at 0 the site is checked again and the structure is spawned under construction
+//     (StructurePlacedEvent). The worker is free again at once. A countdown set on arrival tick A ends on tick A + P.
+//   * The structure starts at construction_start_health_fraction of its health and gains the rest evenly over build_seconds
+//     (StepConstruction). Its countdown first runs on the tick AFTER it is placed, because the spawned unit is not in this
+//     step's snapshot, so it completes on A + P + build_ticks, one tick later than the old rule (a structure placed by command
+//     on tick T completed on T + build_ticks - 1). While under construction it is no drop-off, producer or supply source and
+//     its weapon is off. StructureCompletedEvent is emitted at the end.
+//   * CancelBuild refunds the definition's cost and emits BuildOrderCancelledEvent. Accepted move, attack, stop, gather and build
+//     orders cancel with new_order; a removed worker cancels with worker_lost (OnUnitRemoved, so deaths in step 6d).
 // Footprint: a unit whose definition has footprint 1 adds a Footprint blocker to its tile at spawn and removes it when it
 //   is removed (OnUnitRemoved), unless another footprint unit shares the tile.
-// Supply: RecomputeSupply sums, per player, the supply of every living unit plus every queued unit, and the supply cap. It
+// Supply: RecomputeSupply sums, per player, the supply of every living unit plus every queued unit plus every pending build
+//   order (replaced by the structure itself when it appears), and the supply cap. It
 //   scans all units, O(n) per call; it runs at the end of every economy step and before each train or build command (so two
 //   commands in one tick see each other). Cheap at Phase 1 sizes; the planned replacement is incremental counters once unit
 //   counts need it.
@@ -82,6 +97,8 @@ namespace Rts.Sim.Economy
         /// <summary>Removes the footprint blocker of a removed structure unless another footprint unit shares its tile. Internal: <see cref="Simulation.RemoveUnit"/> only.</summary>
         internal static void OnUnitRemoved(Simulation sim, Unit removed)
         {
+            // A removed worker's pending build order is refunded; the unit is gone, so there is nothing to resume.
+            CancelBuild(sim, removed, "worker_lost", false);
             if (removed.Definition.Economy.FootprintTiles <= 0)
             {
                 return;
@@ -123,6 +140,10 @@ namespace Rts.Sim.Economy
                     continue;
                 }
                 used[unit.Owner] += EconomyRules.SupplyOf(sim, unit.Definition);
+                if (unit.BuildState != BuildOrderState.None && sim.Content.Units.TryGetValue(unit.BuildDefinitionId, out UnitDefinition? pendingDefinition))
+                {
+                    used[unit.Owner] += EconomyRules.SupplyOf(sim, pendingDefinition);
+                }
                 foreach (string queued in unit.ProductionQueue)
                 {
                     if (sim.Content.Units.TryGetValue(queued, out UnitDefinition? queuedDefinition))
@@ -166,6 +187,10 @@ namespace Rts.Sim.Economy
                 {
                     StepGather(sim, unit);
                 }
+                if (unit.BuildState != BuildOrderState.None)
+                {
+                    StepBuild(sim, unit);
+                }
                 if (unit.ProductionQueue.Count > 0)
                 {
                     StepProduction(sim, unit);
@@ -186,6 +211,160 @@ namespace Rts.Sim.Economy
             // Offset between the points. Unit: tiles.
             FixVec2 delta = b - a;
             return delta.LengthSquared() <= reach * reach;
+        }
+
+        /// <summary>
+        /// Puts a worker onto a gather loop toward a field, as the gather command does after its checks. The unit stays Idle when the
+        /// field index is out of range or the field is depleted, or when it carries a load and the owner has no drop-off (the load is kept).
+        /// Internal: the gather command and the build order code only.
+        /// </summary>
+        /// <param name="sim">The stepping simulation.</param>
+        /// <param name="unit">The worker.</param>
+        /// <param name="fieldIndex">Field to work. Unit: field index. Range: 0 to field count - 1, else the unit stays Idle.</param>
+        internal static void StartGatherLoop(Simulation sim, Unit unit, int fieldIndex)
+        {
+            if (fieldIndex < 0 || fieldIndex >= sim.Resources.Count || sim.Resources[fieldIndex].IsDepleted)
+            {
+                return;
+            }
+            // The chosen field.
+            ResourceFieldState field = sim.Resources[fieldIndex];
+            if (unit.CarriedAmount > 0)
+            {
+                // Nearest drop-off for the load the worker still carries.
+                Unit? dropOff = EconomyRules.NearestDropOff(sim, unit.Owner, unit.Position);
+                if (dropOff == null)
+                {
+                    return;
+                }
+                unit.SetGather(GatherState.ToDropOff, fieldIndex, 0);
+                unit.SetMoveTarget(EconomyRules.StandablePointNear(sim, dropOff.Position, unit.EffectiveLayer));
+                return;
+            }
+            unit.SetGather(GatherState.ToField, fieldIndex, 0);
+            unit.SetMoveTarget(EconomyRules.StandablePointNear(sim, sim.Terrain.CentreOf(sim.Terrain.IndexOf(field.X, field.Y)), unit.EffectiveLayer));
+        }
+
+        /// <summary>
+        /// Ends a worker's build order with a refund of the structure's cost and a BuildOrderCancelledEvent. Does nothing when the
+        /// worker has no order. Does not recompute supply: the callers do (command path before its supply check, economy step at its end).
+        /// Internal: commands, the removal hook and the economy step.
+        /// </summary>
+        /// <param name="sim">The stepping simulation.</param>
+        /// <param name="worker">The worker (it may already have left the registry).</param>
+        /// <param name="reason">One of new_order, worker_lost, site_blocked, site_occupied, unreachable.</param>
+        /// <param name="resume">True to send the worker back to the gather field it left, when there is one.</param>
+        internal static void CancelBuild(Simulation sim, Unit worker, string reason, bool resume)
+        {
+            if (worker.BuildState == BuildOrderState.None)
+            {
+                return;
+            }
+            // Refund amounts. Unit: resource units. Range: 0 upward.
+            int refundCommon = 0;
+            int refundRare = 0;
+            if (sim.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? definition))
+            {
+                refundCommon = definition.CostCommon;
+                refundRare = definition.CostRare;
+            }
+            if (sim.Players.TryGet(worker.Owner, out Player? owner))
+            {
+                owner.AddResource(ResourceKind.Common, refundCommon);
+                owner.AddResource(ResourceKind.Rare, refundRare);
+            }
+            sim.Events.Add(new BuildOrderCancelledEvent(sim.Clock.Tick, worker.Id, worker.Owner, worker.BuildDefinitionId, worker.BuildTileX, worker.BuildTileY, reason, refundCommon, refundRare));
+            // Gather field to go back to. Unit: field index. Range: -1 or more.
+            int resumeField = worker.BuildResumeFieldIndex;
+            worker.ClearBuildOrder();
+            if (resume && resumeField >= 0)
+            {
+                StartGatherLoop(sim, worker, resumeField);
+            }
+        }
+
+        /// <summary>
+        /// Site check for a build order: "site_blocked" when the tile is blocked, "site_occupied" when a non-air unit stands on it
+        /// (the builder included), else null.
+        /// </summary>
+        private static string? SiteProblem(Simulation sim, int tile)
+        {
+            if (sim.Terrain[tile].IsBlocked)
+            {
+                return "site_blocked";
+            }
+            foreach (Unit other in sim.Units.All)
+            {
+                if (other.EffectiveLayer != MovementLayer.Air && sim.Terrain.TileOf(other.Position) == tile)
+                {
+                    return "site_occupied";
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Advances one worker's build order by one tick (specs/worker_construction.md section 3.2).</summary>
+        private static void StepBuild(Simulation sim, Unit worker)
+        {
+            if (!sim.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? definition))
+            {
+                worker.ClearBuildOrder();
+                return;
+            }
+            // Site tile index and centre. Unit: tile index; tiles.
+            int tile = sim.Terrain.IndexOf(worker.BuildTileX, worker.BuildTileY);
+            FixVec2 siteCentre = sim.Terrain.CentreOf(tile);
+            if (worker.BuildState == BuildOrderState.ToSite)
+            {
+                // Reach to the site centre: interact range plus the structure's radius. Unit: tiles.
+                Fix64 reach = InteractRange(sim) + definition.Radius;
+                if (Within(worker.Position, siteCentre, reach))
+                {
+                    worker.ClearMoveTarget();
+                    // Result of the site check; null means the site is free.
+                    string? problem = SiteProblem(sim, tile);
+                    if (problem != null)
+                    {
+                        CancelBuild(sim, worker, problem, true);
+                        return;
+                    }
+                    // Placement time. Unit: ticks. Range: 1 upward.
+                    int placementTicks = sim.Tuning.Economy.WorkerPlacementTicks(sim.Clock);
+                    worker.StartPlacing(placementTicks);
+                    sim.Events.Add(new BuildOrderStartedEvent(sim.Clock.Tick, worker.Id, definition.Id, worker.BuildTileX, worker.BuildTileY, placementTicks));
+                }
+                else if (!worker.HasMoveTarget)
+                {
+                    // Movement gave up or something cleared the order: the site cannot be reached.
+                    CancelBuild(sim, worker, "unreachable", true);
+                }
+                return;
+            }
+            worker.TickPlacing();
+            if (worker.BuildTicksRemaining > 0)
+            {
+                return;
+            }
+            // Result of the second site check, on the tick the structure would appear.
+            string? lateProblem = SiteProblem(sim, tile);
+            if (lateProblem != null)
+            {
+                CancelBuild(sim, worker, lateProblem, true);
+                return;
+            }
+            // The new structure; the footprint blocker is added by the spawn path. It is not in this step's snapshot, so its
+            // construction countdown first runs next tick.
+            Unit structure = sim.SpawnUnit(definition, worker.Owner, siteCentre);
+            structure.SetHealth(definition.MaxHealth * sim.Tuning.Economy.ConstructionStartHealthFraction);
+            structure.SetConstructionTicks(EconomyRules.BuildTicks(sim, definition));
+            sim.Events.Add(new StructurePlacedEvent(sim.Clock.Tick, worker.Id, structure.Id, definition.Id, worker.BuildTileX, worker.BuildTileY));
+            // Gather field to go back to. Unit: field index. Range: -1 or more.
+            int resume = worker.BuildResumeFieldIndex;
+            worker.ClearBuildOrder();
+            if (resume >= 0)
+            {
+                StartGatherLoop(sim, worker, resume);
+            }
         }
 
         /// <summary>Counts a structure's construction down, adds its health share, and completes it at 0.</summary>

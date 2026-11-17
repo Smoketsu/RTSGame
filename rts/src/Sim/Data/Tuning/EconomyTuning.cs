@@ -43,6 +43,9 @@ namespace Rts.Sim.Data
         /// <summary>Health a structure starts with when placed, as a fraction of its maximum. Unit: fraction of max health (0.1 = 10%). Range: 0.01 to 1. Source: Economy; placeholder.</summary>
         public Fix64 ConstructionStartHealthFraction { get; }
 
+        /// <summary>Time a worker spends at the site, once it has walked there, before the structure appears; the structure then finishes by its own build_seconds without the worker. Unit: seconds. Range: 0.05 to 30. Source: developer decision 18 Nov 2026 ("Workers should have to go over and spend a couple seconds constructing"); placeholder.</summary>
+        public Fix64 WorkerPlacementSeconds { get; }
+
         /// <summary>How many rings of tiles around a producer are searched for a free tile when a trained unit appears. Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.</summary>
         public int SpawnSearchRadiusTiles { get; }
 
@@ -59,12 +62,19 @@ namespace Rts.Sim.Data
             return System.Math.Max(1, clock.SecondsToTicks(GatherSecondsPerTrip));
         }
 
+        /// <summary>Placement time converted from <see cref="WorkerPlacementSeconds"/> to whole simulation ticks (rounded to nearest, ADR-004; at least 1). Unit: ticks. Range: 1 upward.</summary>
+        /// <param name="clock">The match clock whose tick rate is used.</param>
+        public int WorkerPlacementTicks(MatchClock clock)
+        {
+            return System.Math.Max(1, clock.SecondsToTicks(WorkerPlacementSeconds));
+        }
+
         /// <summary>Reads and validates every key of the file. Unknown keys, missing keys, wrong types and out-of-range values throw <see cref="DataValidationException"/> naming the file and key.</summary>
         /// <param name="root">The parsed file (root must be an object).</param>
         public EconomyTuning(JsonValue root)
         {
             root.RejectUnknownKeys("starting_common", "starting_rare", "base_supply", "gather_amount_per_trip", "gather_seconds_per_trip",
-                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "spawn_search_radius_tiles", "starting_worker_count", "starting_worker_search_radius_tiles");
+                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "worker_placement_seconds", "spawn_search_radius_tiles", "starting_worker_count", "starting_worker_search_radius_tiles");
             StartingCommon = root.RequireInt("starting_common", 0, 100000);
             StartingRare = root.RequireInt("starting_rare", 0, 100000);
             BaseSupply = root.RequireInt("base_supply", 0, 300);
@@ -75,6 +85,7 @@ namespace Rts.Sim.Data
             BaseRadiusTiles = root.RequireFix64("base_radius_tiles", "2", "64");
             InteractRangeTiles = root.RequireFix64("interact_range_tiles", "0.5", "4");
             ConstructionStartHealthFraction = root.RequireFix64("construction_start_health_fraction", "0.01", "1");
+            WorkerPlacementSeconds = root.RequireFix64("worker_placement_seconds", "0.05", "30");
             SpawnSearchRadiusTiles = root.RequireInt("spawn_search_radius_tiles", 1, 8);
             StartingWorkerCount = root.RequireInt("starting_worker_count", 0, 20);
             StartingWorkerSearchRadiusTiles = root.RequireInt("starting_worker_search_radius_tiles", 1, 8);
