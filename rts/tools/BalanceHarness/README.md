@@ -102,7 +102,7 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --tr
     [--game N] [--max-game-seconds T] [--out <file>]
 ```
 
-Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
+With `--profile-a <id> --profile-b <id>` the two slots play the ladder seat rule for the game index (use the ladder's `--seed` and `--max-game-seconds` to replay a ladder game). Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
 `rts/docs/reports/ai_trace_2026-11-16/`.
 
 ## Ladder mode and response mode (skirmish AI v3, package A)

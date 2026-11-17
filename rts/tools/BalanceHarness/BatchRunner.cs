@@ -58,7 +58,11 @@ namespace Rts.Tools.BalanceHarness
             using (TextWriter text = toFile ? new StreamWriter(options.OutDirectory) : TextWriter.Null)
             {
                 GameTrace trace = new GameTrace(toFile ? text : output, GameTrace.DefaultIntervalSeconds);
-                GameRecord record = GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, batch.AiProfile, batch.AiProfile, maxSeconds, trace);
+                // Profiles of the two slots: the batch profile twice, or with --profile-a and --profile-b the ladder seat rule for this game index.
+                bool ladder = options.ProfileA.Length > 0;
+                string profile0 = ladder ? GameRunner.LadderProfileInSlot(options.TraceGame, 0, options.ProfileA, options.ProfileB) : batch.AiProfile;
+                string profile1 = ladder ? GameRunner.LadderProfileInSlot(options.TraceGame, 1, options.ProfileA, options.ProfileB) : batch.AiProfile;
+                GameRecord record = GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, profile0, profile1, maxSeconds, trace);
                 output.Write(record.ToJsonLine() + "\n");
             }
             output.Flush();
