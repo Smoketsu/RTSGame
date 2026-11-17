@@ -1528,7 +1528,7 @@ namespace Rts.Ai
             /// <summary>
             /// Rule SD step 1 (C.6): records enemy activity at every own drop-off: a visible enemy army unit within defend_radius_tiles, or a
             /// recent hit on an own unit there. Activity with none in the previous raided_gap_seconds starts a raid (its tick is appended to the log).
-            /// Forgets drop-offs that no longer exist.
+            /// Forgets the logs of units that no longer exist (an uprooted HQ keeps its log).
             /// </summary>
             /// <param name="dropOffs">The own drop-offs, ascending ID.</param>
             private void UpdateRaids(List<AiUnitView> dropOffs)
@@ -1543,7 +1543,8 @@ namespace Rts.Ai
                 List<EntityId> gone = new List<EntityId>();
                 foreach (EntityId id in _memory.RaidLog.Keys)
                 {
-                    if (!dropOffs.Exists(d => d.Id == id))
+                    // An HQ that is uprooted (relocating) is not a drop-off for now but keeps its raid history; only units that no longer exist are forgotten.
+                    if (FindOwn(id) == null)
                     {
                         gone.Add(id);
                     }
@@ -1737,9 +1738,11 @@ namespace Rts.Ai
                 {
                     return false;
                 }
+                // Height layer of the origin tile; a site must be on the same layer. Unit: height level. Range: 0 to 255.
                 byte baseHeight = _view.HeightAt(ox, oy);
                 // Scan directions, as in rule 3.
                 int sx = _view.Width / 2 >= ox ? 1 : -1;
+                // Scan direction along the rows: +1 when the map centre lies at or below the origin tile, else -1. Unit: sign. Range: -1 or 1.
                 int sy = _view.Height / 2 >= oy ? 1 : -1;
                 // True once a site is found, and the squared distance of the best so far. Unit: squared tiles.
                 bool found = false;

@@ -104,6 +104,7 @@ namespace Rts.Ai
                 incomingSum += enemy.Count * FightPredictor.Dps(enemy.Definition, unit, false, view.Content.Combat);
                 enemyCount += enemy.Count;
             }
+            // Count-weighted mean damage per second the enemies deal to the unit. Unit: health points per second. Range: 0 upward.
             Fix64 incoming = enemyCount <= Fix64.Zero ? Fix64.Zero : incomingSum / enemyCount;
             // Cost with the rare resource weighted. Unit: resource units. Range: 1 upward.
             Fix64 cost = Fix64.Max(Fix64.One, Fix64.FromInt(unit.CostCommon) + profile.CounterRareCostWeight * Fix64.FromInt(unit.CostRare));
@@ -136,6 +137,7 @@ namespace Rts.Ai
             Fix64 top = Fix64.Zero;
             foreach (UnitDefinition unit in pool)
             {
+                // Counter score of this pool unit. Unit: score (see Score). Range: 0 upward.
                 Fix64 score = enemies.Count == 0 ? Fix64.Zero : Score(unit, enemies, profile, view);
                 scores[unit.Id] = score;
                 top = Fix64.Max(top, score);
@@ -170,6 +172,7 @@ namespace Rts.Ai
             foreach (string id in ids)
             {
                 plan.Composition.TryGetValue(id, out int baseWeight);
+                // Mix weight before flooring: base share first, counter share added below. Unit: weight units. Range: 0 to mix_resolution.
                 Fix64 value = baseShare * baseWeight / baseTotal;
                 if (kept.TryGetValue(id, out Fix64 keptScore))
                 {

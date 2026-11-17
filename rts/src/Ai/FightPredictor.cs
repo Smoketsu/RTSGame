@@ -296,19 +296,23 @@ namespace Rts.Ai
                     pools += y.Count * y.Definition.ShieldDome.Pool;
                 }
             }
+            // Shield dome pools of Y counted as extra health against ranged damage. Unit: health points. Range: 0 upward.
             Fix64 dome = s.DomeWeight * pools;
             if (dps <= Fix64.Zero)
             {
                 return s.MaxSeconds;
             }
             // Step 6: time to kill, capped.
+            // Seconds X needs, before the range head start. Unit: seconds. Range: 0 to predictor_max_seconds.
             Fix64 time = Fix64.Min(s.MaxSeconds, (hp + dome * ranged / dps) / dps);
             if (time >= s.MaxSeconds)
             {
                 return time;
             }
             // Step 7: the side with the longer reach shoots for a while before the other can answer.
+            // X's damage-weighted weapon reach against the hittable rest of Y. Unit: tiles. Range: 0 upward.
             Fix64 reachX = ReachOf(xs, rest, xUphill, rules, dps);
+            // Total damage per second Y deals to X (count x D(y) summed). Unit: health points per second. Range: 0 upward.
             Fix64 dpsY = Fix64.Zero;
             foreach (FightEntry y in ys)
             {
@@ -316,6 +320,7 @@ namespace Rts.Ai
             }
             // Deviation from C.1 step 7 (worked example C-2): when Y cannot hurt X at all, Y's reach is the count-weighted mean range of its
             // armed entries (not 0), so C-2's head start is (5 - 1) / 3 = 4/3 as the table says.
+            // Y's weapon reach against X. Unit: tiles. Range: 0 upward.
             Fix64 reachY = dpsY > Fix64.Zero ? ReachOf(ys, xs, yUphill, rules, dpsY) : MeanRange(ys);
             if (reachX > reachY)
             {
@@ -330,7 +335,9 @@ namespace Rts.Ai
                         armed += y.Count;
                     }
                 }
+                // Count-weighted mean speed of Y's armed entries. Unit: tiles per second. Range: 0 upward.
                 Fix64 speedY = armed <= Fix64.Zero ? Fix64.Zero : speedSum / armed;
+                // Seconds of free shooting X gets from its longer reach, capped. Unit: seconds. Range: 0 to predictor_range_headstart_max_seconds.
                 Fix64 head = speedY <= Fix64.Zero ? s.RangeHeadstartMaxSeconds : Fix64.Min((reachX - reachY) / speedY, s.RangeHeadstartMaxSeconds);
                 time = Fix64.Max(s.MinSeconds, time - s.RangeWeight * head);
             }
