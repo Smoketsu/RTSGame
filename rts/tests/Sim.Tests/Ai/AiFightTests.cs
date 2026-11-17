@@ -45,6 +45,9 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>The package D profile with the spec's attack_min_supply 6 (the shipped file retuned it to 14 for the response gate); the D.1 test numbers assume 6.</summary>
         private static AiProfile S3Spec => S3Edited("\"attack_min_supply\": 14,", "\"attack_min_supply\": 6,");
 
+        /// <summary>Whether the shipped aggressive_s3 has use_focus_fire on (decided by the package D review check; see the report).</summary>
+        private const bool S3FocusFire = true;
+
         /// <summary>The package C2 profile (every package D switch off).</summary>
         private static AiProfile S2b => AiProfile.FromDataSet(Data, "aggressive_s2b");
 
@@ -337,7 +340,7 @@ namespace Rts.Sim.Tests.Ai
             Row(sim, "skai.roc_rider", P1, 2, 34, 30);
             Near(Advantage(S3, new List<FightEntry> { Full("water.grasper", 3) }, new List<FightEntry> { Full("skai.roc_rider", 2) }), "0.0292");
             // The AI memory of this case (stance, groups, known enemies; one per case).
-            AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 6, AttackThreshold = 8 };
+            AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 6, AttackThreshold = 8, AttackStartTick = sim.Clock.Tick - 200 };
             foreach (EntityId id in group)
             {
                 memory.AttackGroup.Add(id);
@@ -754,6 +757,295 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(b.Draws, Is.EqualTo(a.Draws));
         }
 
+
+        // ------------------------------------------------------------------ package D review fixes
+
+        /// <summary>Review item 4: an attack that started less than attack_retreat_grace_seconds ago is not recalled by the retreat test, unless the group has already lost supply.</summary>
+        [Test]
+        public void D4b_RetreatGraceAfterTheAttackStarts()
+        {
+            // The scenario of D-4 with the attack starting now (fresh) or having lost supply already.
+            foreach ((int startSupply, bool retreats) in new[] { (6, false), (12, true) })
+            {
+                // The match of this case.
+                Simulation sim = Greybox("water", "skai");
+                WaterHq(sim);
+                // IDs of the units spawned for this case, ascending. Unit: unit IDs.
+                List<EntityId> group = Row(sim, "water.grasper", P0, 3, 30, 30);
+                Row(sim, "skai.roc_rider", P1, 2, 34, 30);
+                // The AI memory of this case (stance, groups, known enemies; one per case).
+                AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = startSupply, AttackThreshold = 8, AttackStartTick = sim.Clock.Tick };
+                foreach (EntityId id in group)
+                {
+                    memory.AttackGroup.Add(id);
+                }
+                Decide(sim, S3, memory);
+                Assert.That(memory.Retreats, Is.EqualTo(retreats ? 1 : 0), "start supply " + startSupply);
+            }
+        }
+
+        /// <summary>Review item 1: stacked and almost stacked units give no keep-distance order and no exception; at the map edge the step stays inside the map.</summary>
+        [Test]
+        public void D9b_KiteGuardsAgainstZeroDistanceAndTheMapEdge()
+        {
+            foreach (string enemyX in new[] { "30", "30.00001", "30.000001" })
+            {
+                // The match of this case.
+                Simulation sim = Greybox();
+                SkaiHq(sim);
+                // ID of the archer.
+                EntityId archer = Spawn(sim, "skai.talon_archer", P0, "30", "30");
+                Spawn(sim, "water.grasper", P1, enemyX, "30");
+                // Intents decided by the think.
+                List<AiIntent> intents = null!;
+                Assert.DoesNotThrow(() => intents = Decide(sim, S3, new AiMemory()));
+                Assert.That(Of(intents, AiIntentKind.Move).Exists(i => i.Unit == archer && (i.Point - new FixVec2(Fix64.FromInt(30), Fix64.FromInt(30))).LengthSquared() > Fix64.FromInt(100)), Is.False);
+            }
+            // At the left map edge the archer (0.6, 30) with a Pummeler 1.4 tiles east steps to x = 0.5, not off the map.
+            Simulation edge = Greybox();
+            SkaiHq(edge);
+            // ID of the archer at the edge.
+            EntityId atEdge = Spawn(edge, "skai.talon_archer", P0, "0.6", "30");
+            Spawn(edge, "water.grasper", P1, "2", "30");
+            // The keep-distance order, or null.
+            AiIntent? order = Of(Decide(edge, S3, new AiMemory()), AiIntentKind.Move).Find(i => i.Unit == atEdge);
+            Assert.That(order, Is.Not.Null);
+            Assert.That(order!.Point.X >= Fix64.Half, Is.True, "inside the map");
+        }
+
+        /// <summary>Review item 2: a fallen-back unit that idles away from home is sent again, is released after fallback_release_seconds, and follows a relocating HQ.</summary>
+        [Test]
+        public void D8b_FallenBackUnitsAreNotStranded()
+        {
+            // The match of this case.
+            Simulation sim = Greybox();
+            SkaiHq(sim);
+            // ID of the hurt unit.
+            EntityId hurt = Spawn(sim, "skai.windrunner", P0, "30", "30");
+            Hurt(sim, hurt, "0.25");
+            // ID of the enemy that makes the unit fall back; it is removed before the release so the unit does not fall back again.
+            EntityId threat = Spawn(sim, "water.grasper", P1, "35", "30");
+            AiMemory memory = new AiMemory { AttackThreshold = 8 };
+            Decide(sim, S3, memory);
+            Assert.That(memory.FallenBack.Contains(hurt), Is.True);
+            // The unit has not moved (the orders were not applied), so it is idle away from home: the move is given again.
+            // Intents of the second think.
+            List<AiIntent> again = Decide(sim, S3, memory);
+            Assert.That(Of(again, AiIntentKind.Move).Exists(i => i.Unit == hurt), Is.True, "move re-issued");
+            Assert.That(Of(again, AiIntentKind.AttackMove).Exists(i => i.Unit == hurt), Is.False);
+            // After the release time it is an army unit again.
+            sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, threat));
+            for (int i = 0; i < (int)(S3.FallbackReleaseSeconds.FloorToInt() * 20) + 20; i++)
+            {
+                sim.Step();
+            }
+            Decide(sim, S3, memory);
+            Assert.That(memory.FallenBack.Count, Is.EqualTo(0));
+            Assert.That(memory.FallenBackSince.Count, Is.EqualTo(0));
+            // A relocating HQ: the unit is sent to the new home point, not the old HQ.
+            Simulation moving = Greybox();
+            SkaiHq(moving);
+            // ID of the HQ.
+            EntityId hq = EntityId.None;
+            foreach (AiUnitView unit in AiWorldView.Build(moving, P0).OwnUnits)
+            {
+                hq = unit.IsHq ? unit.Id : hq;
+            }
+            moving.Submit(new UprootHqCommand(moving.Clock.Tick, P0, _sequence++, hq));
+            // Steps spent waiting for the uproot. Range: 0 to 600.
+            for (int i = 0; i < 600; i++)
+            {
+                moving.Step();
+            }
+            // ID of the unit spawned for this case. Unit: unit ID.
+            EntityId stranded = Spawn(moving, "skai.windrunner", P0, "30", "30");
+            AiMemory relocating = new AiMemory { AttackThreshold = 8, RelocationActive = true, RelocationField = 11, RelocationStartTick = moving.Clock.Tick };
+            relocating.RelocationDestination = FixVec2.FromInts(45, 10);
+            relocating.FallenBack.Add(stranded);
+            relocating.FallenBackSince[stranded] = moving.Clock.Tick;
+            // The move given to the stranded unit.
+            AiIntent? follow = Of(Decide(moving, S3, relocating), AiIntentKind.Move).Find(i => i.Unit == stranded);
+            Assert.That(follow, Is.Not.Null);
+            Assert.That((follow!.Point - relocating.RelocationDestination).LengthSquared(), Is.LessThanOrEqualTo(Fix64.FromInt(9)), "toward the relocation destination");
+        }
+
+        /// <summary>Review item 3: a one-unit threat during an attack is answered by the units at home; with nobody at home the small supply asked of the attack group does not recall it.</summary>
+        [Test]
+        public void D7b_SmallThreatDoesNotEndTheAttack()
+        {
+            foreach (bool unitsAtHome in new[] { true, false })
+            {
+                // The match of this case.
+                Simulation sim = Greybox("water", "water");
+                WaterHq(sim);
+                if (unitsAtHome)
+                {
+                    Row(sim, "water.grasper", P0, 6, 12, 10);
+                }
+                // IDs of the attack group, far away.
+                List<EntityId> away = Row(sim, "water.grasper", P0, 4, 40, 40);
+                Spawn(sim, "water.reef_runner", P1, "14", "12");
+                // The AI memory of this case (stance, groups, known enemies; one per case).
+                AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 8, AttackThreshold = 8, HasAttackTarget = true, AttackStartTick = sim.Clock.Tick - 400 };
+                foreach (EntityId id in away)
+                {
+                    memory.AttackGroup.Add(id);
+                }
+                Decide(sim, S3, memory);
+                Assert.That(memory.Stance, Is.EqualTo(AiStance.Attack), "at home: " + unitsAtHome);
+                foreach (EntityId id in away)
+                {
+                    Assert.That(memory.DefendGroup.Contains(id), Is.False);
+                }
+                Assert.That(memory.DefendGroup.Count > 0, Is.EqualTo(unitsAtHome));
+            }
+        }
+
+        /// <summary>Review item 5: a harass squad is recalled after harass_max_seconds, and a member dying is handled (the squad shrinks; with every member dead it ends with the cooldown).</summary>
+        [Test]
+        public void D6c_HarassExpiresAndSurvivesDeaths()
+        {
+            // The match of this case.
+            Simulation sim = Greybox();
+            SkaiHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
+            List<EntityId> runners = Row(sim, "skai.windrunner", P0, 4, 10, 10);
+            Row(sim, "skai.talon_archer", P0, 4, 10, 14);
+            // The AI memory of this case (stance, groups, known enemies; one per case).
+            AiMemory memory = new AiMemory();
+            Know(memory, 900, "water.grand_shell", "57.5", "57.5", sim.Clock.Tick);
+            Know(memory, 901, "water.pearl_depot", "12.5", "50.5", sim.Clock.Tick);
+            memory.HasLastSeenEnemy = true;
+            memory.LastSeenEnemyPosition = new FixVec2(Fix64.Parse("55.5"), Fix64.Parse("55.5"));
+            memory.LastSeenEnemyTick = sim.Clock.Tick;
+            Decide(sim, S3, memory);
+            Assert.That(memory.HarassGroup.Count, Is.EqualTo(4));
+            // One member dies: the squad goes on with three.
+            sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, runners[0]));
+            sim.Step();
+            Decide(sim, S3, memory);
+            Assert.That(memory.HarassGroup.Count, Is.EqualTo(3));
+            // The squad never reaches the target; after 90 s it is recalled and the cooldown starts.
+            // Ticks until the squad's time is up. Unit: ticks.
+            int expire = memory.HarassStartTick + 90 * 20;
+            while (sim.Clock.Tick < expire)
+            {
+                sim.Step();
+            }
+            // Intents of the think at the expiry.
+            List<AiIntent> home = Decide(sim, S3, memory);
+            Assert.That(memory.HarassGroup.Count, Is.EqualTo(0));
+            Assert.That(memory.NextHarassTick, Is.EqualTo(sim.Clock.Tick + 60 * 20));
+            Assert.That(Of(home, AiIntentKind.Move).Count, Is.EqualTo(3));
+            // Every member of a new squad dead: the group is cleared with the cooldown.
+            AiMemory lost = new AiMemory();
+            lost.HarassGroup.Add(runners[1]);
+            lost.HarassGroup.Add(new EntityId(9999));
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
+            Simulation other = Greybox();
+            SkaiHq(other);
+            Decide(other, S3, lost);
+            Assert.That(lost.HarassGroup.Count, Is.EqualTo(0));
+            Assert.That(lost.NextHarassTick, Is.EqualTo(other.Clock.Tick + 60 * 20));
+        }
+
+        /// <summary>Review item 9: when nothing of ours can damage the visible enemy (Pummelers against a Roc Rider) fastest-kill focus fire gives no order and does not fail.</summary>
+        [Test]
+        public void D10b_FocusWithNothingThatCanDamage()
+        {
+            // The match of this case.
+            Simulation sim = Greybox("water", "skai");
+            WaterHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
+            List<EntityId> group = Row(sim, "water.grasper", P0, 3, 30, 30);
+            Spawn(sim, "skai.roc_rider", P1, "34", "30");
+            // The AI memory of this case (stance, groups, known enemies; one per case).
+            AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 6, AttackThreshold = 8, AttackStartTick = sim.Clock.Tick };
+            foreach (EntityId id in group)
+            {
+                memory.AttackGroup.Add(id);
+            }
+            // Intents decided by the think.
+            List<AiIntent> intents = null!;
+            Assert.DoesNotThrow(() => intents = Decide(sim, S3, memory));
+            Assert.That(Of(intents, AiIntentKind.AttackUnit).Count, Is.EqualTo(0));
+        }
+
+        /// <summary>Review item 9 (fog): an enemy structure and an enemy unit nobody sees are ignored by target choice and focus fire.</summary>
+        [Test]
+        public void DFog_UnseenEnemiesAreIgnored()
+        {
+            // The match of this case.
+            Simulation sim = Greybox();
+            SkaiHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
+            List<EntityId> archers = Row(sim, "skai.talon_archer", P0, 8, 10, 10);
+            // A depot and a Pummeler far outside every sight range: the AI has never seen them.
+            Spawn(sim, "water.pearl_depot", P1, "50.5", "20.5");
+            Spawn(sim, "water.grasper", P1, "55", "55");
+            // The AI memory of this case (stance, groups, known enemies; one per case).
+            AiMemory memory = new AiMemory();
+            // Intents decided by the think.
+            List<AiIntent> intents = Decide(sim, S3, memory);
+            Assert.That(memory.KnownEnemyStructures.Count, Is.EqualTo(0));
+            Assert.That(memory.Stance, Is.EqualTo(AiStance.Attack));
+            Assert.That((memory.AttackTarget - new FixVec2(Fix64.Parse("50.5"), Fix64.Parse("20.5"))).LengthSquared(), Is.GreaterThan(Fix64.FromInt(100)), "not aimed at the unseen depot");
+            Assert.That(Of(intents, AiIntentKind.AttackUnit).Count, Is.EqualTo(0));
+            Assert.That(archers.Count, Is.EqualTo(8));
+        }
+
+        /// <summary>Review item 9: shuffling the order in which identical units are spawned (so their IDs differ) gives the same orders by position.</summary>
+        [Test]
+        public void D12b_ShuffledSpawnOrderGivesTheSameOrders()
+        {
+            // Describes the intents of one run as sorted text of kind, own position, target position and point (IDs left out).
+            List<string> Run(int[] order)
+            {
+                // The match of this case.
+                Simulation sim = Greybox();
+                SkaiHq(sim);
+                // The six archers' column offsets, spawned in the given order.
+                foreach (int i in order)
+                {
+                    Spawn(sim, "skai.talon_archer", P0, (30 + i).ToString(System.Globalization.CultureInfo.InvariantCulture), "30");
+                }
+                Spawn(sim, "water.grasper", P1, "36", "30");
+                Spawn(sim, "water.shellback", P1, "36", "31");
+                // The AI memory of this case (stance, groups, known enemies; one per case).
+                AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 12, AttackThreshold = 8, AttackStartTick = sim.Clock.Tick - 400 };
+                // The view used to look units up by ID.
+                AiWorldView view = AiWorldView.Build(sim, P0);
+                foreach (AiUnitView unit in view.OwnUnits)
+                {
+                    if (unit.Definition.Id == "skai.talon_archer")
+                    {
+                        memory.AttackGroup.Add(unit.Id);
+                    }
+                }
+                // Lines describing each intent.
+                List<string> lines = new List<string>();
+                foreach (AiIntent intent in Decide(sim, S3, memory))
+                {
+                    // Position of the intent's unit and of its target. Unit: tiles.
+                    string own = string.Empty;
+                    string target = string.Empty;
+                    foreach (AiUnitView unit in view.OwnUnits)
+                    {
+                        own = unit.Id == intent.Unit ? unit.Position.ToString() : own;
+                    }
+                    foreach (AiUnitView unit in view.VisibleEnemies)
+                    {
+                        target = unit.Id == intent.Target ? unit.Position.ToString() : target;
+                    }
+                    lines.Add(intent.Kind + " " + intent.DefinitionId + " " + own + " " + target + " " + intent.Point);
+                }
+                lines.Sort(StringComparer.Ordinal);
+                return lines;
+            }
+            Assert.That(Run(new[] { 5, 4, 3, 2, 1, 0 }), Is.EqualTo(Run(new[] { 0, 1, 2, 3, 4, 5 })));
+            Assert.That(Run(new[] { 3, 0, 5, 1, 4, 2 }), Is.EqualTo(Run(new[] { 0, 1, 2, 3, 4, 5 })));
+        }
+
         // ------------------------------------------------------------------ profiles and helpers
 
         /// <summary>The package D switches: aggressive_s3 has all four on, every other shipped profile has them off; use_predictor_attack needs use_enemy_model (the error names the file and both fields).</summary>
@@ -761,6 +1053,7 @@ namespace Rts.Sim.Tests.Ai
         public void DProfiles_SwitchesAndValidation()
         {
             Assert.That(S3.UsePredictorAttack && S3.UseTargetChoice && S3.UseMeasuredDefence && S3.UseUnitControl, Is.True);
+            Assert.That(S3.UseFocusFire, Is.EqualTo(S3FocusFire), "use_focus_fire as decided by the 72-game check");
             foreach (string id in Data.AiProfiles.Keys)
             {
                 if (id == "aggressive_s3")
@@ -769,7 +1062,7 @@ namespace Rts.Sim.Tests.Ai
                 }
                 // The profile under test (a shipped file or an edited copy of it).
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
-                Assert.That(profile.UsePredictorAttack || profile.UseTargetChoice || profile.UseMeasuredDefence || profile.UseUnitControl, Is.False, id);
+                Assert.That(profile.UsePredictorAttack || profile.UseTargetChoice || profile.UseMeasuredDefence || profile.UseUnitControl || profile.UseFocusFire, Is.False, id);
             }
             DataValidationException error = Expect.Throws<DataValidationException>(() => S3Edited("\"use_enemy_model\": true", "\"use_enemy_model\": false", "\"use_counter_mix\": true", "\"use_counter_mix\": false",
                 "\"use_tech_on_demand\": true", "\"use_tech_on_demand\": false", "\"use_static_defence\": true", "\"use_static_defence\": false", "\"use_rare_priority\": true", "\"use_rare_priority\": false",

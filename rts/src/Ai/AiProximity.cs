@@ -1,6 +1,7 @@
 // rts/src/Ai/AiProximity.cs
-// A coarse grid over a list of units so "which of them stand within r tiles of this point" costs the units near the point, not the whole
-// list (skirmish_ai_v3.md Package D keeps the per-think cost bounded: no pair loop over the army). Part of Rts.Ai. Built once per think for
+// A coarse grid over a list of units so "which of them stand within r tiles of this point" costs the units in the nine cells around the
+// point, not the whole list. A clumped army still makes every unit see every other, so the cost is bounded by the army size squared in the
+// worst case, not removed (skirmish_ai_v3.md Package D). Part of Rts.Ai. Built once per think for
 // one list and one largest query radius; queries return list positions in ascending order, so callers that walk the result get the
 // same order as a walk over the list. Integers and Fix64 only; cells live in a SortedDictionary, so nothing depends on hash order.
 using System.Collections.Generic;
@@ -20,6 +21,9 @@ namespace Rts.Ai
         /// <summary>Side of one cell. Unit: tiles. Range: 1 upward (the largest query radius rounded up).</summary>
         private readonly int _cellTiles;
 
+        /// <summary>Largest radius the index was built for. Unit: tiles. Range: 0 upward.</summary>
+        private readonly Fix64 _maxRadius;
+
         /// <summary>List positions per cell key, each list ascending.</summary>
         private readonly SortedDictionary<int, List<int>> _cells = new SortedDictionary<int, List<int>>();
 
@@ -29,6 +33,7 @@ namespace Rts.Ai
         public AiProximity(IReadOnlyList<AiUnitView> units, Fix64 maxRadiusTiles)
         {
             _units = units;
+            _maxRadius = maxRadiusTiles;
             _cellTiles = System.Math.Max(1, maxRadiusTiles.CeilingToInt());
             // List position. Range: 0 to units.Count - 1.
             for (int i = 0; i < units.Count; i++)
@@ -59,6 +64,7 @@ namespace Rts.Ai
         /// <param name="result">Receives the matches (not cleared first).</param>
         public void Near(FixVec2 point, Fix64 radiusTiles, List<AiUnitView> result)
         {
+            System.Diagnostics.Debug.Assert(radiusTiles <= _maxRadius, "query radius exceeds the radius the index was built for");
             // Cell of the point. Unit: cells.
             int column = point.X.FloorToInt() / _cellTiles;
             int row = point.Y.FloorToInt() / _cellTiles;

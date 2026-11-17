@@ -579,7 +579,30 @@ namespace Rts.Ai
             }
 
             /// <summary>True while rare_bank_soft_cap is on (above 0) and the rare bank is at or above it (C2.3): rare fields take no workers. Unit: boolean.</summary>
-            private bool RareCapped => _profile.RareBankSoftCap > 0 && _view.Rare >= _profile.RareBankSoftCap;
+            private bool RareCapped => _memory.RareCapActive;
+
+            /// <summary>
+            /// Updates the rare-worker cap state (C2.3 with its review hysteresis): on when the rare bank reaches rare_bank_soft_cap, off again when
+            /// it falls below rare_bank_return_cap (0 means the cap itself). Always off while rare_bank_soft_cap is 0. Called once per think by the constructor.
+            /// </summary>
+            private void UpdateRareCap()
+            {
+                if (_profile.RareBankSoftCap <= 0)
+                {
+                    _memory.RareCapActive = false;
+                    return;
+                }
+                // Bank level below which the cap lifts. Unit: resource units (rare). Range: 1 to rare_bank_soft_cap.
+                int returnAt = _profile.RareBankReturnCap > 0 ? _profile.RareBankReturnCap : _profile.RareBankSoftCap;
+                if (_view.Rare >= _profile.RareBankSoftCap)
+                {
+                    _memory.RareCapActive = true;
+                }
+                else if (_view.Rare < returnAt)
+                {
+                    _memory.RareCapActive = false;
+                }
+            }
 
             /// <summary>The enemy model M(t) per army type (B.3) this think; empty when use_enemy_model is off. Unit: units. Range: above 0 each.</summary>
             private readonly SortedDictionary<string, Fix64> _model;
@@ -603,6 +626,7 @@ namespace Rts.Ai
                 _common = view.Common;
                 _rare = view.Rare;
                 _supplyUsed = view.SupplyUsed;
+                UpdateRareCap();
                 // Largest worked distance, squared. Unit: squared tiles.
                 Fix64 reachSquared = ReachSquared;
                 // DepotsPlaced counts the depots among the own units (rule E's schedule), not the orders given.
@@ -2155,7 +2179,7 @@ namespace Rts.Ai
             /// test as <see cref="DefendIfThreatened"/>, which runs later in Army). Rule S reads it so no scout is taken on the first think of a Defend.
             /// </summary>
             private bool WillDefend => _memory.Stance == AiStance.Defend
-                || ((_threatCount > 0 || _latestHit != null) && !(_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply));
+                || (!_profile.UseMeasuredDefence && (_threatCount > 0 || _latestHit != null) && !(_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply));
 
             /// <summary>Rule 4c (skirmish_ai_v3.md B.2): keeps one scout on its route, assigns or trains one when it is due (see the class header).</summary>
             public void Scout()
@@ -2906,7 +2930,7 @@ namespace Rts.Ai
             /// </summary>
             private bool Focus(AiUnitView unit)
             {
-                if (_profile.UseUnitControl)
+                if (_profile.UseFocusFire)
                 {
                     return FocusFastestKill(unit);
                 }
@@ -3001,7 +3025,9 @@ namespace Rts.Ai
                 }
                 if (_profile.UsePredictorAttack)
                 {
-                    return PredictedRetreat(army);
+                    // D.2 review fix: an attack that has just started (and has lost nothing) is not recalled by the first visible enemies.
+                    bool fresh = _view.Tick < _memory.AttackStartTick + _view.SecondsToTicks(_profile.AttackRetreatGraceSeconds) && armySupply >= _memory.AttackStartSupply;
+                    return !fresh && PredictedRetreat(army);
                 }
                 // Squared engagement radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;

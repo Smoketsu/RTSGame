@@ -266,5 +266,14 @@ namespace Rts.Ai
 
         /// <summary>Unit control (D.6.1): IDs of the units that fell back and have not yet reached home, ascending. Excluded from the army's stance orders. Unit: unit IDs. Range: own army units; empty at the start.</summary>
         public SortedSet<EntityId> FallenBack { get; } = new SortedSet<EntityId>();
+
+        /// <summary>Unit control (D.6.1): the tick each fallen-back unit fell back, by unit ID (ascending); same keys as <see cref="FallenBack"/>. Unit: ticks. Range: 0 upward.</summary>
+        public SortedDictionary<EntityId, int> FallenBackSince { get; } = new SortedDictionary<EntityId, int>();
+
+        /// <summary>Rule HR: tick the current harass squad started. Unit: ticks. Range: 0 upward; meaningful only while <see cref="HarassGroup"/> is not empty.</summary>
+        public int HarassStartTick { get; set; }
+
+        /// <summary>Rule G (C2.3 hysteresis): true while the rare-worker cap is in force (set when the rare bank reaches rare_bank_soft_cap, cleared when it falls below rare_bank_return_cap). Unit: boolean. Range: true or false; false at the start.</summary>
+        public bool RareCapActive { get; set; }
     }
 }

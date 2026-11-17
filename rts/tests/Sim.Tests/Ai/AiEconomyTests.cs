@@ -801,6 +801,27 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Of(Decide(below, P0, capped), AiIntentKind.Gather), Is.Empty, "below the cap nobody moves");
         }
 
+        /// <summary>Review item 6: with rare_bank_return_cap 200 the rare fields close at a bank of 300 and open again only below 200 (no walking back and forth at the cap).</summary>
+        [Test]
+        public void C2_7c_RareCapHasHysteresis()
+        {
+            AiProfile capped = Edited("\"rare_bank_soft_cap\": 0,", "\"rare_bank_soft_cap\": 300,", "\"rare_bank_return_cap\": 0,", "\"rare_bank_return_cap\": 200,");
+            // The match: a depot serving rare field 4, one worker on common field 0 and two on the rare field.
+            Simulation sim = Game(workers: 0);
+            SpawnAtTile(sim, "skai.perch_depot", P0, 8, 60);
+            Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 0);
+            Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 4);
+            Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 4);
+            // The one memory carried through the bank levels.
+            AiMemory memory = new AiMemory();
+            // Workers wanted at each bank level: closed at 300, still closed at 250, open at 199, closed again only at 300.
+            foreach ((int rare, int wanted) in new[] { (250, 8), (300, 6), (250, 6), (199, 8), (250, 8), (300, 6) })
+            {
+                SetStock(sim, P0, 0, rare);
+                Assert.That(Probe(sim, memory, capped).WantedWorkers, Is.EqualTo(wanted), "rare " + rare);
+            }
+        }
+
         /// <summary>B-11: starved with the HQ Rooted and a live field 43 tiles away: an idle worker is sent to it.</summary>
         [Test]
         public void B11_LongHaul()

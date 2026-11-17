@@ -12,7 +12,8 @@
 //       dies fastest.
 // Part of Rts.Ai. Everything reads only the AiWorldView (visible enemies, own units, public map data), the profile and the AiMemory; Fix64 and
 // integers only, ascending-ID iteration, ties to the lower ID, no random draw, no faction or unit named. Spatial queries go through AiProximity so no
-// loop runs over every pair of own and enemy units; each rule has a command budget from the profile. With every package D switch off none of this
+// loop runs over every pair of own and enemy units (a clumped army still visits every pair in the worst case, so the cost is bounded by the army
+// size squared, not removed); each rule has a command budget from the profile. With every package D switch off none of this
 // runs and the AI plays as before (the memory sets stay empty).
 using System;
 using System.Collections.Generic;
@@ -341,9 +342,30 @@ namespace Rts.Ai
                 {
                     byId.Add(unit.Id, unit);
                 }
-                // Where fallen-back units are headed. Unit: tiles.
+                // Where fallen-back units are headed (the relocation destination while the HQ relocates). Unit: tiles.
                 FixVec2 home = Standable(Home());
-                _memory.FallenBack.RemoveWhere(id => !byId.TryGetValue(id, out AiUnitView? unit) || (unit.Position - home).LengthSquared() <= AtRallySquared);
+                // Ticks after which a fallen-back unit is released. Unit: ticks.
+                int release = _view.SecondsToTicks(_profile.FallbackReleaseSeconds);
+                // Fallen-back units that leave the group this think (dead, home, or released after the timeout). Unit: unit IDs.
+                List<EntityId> leaving = new List<EntityId>();
+                foreach (EntityId id in _memory.FallenBack)
+                {
+                    if (!byId.TryGetValue(id, out AiUnitView? unit) || (unit.Position - home).LengthSquared() <= AtRallySquared
+                        || (_memory.FallenBackSince.TryGetValue(id, out int since) && _view.Tick >= since + release))
+                    {
+                        leaving.Add(id);
+                    }
+                    else if (!unit.HasMoveTarget && !unit.IsAttackMoving)
+                    {
+                        // Idle and away from home (its move ended short, or the home point moved): send it again.
+                        Emit(AiIntent.Move(unit.Id, home));
+                    }
+                }
+                foreach (EntityId id in leaving)
+                {
+                    _memory.FallenBack.Remove(id);
+                    _memory.FallenBackSince.Remove(id);
+                }
                 _memory.DefendGroup.RemoveWhere(id => !byId.ContainsKey(id));
             }
 
@@ -449,6 +471,7 @@ namespace Rts.Ai
                     return;
                 }
                 _memory.HarassTarget = target.Position;
+                _memory.HarassStartTick = _view.Tick;
                 _memory.HarassArrivedTick = -1;
                 _memory.HarassLastWorkerTick = _view.Tick;
                 // Where the squad goes. Unit: tiles.
@@ -505,7 +528,9 @@ namespace Rts.Ai
                 }
                 // True when the squad has stood at the target for harass_linger_seconds without seeing a worker there.
                 bool lingered = _memory.HarassArrivedTick >= 0 && _view.Tick - _memory.HarassLastWorkerTick >= _view.SecondsToTicks(_profile.HarassLingerSeconds);
-                if (PredictedRetreat(squad) || lingered)
+                // True when the squad has been out for harass_max_seconds (an unreachable target must not hold it forever).
+                bool expired = _view.Tick >= _memory.HarassStartTick + _view.SecondsToTicks(_profile.HarassMaxSeconds);
+                if (PredictedRetreat(squad) || lingered || expired)
                 {
                     // Home is where the squad is called to. Unit: tiles.
                     FixVec2 home = Standable(Home());
@@ -602,8 +627,17 @@ namespace Rts.Ai
                         candidates.Add(unit);
                     }
                 }
+                // True while an attack runs, so units of its group are the last choice (D.5, review item 3). Unit: boolean.
+                bool attacking = _memory.Stance == AiStance.Attack;
                 candidates.Sort((a, b) =>
                 {
+                    // Whether each unit belongs to the attack group (those sort last). Unit: boolean.
+                    bool ga = attacking && _memory.AttackGroup.Contains(a.Id);
+                    bool gb = attacking && _memory.AttackGroup.Contains(b.Id);
+                    if (ga != gb)
+                    {
+                        return ga ? 1 : -1;
+                    }
                     // Squared distances of the two units from the threat. Unit: squared tiles. Range: 0 upward.
                     Fix64 da = (a.Position - centre).LengthSquared();
                     Fix64 db = (b.Position - centre).LengthSquared();
@@ -654,14 +688,24 @@ namespace Rts.Ai
                         supply += _view.SupplyOf(candidates[i].Definition);
                     }
                 }
-                foreach (AiUnitView unit in chosen)
+                if (attacking)
                 {
-                    if (_memory.Stance == AiStance.Attack && _memory.AttackGroup.Contains(unit.Id))
+                    // Supply of attack-group units the predictor asked for. Unit: supply. Range: 0 upward.
+                    int groupSupply = 0;
+                    foreach (AiUnitView unit in chosen)
                     {
-                        // The defence needs units of the attack group: recall it (the stance becomes Defend as in v2).
+                        groupSupply += _memory.AttackGroup.Contains(unit.Id) ? _view.SupplyOf(unit.Definition) : 0;
+                    }
+                    if (groupSupply >= _profile.DefendRecallSupply)
+                    {
+                        // The defence needs enough of the attack group: recall it (the stance becomes Defend as in v2).
                         _memory.Stance = AiStance.Defend;
                         _memory.HasAttackTarget = false;
-                        break;
+                    }
+                    else
+                    {
+                        // Too little is asked of the group to end the attack: the others defend and the group's units keep attacking.
+                        chosen.RemoveAll(unit => _memory.AttackGroup.Contains(unit.Id));
                     }
                 }
                 // The units that get Defend orders: everyone in Defend, else the chosen.
@@ -782,6 +826,11 @@ namespace Rts.Ai
                 // The vector from the enemy to the unit and its length (above 0: the positions differ). Unit: tiles.
                 FixVec2 offset = unit.Position - nearest.Position;
                 Fix64 distance = offset.Length();
+                if (distance <= Fix64.Zero)
+                {
+                    // Stacked or almost stacked units (the length rounds to 0): there is no direction to step away in.
+                    return false;
+                }
                 // The point exactly kite_step_tiles from the unit directly away from the enemy, kept 0.5 tiles inside the map edge (D.6.2; the spec's
                 // MoveTowards(2u - e, step) would stop at the mirror point when the enemy is closer than the step). Unit: tiles.
                 FixVec2 away = unit.Position + offset * (_profile.KiteStepTiles / distance);
@@ -820,6 +869,7 @@ namespace Rts.Ai
                             _memory.AttackGroup.Remove(unit.Id);
                             _memory.DefendGroup.Remove(unit.Id);
                             _memory.FallenBack.Add(unit.Id);
+                            _memory.FallenBackSince[unit.Id] = _view.Tick;
                             _controlled.Add(unit.Id);
                         }
                         continue;

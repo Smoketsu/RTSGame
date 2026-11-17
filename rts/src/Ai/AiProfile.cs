@@ -43,7 +43,9 @@
 //     undefended_army_share, target_defence_radius_tiles, retreat_max_advantage, harass_* (min army supply, min speed, squad supply,
 //     cooldown, linger, max commands), defend_min_advantage, defend_blind_supply, defend_max_candidates, fallback_* (health fraction,
 //     danger tiles, max commands), kite_* (trigger, step, min range gap, min speed ratio, max commands), focus_switch_ratio and
-//     focus_max_commands_per_think (every profile file carries them; the switches are false except in aggressive_s3).
+//     focus_max_commands_per_think (every profile file carries them; the switches are false except in aggressive_s3); and the package D
+//     review keys use_focus_fire (fastest-kill focus split from use_unit_control), fallback_release_seconds, attack_retreat_grace_seconds,
+//     harass_max_seconds and rare_bank_return_cap (hysteresis of the rare-worker cap).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -527,6 +529,21 @@ namespace Rts.Ai
         /// <summary>D.6.3: most focus-fire orders per think. Unit: commands. Range: 0 to 200.</summary>
         public int FocusMaxCommandsPerThink { get; }
 
+        /// <summary>D.6.3: units focus the enemy that dies fastest instead of the nearest one. Unit: boolean. Range: true or false.</summary>
+        public bool UseFocusFire { get; }
+
+        /// <summary>D.6.1: a fallen-back unit rejoins the army this long after it fell back. Unit: seconds. Range: 1 to 600.</summary>
+        public Fix64 FallbackReleaseSeconds { get; }
+
+        /// <summary>D.2: no predicted retreat this long after an attack starts unless the group has lost supply. Unit: seconds. Range: 0 to 60.</summary>
+        public Fix64 AttackRetreatGraceSeconds { get; }
+
+        /// <summary>D.4: a harass squad is recalled this long after it started. Unit: seconds. Range: 1 to 900.</summary>
+        public Fix64 HarassMaxSeconds { get; }
+
+        /// <summary>C2.3: once capped, rare fields stay closed until the rare bank falls below this; 0 means the cap itself. Unit: resource units (rare). Range: 0 to <see cref="RareBankSoftCap"/> when that is above 0.</summary>
+        public int RareBankReturnCap { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -683,6 +700,15 @@ namespace Rts.Ai
             KiteMaxCommandsPerThink = root.RequireInt("kite_max_commands_per_think", 0, 200);
             FocusSwitchRatio = root.RequireFix64("focus_switch_ratio", "1", "10");
             FocusMaxCommandsPerThink = root.RequireInt("focus_max_commands_per_think", 0, 200);
+            UseFocusFire = root.RequireBool("use_focus_fire");
+            FallbackReleaseSeconds = root.RequireFix64("fallback_release_seconds", "1", "600");
+            AttackRetreatGraceSeconds = root.RequireFix64("attack_retreat_grace_seconds", "0", "60");
+            HarassMaxSeconds = root.RequireFix64("harass_max_seconds", "1", "900");
+            RareBankReturnCap = root.RequireInt("rare_bank_return_cap", 0, 100000);
+            if (RareBankSoftCap > 0 && RareBankReturnCap > RareBankSoftCap)
+            {
+                throw root.Require("rare_bank_return_cap").Fail("must not exceed rare_bank_soft_cap");
+            }
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -769,8 +795,8 @@ namespace Rts.Ai
                 "harass_linger_seconds", "harass_max_commands_per_think", "defend_min_advantage", "defend_blind_supply",
                 "defend_max_candidates", "fallback_health_fraction", "fallback_danger_tiles",
                 "fallback_max_commands_per_think", "kite_trigger_tiles", "kite_step_tiles", "kite_min_range_gap_tiles",
-                "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think",
-                "factions");
+                "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think", "use_focus_fire", "fallback_release_seconds",
+                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
