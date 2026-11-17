@@ -29,9 +29,9 @@ namespace Rts.Sim.Tests.Harness
         {
             AiEvalSettings settings = AiEvalSettings.Load(TestData.FindDataDirectory());
             ResponseTest test = settings.ResponseTests.First(t => t.Script == "response_roc_rush_water.json");
-            ResponseResult observed = ResponseRunner.Run(Data, TestData.FindDataDirectory(), test, "aggressive", true);
-            ResponseResult plain = ResponseRunner.Run(Data, TestData.FindDataDirectory(), test, "aggressive", false);
-            Assert.That(observed.Slot0Profile, Is.EqualTo("aggressive"));
+            ResponseResult observed = ResponseRunner.Run(Data, TestData.FindDataDirectory(), test, "aggressive_s1", true);
+            ResponseResult plain = ResponseRunner.Run(Data, TestData.FindDataDirectory(), test, "aggressive_s1", false);
+            Assert.That(observed.Slot0Profile, Is.EqualTo("aggressive_s1"));
             Assert.That(observed.Slot1Profile, Is.EqualTo("rt_roc_rush"));
             Assert.That(observed.FinalHash, Is.EqualTo(plain.FinalHash));
             Assert.That(observed.Parts.Count, Is.EqualTo(3), "air_answer has three parts");
