@@ -46,7 +46,7 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(roost.Economy.ProvidesSupply, Is.EqualTo(8));
             Assert.That(roost.Economy.FootprintTiles, Is.EqualTo(1));
             UnitDefinition tidepool = data.Content.Units["water.tidepool"];
-            Assert.That(tidepool.Economy.Trains, Is.EqualTo(new[] { "water.spoutling", "water.grasper" }));
+            Assert.That(tidepool.Economy.Trains, Is.EqualTo(new[] { "water.spoutling", "water.grasper", "water.reef_runner" }));
             Assert.That(tidepool.Economy.ProvidesSupply, Is.EqualTo(8));
             foreach (string id in new[] { "skai.perch_tower", "water.coral_turret" })
             {

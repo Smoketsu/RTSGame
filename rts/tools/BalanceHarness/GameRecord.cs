@@ -64,6 +64,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Faction in slot 1 after the side swap.</summary>
         public string Slot1Faction { get; }
 
+        /// <summary>AI profile ID slot 0 played by (a rts/data/ai file name without .json).</summary>
+        public string Slot0Profile { get; }
+
+        /// <summary>AI profile ID slot 1 played by.</summary>
+        public string Slot1Profile { get; }
+
         /// <summary>"slot0", "slot1", "draw" or "undecided".</summary>
         public string Result { get; }
 
@@ -80,7 +86,7 @@ namespace Rts.Tools.BalanceHarness
         public IReadOnlyList<HqKill> HqKills { get; }
 
         /// <summary>Bundles the values.</summary>
-        public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string result,
+        public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string slot0Profile, string slot1Profile, string result,
             int endTick, ulong stateHash, ulong contentDigest, IReadOnlyList<HqKill> hqKills)
         {
             Map = map;
@@ -89,6 +95,8 @@ namespace Rts.Tools.BalanceHarness
             Seed = seed;
             Slot0Faction = slot0Faction;
             Slot1Faction = slot1Faction;
+            Slot0Profile = slot0Profile;
+            Slot1Profile = slot1Profile;
             Result = result;
             EndTick = endTick;
             StateHash = stateHash;
@@ -104,6 +112,7 @@ namespace Rts.Tools.BalanceHarness
                 .Append(",\"game\":").Append(Game.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"seed\":").Append(Quote(Seed.ToString(CultureInfo.InvariantCulture)))
                 .Append(",\"slot0\":").Append(Quote(Slot0Faction)).Append(",\"slot1\":").Append(Quote(Slot1Faction))
+                .Append(",\"profile_slot0\":").Append(Quote(Slot0Profile)).Append(",\"profile_slot1\":").Append(Quote(Slot1Profile))
                 .Append(",\"result\":").Append(Quote(Result))
                 .Append(",\"end_tick\":").Append(EndTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"state_hash\":").Append(Quote(StateHash.ToString("x16", CultureInfo.InvariantCulture)))
@@ -143,7 +152,8 @@ namespace Rts.Tools.BalanceHarness
                 }
                 return new GameRecord(root.RequireNonEmptyString("map"), root.RequireNonEmptyString("matchup"), root.RequireInt("game", 0, int.MaxValue),
                     ulong.Parse(root.RequireString("seed"), NumberStyles.None, CultureInfo.InvariantCulture),
-                    root.RequireNonEmptyString("slot0"), root.RequireNonEmptyString("slot1"), result, root.RequireInt("end_tick", 0, int.MaxValue),
+                    root.RequireNonEmptyString("slot0"), root.RequireNonEmptyString("slot1"),
+                    root.RequireNonEmptyString("profile_slot0"), root.RequireNonEmptyString("profile_slot1"), result, root.RequireInt("end_tick", 0, int.MaxValue),
                     ulong.Parse(root.RequireString("state_hash"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
                     ulong.Parse(root.RequireString("content_digest"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), kills);
             }

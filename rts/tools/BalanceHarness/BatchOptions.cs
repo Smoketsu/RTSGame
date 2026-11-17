@@ -14,6 +14,8 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Usage text printed with command-line errors.</summary>
         public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> --batch [--ci | --games N] [--jobs J] [--maps a,b] [--matchups x_vs_y,...] "
             + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]"
+            + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression]"
+            + " | --data <data folder> --response --profile <id> [--only <script file name>]"
             + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>]";
 
         /// <summary>Fault switch value that makes a re-run (verification) worker perturb the seed of its first game. Test use only.</summary>
@@ -61,6 +63,27 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>True when --report-only was given: a failed hard limit still exits 0.</summary>
         public bool ReportOnly { get; private set; }
 
+        /// <summary>True when --ladder was given: play profile A against profile B (see <see cref="LadderRunner"/>).</summary>
+        public bool Ladder { get; private set; }
+
+        /// <summary>True when --response was given: run the scripted-opponent scenarios (see <see cref="ResponseRunner"/>).</summary>
+        public bool Response { get; private set; }
+
+        /// <summary>True when --non-regression was given: the ladder bar is ladder_non_regression_fraction_min instead of ladder_candidate_win_fraction_min.</summary>
+        public bool NonRegression { get; private set; }
+
+        /// <summary>Baseline profile ID from --profile-a (ladder and ladder workers), or empty. Range: a file name under rts/data/ai without .json.</summary>
+        public string ProfileA { get; private set; } = string.Empty;
+
+        /// <summary>Candidate profile ID from --profile-b (ladder and ladder workers), or empty. Range: a file name under rts/data/ai without .json.</summary>
+        public string ProfileB { get; private set; } = string.Empty;
+
+        /// <summary>Profile of the AI under test from --profile (response mode), or empty. Range: a file name under rts/data/ai without .json.</summary>
+        public string Profile { get; private set; } = string.Empty;
+
+        /// <summary>Only scenario script file name from --only (response mode), or empty for every scenario.</summary>
+        public string Only { get; private set; } = string.Empty;
+
         /// <summary>True when --trace was given: play one game and write its timeline (see <see cref="GameTrace"/>); needs --map and --matchup.</summary>
         public bool Trace { get; private set; }
 
@@ -92,7 +115,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="args">Command-line arguments.</param>
         public static bool IsBatchMode(string[] args)
         {
-            return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0 || Array.IndexOf(args, "--trace") >= 0;
+            return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0 || Array.IndexOf(args, "--trace") >= 0
+                || Array.IndexOf(args, "--ladder") >= 0 || Array.IndexOf(args, "--response") >= 0;
         }
 
         /// <summary>Parses the arguments; throws <see cref="HarnessException"/> on anything unexpected.</summary>
@@ -116,6 +140,15 @@ namespace Rts.Tools.BalanceHarness
                         continue;
                     case "--trace":
                         options.Trace = true;
+                        continue;
+                    case "--ladder":
+                        options.Ladder = true;
+                        continue;
+                    case "--response":
+                        options.Response = true;
+                        continue;
+                    case "--non-regression":
+                        options.NonRegression = true;
                         continue;
                     case "--ci":
                         options.Ci = true;
@@ -142,6 +175,10 @@ namespace Rts.Tools.BalanceHarness
                     case "--count":
                     case "--hq-floor":
                     case "--test-fault":
+                    case "--profile-a":
+                    case "--profile-b":
+                    case "--profile":
+                    case "--only":
                         break;
                     default:
                         throw new HarnessException("unknown argument '" + flag + "' in batch mode. " + Usage);
@@ -203,6 +240,18 @@ namespace Rts.Tools.BalanceHarness
                     case "--hq-floor":
                         options.WorkerHqFloor = value;
                         break;
+                    case "--profile-a":
+                        options.ProfileA = value;
+                        break;
+                    case "--profile-b":
+                        options.ProfileB = value;
+                        break;
+                    case "--profile":
+                        options.Profile = value;
+                        break;
+                    case "--only":
+                        options.Only = value;
+                        break;
                     default:
                         options.TestFault = value;
                         break;
@@ -215,6 +264,18 @@ namespace Rts.Tools.BalanceHarness
             if (options.Ci && options.Games != null)
             {
                 throw new HarnessException("--ci and --games cannot be combined. " + Usage);
+            }
+            if (options.Ladder && (options.ProfileA.Length == 0 || options.ProfileB.Length == 0))
+            {
+                throw new HarnessException("--ladder needs --profile-a and --profile-b. " + Usage);
+            }
+            if (options.Response && options.Profile.Length == 0)
+            {
+                throw new HarnessException("--response needs --profile. " + Usage);
+            }
+            if (options.ProfileA.Length > 0 != (options.ProfileB.Length > 0))
+            {
+                throw new HarnessException("--profile-a and --profile-b go together. " + Usage);
             }
             if (options.Trace && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0))
             {

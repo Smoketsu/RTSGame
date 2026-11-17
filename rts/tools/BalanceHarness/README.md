@@ -104,3 +104,21 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --tr
 
 Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
 `rts/docs/reports/ai_trace_2026-11-16/`.
+
+## Ladder mode and response mode (skirmish AI v3, package A)
+
+Spec: `rts/docs/specs/skirmish_ai_v3.md` A.1, A.2 and A.4. Settings: `rts/data/scripts/ai_eval/ai_eval.json` (read by `AiEvalSettings`; unknown keys and bad values are errors naming the file and the field).
+
+```
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --ladder --profile-a <baseline id> --profile-b <candidate id>
+    [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression]
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --response --profile <id> [--only <script file name>]
+```
+
+- `--ladder` plays profile A (baseline) against profile B (candidate) on every selected map and matchup, in both seats (game g: slot s plays A when `(g / 2) % 2 == s`, else B; factions swap on odd g), in the same worker processes as `--batch`.
+  It writes `ladder.jsonl` and `ladder.md` to `--out` (default `rts/build/harness/ladder`) and prints `LADDER candidate=<id> baseline=<id> decided=<n> wins=<n> fraction=<0.000> bar=<0.000> PASS|FAIL`.
+  Draws count as decided games and not as wins. Exit codes: 0 pass, 1 error, 2 bar missed or too few decided games, 3 determinism spot check failed (`ladder_verify_games` games re-run in-process).
+  Every record line carries `profile_slot0` and `profile_slot1`.
+- `--response` plays each scenario of `ai_eval.json` `response_tests` (a script in `rts/data/scripts/ai_eval` whose slot 1 is a responder profile `rt_*`, slot 0 the profile under test) with a read-only observer and prints
+  `RESPONSE <script> <check> PASS|FAIL p<n>=PASS|FAIL <metric>=<value> ...` per scenario and `RESPONSE_SUMMARY passed=<n> of=<m>`; exit 0 all passed, 1 error, 2 any failed.
+  Before package B the AI has no enemy model, so part 1 of `air_answer` always fails (`model_air_known_s=none`).

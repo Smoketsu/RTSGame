@@ -759,14 +759,22 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void Loader_RoutesAiFolder_AndShippedProfilesValidate()
         {
-            Assert.That(Data.AiProfiles.Keys, Is.SupersetOf(new[] { "aggressive", "defensive" }));
+            Assert.That(Data.AiProfiles.Keys, Is.SupersetOf(new[] { "aggressive", "defensive", "rt_roc_rush", "rt_mass_pummeler", "rt_mass_windrunner", "rt_worker_raid", "rt_turtle" }));
             foreach (string id in Data.AiProfiles.Keys)
             {
                 // The profile being checked or used.
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
                 Assert.That(profile.Id, Is.EqualTo(id));
-                Assert.That(profile.RequireFaction("skai").WorkerUnitId, Is.EqualTo("skai.fledgling"));
-                Assert.That(profile.RequireFaction("water").WorkerUnitId, Is.EqualTo("water.tender"));
+                // The two standard profiles hold both plans; a responder profile (rt_*) holds one (skirmish_ai_v3.md A.4).
+                Assert.That(profile.Factions.Count, Is.EqualTo(id.StartsWith("rt_", StringComparison.Ordinal) ? 1 : 2), id);
+                if (profile.Factions.ContainsKey("skai"))
+                {
+                    Assert.That(profile.RequireFaction("skai").WorkerUnitId, Is.EqualTo("skai.fledgling"));
+                }
+                if (profile.Factions.ContainsKey("water"))
+                {
+                    Assert.That(profile.RequireFaction("water").WorkerUnitId, Is.EqualTo("water.tender"));
+                }
             }
             // Error for an ai/ file whose id does not match its name.
             DataValidationException misnamed = Expect.Throws<DataValidationException>(
@@ -810,6 +818,25 @@ namespace Rts.Sim.Tests.Ai
             // match may be decided before tick 2000 (a starved HQ relocates to a field it must fight for), so the check is relative.
             Assert.That(controllers[0].Memory.ThinkCount, Is.GreaterThanOrEqualTo(result.LastTick / 10 - 1));
             Assert.That(controllers[0].Memory.ThinkCount, Is.GreaterThan(100));
+        }
+
+        /// <summary>
+        /// Final state hash of rts/data/scripts/ai_vs_ai.json (aggressive vs defensive, seed 1234, decided at tick 5631) on the data as it stood after the Reef Runner was added
+        /// (skirmish_ai_v3.md A.3) and before any v3 AI code change; the harness prints the same value as its STATE_HASH line. Every later package keeps every new profile switch
+        /// off in aggressive.json and defensive.json, so this value must never change unless the shipped data or the simulation changes on purpose. Unit: state hash. Range: any ulong.
+        /// </summary>
+        private const ulong V2ReferenceHash = 0x9422f0628a36cfcaUL;
+
+        /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
+        [Test]
+        public void AiVsAi_FinalHash_MatchesTheV2Reference()
+        {
+            // The shipped data folder, and the harness run of the exit script (the same path CI takes, with the match cycles on).
+            string folder = TestData.FindDataDirectory();
+            Assert.That(Rts.Sim.Tests.Harness.HarnessTestSupport.Run(new[] { "--data", folder, "--script", Path.Combine(folder, "scripts", "ai_vs_ai.json") }, out string output, out string error),
+                Is.EqualTo(0), error);
+            Assert.That(output, Does.Contain("OUTCOME winner=1 tick=5631\n"));
+            Assert.That(output, Does.Contain("STATE_HASH=" + V2ReferenceHash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture) + "\n"));
         }
 
         /// <summary>

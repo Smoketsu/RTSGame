@@ -1,0 +1,46 @@
+// rts/data/units/water/reef_runner.json: Reef Runner, the water scout: a seahorse riding a single wheel (concept sheet rts/docs/art/concept/turnarounds8/water_scout_sheet.jpg) that fires light needle shots from its snout. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Water counterpart of skai.windrunner: cheap, fast, light, weak. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Reef Runner unit definition for the water faction: the water scout, a seahorse on a single wheel firing light needle shots from its snout, counterpart of skai.windrunner; placeholder numbers (rts/docs/specs/skirmish_ai_v3.md A.3).",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.reef_runner",
+  // Name shown to players (named by the developer, 17 Nov 2026). Unit: text. Range: 1 to 40 characters. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); developer naming 17 Nov 2026; placeholder.
+  "display_name": "Reef Runner",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "faction_id": "water",
+  // Pathing layer the unit moves on. Water: it still crosses a fully dry map (at 0.85 times speed), moves 1.15 or 1.3 times as fast on shallow or deep water and heals on own water. Unit: layer name. Range: "ground", "water" or "air". Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "layer": "water",
+  // Health at full. Unit: health points. Range: 1 to 100000 (design placeholders sit between 40 and 160). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "max_health": 60,
+  // Speed before terrain multipliers: 4.1 gives 3.485 tiles per second on dry ground (x 0.85; the Windrunner has 3.5), 4.715 on shallow and 5.33 on deep water. Unit: tiles per second. Range: 0 to 100 (placeholders sit between 2 and 5). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "speed_tiles_per_second": 4.1,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100 (placeholders sit between 1 and 3). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "supply": 1,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10 (placeholders sit between 0.3 and 0.6). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "radius_tiles": 0.4,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 50 and 150). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "cost_common": 75,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000 (placeholders sit between 0 and 50). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "cost_rare": 0,
+  // Time to train this unit at a producer. Unit: seconds. Range: 0.05 to 3600 (default 10 when absent; placeholders sit between 10 and 30). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "build_seconds": 18,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "armour_type": "light",
+  // How far the unit sees. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "sight_range_tiles": 9,
+  // Weapon: the needle launcher in the Reef Runner's snout (the water scout is a seahorse on a single wheel): light kinetic needle shots at ground and water targets only. Every number is a placeholder for playtesting. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "damage": 6,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: one of the damage_types in tuning/combat.json ("kinetic", "blast", "drench"). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "damage_type": "kinetic",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "range_tiles": 4,
+    // Time between two hits. Unit: seconds (20 ticks per second). Range: 0.05 to 60. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "cooldown_seconds": 0.8,
+    // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "hit_delay_ticks": 2,
+    // Movement layers of targets the weapon may hit: no air, so the Spoutling and the Coral Turret stay water's anti-air answer (open question Q2 default). Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "can_target": ["ground", "water"]
+  }
+}
