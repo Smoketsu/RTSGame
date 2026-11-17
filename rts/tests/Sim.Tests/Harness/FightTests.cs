@@ -279,6 +279,96 @@ namespace Rts.Sim.Tests.Harness
             }
         }
 
+        /// <summary>Runs the quick sweep into a new output folder; returns the exit code, stdout and the output folder.</summary>
+        private static int Sweep(string folder, int jobs, out string output, out string outDirectory, params string[] more)
+        {
+            outDirectory = Path.Combine(HarnessTestSupport.NewFolder(), "out");
+            List<string> args = new List<string> { "--data", folder, "--fights", "--jobs", jobs.ToString(), "--out", outDirectory };
+            args.AddRange(more);
+            return HarnessTestSupport.Run(args.ToArray(), out output, out string error);
+        }
+
+        /// <summary>The text of the four output files, concatenated with their names, for byte comparisons.</summary>
+        private static string Files(string outDirectory)
+        {
+            string text = string.Empty;
+            foreach (string name in new[] { "fights.jsonl", "hq_floor.jsonl", "fights.md" })
+            {
+                text += "== " + name + "\n" + File.ReadAllText(Path.Combine(outDirectory, name));
+            }
+            return text;
+        }
+
+        /// <summary>Test 8: the quick sweep run twice gives byte-identical files and stdout, and the stdout has the progress lines and the FIGHTS summary.</summary>
+        [Test]
+        public void Sweep_IsDeterministic()
+        {
+            string folder = FightTestSupport.Quick("chunk_fights", "4");
+            int exit1 = Sweep(folder, 2, out string out1, out string dir1);
+            int exit2 = Sweep(folder, 2, out string out2, out string dir2);
+            Assert.That(exit1, Is.EqualTo(0), out1);
+            Assert.That(exit2, Is.EqualTo(0));
+            Assert.That(out2, Is.EqualTo(out1));
+            Assert.That(Files(dir2), Is.EqualTo(Files(dir1)));
+            Assert.That(out1, Does.Contain("fights 4/6\nfights 6/6\n"));
+            Assert.That(out1, Does.Contain("FIGHTS fights=6 decided="));
+            // One fights.jsonl line per fight in plan order, and the floor trials of both factions, units and no composition.
+            string[] lines = File.ReadAllLines(Path.Combine(dir1, "fights.jsonl"));
+            Assert.That(lines.Length, Is.EqualTo(6));
+            for (int i = 0; i < 6; i++)
+            {
+                Assert.That(FightRecord.Parse(lines[i]).Fight, Is.EqualTo(FightTestSupport.QuickIds[i]));
+            }
+            int floorTrials = HqFloorTrial.Plan(HarnessTestSupport.Load(folder), new[] { "skai_vs_skai", "skai_vs_water", "water_vs_water" }).Count;
+            Assert.That(floorTrials, Is.GreaterThan(0));
+            Assert.That(File.ReadAllLines(Path.Combine(dir1, "hq_floor.jsonl")).Length, Is.EqualTo(floorTrials), "every armed mobile unit, Rooted and Uprooted, and no composition");
+        }
+
+        /// <summary>Test 9: --jobs 1 and --jobs 3 give byte-identical files and stdout.</summary>
+        [Test]
+        public void Sweep_DoesNotDependOnJobs()
+        {
+            string folder = FightTestSupport.Quick("chunk_fights", "2");
+            int exit1 = Sweep(folder, 1, out string out1, out string dir1);
+            int exit3 = Sweep(folder, 3, out string out3, out string dir3);
+            Assert.That(exit1, Is.EqualTo(0), out1);
+            Assert.That(exit3, Is.EqualTo(0));
+            Assert.That(out3, Is.EqualTo(out1));
+            Assert.That(Files(dir3), Is.EqualTo(Files(dir1)));
+        }
+
+        /// <summary>A composition of the sweep gets HQ floor trials with k = hq_floor_supply / recipe supply (skai_ai_mix, supply 13, gives 2 recipes) and the worker places the recipe in order.</summary>
+        [Test]
+        public void HqFloor_CompositionsAreAttackers()
+        {
+            string folder = HarnessTestSupport.CopyData();
+            DataSet data = HarnessTestSupport.Load(folder);
+            FightSettings settings = FightSettings.Load(folder, data);
+            FightPlan plan = FightPlan.Build(data, settings);
+            List<string> warnings = new List<string>();
+            List<HqFloorSpec> specs = HqFloorTrial.Plan(data, new[] { "skai_vs_skai", "skai_vs_water", "water_vs_water" }, plan.Sides, warnings);
+            Assert.That(warnings, Is.Empty);
+            Assert.That(specs.FindAll(s => s.Unit == "skai_ai_mix").Count, Is.EqualTo(4), "2 defenders, Rooted and Uprooted");
+            Assert.That(specs.FindAll(s => s.Unit == "water_ai_mix").Count, Is.EqualTo(4));
+            HqFloorRecord record = HqFloorTrial.Run(data, new HqFloorSpec("skai", "skai_ai_mix", "water", true), FindRecipe(plan, "skai_ai_mix"));
+            Assert.That(record.Count, Is.EqualTo(14), "k 2 of the 7-unit, 13-supply recipe");
+            Assert.That(record.Unit, Is.EqualTo("skai_ai_mix"));
+        }
+
+        /// <summary>The recipe of a composition side.</summary>
+        private static IReadOnlyDictionary<string, int> FindRecipe(FightPlan plan, string id)
+        {
+            foreach (FightSide side in plan.Sides)
+            {
+                if (side.Id == id)
+                {
+                    return side.Recipe;
+                }
+            }
+            Assert.Fail("no side " + id);
+            return null!;
+        }
+
         /// <summary>The fight with this ID in a plan.</summary>
         private static FightSpec Find(FightPlan plan, string id)
         {

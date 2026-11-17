@@ -105,6 +105,27 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --tr
 With `--profile-a <id> --profile-b <id>` the two slots play the ladder seat rule for the game index (use the ladder's `--seed` and `--max-game-seconds` to replay a ladder game). Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
 `rts/docs/reports/ai_trace_2026-11-16/`.
 
+## Fight mode (micro benchmark, packages F1 to F3)
+
+Spec: `rts/docs/specs/micro_benchmark.md`. Settings: `rts/data/scripts/fights/fights.json` (read by `FightSettings`; one value per line, so a script can edit it by key) and the matchups file
+`rts/data/scripts/fights/matchups.json` (read by `FightMatchups`). Both live under `scripts/`, outside the content digest. `--fights` plays equal-value army fights with no strategic AI
+and no HQ: every swept combat unit and composition against every other, in both seats, on every terrain case (`flat`, `high_ground`, `flooded`, `choke`) at every army value. The control is
+plain attack-move with idle re-targeting. A fight ends by elimination, a stalemate (neither side can target the other, or no damage for a while) or the cap. The winner is the side with
+value left, and the output is a value-exchange matrix.
+
+```
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --fights [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]
+```
+
+- Fights run in worker processes (`--worker --fights --first <i> --count <n>`), the HQ floor trials as `--worker --fights --hq-floor <attacker faction>:<unit or composition>:<defender faction>:<rooted|uprooted>`.
+  The first `verify_fights` fights are re-run in-process and must give identical JSON lines. No output depends on `--jobs`; elapsed time goes to stderr only.
+- `--only <fight id>` (for example `flat/1500/water.grasper/water.ink_lobber`) plays one fight in-process and prints its JSON line; no files, no checks.
+- Writes `fights.jsonl`, `hq_floor.jsonl` and `fights.md` to `--out` (default `rts/build/harness/fights`). stdout: `fights <done>/<total>` progress, one `CHECK <name> PASS|FAIL <detail>` per design-rule check, then
+  `FIGHTS fights=<n> decided=<n> draws=<n> stalemates=<n> unresolved=<n> mismatched=<n> checks_passed=<n> of=<m>`.
+- Exit codes: 0 done (failed checks included), 1 error, 2 a check failed and `--strict` was given, 3 spot check mismatch.
+- The checks (`FightChecks`) are the P-005 section 1.6 rules 1 to 6 plus `matchups_agree`; the HQ floor (rule 6) reuses `HqFloorTrial`, extended to compositions.
+- A new unit joins the sweep by being a combat unit (mobile, supplied, armed, not a worker or HQ); `matchups_agree` then fails until it has an entry in `matchups.json`.
+
 ## Ladder mode and response mode (skirmish AI v3, package A)
 
 Spec: `rts/docs/specs/skirmish_ai_v3.md` A.1, A.2 and A.4. Settings: `rts/data/scripts/ai_eval/ai_eval.json` (read by `AiEvalSettings`; unknown keys and bad values are errors naming the file and the field).

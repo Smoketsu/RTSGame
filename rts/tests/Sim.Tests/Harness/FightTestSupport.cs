@@ -64,7 +64,9 @@ namespace Rts.Sim.Tests.Harness
         /// <param name="more">More pairs of key and JSON value text.</param>
         public static string Quick(params string[] more)
         {
-            string folder = DataWith("units", QuickUnits, "compositions", "[]", "cases", QuickCases, "threats", QuickThreats);
+            // The HQ floor trials stop after 30 s of game time so the sweep tests stay quick.
+            string folder = HarnessTestSupport.CopyData(HarnessTestSupport.QuickBatch);
+            Edit(folder, "units", QuickUnits, "compositions", "[]", "cases", QuickCases, "threats", QuickThreats);
             Edit(folder, more);
             return folder;
         }
