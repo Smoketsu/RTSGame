@@ -129,6 +129,8 @@ Direction set by the developer on 16 Nov 2026 after round 1: **science fiction, 
 
 ## Buildings (round 13, first proposal)
 
+**Names (developer, 17 Nov 2026):** use the game data names for buildings and units everywhere (Roost, Windspire, Perch Tower, Perch Depot, Tidepool, Shell Forge, Coral Turret, Pearl Depot). The placeholder art names in the table below are only a key to the drawings. The developer will write replacement names for almost everything at the end of development, so do not spend time on naming before then.
+
 The design doc names what a base needs (a drop-off per base, supply, production, tech, static defences capped at six per base, walls; water structures that release flood water) but not the buildings themselves. Round 13 draws one building for each job so the developer can react; the names below are placeholders until the faction documents are written.
 
 | Job | Skai (placeholder name) | Water (placeholder name) |
