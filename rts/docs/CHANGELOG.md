@@ -7,6 +7,9 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Spec: `docs/specs/skirmish_ai_v3.md` Package C2, the counter-mix revision (17 Nov 2026), written after the ablation ladders. Diagnosis from five traced ladder games: static defence triggered by a lone enemy scout spends the army's money (2 to 15 defences per game); the per-cost score keeps cheap units that lose (16 to 31 Reef Runners per game); confidence came from units only implied by buildings. Revision: predictor-scored mix, confidence from seen units only, a raid strength threshold and a value cap for static defence, a rare-worker cap, early expansion as its own switch, new profile `aggressive_s2b`. Traces in `docs/reports/ai_v3_2026-11-17/traces/`. C.1 text now matches worked examples C-2 and C-6.
+- Orchestrator decisions on the C2 open questions: the water `armoured_answer` response check is NOT redefined to the predictor's pick (that would make the check circular); it stays as a known failure and a balance finding (15 Pummelers beat 8 Brinecasters at equal cost), so the C2 response bar is 5 of the other 9. Early expansion on for `aggressive_s2b`; rare-worker cap kept; gate 60 percent read from the ladder line; unanswered-layer defences exempt from the value cap.
+
 - Skirmish AI v3, package C (fight predictor, counter-mix, tech on demand, static defence, rare priority), spec `docs/specs/skirmish_ai_v3.md`, 17 Nov 2026, reviewed by the sim-reviewer; no `src/Sim` change:
   - New `Ai/FightPredictor.cs` and `Ai/AiCounter.cs`; rules T (tech on demand), SD (static defence with a raid log) and RS (rare priority), each behind a profile switch. 28 new `AiProfile` keys and three switches in every `data/ai` profile. `aggressive`, `defensive` and `aggressive_s1` play as before; pinned hashes unchanged.
   - New profile `data/ai/aggressive_s2.json`; ablation-only profiles `abl_s2_no_rare.json` and `abl_s2_blind.json`.
