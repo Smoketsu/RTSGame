@@ -517,7 +517,7 @@ namespace Rts.Sim.Cycles
             }
         }
 
-        /// <summary>Step 8: once a second while the active cycle damages defences, every static defence loses a share of its health down to a floor.</summary>
+        /// <summary>Step 8: once a second while the active cycle damages defences, every static defence and wall loses a share of its health down to a floor.</summary>
         private void QuakeDamage(Simulation sim, int tick)
         {
             // The cycle in force, or null.
@@ -529,7 +529,7 @@ namespace Rts.Sim.Cycles
             }
             foreach (Unit unit in sim.Units.All)
             {
-                if (!unit.Definition.Economy.IsStaticDefence || unit.Health <= Fix64.Zero || unit.IsUnderConstruction || unit.IsInvulnerable)
+                if (!(unit.Definition.Economy.IsStaticDefence || unit.Definition.Economy.IsWall) || unit.Health <= Fix64.Zero || unit.IsUnderConstruction || unit.IsInvulnerable)
                 {
                     continue;
                 }

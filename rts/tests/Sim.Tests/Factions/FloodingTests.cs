@@ -40,6 +40,9 @@ namespace Rts.Sim.Tests.Factions
         /// <summary>ID of the test drop-off structure: ground, speed 0, drop-off, footprint 1.</summary>
         private const string DropOffId = "flood.dropoff";
 
+        /// <summary>ID of the test wall (walls_and_tech.md W-5): ground, speed 0, footprint 1, is_wall.</summary>
+        private const string WallDefId = "flood.wall";
+
         /// <summary>ID of the test mobile HQ that is a flood source while Rooted.</summary>
         private const string FloodHqId = "flood.hq";
 
@@ -67,6 +70,8 @@ namespace Rts.Sim.Tests.Factions
                 "light", Fix64.FromInt(8), null, null, null, null, new UnitFloodDefinition(Fix64.Zero, Fix64.Zero, true)));
             catalog.AddUnit(new UnitDefinition(DropOffId, "Drop-off", TestWorld.TestFactionId, MovementLayer.Ground, Fix64.FromInt(100), Fix64.Zero, 0, Fix64.Half, 0, 0,
                 "light", Fix64.FromInt(8), null, null, new UnitEconomyDefinition(Fix64.FromInt(5), false, true, new List<string>(), false, 1, 0)));
+            catalog.AddUnit(new UnitDefinition(WallDefId, "Wall", TestWorld.TestFactionId, MovementLayer.Ground, Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0,
+                "light", Fix64.FromInt(8), null, null, new UnitEconomyDefinition(Fix64.FromInt(5), false, false, new List<string>(), false, 1, 0, true)));
             catalog.AddUnit(new UnitDefinition(FloodHqId, "Flood HQ", "water", MovementLayer.Water, Fix64.FromInt(200), Fix64.One, 0, Fix64.Half, 0, 0,
                 "armoured", Fix64.FromInt(8), null, new HqDefinition("armoured", "light", TestWorld.WorkerId), null, null,
                 new UnitFloodDefinition(Fix64.One, Fix64.FromInt(10), false)));
@@ -1004,6 +1009,77 @@ namespace Rts.Sim.Tests.Factions
             Assert.That(wet, Is.GreaterThan(20));
             // P-003 armed-first targeting: the Aerie now shoots the armed Pummeler (unit 5) before the unarmed Tidepool, so the Tidepool is the survivor to check.
             Assert.That(StatusTestWorld.UnitOf(final, 4).Definition.Id, Is.EqualTo("water.tidepool"));
+        }
+
+        // ------------------------------------------------------------------ walls_and_tech.md W-5
+
+        /// <summary>
+        /// Builds the three-tile corridor A = (0, 0), B = (1, 0), C = (2, 0) with no sources, then applies <paramref name="setup"/> at tick 0
+        /// (after the corridor) and runs four flood updates (the updates on ticks 0, U, 2U, 3U).
+        /// </summary>
+        private static Simulation WallCorridor(System.Action<Simulation> setup, Tuning tuning)
+        {
+            Simulation sim = Build(FlatMap(8, 8), tuning: tuning);
+            Corridor(sim, 0);
+            StatusTestWorld.Run(sim, 0, 1, s =>
+            {
+                for (int x = 3; x < 8; x++)
+                {
+                    s.Terrain.AddBlockers(s, s.Terrain.IndexOf(x, 0), TileBlockers.Wall);
+                }
+            });
+            StatusTestWorld.Run(sim, 0, 2, setup);
+            StatusTestWorld.StepThrough(sim, 3 * Mechanic(sim).UpdateTicks);
+            return sim;
+        }
+
+        /// <summary>W-5a. A built wall on B stops 1000 drops of team 0 on A from flowing: A keeps 1000, B and C hold 0.</summary>
+        [Test]
+        public void BuiltWall_BlocksFlow()
+        {
+            Simulation sim = WallCorridor(s =>
+            {
+                s.SpawnUnit(s.Content.Units[WallDefId], P0, StatusTestWorld.Centre(1, 0));
+                s.Terrain.SetWater(s, s.Terrain.IndexOf(0, 0), FloodMath.ToDepth(1000), new TeamId(0));
+            }, NoRetreatTuning());
+            Assert.That(DropsAt(sim, 0, 0), Is.EqualTo(1000));
+            Assert.That(DropsAt(sim, 1, 0), Is.EqualTo(0));
+            Assert.That(DropsAt(sim, 2, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>W-5b. 500 drops already on B when a wall appears there stay (the wall is not displaced like a footprint); the control tower displaces them at once.</summary>
+        [Test]
+        public void BuiltWall_KeepsWaterAlreadyThere_FootprintDisplacesIt()
+        {
+            Simulation wall = WallCorridor(s =>
+            {
+                s.Terrain.SetWater(s, s.Terrain.IndexOf(1, 0), FloodMath.ToDepth(500), new TeamId(0));
+                s.SpawnUnit(s.Content.Units[WallDefId], P0, StatusTestWorld.Centre(1, 0));
+            }, NoRetreatTuning());
+            Assert.That(DropsAt(wall, 1, 0), Is.EqualTo(500));
+            Assert.That(DropsAt(wall, 0, 0), Is.EqualTo(0));
+            Assert.That(DropsAt(wall, 2, 0), Is.EqualTo(0));
+            Simulation tower = WallCorridor(s =>
+            {
+                s.Terrain.SetWater(s, s.Terrain.IndexOf(1, 0), FloodMath.ToDepth(500), new TeamId(0));
+                s.SpawnUnit(s.Content.Units[TestWorld.TowerId], P0, StatusTestWorld.Centre(1, 0));
+            }, NoRetreatTuning());
+            Assert.That(DropsAt(tower, 1, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>W-5c. Tide retreat is not stopped by a wall: with the shipped retreat and no sources, 500 drops on a walled tile drain away (measured when the walls spec was built).</summary>
+        [Test]
+        public void BuiltWall_WaterStillRetreatsWithTheTide()
+        {
+            Simulation sim = Build(FlatMap(8, 8));
+            Corridor(sim, 0);
+            StatusTestWorld.Run(sim, 0, 1, s =>
+            {
+                s.Terrain.SetWater(s, s.Terrain.IndexOf(0, 0), FloodMath.ToDepth(500), new TeamId(0));
+                s.SpawnUnit(s.Content.Units[WallDefId], P0, StatusTestWorld.Centre(0, 0));
+            });
+            StatusTestWorld.StepThrough(sim, 60 * 20);
+            Assert.That(DropsAt(sim, 0, 0), Is.EqualTo(0));
         }
     }
 }

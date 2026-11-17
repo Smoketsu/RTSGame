@@ -206,7 +206,7 @@ namespace Rts.Sim.Data
 
         /// <summary>
         /// Reads the optional economy keys of a unit file: build_seconds (0.05 to 3600, default <see cref="UnitEconomyDefinition.DefaultBuildSeconds"/>),
-        /// can_gather, is_drop_off, is_static_defence (booleans, default false), trains (array of unit IDs, default empty),
+        /// can_gather, is_drop_off, is_static_defence, is_wall (booleans, default false; is_wall needs footprint 1), trains (array of unit IDs, default empty),
         /// footprint (0 or 1, default 0) and provides_supply (0 to 100, default 0). References in trains are checked once every unit is loaded.
         /// </summary>
         /// <param name="root">The unit file's root object.</param>
@@ -220,6 +220,8 @@ namespace Rts.Sim.Data
             bool canGather = root.TryGetMember("can_gather", out JsonValue? gatherNode) && gatherNode.AsBool();
             bool isDropOff = root.TryGetMember("is_drop_off", out JsonValue? dropNode) && dropNode.AsBool();
             bool isStaticDefence = root.TryGetMember("is_static_defence", out JsonValue? defenceNode) && defenceNode.AsBool();
+            // Wall flag. Range: true or false; false when absent; true needs footprint 1.
+            bool isWall = root.TryGetMember("is_wall", out JsonValue? wallNode) && wallNode.AsBool();
             // Units this unit can train, in file order; duplicates are an error.
             List<string> trains = new List<string>();
             if (root.TryGetMember("trains", out JsonValue? trainsNode))
@@ -239,7 +241,11 @@ namespace Rts.Sim.Data
             int footprint = root.TryGetMember("footprint", out JsonValue? footprintNode) ? footprintNode.AsInt(0, 1) : 0;
             // Supply added to the owner's cap. Unit: supply. Range: 0 to 100.
             int providesSupply = root.TryGetMember("provides_supply", out JsonValue? supplyNode) ? supplyNode.AsInt(0, 100) : 0;
-            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply);
+            if (isWall && footprint != 1)
+            {
+                throw root.Require("is_wall").Fail("is_wall needs footprint 1");
+            }
+            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply, isWall);
         }
 
         /// <summary>

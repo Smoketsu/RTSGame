@@ -47,6 +47,9 @@ namespace Rts.Sim.Tests.Cycles
         /// <summary>Static defence: 300 health, speed 0, footprint 1, no weapon.</summary>
         public const string WallId = "test.wall";
 
+        /// <summary>Wall (walls_and_tech.md W-12): 200 health, speed 0, footprint 1, is_wall, no weapon.</summary>
+        public const string BuiltWallId = "test.built_wall";
+
         /// <summary>Water-layer unit: 100 health, speed 2, radius 0.5, no weapon.</summary>
         public const string BoatId = "test.boat";
 
@@ -98,6 +101,9 @@ namespace Rts.Sim.Tests.Cycles
             catalog.AddUnit(new UnitDefinition(WallId, "Wall", TestWorld.TestFactionId, MovementLayer.Ground,
                 Fix64.FromInt(300), Fix64.Zero, 0, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null, null,
                 new UnitEconomyDefinition(Fix64.FromInt(2), false, false, new List<string>(), true, 1, 0)));
+            catalog.AddUnit(new UnitDefinition(BuiltWallId, "Built wall", TestWorld.TestFactionId, MovementLayer.Ground,
+                Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null, null,
+                new UnitEconomyDefinition(Fix64.FromInt(2), false, false, new List<string>(), false, 1, 0, true)));
             return catalog;
         }
 

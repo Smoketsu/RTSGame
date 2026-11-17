@@ -36,7 +36,8 @@
 //   * CancelBuild refunds the definition's cost and emits BuildOrderCancelledEvent. Accepted move, attack, stop, gather and build
 //     orders cancel with new_order; a removed worker cancels with worker_lost (OnUnitRemoved, so deaths in step 6d).
 // Footprint: a unit whose definition has footprint 1 adds a Footprint blocker to its tile at spawn and removes it when it
-//   is removed (OnUnitRemoved), unless another footprint unit shares the tile.
+//   is removed (OnUnitRemoved), unless another footprint unit shares the tile. A wall (is_wall) writes BuiltWall instead of Footprint
+//   (flood water stays on it) and only another wall on the same tile keeps that flag (walls_and_tech.md W.1).
 // Supply: RecomputeSupply sums, per player, the supply of every living unit plus every queued unit plus every pending build
 //   order (replaced by the structure itself when it appears), and the supply cap. It
 //   scans all units, O(n) per call; it runs at the end of every economy step and before each train or build command (so two
@@ -90,11 +91,17 @@ namespace Rts.Sim.Economy
         {
             if (unit.Definition.Economy.FootprintTiles > 0)
             {
-                sim.Terrain.AddBlockers(sim, sim.Terrain.TileOf(unit.Position), TileBlockers.Footprint);
+                sim.Terrain.AddBlockers(sim, sim.Terrain.TileOf(unit.Position), BlockerOf(unit.Definition));
             }
         }
 
-        /// <summary>Removes the footprint blocker of a removed structure unless another footprint unit shares its tile. Internal: <see cref="Simulation.RemoveUnit"/> only.</summary>
+        /// <summary>The blocker flag a structure writes on its tile: BuiltWall for a wall, Footprint otherwise.</summary>
+        private static TileBlockers BlockerOf(UnitDefinition definition)
+        {
+            return definition.Economy.IsWall ? TileBlockers.BuiltWall : TileBlockers.Footprint;
+        }
+
+        /// <summary>Removes the footprint blocker of a removed structure unless another footprint unit of the same wall kind shares its tile. Internal: <see cref="Simulation.RemoveUnit"/> only.</summary>
         internal static void OnUnitRemoved(Simulation sim, Unit removed)
         {
             // A removed worker's pending build order is refunded; the unit is gone, so there is nothing to resume.
@@ -107,12 +114,13 @@ namespace Rts.Sim.Economy
             int tile = sim.Terrain.TileOf(removed.Position);
             foreach (Unit other in sim.Units.All)
             {
-                if (other.Definition.Economy.FootprintTiles > 0 && sim.Terrain.TileOf(other.Position) == tile)
+                if (other.Definition.Economy.FootprintTiles > 0 && other.Definition.Economy.IsWall == removed.Definition.Economy.IsWall
+                    && sim.Terrain.TileOf(other.Position) == tile)
                 {
                     return;
                 }
             }
-            sim.Terrain.RemoveBlockers(sim, tile, TileBlockers.Footprint);
+            sim.Terrain.RemoveBlockers(sim, tile, BlockerOf(removed.Definition));
         }
 
         /// <summary>
