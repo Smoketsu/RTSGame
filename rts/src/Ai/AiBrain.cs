@@ -101,6 +101,14 @@
 // raid_min_supply (a raid needs strength = supply of visible enemy army units near the drop-off + 1 for a recent hit) and
 // static_defence_max_value_share (step 2 builds only while own defences plus the new one are worth at most that share of the army; step 3
 // is never capped); rule E: use_early_expansion makes the clock gate early_expansion_seconds while no rare field is served.
+// Package D (skirmish_ai_v3.md D, code in AiBrainFight.cs; each part behind its own switch, all off in every profile but aggressive_s3):
+// use_predictor_attack replaces Massing's supply threshold by the fight predictor against the enemy model and the known static defences at the
+// chosen target (the drawn threshold stays the fallback when nothing is known) and replaces the retreat power test by the predicted advantage of
+// the attack group against the visible armed enemies near it; use_target_choice puts undefended enemy depots and producers before the v2 target
+// order and adds rule HR (a small squad of fast units harasses the known enemy drop-off farthest from the enemy army); use_measured_defence
+// replaces "every army unit defends" by the nearest units the predictor needs (own static defences count), recalling the attack group only when
+// it is needed; use_unit_control adds fall back, keep distance and fastest-kill focus fire (replacing the nearest-enemy Focus). The scout, the
+// harass squad, the defend group and fallen-back units get no stance orders. Spatial tests use AiProximity, so no loop runs over every pair.
 // Rule S now also treats a Defend that this think's threat would start as Defend (the scout is not taken on the first think of a Defend), and the
 // unreachable-waypoint skip waits until the move order has taken effect (AiMemory.ScoutOrderEffectiveTick).
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
@@ -126,7 +134,7 @@ using Rts.Sim.Units;
 namespace Rts.Ai
 {
     /// <summary>The decision rules. Stateless: all state is in <see cref="AiMemory"/>.</summary>
-    public static class AiBrain
+    public static partial class AiBrain
     {
         /// <summary>Squared distance under which two goal points count as the same (2 tiles). Unit: squared tiles. Fixed tolerance, not tuning.</summary>
         private static readonly Fix64 SameGoalSquared = Fix64.FromInt(4);
@@ -447,7 +455,7 @@ namespace Rts.Ai
         }
 
         /// <summary>One think's working state: the resource ledger, reservations and the intent list.</summary>
-        private sealed class Turn
+        private sealed partial class Turn
         {
             /// <summary>The view being decided on.</summary>
             private readonly AiWorldView _view;
@@ -567,7 +575,33 @@ namespace Rts.Ai
                 {
                     return _profile.WorkersPerField;
                 }
-                return _profile.RareBankSoftCap > 0 && _view.Rare >= _profile.RareBankSoftCap ? 0 : _profile.RareWorkersPerField;
+                return RareCapped ? 0 : _profile.RareWorkersPerField;
+            }
+
+            /// <summary>True while rare_bank_soft_cap is on (above 0) and the rare bank is at or above it (C2.3): rare fields take no workers. Unit: boolean.</summary>
+            private bool RareCapped => _memory.RareCapActive;
+
+            /// <summary>
+            /// Updates the rare-worker cap state (C2.3 with its review hysteresis): on when the rare bank reaches rare_bank_soft_cap, off again when
+            /// it falls below rare_bank_return_cap (0 means the cap itself). Always off while rare_bank_soft_cap is 0. Called once per think by the constructor.
+            /// </summary>
+            private void UpdateRareCap()
+            {
+                if (_profile.RareBankSoftCap <= 0)
+                {
+                    _memory.RareCapActive = false;
+                    return;
+                }
+                // Bank level below which the cap lifts. Unit: resource units (rare). Range: 1 to rare_bank_soft_cap.
+                int returnAt = _profile.RareBankReturnCap > 0 ? _profile.RareBankReturnCap : _profile.RareBankSoftCap;
+                if (_view.Rare >= _profile.RareBankSoftCap)
+                {
+                    _memory.RareCapActive = true;
+                }
+                else if (_view.Rare < returnAt)
+                {
+                    _memory.RareCapActive = false;
+                }
             }
 
             /// <summary>The enemy model M(t) per army type (B.3) this think; empty when use_enemy_model is off. Unit: units. Range: above 0 each.</summary>
@@ -592,6 +626,7 @@ namespace Rts.Ai
                 _common = view.Common;
                 _rare = view.Rare;
                 _supplyUsed = view.SupplyUsed;
+                UpdateRareCap();
                 // Largest worked distance, squared. Unit: squared tiles.
                 Fix64 reachSquared = ReachSquared;
                 // DepotsPlaced counts the depots among the own units (rule E's schedule), not the orders given.
@@ -1105,6 +1140,11 @@ namespace Rts.Ai
                         }
                         // Nearest served field below its cap, other than the full one (it is at or over its cap, so it never qualifies).
                         AiFieldView? target = NearestField(worker.Position, assigned, true);
+                        if (target == null && field.Kind == ResourceKind.Rare && RareCapped)
+                        {
+                            // C2 review item 2: the rare bank is at the soft cap, so rare workers leave for the nearest served common field even when it is full.
+                            target = NearestCommonField(worker.Position);
+                        }
                         if (target == null)
                         {
                             return;
@@ -1118,6 +1158,26 @@ namespace Rts.Ai
                         }
                     }
                 }
+            }
+
+            /// <summary>The served common field nearest <paramref name="from"/>, ties to the lowest index, whatever its worker count; null when none is served.</summary>
+            private AiFieldView? NearestCommonField(FixVec2 from)
+            {
+                // Best candidate so far, or null.
+                AiFieldView? best = null;
+                // Squared distance of the best field. Unit: squared tiles. Range: 0 upward.
+                Fix64 bestSquared = Fix64.Zero;
+                foreach (AiFieldView field in _served)
+                {
+                    // Squared distance of this candidate. Unit: squared tiles. Range: 0 upward.
+                    Fix64 squared = (field.Centre - from).LengthSquared();
+                    if (field.Kind == ResourceKind.Common && (best == null || squared < bestSquared))
+                    {
+                        best = field;
+                        bestSquared = squared;
+                    }
+                }
+                return best;
             }
 
             /// <summary>The served field nearest <paramref name="from"/>, ties to the lowest index; with <paramref name="underCap"/> only fields below their cap.</summary>
@@ -1583,10 +1643,13 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView dropOff in dropOffs)
                 {
-                    // Sum of the raiders' positions and their number, and their supply (the raid strength of C2.4, plus 1 for a hit below).
+                    // Sum of the raiders' X positions. Unit: tiles. Range: 0 to raiders x map width.
                     Fix64 sumX = Fix64.Zero;
+                    // Sum of the raiders' Y positions. Unit: tiles. Range: 0 to raiders x map height.
                     Fix64 sumY = Fix64.Zero;
+                    // Visible enemy army units within defend_radius_tiles of the drop-off. Unit: units. Range: 0 upward.
                     int raiders = 0;
+                    // Raid strength of C2.4: their supply (plus 1 for a hit, added below). Unit: supply. Range: 0 upward.
                     int strength = 0;
                     foreach (AiUnitView enemy in _view.VisibleEnemies)
                     {
@@ -1928,13 +1991,18 @@ namespace Rts.Ai
                 }
                 // True when the served fields are running low (starved counts as empty).
                 bool low = Starved || Fix64.FromInt(servedKnown) < _profile.ExpandWhenServedRemainingFraction * Fix64.FromInt(servedStart);
+                // True while the early-expansion gate (C2.5) is in force: no rare field is served. Unit: boolean.
+                bool earlyGate = _profile.UseEarlyExpansion && !RareServed();
                 // C2.5: while no rare field is served, the first rare depot is due at early_expansion_seconds (the other gates stay).
-                if (_profile.UseEarlyExpansion && !RareServed())
+                if (earlyGate)
                 {
                     dueSeconds = Fix64.Min(dueSeconds, _profile.EarlyExpansionSeconds);
                 }
+                // True once the early gate has opened (its time has come), so the depot it allows goes to a rare site even when the mix's rare
+                // share is below rare_need_weight_share (C2 review item 1). Unit: boolean.
+                bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(_profile.EarlyExpansionSeconds);
                 // Rule RS: a needed rare resource puts rare sites first in the target order.
-                bool rarePriority = RarePriority();
+                bool rarePriority = RarePriority() || earlyLift;
                 if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
                 {
                     return;
@@ -2111,7 +2179,7 @@ namespace Rts.Ai
             /// test as <see cref="DefendIfThreatened"/>, which runs later in Army). Rule S reads it so no scout is taken on the first think of a Defend.
             /// </summary>
             private bool WillDefend => _memory.Stance == AiStance.Defend
-                || ((_threatCount > 0 || _latestHit != null) && !(_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply));
+                || (!_profile.UseMeasuredDefence && (_threatCount > 0 || _latestHit != null) && !(_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply));
 
             /// <summary>Rule 4c (skirmish_ai_v3.md B.2): keeps one scout on its route, assigns or trains one when it is due (see the class header).</summary>
             public void Scout()
@@ -2229,7 +2297,7 @@ namespace Rts.Ai
                 AiUnitView? own = null;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (!unit.IsArmy || _memory.AttackGroup.Contains(unit.Id))
+                    if (!unit.IsArmy || _memory.AttackGroup.Contains(unit.Id) || InPackageDRole(unit.Id))
                     {
                         continue;
                     }
@@ -2473,23 +2541,37 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>Rule 6: the army stance machine (rules D, G, K and M of skirmish_ai_v2.md).</summary>
+            /// <summary>Rule 6: the army stance machine (rules D, G, K and M of skirmish_ai_v2.md), with the package D rules HR, D.5 and D.6 before the stance orders.</summary>
             public void Army()
             {
                 // Army units in ascending ID order, and their total supply. Unit: supply.
-                List<AiUnitView> army = new List<AiUnitView>();
+                List<AiUnitView> armyAll = new List<AiUnitView>();
                 // Total supply of the army. Unit: supply. Range: 0 upward.
-                int armySupply = 0;
+                int armySupplyAll = 0;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
                     if (unit.IsArmy && !IsActiveScout(unit.Id))
                     {
-                        army.Add(unit);
-                        armySupply += _view.SupplyOf(unit.Definition);
+                        armyAll.Add(unit);
+                        armySupplyAll += _view.SupplyOf(unit.Definition);
                     }
                 }
+                _armyAll = armyAll;
                 _kill = FindKillTarget();
-                if (DefendIfThreatened(army))
+                PrepareGroups(armyAll);
+                Harass(armyAll, armySupplyAll);
+                UnitControl(armyAll);
+                // The army the stance orders go to: everyone except the harass, defend and fallen-back units (all of them when package D is off).
+                List<AiUnitView> army = StanceArmy(armyAll, out int armySupply);
+                if (_profile.UseMeasuredDefence)
+                {
+                    if (MeasuredDefence(armyAll))
+                    {
+                        return;
+                    }
+                    army = StanceArmy(armyAll, out armySupply);
+                }
+                else if (DefendIfThreatened(army))
                 {
                     return;
                 }
@@ -2530,6 +2612,7 @@ namespace Rts.Ai
                         _threatSumY += enemy.Position.Y;
                         _threatCount++;
                         _threatSupply += _view.SupplyOf(enemy.Definition);
+                        _threats.Add(enemy);
                     }
                 }
                 foreach (DamageReport report in _memory.RecentDamage.Values)
@@ -2564,7 +2647,7 @@ namespace Rts.Ai
                 FixVec2 goal = Standable(centre);
                 foreach (AiUnitView unit in army)
                 {
-                    if (Focus(unit))
+                    if (Controlled(unit) || Focus(unit))
                     {
                         continue;
                     }
@@ -2636,8 +2719,14 @@ namespace Rts.Ai
                 int threshold = AllIn ? 1 : _memory.AttackThreshold;
                 // True when rule K starts the attack: a low enemy HQ is known and the army is big enough (threshold, tide and regroup ignored).
                 bool kill = _kill != null && army.Count > 0 && armySupply >= _profile.KillMinArmySupply;
+                // True when the army is strong enough by the v2 rule (the drawn threshold) or, with use_predictor_attack and something known about the enemy, by the predictor (D.1).
+                bool strong = armySupply >= threshold;
+                if (_profile.UsePredictorAttack && !AllIn && army.Count > 0 && PredictedAttack(army, armySupply, out bool predictedWin))
+                {
+                    strong = predictedWin;
+                }
                 // True when the normal attack conditions hold.
-                bool ready = army.Count > 0 && _view.Tick >= _memory.RegroupUntilTick && armySupply >= threshold && tideOk;
+                bool ready = army.Count > 0 && _view.Tick >= _memory.RegroupUntilTick && strong && tideOk;
                 if ((kill || ready) && TryChooseTarget(out _))
                 {
                     // Rule G: the group is every army unit now.
@@ -2665,7 +2754,7 @@ namespace Rts.Ai
                 FixVec2 rally = RallyPoint();
                 foreach (AiUnitView unit in units)
                 {
-                    if (!unit.HasMoveTarget && !unit.IsAttackMoving && (unit.Position - rally).LengthSquared() > AtRallySquared)
+                    if (!Controlled(unit) && !unit.HasMoveTarget && !unit.IsAttackMoving && (unit.Position - rally).LengthSquared() > AtRallySquared)
                     {
                         Emit(AiIntent.AttackMove(unit.Id, rally));
                     }
@@ -2681,7 +2770,13 @@ namespace Rts.Ai
                 // True when every army unit joins the group each think (all in, or rule K).
                 bool joinAll = AllIn || _kill != null;
                 // Review fix: drop group IDs that are no longer army units so the set cannot grow during a long attack.
-                _memory.AttackGroup.RemoveWhere(id => !army.Exists(unit => unit.Id == id));
+                // IDs of the army units, so the prune below costs one lookup per group member. Unit: unit IDs.
+                SortedSet<EntityId> armyIds = new SortedSet<EntityId>();
+                foreach (AiUnitView unit in army)
+                {
+                    armyIds.Add(unit.Id);
+                }
+                _memory.AttackGroup.RemoveWhere(id => !armyIds.Contains(id));
                 if (_kill != null)
                 {
                     // Rule K skips staging, also when it begins during an attack that is still staging.
@@ -2753,7 +2848,7 @@ namespace Rts.Ai
                 Fix64 radiusSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
                 foreach (AiUnitView unit in group)
                 {
-                    if (Focus(unit))
+                    if (Controlled(unit) || Focus(unit))
                     {
                         continue;
                     }
@@ -2810,7 +2905,7 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView unit in army)
                 {
-                    if (Focus(unit))
+                    if (Controlled(unit) || Focus(unit))
                     {
                         continue;
                     }
@@ -2835,6 +2930,10 @@ namespace Rts.Ai
             /// </summary>
             private bool Focus(AiUnitView unit)
             {
+                if (_profile.UseFocusFire)
+                {
+                    return FocusFastestKill(unit);
+                }
                 // The unit's weapon, or null for an unarmed unit.
                 WeaponDefinition? weapon = unit.Definition.Weapon;
                 if (weapon == null || _profile.FocusRadiusTiles <= Fix64.Zero)
@@ -2924,6 +3023,12 @@ namespace Rts.Ai
                 {
                     return true;
                 }
+                if (_profile.UsePredictorAttack)
+                {
+                    // D.2 review fix: an attack that has just started (and has lost nothing) is not recalled by the first visible enemies.
+                    bool fresh = _view.Tick < _memory.AttackStartTick + _view.SecondsToTicks(_profile.AttackRetreatGraceSeconds) && armySupply >= _memory.AttackStartSupply;
+                    return !fresh && PredictedRetreat(army);
+                }
                 // Squared engagement radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
                 // Own army power and engaged visible enemy power. Unit: supply-weighted health fraction.
@@ -2965,10 +3070,25 @@ namespace Rts.Ai
             /// </summary>
             private bool TryChooseTarget(out FixVec2 target)
             {
+                return TryChooseTarget(out target, out _);
+            }
+
+            /// <summary>
+            /// <see cref="TryChooseTarget(out FixVec2)"/> that also says whether the target is an undefended structure chosen by D.3
+            /// (<paramref name="undefended"/>), which the attack decision D.1 weighs with undefended_army_share.
+            /// </summary>
+            private bool TryChooseTarget(out FixVec2 target, out bool undefended)
+            {
+                undefended = false;
                 if (_kill != null)
                 {
                     // Rule K: a known low enemy HQ comes before everything else.
                     target = Standable(_kill.Position);
+                    return true;
+                }
+                if (_profile.UseTargetChoice && TryUndefendedTarget(out target))
+                {
+                    undefended = true;
                     return true;
                 }
                 // Pass 0 looks at HQs only, pass 1 at every known structure.

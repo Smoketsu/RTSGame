@@ -2,7 +2,7 @@
 // The per-controller memory of the skirmish AI (spec section 3): stance, attack threshold, regroup timer, build attempts,
 // the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, the
 // known amount left in every resource field, the depots placed, the fields with no depot site and the HQ relocation state (skirmish_ai_v2.md
-// package B), the scout (route, losses, timers), the enemy model of skirmish_ai_v3.md package B and the raid log of package C (rule SD), and the command sequence counter. Part of
+// package B), the scout (route, losses, timers), the enemy model of skirmish_ai_v3.md package B, the raid log of package C (rule SD), the harass, defend and fallen-back groups of package D, and the command sequence counter. Part of
 // Rts.Ai. This is NOT simulation state and is never hashed: it lives in the controller instance (no static fields), and it is
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
@@ -245,5 +245,35 @@ namespace Rts.Ai
 
         /// <summary>Rule SD: where the enemy was at the latest activity at each own drop-off (mean of the visible raiders, else the hit unit's position), by drop-off ID; same keys as <see cref="RaidLog"/>. Unit: tiles. Range: inside the map.</summary>
         public SortedDictionary<EntityId, FixVec2> RaidPosition { get; } = new SortedDictionary<EntityId, FixVec2>();
+
+        /// <summary>Rule HR (skirmish_ai_v3.md D.4): IDs of the units on a harass mission, ascending; empty when no squad is out. Excluded from the army's stance orders. Unit: unit IDs. Range: at most harass_squad_supply plus one unit's supply.</summary>
+        public SortedSet<EntityId> HarassGroup { get; } = new SortedSet<EntityId>();
+
+        /// <summary>Rule HR: the enemy drop-off the squad attacks. Unit: tiles. Range: inside the map; meaningful only while <see cref="HarassGroup"/> is not empty.</summary>
+        public FixVec2 HarassTarget { get; set; }
+
+        /// <summary>Rule HR: tick of the first think a squad member stood within stage_radius_tiles of the target, or -1 before. Unit: ticks. Range: -1, or 0 upward.</summary>
+        public int HarassArrivedTick { get; set; } = -1;
+
+        /// <summary>Rule HR: tick of the latest think that saw an enemy worker near the target (set at arrival too), for the linger test. Unit: ticks. Range: 0 upward; meaningful once <see cref="HarassArrivedTick"/> is set.</summary>
+        public int HarassLastWorkerTick { get; set; }
+
+        /// <summary>Rule HR: no squad may start before this tick. Unit: ticks. Range: 0 upward.</summary>
+        public int NextHarassTick { get; set; }
+
+        /// <summary>Measured defence (D.5): IDs of the units chosen to defend, ascending; held without orders until defend_hold_seconds after the last threat. Excluded from the army's stance orders. Unit: unit IDs. Range: own army units; empty at the start.</summary>
+        public SortedSet<EntityId> DefendGroup { get; } = new SortedSet<EntityId>();
+
+        /// <summary>Unit control (D.6.1): IDs of the units that fell back and have not yet reached home, ascending. Excluded from the army's stance orders. Unit: unit IDs. Range: own army units; empty at the start.</summary>
+        public SortedSet<EntityId> FallenBack { get; } = new SortedSet<EntityId>();
+
+        /// <summary>Unit control (D.6.1): the tick each fallen-back unit fell back, by unit ID (ascending); same keys as <see cref="FallenBack"/>. Unit: ticks. Range: 0 upward.</summary>
+        public SortedDictionary<EntityId, int> FallenBackSince { get; } = new SortedDictionary<EntityId, int>();
+
+        /// <summary>Rule HR: tick the current harass squad started. Unit: ticks. Range: 0 upward; meaningful only while <see cref="HarassGroup"/> is not empty.</summary>
+        public int HarassStartTick { get; set; }
+
+        /// <summary>Rule G (C2.3 hysteresis): true while the rare-worker cap is in force (set when the rare bank reaches rare_bank_soft_cap, cleared when it falls below rare_bank_return_cap). Unit: boolean. Range: true or false; false at the start.</summary>
+        public bool RareCapActive { get; set; }
     }
 }

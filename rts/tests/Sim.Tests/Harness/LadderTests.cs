@@ -119,12 +119,12 @@ namespace Rts.Sim.Tests.Harness
             string text = File.ReadAllText(path);
             AiEvalSettings shipped = AiEvalSettings.Parse(text);
             Assert.That(shipped.ResponseTests.Count, Is.EqualTo(10));
-            Assert.That(shipped.LadderGamesPerCell, Is.EqualTo(24));
+            Assert.That(shipped.LadderGamesPerCell, Is.EqualTo(72));
             foreach (ResponseTest test in shipped.ResponseTests)
             {
                 Assert.That(File.Exists(Path.Combine(TestData.FindDataDirectory(), "scripts", "ai_eval", test.Script)), Is.True, test.Script);
             }
-            DataValidationException games = Expect.Throws<DataValidationException>(() => AiEvalSettings.Parse(text.Replace("\"ladder_games_per_cell\": 24", "\"ladder_games_per_cell\": 10")));
+            DataValidationException games = Expect.Throws<DataValidationException>(() => AiEvalSettings.Parse(text.Replace("\"ladder_games_per_cell\": 72", "\"ladder_games_per_cell\": 10")));
             Assert.That(games.Message, Does.Contain("scripts/ai_eval/ai_eval.json").And.Contain("ladder_games_per_cell"));
             DataValidationException kind = Expect.Throws<DataValidationException>(() => AiEvalSettings.Parse(text.Replace("\"check\": \"air_answer\"", "\"check\": \"nope\"")));
             Assert.That(kind.Message, Does.Contain("scripts/ai_eval/ai_eval.json").And.Contain("response_tests[0].check"));

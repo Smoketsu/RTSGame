@@ -38,6 +38,14 @@
 //   * skirmish_ai_v3.md package C2 (counter-mix revision): use_predictor_mix (needs use_counter_mix), mix_eval_budget_common,
 //     mix_rare_allowance, rare_bank_soft_cap, raid_min_supply, static_defence_max_value_share, use_early_expansion and
 //     early_expansion_seconds (every profile file carries them; the "off" values reproduce package C).
+//   * skirmish_ai_v3.md package D (choose fights): the switches use_predictor_attack (needs use_enemy_model), use_target_choice,
+//     use_measured_defence and use_unit_control, and the keys attack_min_advantage, attack_min_supply, attack_force_supply,
+//     undefended_army_share, target_defence_radius_tiles, retreat_max_advantage, harass_* (min army supply, min speed, squad supply,
+//     cooldown, linger, max commands), defend_min_advantage, defend_blind_supply, defend_max_candidates, fallback_* (health fraction,
+//     danger tiles, max commands), kite_* (trigger, step, min range gap, min speed ratio, max commands), focus_switch_ratio and
+//     focus_max_commands_per_think (every profile file carries them; the switches are false except in aggressive_s3); and the package D
+//     review keys use_focus_fire (fastest-kill focus split from use_unit_control), fallback_release_seconds, attack_retreat_grace_seconds,
+//     harass_max_seconds and rare_bank_return_cap (hysteresis of the rare-worker cap).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -407,7 +415,7 @@ namespace Rts.Ai
         /// <summary>Model supply of a layer that nothing answers before rule SD builds a defence at the HQ. Unit: supply. Range: 1 to 200.</summary>
         public int UnansweredLayerMinSupply { get; }
 
-        /// <summary>Mix weight share of rare-cost units at which rule RS drops rule E's clock gate. Unit: fraction. Range: 0 to 1.</summary>
+        /// <summary>Mix weight share of rare-cost units at which rule RS puts rare sites first in rule E's target order (rule RS only reorders rule E's targets since C2.5). Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 RareNeedWeightShare { get; }
 
         /// <summary>C2.2: the counter-mix is scored by the fight predictor. Unit: boolean. Range: true or false; true needs <see cref="UseCounterMix"/>.</summary>
@@ -433,6 +441,108 @@ namespace Rts.Ai
 
         /// <summary>C2.5: clock gate of rule E while no rare field is served and <see cref="UseEarlyExpansion"/> is on. Unit: seconds. Range: 0 to 1800.</summary>
         public Fix64 EarlyExpansionSeconds { get; }
+
+        /// <summary>D.1, D.2: the attack and retreat tests use the fight predictor; the drawn threshold stays the fallback when nothing is known. Unit: boolean. Range: true or false; true needs <see cref="UseEnemyModel"/>.</summary>
+        public bool UsePredictorAttack { get; }
+
+        /// <summary>D.3, D.4: undefended enemy depots and producers are targets and fast units harass workers. Unit: boolean. Range: true or false.</summary>
+        public bool UseTargetChoice { get; }
+
+        /// <summary>D.5: only the defenders the predictor needs answer a threat inside the base. Unit: boolean. Range: true or false.</summary>
+        public bool UseMeasuredDefence { get; }
+
+        /// <summary>D.6: fall back, keep distance and fastest-kill focus fire. Unit: boolean. Range: true or false.</summary>
+        public bool UseUnitControl { get; }
+
+        /// <summary>D.1: predicted advantage needed to attack. Unit: ratio. Range: 0 to 100.</summary>
+        public Fix64 AttackMinAdvantage { get; }
+
+        /// <summary>D.1: smallest army supply that may attack on a predicted win. Unit: supply. Range: 1 to 200.</summary>
+        public int AttackMinSupply { get; }
+
+        /// <summary>D.1: army supply that attacks whatever the prediction says. Unit: supply. Range: 1 to 400.</summary>
+        public int AttackForceSupply { get; }
+
+        /// <summary>D.1: share of the enemy army model assumed to defend an undefended target. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 UndefendedArmyShare { get; }
+
+        /// <summary>D.1, D.3, D.4: radius around a target in which known static defences defend it and an enemy army makes it defended. Unit: tiles. Range: 2 to 64.</summary>
+        public Fix64 TargetDefenceRadiusTiles { get; }
+
+        /// <summary>D.2: the attack group retreats below this predicted advantage. Unit: ratio. Range: 0 to 10.</summary>
+        public Fix64 RetreatMaxAdvantage { get; }
+
+        /// <summary>D.4: smallest army supply at which a harass squad may start. Unit: supply. Range: 1 to 200.</summary>
+        public int HarassMinArmySupply { get; }
+
+        /// <summary>D.4: ground units at least this fast may harass (flyers always may). Unit: tiles per second. Range: 0 to 20.</summary>
+        public Fix64 HarassMinSpeedTilesPerSecond { get; }
+
+        /// <summary>D.4: supply of a harass squad. Unit: supply. Range: 1 to 50.</summary>
+        public int HarassSquadSupply { get; }
+
+        /// <summary>D.4: wait after a squad ends before the next may start. Unit: seconds. Range: 0 to 900.</summary>
+        public Fix64 HarassCooldownSeconds { get; }
+
+        /// <summary>D.4: time at the target without seeing a worker before the squad goes home. Unit: seconds. Range: 0 to 120.</summary>
+        public Fix64 HarassLingerSeconds { get; }
+
+        /// <summary>D.4: most commands of the harass rule per think. Unit: commands. Range: 0 to 40.</summary>
+        public int HarassMaxCommandsPerThink { get; }
+
+        /// <summary>D.5: predicted advantage the defenders need against a threat. Unit: ratio. Range: 0 to 100.</summary>
+        public Fix64 DefendMinAdvantage { get; }
+
+        /// <summary>D.5: supply sent to a hit report with no visible threat. Unit: supply. Range: 1 to 200.</summary>
+        public int DefendBlindSupply { get; }
+
+        /// <summary>D.5: most units considered as defenders. Unit: units. Range: 1 to 200.</summary>
+        public int DefendMaxCandidates { get; }
+
+        /// <summary>D.6.1: health share at or below which a unit near an armed enemy falls back. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 FallbackHealthFraction { get; }
+
+        /// <summary>D.6.1: distance of an armed enemy that triggers a fall back. Unit: tiles. Range: 1 to 30.</summary>
+        public Fix64 FallbackDangerTiles { get; }
+
+        /// <summary>D.6.1: most fall-back orders per think. Unit: commands. Range: 0 to 200.</summary>
+        public int FallbackMaxCommandsPerThink { get; }
+
+        /// <summary>D.6.2: distance of a melee enemy that makes a ranged unit step back. Unit: tiles. Range: 0.5 to 20.</summary>
+        public Fix64 KiteTriggerTiles { get; }
+
+        /// <summary>D.6.2: length of the step back. Unit: tiles. Range: 0.5 to 20.</summary>
+        public Fix64 KiteStepTiles { get; }
+
+        /// <summary>D.6.2: range the unit must have over the enemy's to kite. Unit: tiles. Range: 0 to 20.</summary>
+        public Fix64 KiteMinRangeGapTiles { get; }
+
+        /// <summary>D.6.2: speed the unit must have, as a multiple of the enemy's, to kite. Unit: ratio. Range: 0 to 5.</summary>
+        public Fix64 KiteSpeedRatioMin { get; }
+
+        /// <summary>D.6.2: most keep-distance orders per think. Unit: commands. Range: 0 to 200.</summary>
+        public int KiteMaxCommandsPerThink { get; }
+
+        /// <summary>D.6.3: a unit keeps its target while its time to kill is at most this multiple of the best. Unit: ratio. Range: 1 to 10.</summary>
+        public Fix64 FocusSwitchRatio { get; }
+
+        /// <summary>D.6.3: most focus-fire orders per think. Unit: commands. Range: 0 to 200.</summary>
+        public int FocusMaxCommandsPerThink { get; }
+
+        /// <summary>D.6.3: units focus the enemy that dies fastest instead of the nearest one. Unit: boolean. Range: true or false.</summary>
+        public bool UseFocusFire { get; }
+
+        /// <summary>D.6.1: a fallen-back unit rejoins the army this long after it fell back. Unit: seconds. Range: 1 to 600.</summary>
+        public Fix64 FallbackReleaseSeconds { get; }
+
+        /// <summary>D.2: no predicted retreat this long after an attack starts unless the group has lost supply. Unit: seconds. Range: 0 to 60.</summary>
+        public Fix64 AttackRetreatGraceSeconds { get; }
+
+        /// <summary>D.4: a harass squad is recalled this long after it started. Unit: seconds. Range: 1 to 900.</summary>
+        public Fix64 HarassMaxSeconds { get; }
+
+        /// <summary>C2.3: once capped, rare fields stay closed until the rare bank falls below this; 0 means the cap itself. Unit: resource units (rare). Range: 0 to <see cref="RareBankSoftCap"/> when that is above 0.</summary>
+        public int RareBankReturnCap { get; }
 
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
@@ -557,6 +667,48 @@ namespace Rts.Ai
             StaticDefenceMaxValueShare = root.RequireFix64("static_defence_max_value_share", "0", "10");
             UseEarlyExpansion = root.RequireBool("use_early_expansion");
             EarlyExpansionSeconds = root.RequireFix64("early_expansion_seconds", "0", "1800");
+            UsePredictorAttack = root.RequireBool("use_predictor_attack");
+            if (UsePredictorAttack && !UseEnemyModel)
+            {
+                throw root.Require("use_predictor_attack").Fail("requires use_enemy_model to be true as well");
+            }
+            UseTargetChoice = root.RequireBool("use_target_choice");
+            UseMeasuredDefence = root.RequireBool("use_measured_defence");
+            UseUnitControl = root.RequireBool("use_unit_control");
+            AttackMinAdvantage = root.RequireFix64("attack_min_advantage", "0", "100");
+            AttackMinSupply = root.RequireInt("attack_min_supply", 1, 200);
+            AttackForceSupply = root.RequireInt("attack_force_supply", 1, 400);
+            UndefendedArmyShare = root.RequireFix64("undefended_army_share", "0", "1");
+            TargetDefenceRadiusTiles = root.RequireFix64("target_defence_radius_tiles", "2", "64");
+            RetreatMaxAdvantage = root.RequireFix64("retreat_max_advantage", "0", "10");
+            HarassMinArmySupply = root.RequireInt("harass_min_army_supply", 1, 200);
+            HarassMinSpeedTilesPerSecond = root.RequireFix64("harass_min_speed_tiles_per_second", "0", "20");
+            HarassSquadSupply = root.RequireInt("harass_squad_supply", 1, 50);
+            HarassCooldownSeconds = root.RequireFix64("harass_cooldown_seconds", "0", "900");
+            HarassLingerSeconds = root.RequireFix64("harass_linger_seconds", "0", "120");
+            HarassMaxCommandsPerThink = root.RequireInt("harass_max_commands_per_think", 0, 40);
+            DefendMinAdvantage = root.RequireFix64("defend_min_advantage", "0", "100");
+            DefendBlindSupply = root.RequireInt("defend_blind_supply", 1, 200);
+            DefendMaxCandidates = root.RequireInt("defend_max_candidates", 1, 200);
+            FallbackHealthFraction = root.RequireFix64("fallback_health_fraction", "0", "1");
+            FallbackDangerTiles = root.RequireFix64("fallback_danger_tiles", "1", "30");
+            FallbackMaxCommandsPerThink = root.RequireInt("fallback_max_commands_per_think", 0, 200);
+            KiteTriggerTiles = root.RequireFix64("kite_trigger_tiles", "0.5", "20");
+            KiteStepTiles = root.RequireFix64("kite_step_tiles", "0.5", "20");
+            KiteMinRangeGapTiles = root.RequireFix64("kite_min_range_gap_tiles", "0", "20");
+            KiteSpeedRatioMin = root.RequireFix64("kite_speed_ratio_min", "0", "5");
+            KiteMaxCommandsPerThink = root.RequireInt("kite_max_commands_per_think", 0, 200);
+            FocusSwitchRatio = root.RequireFix64("focus_switch_ratio", "1", "10");
+            FocusMaxCommandsPerThink = root.RequireInt("focus_max_commands_per_think", 0, 200);
+            UseFocusFire = root.RequireBool("use_focus_fire");
+            FallbackReleaseSeconds = root.RequireFix64("fallback_release_seconds", "1", "600");
+            AttackRetreatGraceSeconds = root.RequireFix64("attack_retreat_grace_seconds", "0", "60");
+            HarassMaxSeconds = root.RequireFix64("harass_max_seconds", "1", "900");
+            RareBankReturnCap = root.RequireInt("rare_bank_return_cap", 0, 100000);
+            if (RareBankSoftCap > 0 && RareBankReturnCap > RareBankSoftCap)
+            {
+                throw root.Require("rare_bank_return_cap").Fail("must not exceed rare_bank_soft_cap");
+            }
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -636,7 +788,15 @@ namespace Rts.Ai
                 "raided_gap_seconds", "static_defence_after_raids", "static_defence_max_per_base", "static_defence_ring_min_tiles",
                 "static_defence_ring_max_tiles", "unanswered_layer_min_supply", "rare_need_weight_share", "use_predictor_mix", "mix_eval_budget_common",
                 "mix_rare_allowance", "rare_bank_soft_cap", "raid_min_supply", "static_defence_max_value_share", "use_early_expansion",
-                "early_expansion_seconds", "factions");
+                "early_expansion_seconds", "use_predictor_attack", "use_target_choice", "use_measured_defence", "use_unit_control",
+                "attack_min_advantage", "attack_min_supply", "attack_force_supply", "undefended_army_share",
+                "target_defence_radius_tiles", "retreat_max_advantage", "harass_min_army_supply",
+                "harass_min_speed_tiles_per_second", "harass_squad_supply", "harass_cooldown_seconds",
+                "harass_linger_seconds", "harass_max_commands_per_think", "defend_min_advantage", "defend_blind_supply",
+                "defend_max_candidates", "fallback_health_fraction", "fallback_danger_tiles",
+                "fallback_max_commands_per_think", "kite_trigger_tiles", "kite_step_tiles", "kite_min_range_gap_tiles",
+                "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think", "use_focus_fire", "fallback_release_seconds",
+                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.

@@ -4,15 +4,15 @@
   "$doc": "Ladder and response-test settings for the skirmish AI v3 work (P-004 stages 1 to 3).",
   // Base seed of the ladder's per-game seed derivation. Unit: seed. Range: 0 to 2147483647. Source: skirmish_ai_v3.md A.2; placeholder.
   "ladder_base_seed": 20261117,
-  // Games per (map, matchup) cell; the seat rule needs blocks of four games. Unit: games. Range: 4 to 1000, a multiple of 4. Source: skirmish_ai_v3.md A.2; placeholder (4 maps x 3 matchups x 24 = 288 games).
-  "ladder_games_per_cell": 24,
-  // Maps the ladder plays; empty means every map with exactly 2 spawns, in ordinal order. Unit: list of map IDs. Range: 0 to 32 entries. Source: skirmish_ai_v3.md A.2.
-  "ladder_maps": [],
+  // Games per (map, matchup) cell; the seat rule needs blocks of four games. Unit: games. Range: 4 to 1000, a multiple of 4. Source: skirmish_ai_v3.md A.2; placeholder (1 map x 3 matchups x 72 = 216 games).
+  "ladder_games_per_cell": 72,
+  // Maps the ladder plays; empty means every map with exactly 2 spawns, in ordinal order. Unit: list of map IDs. Range: 0 to 32 entries. Source: skirmish_ai_v3.md A.2; developer decision 18 Nov 2026: only the prototype map is used for evaluation, the grey-box maps stay as test fixtures.
+  "ladder_maps": ["prototype_1v1"],
   // Matchups the ladder plays (mirror and cross). Unit: list of matchup IDs, factions in ordinal order. Range: 1 to 16 entries. Source: skirmish_ai_v3.md A.2.
   "ladder_matchups": ["skai_vs_skai", "skai_vs_water", "water_vs_water"],
   // Game length limit of a ladder game. Unit: seconds. Range: 60 to 7200. Source: skirmish_ai_v3.md A.2; placeholder.
   "ladder_max_game_seconds": 2400,
-  // Decided games the ladder needs before it can pass (200 stays reachable with 30 percent of 288 games undecided). Unit: games. Range: 1 to 100000. Source: skirmish_ai_v3.md A.2; placeholder.
+  // Decided games the ladder needs before it can pass (200 of 216 games; at most 16 may be undecided). Unit: games. Range: 1 to 100000. Source: skirmish_ai_v3.md A.2; placeholder.
   "ladder_min_decided": 200,
   // Candidate wins divided by decided games needed to pass a ladder. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md A.2 (developer decision, 17 Nov 2026).
   "ladder_candidate_win_fraction_min": 0.65,

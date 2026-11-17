@@ -36,6 +36,9 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiIntel.cs` | Enemy model and scouting route (skirmish_ai_v3.md package B) |
 | `FightPredictor.cs` | Static fight predictor over unit definitions and the damage table (skirmish_ai_v3.md C.1) |
 | `AiCounter.cs` | Unit pool, counter scores and counter-mix weights (skirmish_ai_v3.md C.3 and C.4) |
+| `AiBrainFight.cs` | The package D fight choices (second half of the brain's working state): attack and retreat by prediction, target choice, rule HR harassment, measured defence, unit control (skirmish_ai_v3.md D) |
+| `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
+| `AiProximity.cs` | Grid index over a unit list so spatial tests never loop over every pair |
 | `AiIntent.cs` | Intents and `AiCommandWriter` (intents to commands with sequence numbers) |
 | `SkirmishAiController.cs` | `IPlayerController` implementation tying it together |
 
