@@ -42,6 +42,9 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>The shipped package D profile.</summary>
         private static AiProfile S3 => AiProfile.FromDataSet(Data, "aggressive_s3");
 
+        /// <summary>The package D profile with the spec's attack_min_supply 6 (the shipped file retuned it to 14 for the response gate); the D.1 test numbers assume 6.</summary>
+        private static AiProfile S3Spec => S3Edited("\"attack_min_supply\": 14,", "\"attack_min_supply\": 6,");
+
         /// <summary>The package C2 profile (every package D switch off).</summary>
         private static AiProfile S2b => AiProfile.FromDataSet(Data, "aggressive_s2b");
 
@@ -196,9 +199,17 @@ namespace Rts.Sim.Tests.Ai
                 Row(sim, "skai.windrunner", P0, count, 10, 10);
                 AiMemory memory = new AiMemory();
                 Believe(memory, "water.grasper", 2, sim.Clock.Tick);
-                Decide(sim, S3, memory);
+                Decide(sim, S3Spec, memory);
                 Assert.That(memory.Stance, Is.EqualTo(expected), count + " Windrunners");
             }
+            // The shipped (retuned) profile wants 14 supply before it attacks on a predicted win: 6 Windrunners stay home.
+            Simulation shipped = Greybox();
+            SkaiHq(shipped);
+            Row(shipped, "skai.windrunner", P0, 6, 10, 10);
+            AiMemory shippedMemory = new AiMemory();
+            Believe(shippedMemory, "water.grasper", 2, shipped.Clock.Tick);
+            Decide(shipped, S3, shippedMemory);
+            Assert.That(shippedMemory.Stance, Is.EqualTo(AiStance.Massing));
             // The v2 profile on the same 6 units: the drawn threshold of 8 is not reached, so it does not attack.
             Simulation v2 = Greybox();
             SkaiHq(v2);
@@ -248,7 +259,7 @@ namespace Rts.Sim.Tests.Ai
                 AiMemory memory = new AiMemory();
                 Believe(memory, "water.grasper", 2, sim.Clock.Tick);
                 Know(memory, 900, "water.pearl_depot", upX + ".5", upY + ".5", sim.Clock.Tick);
-                Decide(sim, S3, memory);
+                Decide(sim, S3Spec, memory);
                 // The model entries at an undefended target are halved (undefended_army_share 0.5).
                 List<FightEntry> half = new List<FightEntry> { new FightEntry(Data.Content.Units["water.grasper"], Fix64.One, Data.Content.Units["water.grasper"].MaxHealth) };
                 Fix64 uphill = Advantage(S3, new List<FightEntry> { Full("skai.windrunner", 6) }, half, true);
