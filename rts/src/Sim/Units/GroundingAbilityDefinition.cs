@@ -20,21 +20,39 @@ namespace Rts.Sim.Units
         /// <summary>Time before the same unit can cast again. Unit: seconds (fixed-point). Range: 1 to 300.</summary>
         public Fix64 CooldownSeconds { get; }
 
+        /// <summary>Smallest cast range the schema accepts. Unit: tiles. Range: fixed schema bound, 0.5.</summary>
+        public static readonly Fix64 MinRangeTiles = Fix64.Half;
+
+        /// <summary>Largest cast range the schema accepts. Unit: tiles. Range: fixed schema bound, 32.</summary>
+        public static readonly Fix64 MaxRangeTiles = Fix64.FromInt(32);
+
+        /// <summary>Smallest pulse radius the schema accepts. Unit: tiles. Range: fixed schema bound, 0.5.</summary>
+        public static readonly Fix64 MinRadiusTiles = Fix64.Half;
+
+        /// <summary>Largest pulse radius the schema accepts. Unit: tiles. Range: fixed schema bound, 8.</summary>
+        public static readonly Fix64 MaxRadiusTiles = Fix64.FromInt(8);
+
+        /// <summary>Smallest cooldown the schema accepts. Unit: seconds. Range: fixed schema bound, 1.</summary>
+        public static readonly Fix64 MinCooldownSeconds = Fix64.One;
+
+        /// <summary>Largest cooldown the schema accepts. Unit: seconds. Range: fixed schema bound, 300.</summary>
+        public static readonly Fix64 MaxCooldownSeconds = Fix64.FromInt(300);
+
         /// <summary>Builds the ability, validating every range. The loader turns a failure into an error naming the file and field.</summary>
         /// <param name="rangeTiles">Cast range. Unit: tiles. Range: 0.5 to 32.</param>
         /// <param name="radiusTiles">Pulse radius. Unit: tiles. Range: 0.5 to 8.</param>
         /// <param name="cooldownSeconds">Cooldown. Unit: seconds. Range: 1 to 300.</param>
         public GroundingAbilityDefinition(Fix64 rangeTiles, Fix64 radiusTiles, Fix64 cooldownSeconds)
         {
-            if (rangeTiles < Fix64.Half || rangeTiles > Fix64.FromInt(32))
+            if (rangeTiles < MinRangeTiles || rangeTiles > MaxRangeTiles)
             {
                 throw new ArgumentOutOfRangeException(nameof(rangeTiles), "grounding_ability.range_tiles must be 0.5 to 32.");
             }
-            if (radiusTiles < Fix64.Half || radiusTiles > Fix64.FromInt(8))
+            if (radiusTiles < MinRadiusTiles || radiusTiles > MaxRadiusTiles)
             {
                 throw new ArgumentOutOfRangeException(nameof(radiusTiles), "grounding_ability.radius_tiles must be 0.5 to 8.");
             }
-            if (cooldownSeconds < Fix64.One || cooldownSeconds > Fix64.FromInt(300))
+            if (cooldownSeconds < MinCooldownSeconds || cooldownSeconds > MaxCooldownSeconds)
             {
                 throw new ArgumentOutOfRangeException(nameof(cooldownSeconds), "grounding_ability.cooldown_seconds must be 1 to 300.");
             }

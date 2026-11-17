@@ -185,6 +185,9 @@ namespace Rts.Sim.Tests.Ai
             /// <summary>Rejections of AI-issued commands, as "tick kind reason".</summary>
             public List<string> Rejections { get; } = new List<string>();
 
+            /// <summary>build_structure commands naming a wall definition (is_wall), as "tick definition"; the AI never builds walls (walls_and_tech.md W-14).</summary>
+            public List<string> WallBuilds { get; } = new List<string>();
+
             /// <summary>Violations of the vision rule found while the AIs played.</summary>
             public List<string> VisionViolations { get; } = new List<string>();
 
@@ -227,6 +230,13 @@ namespace Rts.Sim.Tests.Ai
                     controller.Think(sim, sink);
                     result.CommandCount += controller.LastCommands.Count;
                     CheckVision(sim, controller, result.VisionViolations);
+                    foreach (Command command in controller.LastCommands)
+                    {
+                        if (command is BuildStructureCommand build && sim.Content.Units.TryGetValue(build.DefinitionId, out UnitDefinition? built) && built.Economy.IsWall)
+                        {
+                            result.WallBuilds.Add(sim.Clock.Tick + " " + build.DefinitionId);
+                        }
+                    }
                 }
                 result.LastTick = sim.Clock.Tick;
                 sim.Step();
@@ -926,6 +936,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(runs[0].Outcome!.IsDraw, Is.False);
             Assert.That(runs[0].LastTick, Is.LessThan(limit));
             Assert.That(runs[0].Rejections, Is.Empty);
+            Assert.That(runs[0].WallBuilds, Is.Empty, "W-14: no build_structure names a wall definition");
             Assert.That(runs[0].VisionViolations, Is.Empty);
         }
     }

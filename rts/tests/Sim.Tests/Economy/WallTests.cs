@@ -439,7 +439,7 @@ namespace Rts.Sim.Tests.Economy
             return rig.Of<StateHashedEvent>().Select(e => e.Hash).ToList();
         }
 
-        /// <summary>W-16: two identical runs hash equal on every tick, a wall one tile over differs from the spawn tick, and a wall tile hashes Blockers 4.</summary>
+        /// <summary>W-16: two identical runs hash equal on every tick, a wall one tile over differs from the spawn tick, and a wall tile hashes differently from an open tile.</summary>
         [Test]
         public void W16_Determinism()
         {
@@ -447,12 +447,12 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(Hashes(10), Is.EqualTo(a));
             List<ulong> b = Hashes(11);
             Assert.That(b[0], Is.Not.EqualTo(a[0]));
-            TerrainTile tile = new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.BuiltWall);
+            // Hash of a tile with no blockers, and of the same tile with BuiltWall; they must differ.
             StateHasher one = new StateHasher();
-            tile.WriteHash(one);
+            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None).WriteHash(one);
             StateHasher two = new StateHasher();
-            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, (TileBlockers)4).WriteHash(two);
-            Assert.That(one.Hash, Is.EqualTo(two.Hash));
+            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.BuiltWall).WriteHash(two);
+            Assert.That(one.Hash, Is.Not.EqualTo(two.Hash));
             Assert.That((byte)TileBlockers.BuiltWall, Is.EqualTo(4));
         }
     }

@@ -3,6 +3,7 @@
 // times in ticks, and where a unit may stand or appear. Part of Rts.Sim.Economy. Pure functions of the simulation state
 // (no mutation, no randomness); every scan walks units in ascending ID order and breaks ties toward the lowest ID.
 using System;
+using System.Collections.Generic;
 using Rts.Sim.Core;
 using Rts.Sim.Teams;
 using Rts.Sim.Terrain;
@@ -34,8 +35,12 @@ namespace Rts.Sim.Economy
         /// <param name="definition">The unit type to train or build.</param>
         public static string? FirstMissingRequirement(Simulation sim, PlayerId owner, UnitDefinition definition)
         {
-            foreach (string required in definition.Economy.Requires)
+            // The requirement list, in file order; an index loop avoids an enumerator allocation.
+            IReadOnlyList<string> requires = definition.Economy.Requires;
+            for (int r = 0; r < requires.Count; r++)
             {
+                // Definition ID of the r-th requirement.
+                string required = requires[r];
                 // True once a complete, living building of the owner with this definition is found.
                 bool met = false;
                 foreach (Unit unit in sim.Units.All)

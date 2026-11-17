@@ -79,10 +79,12 @@ namespace Rts.Sim.Tests.Ai
             ExploreKit.ExploreAll(sim);
             Spawn(sim, "water.grand_shell", P0, "7", "7");
             EntityId first = EntityId.None;
+            // Tender y positions. Unit: tiles. Range: on the map.
+            string[] tenderY = { "8", "8.5", "9", "9.5", "10", "10.5" };
             // Tender index. Range: 0 to 5.
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < tenderY.Length; i++)
             {
-                EntityId id = Spawn(sim, "water.tender", P0, "6", (8 + i / 2.0).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                EntityId id = Spawn(sim, "water.tender", P0, "6", tenderY[i]);
                 first = i == 0 ? id : first;
             }
             Spawn(sim, "water.shell_forge", P0, "13.5", "6.5");

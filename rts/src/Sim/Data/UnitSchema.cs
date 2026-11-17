@@ -167,9 +167,9 @@ namespace Rts.Sim.Data
             }
             ability.RejectUnknownKeys("range_tiles", "radius_tiles", "cooldown_seconds");
             return new GroundingAbilityDefinition(
-                ability.RequireFix64("range_tiles", "0.5", "32"),
-                ability.RequireFix64("radius_tiles", "0.5", "8"),
-                ability.RequireFix64("cooldown_seconds", "1", "300"));
+                ability.Require("range_tiles").AsFix64(GroundingAbilityDefinition.MinRangeTiles, GroundingAbilityDefinition.MaxRangeTiles),
+                ability.Require("radius_tiles").AsFix64(GroundingAbilityDefinition.MinRadiusTiles, GroundingAbilityDefinition.MaxRadiusTiles),
+                ability.Require("cooldown_seconds").AsFix64(GroundingAbilityDefinition.MinCooldownSeconds, GroundingAbilityDefinition.MaxCooldownSeconds));
         }
 
         /// <summary>

@@ -139,12 +139,15 @@ namespace Rts.Sim.Tests.Economy
             Simulation sim = WithProducer(out EntityId producer);
             EntityId tech = Spawn(sim, TechId, P0, 16, 16);
             int t = sim.Clock.Tick;
+            // Supply used before the two trains are accepted. Unit: supply. Range: 0 upward.
+            int supplyBefore = PlayerOf(sim, P0).SupplyUsed;
             sim.Submit(Train(sim, producer, GatedId));
             sim.Submit(Train(sim, producer, GatedId));
             sim.Step();
             Assert.That(Reasons(new List<SimEvent>(sim.Events.Current)), Is.Empty);
             Assert.That(PlayerOf(sim, P0).Common, Is.EqualTo(100));
             int supplyAfter = PlayerOf(sim, P0).SupplyUsed;
+            Assert.That(supplyAfter, Is.EqualTo(supplyBefore + 2), "two accepted trains of 1 supply each (T-4)");
             // Trained units by tick.
             List<UnitTrainedEvent> trained = new List<UnitTrainedEvent>();
             // Tick being run, T + 1 to T + 85.

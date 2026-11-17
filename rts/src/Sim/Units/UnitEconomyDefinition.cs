@@ -1,7 +1,7 @@
 // rts/src/Sim/Units/UnitEconomyDefinition.cs
 // Immutable economy part of a unit definition: build time, worker and drop-off flags, what the unit can train, the
 // static-defence flag, footprint size, supply provided, the wall flag and the prerequisite buildings. Part of Rts.Sim.Units. Parsed from the optional economy
-// keys of a unit file (can_gather, is_drop_off, trains, build_seconds, is_static_defence, footprint, provides_supply);
+// keys of a unit file (can_gather, is_drop_off, trains, build_seconds, is_static_defence, footprint, provides_supply, is_wall, requires);
 // read by the economy system (Rts.Sim.Economy) and the train and build commands. Every value comes from data (rule 3).
 using System;
 using System.Collections.Generic;
