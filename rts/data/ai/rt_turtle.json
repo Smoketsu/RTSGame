@@ -192,6 +192,64 @@
   "use_early_expansion": false,
   // Rule E: clock gate of the first rare depot while use_early_expansion is on and no rare field is served. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v3.md C2.5; placeholder.
   "early_expansion_seconds": 0,
+  // Package D on: the Massing attack test and the retreat test use the fight predictor (D.1, D.2); the drawn supply threshold stays as the fallback when nothing is known. Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md D.1; placeholder.
+  "use_predictor_attack": false,
+  // Package D on: undefended enemy depots and producers are attack targets (D.3) and fast units harass enemy workers (rule HR, D.4). Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md D.3; placeholder.
+  "use_target_choice": false,
+  // Package D on: only as many units as the fight predictor needs defend a threat inside the base (D.5), instead of the whole army. Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md D.5; placeholder.
+  "use_measured_defence": false,
+  // Package D on: hurt units fall back, ranged units keep their distance from melee enemies and the army focuses the enemy that dies fastest (D.6). Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md D.6; placeholder.
+  "use_unit_control": false,
+  // D.1: predicted advantage (the ratio of the enemy's kill time to the own kill time) the army needs before it attacks. Unit: ratio. Range: 0 to 100. Source: skirmish_ai_v3.md D.1; placeholder.
+  "attack_min_advantage": 1.3,
+  // D.1: smallest army supply that may attack on a predicted win. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md D.1; placeholder.
+  "attack_min_supply": 6,
+  // D.1: army supply at which the army attacks whatever the prediction says. Unit: supply. Range: 1 to 400. Source: skirmish_ai_v3.md D.1; placeholder.
+  "attack_force_supply": 60,
+  // D.1: share of the enemy army model assumed to defend a target that D.3 calls undefended. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md D.1; placeholder.
+  "undefended_army_share": 0.5,
+  // D.1, D.3, D.4: known enemy static defences this close to a target defend it, and an enemy army this close makes a structure defended. Unit: tiles. Range: 2 to 64. Source: skirmish_ai_v3.md D.1; placeholder.
+  "target_defence_radius_tiles": 12,
+  // D.2: the attack group retreats when the predicted advantage against the visible armed enemies near it falls below this. Unit: ratio. Range: 0 to 10. Source: skirmish_ai_v3.md D.2; placeholder.
+  "retreat_max_advantage": 0.7,
+  // D.4: smallest army supply at which a harass squad may be sent. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md D.4; placeholder.
+  "harass_min_army_supply": 10,
+  // D.4: ground units at least this fast (and every flyer) may join a harass squad. Unit: tiles per second. Range: 0 to 20. Source: skirmish_ai_v3.md D.4; placeholder.
+  "harass_min_speed_tiles_per_second": 3.2,
+  // D.4: supply of the harass squad; no squad is sent when the fast units do not reach it. Unit: supply. Range: 1 to 50. Source: skirmish_ai_v3.md D.4; placeholder.
+  "harass_squad_supply": 4,
+  // D.4: wait after a harass squad is recalled or dead before the next may start. Unit: seconds. Range: 0 to 900. Source: skirmish_ai_v3.md D.4; placeholder.
+  "harass_cooldown_seconds": 60,
+  // D.4: the squad goes home when it has stood at the target this long without seeing an enemy worker near it. Unit: seconds. Range: 0 to 120. Source: skirmish_ai_v3.md D.4; placeholder.
+  "harass_linger_seconds": 10,
+  // D.4: most commands the harass rule gives in one think. Unit: commands. Range: 0 to 40. Source: skirmish_ai_v3.md D.4; placeholder.
+  "harass_max_commands_per_think": 8,
+  // D.5: predicted advantage the chosen defenders (with own static defences) need against the threat. Unit: ratio. Range: 0 to 100. Source: skirmish_ai_v3.md D.5; placeholder.
+  "defend_min_advantage": 1.5,
+  // D.5: supply of the nearest units sent to a hit report when no threat is visible. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md D.5; placeholder.
+  "defend_blind_supply": 4,
+  // D.5: most army units (nearest first) considered as defenders. Unit: units. Range: 1 to 200. Source: skirmish_ai_v3.md D.5; placeholder.
+  "defend_max_candidates": 40,
+  // D.6.1: a unit at or below this share of its health falls back when an armed enemy is near. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md D.6; placeholder.
+  "fallback_health_fraction": 0.3,
+  // D.6.1: a visible armed enemy that can hit the unit this close makes it fall back. Unit: tiles. Range: 1 to 30. Source: skirmish_ai_v3.md D.6; placeholder.
+  "fallback_danger_tiles": 7,
+  // D.6.1: most fall-back orders in one think. Unit: commands. Range: 0 to 200. Source: skirmish_ai_v3.md D.6; placeholder.
+  "fallback_max_commands_per_think": 6,
+  // D.6.2: a ranged unit steps back when a melee enemy that can hit it is this close. Unit: tiles. Range: 0.5 to 20. Source: skirmish_ai_v3.md D.6; placeholder.
+  "kite_trigger_tiles": 3,
+  // D.6.2: how far a kiting unit steps directly away from the melee enemy. Unit: tiles. Range: 0.5 to 20. Source: skirmish_ai_v3.md D.6; placeholder.
+  "kite_step_tiles": 3,
+  // D.6.2: the unit's weapon range must exceed the enemy's by at least this to kite. Unit: tiles. Range: 0 to 20. Source: skirmish_ai_v3.md D.6; placeholder.
+  "kite_min_range_gap_tiles": 2,
+  // D.6.2: the unit's speed must be at least this multiple of the enemy's to kite. Unit: ratio. Range: 0 to 5. Source: skirmish_ai_v3.md D.6; placeholder.
+  "kite_speed_ratio_min": 0.8,
+  // D.6.2: most keep-distance orders in one think. Unit: commands. Range: 0 to 200. Source: skirmish_ai_v3.md D.6; placeholder.
+  "kite_max_commands_per_think": 8,
+  // D.6.3: a unit keeps its current target while that target's time to kill is at most this multiple of the best target's. Unit: ratio. Range: 1 to 10. Source: skirmish_ai_v3.md D.6; placeholder.
+  "focus_switch_ratio": 1.25,
+  // D.6.3: most focus-fire orders in one think; units beyond it get their stance order. Unit: commands. Range: 0 to 200. Source: skirmish_ai_v3.md D.6; placeholder.
+  "focus_max_commands_per_think": 12,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

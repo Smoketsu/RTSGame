@@ -126,7 +126,7 @@ using Rts.Sim.Units;
 namespace Rts.Ai
 {
     /// <summary>The decision rules. Stateless: all state is in <see cref="AiMemory"/>.</summary>
-    public static class AiBrain
+    public static partial class AiBrain
     {
         /// <summary>Squared distance under which two goal points count as the same (2 tiles). Unit: squared tiles. Fixed tolerance, not tuning.</summary>
         private static readonly Fix64 SameGoalSquared = Fix64.FromInt(4);
@@ -447,7 +447,7 @@ namespace Rts.Ai
         }
 
         /// <summary>One think's working state: the resource ledger, reservations and the intent list.</summary>
-        private sealed class Turn
+        private sealed partial class Turn
         {
             /// <summary>The view being decided on.</summary>
             private readonly AiWorldView _view;
@@ -2265,7 +2265,7 @@ namespace Rts.Ai
                 AiUnitView? own = null;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (!unit.IsArmy || _memory.AttackGroup.Contains(unit.Id))
+                    if (!unit.IsArmy || _memory.AttackGroup.Contains(unit.Id) || InPackageDRole(unit.Id))
                     {
                         continue;
                     }
@@ -2509,23 +2509,37 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>Rule 6: the army stance machine (rules D, G, K and M of skirmish_ai_v2.md).</summary>
+            /// <summary>Rule 6: the army stance machine (rules D, G, K and M of skirmish_ai_v2.md), with the package D rules HR, D.5 and D.6 before the stance orders.</summary>
             public void Army()
             {
                 // Army units in ascending ID order, and their total supply. Unit: supply.
-                List<AiUnitView> army = new List<AiUnitView>();
+                List<AiUnitView> armyAll = new List<AiUnitView>();
                 // Total supply of the army. Unit: supply. Range: 0 upward.
-                int armySupply = 0;
+                int armySupplyAll = 0;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
                     if (unit.IsArmy && !IsActiveScout(unit.Id))
                     {
-                        army.Add(unit);
-                        armySupply += _view.SupplyOf(unit.Definition);
+                        armyAll.Add(unit);
+                        armySupplyAll += _view.SupplyOf(unit.Definition);
                     }
                 }
+                _armyAll = armyAll;
                 _kill = FindKillTarget();
-                if (DefendIfThreatened(army))
+                PrepareGroups(armyAll);
+                Harass(armyAll, armySupplyAll);
+                UnitControl(armyAll);
+                // The army the stance orders go to: everyone except the harass, defend and fallen-back units (all of them when package D is off).
+                List<AiUnitView> army = StanceArmy(armyAll, out int armySupply);
+                if (_profile.UseMeasuredDefence)
+                {
+                    if (MeasuredDefence(armyAll))
+                    {
+                        return;
+                    }
+                    army = StanceArmy(armyAll, out armySupply);
+                }
+                else if (DefendIfThreatened(army))
                 {
                     return;
                 }
@@ -2566,6 +2580,7 @@ namespace Rts.Ai
                         _threatSumY += enemy.Position.Y;
                         _threatCount++;
                         _threatSupply += _view.SupplyOf(enemy.Definition);
+                        _threats.Add(enemy);
                     }
                 }
                 foreach (DamageReport report in _memory.RecentDamage.Values)
@@ -2600,7 +2615,7 @@ namespace Rts.Ai
                 FixVec2 goal = Standable(centre);
                 foreach (AiUnitView unit in army)
                 {
-                    if (Focus(unit))
+                    if (Controlled(unit) || Focus(unit))
                     {
                         continue;
                     }
@@ -2672,8 +2687,14 @@ namespace Rts.Ai
                 int threshold = AllIn ? 1 : _memory.AttackThreshold;
                 // True when rule K starts the attack: a low enemy HQ is known and the army is big enough (threshold, tide and regroup ignored).
                 bool kill = _kill != null && army.Count > 0 && armySupply >= _profile.KillMinArmySupply;
+                // True when the army is strong enough by the v2 rule (the drawn threshold) or, with use_predictor_attack and something known about the enemy, by the predictor (D.1).
+                bool strong = armySupply >= threshold;
+                if (_profile.UsePredictorAttack && !AllIn && army.Count > 0 && PredictedAttack(army, armySupply, out bool predictedWin))
+                {
+                    strong = predictedWin;
+                }
                 // True when the normal attack conditions hold.
-                bool ready = army.Count > 0 && _view.Tick >= _memory.RegroupUntilTick && armySupply >= threshold && tideOk;
+                bool ready = army.Count > 0 && _view.Tick >= _memory.RegroupUntilTick && strong && tideOk;
                 if ((kill || ready) && TryChooseTarget(out _))
                 {
                     // Rule G: the group is every army unit now.
@@ -2701,7 +2722,7 @@ namespace Rts.Ai
                 FixVec2 rally = RallyPoint();
                 foreach (AiUnitView unit in units)
                 {
-                    if (!unit.HasMoveTarget && !unit.IsAttackMoving && (unit.Position - rally).LengthSquared() > AtRallySquared)
+                    if (!Controlled(unit) && !unit.HasMoveTarget && !unit.IsAttackMoving && (unit.Position - rally).LengthSquared() > AtRallySquared)
                     {
                         Emit(AiIntent.AttackMove(unit.Id, rally));
                     }
@@ -2717,7 +2738,13 @@ namespace Rts.Ai
                 // True when every army unit joins the group each think (all in, or rule K).
                 bool joinAll = AllIn || _kill != null;
                 // Review fix: drop group IDs that are no longer army units so the set cannot grow during a long attack.
-                _memory.AttackGroup.RemoveWhere(id => !army.Exists(unit => unit.Id == id));
+                // IDs of the army units, so the prune below costs one lookup per group member. Unit: unit IDs.
+                SortedSet<EntityId> armyIds = new SortedSet<EntityId>();
+                foreach (AiUnitView unit in army)
+                {
+                    armyIds.Add(unit.Id);
+                }
+                _memory.AttackGroup.RemoveWhere(id => !armyIds.Contains(id));
                 if (_kill != null)
                 {
                     // Rule K skips staging, also when it begins during an attack that is still staging.
@@ -2789,7 +2816,7 @@ namespace Rts.Ai
                 Fix64 radiusSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
                 foreach (AiUnitView unit in group)
                 {
-                    if (Focus(unit))
+                    if (Controlled(unit) || Focus(unit))
                     {
                         continue;
                     }
@@ -2846,7 +2873,7 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView unit in army)
                 {
-                    if (Focus(unit))
+                    if (Controlled(unit) || Focus(unit))
                     {
                         continue;
                     }
@@ -2871,6 +2898,10 @@ namespace Rts.Ai
             /// </summary>
             private bool Focus(AiUnitView unit)
             {
+                if (_profile.UseUnitControl)
+                {
+                    return FocusFastestKill(unit);
+                }
                 // The unit's weapon, or null for an unarmed unit.
                 WeaponDefinition? weapon = unit.Definition.Weapon;
                 if (weapon == null || _profile.FocusRadiusTiles <= Fix64.Zero)
@@ -2960,6 +2991,10 @@ namespace Rts.Ai
                 {
                     return true;
                 }
+                if (_profile.UsePredictorAttack)
+                {
+                    return PredictedRetreat(army);
+                }
                 // Squared engagement radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
                 // Own army power and engaged visible enemy power. Unit: supply-weighted health fraction.
@@ -3001,10 +3036,25 @@ namespace Rts.Ai
             /// </summary>
             private bool TryChooseTarget(out FixVec2 target)
             {
+                return TryChooseTarget(out target, out _);
+            }
+
+            /// <summary>
+            /// <see cref="TryChooseTarget(out FixVec2)"/> that also says whether the target is an undefended structure chosen by D.3
+            /// (<paramref name="undefended"/>), which the attack decision D.1 weighs with undefended_army_share.
+            /// </summary>
+            private bool TryChooseTarget(out FixVec2 target, out bool undefended)
+            {
+                undefended = false;
                 if (_kill != null)
                 {
                     // Rule K: a known low enemy HQ comes before everything else.
                     target = Standable(_kill.Position);
+                    return true;
+                }
+                if (_profile.UseTargetChoice && TryUndefendedTarget(out target))
+                {
+                    undefended = true;
                     return true;
                 }
                 // Pass 0 looks at HQs only, pass 1 at every known structure.
