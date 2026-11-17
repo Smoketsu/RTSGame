@@ -651,6 +651,8 @@ namespace Rts.Ai
                 }
                 // The units chosen to defend.
                 List<AiUnitView> chosen = new List<AiUnitView>();
+                // True when the threat is visible and the defenders cannot win even all together (rule DH): they hold at home. Unit: boolean.
+                bool hold = false;
                 if (_threatCount > 0)
                 {
                     // Own complete static defences near the threat, the fixed side.
@@ -665,6 +667,15 @@ namespace Rts.Ai
                             fixedUnits.Add(own);
                         }
                     }
+                    if (_profile.UseDefendHold && _hq.HqState == HqState.Rooted && !_hq.IsUnderConstruction && _hq.Definition.Weapon != null)
+                    {
+                        // F.2 step 1: the Rooted HQ's weapon defends a threat inside its range plus the cover margin. Unit: tiles.
+                        Fix64 cover = _hq.Definition.Weapon.RangeTiles + _profile.DefendHqCoverMarginTiles;
+                        if ((_hq.Position - centre).LengthSquared() <= cover * cover)
+                        {
+                            fixedUnits.Add(_hq);
+                        }
+                    }
                     // The threat as predictor entries (real health). Unit: units and health points.
                     List<FightEntry> threat = FightPredictor.Group(_threats);
                     // The fixed defences as predictor entries (real health). Unit: units and health points.
@@ -677,6 +688,8 @@ namespace Rts.Ai
                         chosen.Add(candidates[i]);
                         enough = PredictFight(AiFight.Merge(fixedEntries, FightPredictor.Group(chosen)), threat, false).Advantage >= _profile.DefendMinAdvantage;
                     }
+                    // F.2 step 2: even all candidates fall short, so they hold at home instead of trickling in.
+                    hold = _profile.UseDefendHold && !enough;
                 }
                 else
                 {
@@ -713,9 +726,22 @@ namespace Rts.Ai
                 _memory.DefendGroup.Clear();
                 // Defence goal, moved off a blocked tile. Unit: tiles.
                 FixVec2 goal = Standable(centre);
+                // Where held units wait (rule DH). Unit: tiles.
+                FixVec2 holdAt = Standable(Home());
+                // Squared hold radius. Unit: squared tiles.
+                Fix64 holdSquared = _profile.DefendHoldRadiusTiles * _profile.DefendHoldRadiusTiles;
                 foreach (AiUnitView unit in defenders)
                 {
                     _memory.DefendGroup.Add(unit.Id);
+                    if (hold)
+                    {
+                        // F.2 step 2: a unit outside the hold radius walks home unless it is already walking (the view has no move goal; a plain move order is taken as the walk home); inside it gets no order.
+                        if (!Controlled(unit) && (unit.Position - holdAt).LengthSquared() > holdSquared && (unit.IsAttackMoving || !unit.HasMoveTarget))
+                        {
+                            Emit(AiIntent.Move(unit.Id, holdAt));
+                        }
+                        continue;
+                    }
                     if (Controlled(unit) || Focus(unit))
                     {
                         continue;

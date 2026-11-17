@@ -161,10 +161,11 @@ namespace Rts.Ai
 
         /// <summary>
         /// Tile indices (y * width + x) where an own build order was cancelled as unreachable (the worker could not walk to the site, for
-        /// example a walled-off tile). Unlike <see cref="RejectedSites"/> they are skipped whether or not the tile is visible, for the
-        /// rest of the match. Ascending. Range: each 0 to tile count - 1; empty at the start.
+        /// example a walled-off tile), each with the tick it was (last) cancelled. Unlike <see cref="RejectedSites"/> they are skipped whether
+        /// or not the tile is visible, for the rest of the match, or for unreachable_site_forget_seconds when that is above 0 (skirmish_ai_v4.md F.4).
+        /// Ascending by tile. Range: key 0 to tile count - 1, value 0 upward (ticks); empty at the start.
         /// </summary>
-        public SortedSet<int> UnreachableSites { get; } = new SortedSet<int>();
+        public SortedDictionary<int, int> UnreachableSites { get; } = new SortedDictionary<int, int>();
 
         /// <summary>
         /// Fields a relocation timed out on; skipped when choosing a relocation target until the HQ roots again, when the set is
@@ -282,5 +283,14 @@ namespace Rts.Ai
 
         /// <summary>Rule G (C2.3 hysteresis): true while the rare-worker cap is in force (set when the rare bank reaches rare_bank_soft_cap, cleared when it falls below rare_bank_return_cap). Unit: boolean. Range: true or false; false at the start.</summary>
         public bool RareCapActive { get; set; }
+
+        /// <summary>Rule WS (skirmish_ai_v4.md F.1): per field index, the tick until which the field counts as dangerous (0 = never marked). Not hashed. Unit: ticks. Range: 0 upward; empty before the first think, then one entry per field.</summary>
+        public int[] FieldDangerUntilTick { get; set; } = System.Array.Empty<int>();
+
+        /// <summary>Rule SD revision (F.3): the own workers of the previous think with their positions, by unit ID (ascending), to see which died. Unit: tiles. Range: own worker IDs.</summary>
+        public SortedDictionary<EntityId, FixVec2> OwnWorkerPositions { get; } = new SortedDictionary<EntityId, FixVec2>();
+
+        /// <summary>Rule SD revision (F.3): where and when own workers were lost, oldest first; entries older than raided_window_seconds are dropped. Unit: tick (ticks, 0 upward) and position (tiles).</summary>
+        public List<(int Tick, FixVec2 Position)> WorkerLossLog { get; } = new List<(int Tick, FixVec2 Position)>();
     }
 }

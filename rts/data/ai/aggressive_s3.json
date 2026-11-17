@@ -260,6 +260,26 @@
   "harass_max_seconds": 90,
   // C2.3 hysteresis: once the rare bank reached rare_bank_soft_cap, rare fields stay closed until the bank falls below this; 0 means the same as the cap (no hysteresis). Unit: resource units (rare). Range: 0 to rare_bank_soft_cap (when that is above 0). Source: skirmish_ai_v3.md C2.3 (review fix); placeholder.
   "rare_bank_return_cap": 200,
+  // Rule WS: workers leave fields near visible raiders and stay away for worker_danger_memory_seconds. Unit: boolean. Range: true or false. Source: skirmish_ai_v4.md F.1; placeholder.
+  "use_worker_safety": false,
+  // A field is dangerous when an enemy that can hit a worker, or a hit on an own worker, lies this close to its centre. Unit: tiles. Range: 1 to 30. Source: skirmish_ai_v4.md F.1, F.5; placeholder.
+  "worker_danger_radius_tiles": 10,
+  // A field stays dangerous this long after the last danger sign. Unit: seconds. Range: 0 to 120. Source: skirmish_ai_v4.md F.1, F.5; placeholder.
+  "worker_danger_memory_seconds": 10,
+  // Most worker evacuation orders one think may give. Unit: commands. Range: 0 to 100. Source: skirmish_ai_v4.md F.1, F.5; placeholder.
+  "worker_evacuate_max_commands_per_think": 12,
+  // Rule DH: when even all candidates cannot reach defend_min_advantage, the defenders hold at home (the HQ's weapon joins the fixed side) instead of trickling in; needs use_measured_defence. Unit: boolean. Range: true or false. Source: skirmish_ai_v4.md F.2; placeholder.
+  "use_defend_hold": false,
+  // A holding unit farther than this from home is ordered to move home. Unit: tiles. Range: 1 to 20. Source: skirmish_ai_v4.md F.2, F.5; placeholder.
+  "defend_hold_radius_tiles": 4,
+  // The Rooted HQ's weapon counts as covering a threat this much farther than its range. Unit: tiles. Range: 0 to 20. Source: skirmish_ai_v4.md F.2, F.5; placeholder.
+  "defend_hq_cover_margin_tiles": 2,
+  // Worker losses near a drop-off within raided_window_seconds that let rule SD build past the value cap (0 = off). Unit: workers. Range: 0 to 50. Source: skirmish_ai_v4.md F.3, F.5; placeholder.
+  "raid_worker_losses_exempt": 0,
+  // A field_depleted rejection of an own gather order zeroes the remembered amount of that field. Unit: boolean. Range: true or false. Source: skirmish_ai_v4.md F.4; placeholder.
+  "use_depleted_rejection": false,
+  // An unreachable build site is skipped this long, then tried again (0 = never again). Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4.md F.4, F.5; placeholder.
+  "unreachable_site_forget_seconds": 0,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

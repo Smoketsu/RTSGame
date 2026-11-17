@@ -112,6 +112,12 @@
 // replaces "every army unit defends" by the nearest units the predictor needs (own static defences count), recalling the attack group only when
 // it is needed; use_unit_control adds fall back and keep distance, and use_focus_fire adds fastest-kill focus fire (replacing the nearest-enemy Focus). The scout, the
 // harass squad, the defend group and fallen-back units get no stance orders. Spatial tests use AiProximity, so no loop runs over every unit pair: each spatial test looks at its own cells (bounded by the army size).
+// Package F (skirmish_ai_v4.md F, each part behind its own profile key, all off except in aggressive_s4f): use_worker_safety (rule WS in rule G:
+// fields near a visible enemy that can hit a worker, or near a hit on an own worker, hold no workers for worker_danger_memory_seconds and their
+// workers are sent to the nearest safe field); use_defend_hold (rule DH in MeasuredDefence: the Rooted HQ's weapon joins the fixed side and, when even
+// all candidates cannot reach defend_min_advantage, they hold within defend_hold_radius_tiles of home instead of trickling in); raid_worker_losses_exempt
+// (rule SD step 2 builds past the value cap after that many own worker losses near the drop-off; losses are found by comparing own workers between
+// thinks); use_depleted_rejection and unreachable_site_forget_seconds live in SkirmishAiController.ReadEvents and AiMemory.UnreachableSites.
 // Rule S now also treats a Defend that this think's threat would start as Defend (the scout is not taken on the first think of a Defend), and the
 // unreachable-waypoint skip waits until the move order has taken effect (AiMemory.ScoutOrderEffectiveTick).
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
@@ -172,6 +178,10 @@ namespace Rts.Ai
             if (memory.AttackThreshold < 0)
             {
                 EnterMassing(memory, profile, rng);
+            }
+            if (profile.RaidWorkerLossesExempt > 0)
+            {
+                TrackWorkerLosses(view, profile, memory);
             }
             // This think's working state (ledger, reservations, intents).
             Turn turn = new Turn(view, profile, plan, memory, rng, hq, intents);
@@ -334,6 +344,41 @@ namespace Rts.Ai
                 }
             }
             return best;
+        }
+
+        /// <summary>
+        /// Rule 0 (skirmish_ai_v4.md F.3): an own worker of the previous think that is not an own worker now was lost; it is logged with this
+        /// think's tick and its last position (ascending ID). The log forgets entries older than raided_window_seconds.
+        /// </summary>
+        private static void TrackWorkerLosses(AiWorldView view, AiProfile profile, AiMemory memory)
+        {
+            // Own worker IDs alive now.
+            SortedSet<EntityId> workers = new SortedSet<EntityId>();
+            foreach (AiUnitView unit in view.OwnUnits)
+            {
+                if (unit.IsWorker)
+                {
+                    workers.Add(unit.Id);
+                }
+            }
+            foreach (KeyValuePair<EntityId, FixVec2> pair in memory.OwnWorkerPositions)
+            {
+                if (!workers.Contains(pair.Key))
+                {
+                    memory.WorkerLossLog.Add((view.Tick, pair.Value));
+                }
+            }
+            memory.OwnWorkerPositions.Clear();
+            foreach (AiUnitView unit in view.OwnUnits)
+            {
+                if (unit.IsWorker)
+                {
+                    memory.OwnWorkerPositions[unit.Id] = unit.Position;
+                }
+            }
+            // Oldest tick a loss still counts. Unit: ticks.
+            int oldest = view.Tick - view.SecondsToTicks(profile.RaidedWindowSeconds);
+            memory.WorkerLossLog.RemoveAll(loss => loss.Tick < oldest);
         }
 
         /// <summary>Rule 0: updates the memory from what the team sees now.</summary>
@@ -593,6 +638,11 @@ namespace Rts.Ai
             /// </summary>
             private int CapOf(AiFieldView field)
             {
+                if (IsFieldDangerous(field.Index))
+                {
+                    // F.1: a dangerous field holds no workers.
+                    return 0;
+                }
                 if (field.Kind == ResourceKind.Common)
                 {
                     return _profile.WorkersPerField;
@@ -1081,12 +1131,128 @@ namespace Rts.Ai
                 return true;
             }
 
+            /// <summary>Visible enemy army units that can hit the worker layer, ascending ID; filled by <see cref="MarkDangerousFields"/> (rule WS). Unit: units.</summary>
+            private readonly List<AiUnitView> _workerThreats = new List<AiUnitView>();
+
+            /// <summary>True while rule WS (use_worker_safety) has marked the field dangerous: the current tick is before its danger-until tick. Unit: boolean.</summary>
+            /// <param name="index">Field index. Range: 0 to field count - 1.</param>
+            private bool IsFieldDangerous(int index)
+            {
+                return _profile.UseWorkerSafety && index < _memory.FieldDangerUntilTick.Length && _view.Tick < _memory.FieldDangerUntilTick[index];
+            }
+
+            /// <summary>
+            /// Rule WS step 1 (skirmish_ai_v4.md F.1): marks each field, in index order, within worker_danger_radius_tiles of a visible enemy army
+            /// unit that can hit the worker layer, or of a recent hit on an own worker, as dangerous for worker_danger_memory_seconds.
+            /// </summary>
+            private void MarkDangerousFields()
+            {
+                if (_memory.FieldDangerUntilTick.Length != _view.Fields.Count)
+                {
+                    _memory.FieldDangerUntilTick = new int[_view.Fields.Count];
+                }
+                // Layer the plan's worker moves on.
+                MovementLayer layer = _view.Content.Units[_plan.WorkerUnitId].Layer;
+                _workerThreats.Clear();
+                foreach (AiUnitView enemy in _view.VisibleEnemies)
+                {
+                    if (enemy.IsArmy && enemy.Definition.Weapon != null && enemy.Definition.Weapon.CanTarget(layer))
+                    {
+                        _workerThreats.Add(enemy);
+                    }
+                }
+                // Positions of recent hits on own workers. Unit: tiles.
+                List<FixVec2> hits = new List<FixVec2>();
+                foreach (KeyValuePair<EntityId, DamageReport> pair in _memory.RecentDamage)
+                {
+                    AiUnitView? own = FindOwn(pair.Key);
+                    if (own != null && own.IsWorker && pair.Value.Tick >= _view.Tick - _view.SecondsToTicks(_profile.DamageMemorySeconds))
+                    {
+                        hits.Add(pair.Value.Position);
+                    }
+                }
+                // Squared danger radius. Unit: squared tiles.
+                Fix64 radiusSquared = _profile.WorkerDangerRadiusTiles * _profile.WorkerDangerRadiusTiles;
+                // Tick until which a field marked now stays dangerous. Unit: ticks.
+                int until = _view.Tick + _view.SecondsToTicks(_profile.WorkerDangerMemorySeconds);
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    // True when a danger sign lies within the radius of this field. Unit: boolean.
+                    bool marked = false;
+                    foreach (AiUnitView enemy in _workerThreats)
+                    {
+                        marked |= (enemy.Position - field.Centre).LengthSquared() <= radiusSquared;
+                    }
+                    foreach (FixVec2 hit in hits)
+                    {
+                        marked |= (hit - field.Centre).LengthSquared() <= radiusSquared;
+                    }
+                    if (marked)
+                    {
+                        _memory.FieldDangerUntilTick[field.Index] = until;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Rule WS step 3: every own worker without a build order whose field is dangerous goes to the nearest safe field (under its cap
+            /// first), else home when no marked threat is near home; at most worker_evacuate_max_commands_per_think orders. Evacuated IDs go into
+            /// <paramref name="moved"/> so the idle loop leaves them alone.
+            /// </summary>
+            private void EvacuateWorkers(int[] assigned, SortedSet<EntityId> moved)
+            {
+                // Orders still allowed this think. Unit: commands.
+                int budget = _profile.WorkerEvacuateMaxCommandsPerThink;
+                // Squared danger radius. Unit: squared tiles.
+                Fix64 radiusSquared = _profile.WorkerDangerRadiusTiles * _profile.WorkerDangerRadiusTiles;
+                foreach (AiUnitView worker in _view.OwnUnits)
+                {
+                    if (budget <= 0)
+                    {
+                        return;
+                    }
+                    if (!worker.IsWorker || worker.HasBuildOrder || worker.GatherFieldIndex < 0 || worker.GatherFieldIndex >= assigned.Length
+                        || !IsFieldDangerous(worker.GatherFieldIndex))
+                    {
+                        continue;
+                    }
+                    // Safe field to go to, or null.
+                    AiFieldView? target = NearestField(worker.Position, assigned, true) ?? NearestField(worker.Position, assigned, false);
+                    if (target != null)
+                    {
+                        if (Emit(AiIntent.Gather(worker.Id, target.Index)))
+                        {
+                            assigned[worker.GatherFieldIndex]--;
+                            assigned[target.Index]++;
+                            moved.Add(worker.Id);
+                            budget--;
+                        }
+                        continue;
+                    }
+                    // True when a threat that can hit a worker stands near home. Unit: boolean.
+                    bool homeUnsafe = false;
+                    foreach (AiUnitView enemy in _workerThreats)
+                    {
+                        homeUnsafe |= (enemy.Position - Home()).LengthSquared() <= radiusSquared;
+                    }
+                    if (!homeUnsafe && Emit(AiIntent.Move(worker.Id, Standable(Home()))))
+                    {
+                        moved.Add(worker.Id);
+                        budget--;
+                    }
+                }
+            }
+
             /// <summary>Rule 2 (rule G of skirmish_ai_v2.md B.5): sends idle workers to served fields, long hauls when starved, follows a relocating HQ, rebalances.</summary>
             public void Gather()
             {
                 if (!_hasDropOff && !_memory.RelocationActive)
                 {
                     return;
+                }
+                if (_profile.UseWorkerSafety)
+                {
+                    MarkDangerousFields();
                 }
                 // Workers already on each field, by field index.
                 int[] assigned = new int[_view.Fields.Count];
@@ -1097,6 +1263,12 @@ namespace Rts.Ai
                         assigned[unit.GatherFieldIndex]++;
                     }
                 }
+                // Workers evacuated this think (rule WS); the idle loop skips them.
+                SortedSet<EntityId> evacuated = new SortedSet<EntityId>();
+                if (_profile.UseWorkerSafety && _hasDropOff)
+                {
+                    EvacuateWorkers(assigned, evacuated);
+                }
                 // Target order from the HQ position, computed once for the long haul (empty unless starved with a drop-off).
                 List<AiFieldView> haul = new List<AiFieldView>();
                 if (_hasDropOff && Starved)
@@ -1104,7 +1276,7 @@ namespace Rts.Ai
                     // Unsafe fields stay out of the long haul (workers walk there alone; a depot may still be built beside one, rule E).
                     foreach (AiFieldView field in TargetOrder(_hq.Position))
                     {
-                        if (!IsUnsafe(field.Centre))
+                        if (!IsUnsafe(field.Centre) && !IsFieldDangerous(field.Index))
                         {
                             haul.Add(field);
                         }
@@ -1112,7 +1284,8 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView worker in _view.OwnUnits)
                 {
-                    if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving || worker.HasBuildOrder)
+                    if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving || worker.HasBuildOrder
+                        || evacuated.Contains(worker.Id))
                     {
                         continue;
                     }
@@ -1162,6 +1335,11 @@ namespace Rts.Ai
                 int budget = _profile.RebalanceWorkersPerThink;
                 foreach (AiFieldView field in _served)
                 {
+                    if (IsFieldDangerous(field.Index))
+                    {
+                        // F.1: dangerous fields are emptied by the evacuation, not the rebalance.
+                        continue;
+                    }
                     // Workers above the cap on this field. Unit: workers.
                     int excess = assigned[field.Index] - CapOf(field);
                     // Own units in descending ID order: the highest-ID workers on this field move first.
@@ -1229,7 +1407,7 @@ namespace Rts.Ai
                 }
                 foreach (AiFieldView field in _served)
                 {
-                    if ((underCap && assigned[field.Index] >= CapOf(field)) || (!underCap && anyOpen && CapOf(field) == 0))
+                    if ((underCap && assigned[field.Index] >= CapOf(field)) || (!underCap && anyOpen && CapOf(field) == 0) || IsFieldDangerous(field.Index))
                     {
                         continue;
                     }
@@ -1429,6 +1607,14 @@ namespace Rts.Ai
                 return false;
             }
 
+            /// <summary>True while the tile is remembered as unreachable: forever when unreachable_site_forget_seconds is 0, else for that long after it was last cancelled (F.4).</summary>
+            /// <param name="index">Tile index. Range: 0 to tile count - 1.</param>
+            private bool IsUnreachableSite(int index)
+            {
+                return _memory.UnreachableSites.TryGetValue(index, out int added)
+                    && (_profile.UnreachableSiteForgetSeconds == Fix64.Zero || _view.Tick < added + _view.SecondsToTicks(_profile.UnreachableSiteForgetSeconds));
+            }
+
             /// <summary>True when (x, y) passes every site test of rule 3.</summary>
             private bool IsGoodSite(int x, int y, byte baseHeight)
             {
@@ -1450,7 +1636,7 @@ namespace Rts.Ai
                         }
                     }
                 }
-                if (_view.IsOccupied(x, y) || _reservedSites.Contains(_view.IndexOf(x, y)) || _memory.UnreachableSites.Contains(_view.IndexOf(x, y)))
+                if (_view.IsOccupied(x, y) || _reservedSites.Contains(_view.IndexOf(x, y)) || IsUnreachableSite(_view.IndexOf(x, y)))
                 {
                     return false;
                 }
@@ -1999,6 +2185,24 @@ namespace Rts.Ai
                 return defences + AiCounter.Value(next, _profile) <= _profile.StaticDefenceMaxValueShare * army;
             }
 
+            /// <summary>F.3: true when raid_worker_losses_exempt is on and the worker loss log holds at least that many entries within defend_radius_tiles of the drop-off.</summary>
+            private bool WorkerLossesExempt(AiUnitView dropOff)
+            {
+                if (_profile.RaidWorkerLossesExempt <= 0)
+                {
+                    return false;
+                }
+                // Squared defend radius. Unit: squared tiles.
+                Fix64 radiusSquared = _profile.DefendRadiusTiles * _profile.DefendRadiusTiles;
+                // Losses near the drop-off. Unit: workers.
+                int near = 0;
+                foreach ((int Tick, FixVec2 Position) loss in _memory.WorkerLossLog)
+                {
+                    near += (loss.Position - dropOff.Position).LengthSquared() <= radiusSquared ? 1 : 0;
+                }
+                return near >= _profile.RaidWorkerLossesExempt;
+            }
+
             /// <summary>Picks a defence for <paramref name="layers"/> and builds it at the best site around <paramref name="origin"/>.</summary>
             private void BuildDefence(FixVec2 origin, FixVec2 toward, List<MovementLayer> layers)
             {
@@ -2044,7 +2248,7 @@ namespace Rts.Ai
                     }
                     if (raids >= _profile.StaticDefenceAfterRaids && StaticDefencesNear(dropOff.Position) < _profile.StaticDefenceMaxPerBase)
                     {
-                        if (!WithinValueCap())
+                        if (!WithinValueCap() && !WorkerLossesExempt(dropOff))
                         {
                             // C2.4 step 2: the defences would outweigh the army; no build this think (step 3 is still tried).
                             break;

@@ -46,6 +46,10 @@
 //     focus_max_commands_per_think (every profile file carries them; the switches are false except in aggressive_s3); and the package D
 //     review keys use_focus_fire (fastest-kill focus split from use_unit_control), fallback_release_seconds, attack_retreat_grace_seconds,
 //     harass_max_seconds and rare_bank_return_cap (hysteresis of the rare-worker cap).
+//   * skirmish_ai_v4.md package F (raid response and economy bugs): the switches use_worker_safety, use_defend_hold and
+//     use_depleted_rejection and the keys worker_danger_radius_tiles, worker_danger_memory_seconds, worker_evacuate_max_commands_per_think,
+//     defend_hold_radius_tiles, defend_hq_cover_margin_tiles, raid_worker_losses_exempt (0 = off) and unreachable_site_forget_seconds
+//     (0 = never). Every profile file carries them; the switches are false (and the two numeric offs 0) except in aggressive_s4f.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -544,6 +548,36 @@ namespace Rts.Ai
         /// <summary>C2.3: once capped, rare fields stay closed until the rare bank falls below this; 0 means the cap itself. Unit: resource units (rare). Range: 0 to <see cref="RareBankSoftCap"/> when that is above 0.</summary>
         public int RareBankReturnCap { get; }
 
+        /// <summary>skirmish_ai_v4.md F.1: workers leave fields near visible raiders and stay away for a while (rule WS). Unit: boolean. Range: true or false.</summary>
+        public bool UseWorkerSafety { get; }
+
+        /// <summary>F.1: a field is dangerous when an enemy that can hit a worker, or a hit on an own worker, lies this close to its centre. Unit: tiles. Range: 1 to 30.</summary>
+        public Fix64 WorkerDangerRadiusTiles { get; }
+
+        /// <summary>F.1: a field stays dangerous this long after the last danger sign. Unit: seconds. Range: 0 to 120.</summary>
+        public Fix64 WorkerDangerMemorySeconds { get; }
+
+        /// <summary>F.1: most evacuation orders one think may give. Unit: commands. Range: 0 to 100.</summary>
+        public int WorkerEvacuateMaxCommandsPerThink { get; }
+
+        /// <summary>F.2: when even all candidates cannot win, the defenders hold at home instead of trickling in (rule DH; needs use_measured_defence). Unit: boolean. Range: true or false.</summary>
+        public bool UseDefendHold { get; }
+
+        /// <summary>F.2: a holding unit farther than this from home is ordered to move home. Unit: tiles. Range: 1 to 20.</summary>
+        public Fix64 DefendHoldRadiusTiles { get; }
+
+        /// <summary>F.2: the Rooted HQ's weapon covers a threat this much farther than its range. Unit: tiles. Range: 0 to 20.</summary>
+        public Fix64 DefendHqCoverMarginTiles { get; }
+
+        /// <summary>F.3: worker losses near a drop-off within raided_window_seconds that let rule SD build past the value cap; 0 turns it off. Unit: workers. Range: 0 to 50.</summary>
+        public int RaidWorkerLossesExempt { get; }
+
+        /// <summary>F.4: a field_depleted rejection of an own gather order zeroes the remembered amount. Unit: boolean. Range: true or false.</summary>
+        public bool UseDepletedRejection { get; }
+
+        /// <summary>F.4: an unreachable build site is skipped this long, then tried again; 0 means never again. Unit: seconds. Range: 0 to 3600.</summary>
+        public Fix64 UnreachableSiteForgetSeconds { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -709,6 +743,16 @@ namespace Rts.Ai
             {
                 throw root.Require("rare_bank_return_cap").Fail("must not exceed rare_bank_soft_cap");
             }
+            UseWorkerSafety = root.RequireBool("use_worker_safety");
+            WorkerDangerRadiusTiles = root.RequireFix64("worker_danger_radius_tiles", "1", "30");
+            WorkerDangerMemorySeconds = root.RequireFix64("worker_danger_memory_seconds", "0", "120");
+            WorkerEvacuateMaxCommandsPerThink = root.RequireInt("worker_evacuate_max_commands_per_think", 0, 100);
+            UseDefendHold = root.RequireBool("use_defend_hold");
+            DefendHoldRadiusTiles = root.RequireFix64("defend_hold_radius_tiles", "1", "20");
+            DefendHqCoverMarginTiles = root.RequireFix64("defend_hq_cover_margin_tiles", "0", "20");
+            RaidWorkerLossesExempt = root.RequireInt("raid_worker_losses_exempt", 0, 50);
+            UseDepletedRejection = root.RequireBool("use_depleted_rejection");
+            UnreachableSiteForgetSeconds = root.RequireFix64("unreachable_site_forget_seconds", "0", "3600");
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -796,7 +840,10 @@ namespace Rts.Ai
                 "defend_max_candidates", "fallback_health_fraction", "fallback_danger_tiles",
                 "fallback_max_commands_per_think", "kite_trigger_tiles", "kite_step_tiles", "kite_min_range_gap_tiles",
                 "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think", "use_focus_fire", "fallback_release_seconds",
-                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "factions");
+                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap",
+                "use_worker_safety", "worker_danger_radius_tiles", "worker_danger_memory_seconds", "worker_evacuate_max_commands_per_think",
+                "use_defend_hold", "defend_hold_radius_tiles", "defend_hq_cover_margin_tiles", "raid_worker_losses_exempt",
+                "use_depleted_rejection", "unreachable_site_forget_seconds", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.

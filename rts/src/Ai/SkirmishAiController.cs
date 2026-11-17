@@ -169,7 +169,7 @@ namespace Rts.Ai
                     }
                     else if (cancelled.Reason == "unreachable" && sim.Terrain.Contains(cancelled.TileX, cancelled.TileY))
                     {
-                        Memory.UnreachableSites.Add(sim.Terrain.IndexOf(cancelled.TileX, cancelled.TileY));
+                        Memory.UnreachableSites[sim.Terrain.IndexOf(cancelled.TileX, cancelled.TileY)] = simEvent.Tick;
                     }
                     continue;
                 }
@@ -178,6 +178,14 @@ namespace Rts.Ai
                 {
                     // Own placement refused because something blocks the tile: remember it (see AiMemory.RejectedSites).
                     Memory.RejectedSites.Add(sim.Terrain.IndexOf(build.TileX, build.TileY));
+                    continue;
+                }
+                if (Profile.UseDepletedRejection && simEvent.Tick > Memory.LastEventTickRead && simEvent is CommandRejectedEvent depleted
+                    && depleted.Reason == "field_depleted" && depleted.Command is GatherCommand gather && gather.Issuer == Player
+                    && gather.FieldIndex >= 0 && gather.FieldIndex < Memory.KnownFieldRemaining.Length)
+                {
+                    // F.4: the simulation says the field is empty (feedback on the AI's own command): forget the stale amount.
+                    Memory.KnownFieldRemaining[gather.FieldIndex] = 0;
                     continue;
                 }
                 if (simEvent.Tick <= Memory.LastEventTickRead || !(simEvent is UnitDamagedEvent hit))
