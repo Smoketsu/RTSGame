@@ -34,7 +34,10 @@
 //      re-tried for build_retry_seconds. Site: the first tile on Chebyshev rings build_ring_min_tiles..build_ring_max_tiles around
 //      the HQ tile (ring by ring, ascending tile index) whose 3x3 block is on the map, unblocked, not a ramp and on the HQ's
 //      height layer, whose own tile is not occupied by a unit, and that is more than field_clearance_tiles from every field.
-//      The builder is the lowest-ID gathering worker (else the lowest-ID worker).
+//      The builder is the own worker without a build order nearest the site (ties to the lower ID; a worker already picked in this think is
+//      skipped). Own pending build orders (a worker walking to a site or placing) count as structures under construction at their site
+//      tile, for the supply, build order, tech, static defence and depot rules; their tiles are never offered again. A site the team has
+//      never seen (site_unexplored) is first scouted: the builder is sent to the site centre and the build waits for the next attempt.
 //   3b. Tech on demand (rule T, skirmish_ai_v3.md C.5, only when use_tech_on_demand): the counter-mix unit with the largest weight that no
 //      own structure trains gets its producer built (rule X's choice of structure) when its weight is at least tech_min_weight_share x
 //      mix_resolution and no producer of a mix unit is under construction.
@@ -504,6 +507,9 @@ namespace Rts.Ai
             /// <summary>Building sites chosen this think (tile indices), so two structures never share one.</summary>
             private readonly SortedSet<int> _reservedSites = new SortedSet<int>();
 
+            /// <summary>Workers given a build order or a scouting move earlier in this think; <see cref="PickBuilder"/> skips them. Ascending ID.</summary>
+            private readonly SortedSet<EntityId> _pickedBuilders = new SortedSet<EntityId>();
+
             /// <summary>Own count per composition unit, queued included, in ordinal ID order; filled by <see cref="Produce"/>. Unit: units. Range: 0 upward.</summary>
             private readonly SortedDictionary<string, int> _counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
@@ -535,7 +541,7 @@ namespace Rts.Ai
             /// Own units plus one synthetic under-construction structure per own pending build order (a worker walking to a site or placing),
             /// at the centre of the site tile (worker_construction.md 9.3 item 2). The rules that count or locate own structures read this list;
             /// the real units come first in ascending ID, then the pending orders in ascending worker ID. Pending entries are never a usable
-            /// drop-off, a free producer or a unit that can be ordered.
+            /// drop-off, a free producer or a unit that can be ordered. Unit: units. Range: 0 to own unit count x 2.
             /// </summary>
             private readonly List<AiUnitView> _planned = new List<AiUnitView>();
 
@@ -645,7 +651,7 @@ namespace Rts.Ai
                 UpdateRareCap();
                 // Largest worked distance, squared. Unit: squared tiles.
                 Fix64 reachSquared = ReachSquared;
-                // DepotsPlaced counts the depots among the own units (rule E's schedule), not the orders given.
+                // DepotsPlaced counts the depots among the own units and the pending depot orders (rule E's schedule), not the orders given this think.
                 memory.DepotsPlaced = 0;
                 _planned.AddRange(view.OwnUnits);
                 foreach (AiUnitView worker in view.OwnUnits)
@@ -1332,12 +1338,16 @@ namespace Rts.Ai
                 if (!_view.IsExplored(x, y))
                 {
                     // The simulation refuses sites the team never saw (site_unexplored): walk there first; the next attempt builds.
-                    Emit(AiIntent.Move(builder.Id, _view.CentreOf(x, y)));
+                    if (Emit(AiIntent.Move(builder.Id, _view.CentreOf(x, y))))
+                    {
+                        _pickedBuilders.Add(builder.Id);
+                    }
                     return false;
                 }
                 if (Emit(AiIntent.Build(builder.Id, definition.Id, x, y)))
                 {
                     Pay(definition);
+                    _pickedBuilders.Add(builder.Id);
                     _reservedSites.Add(_view.IndexOf(x, y));
                     return true;
                 }
@@ -1356,7 +1366,7 @@ namespace Rts.Ai
                 Fix64 bestSquared = Fix64.Zero;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (!unit.IsWorker || unit.HasBuildOrder)
+                    if (!unit.IsWorker || unit.HasBuildOrder || _pickedBuilders.Contains(unit.Id))
                     {
                         continue;
                     }
@@ -1436,7 +1446,7 @@ namespace Rts.Ai
                         }
                     }
                 }
-                if (_view.IsOccupied(x, y) || _reservedSites.Contains(_view.IndexOf(x, y)))
+                if (_view.IsOccupied(x, y) || _reservedSites.Contains(_view.IndexOf(x, y)) || _memory.UnreachableSites.Contains(_view.IndexOf(x, y)))
                 {
                     return false;
                 }

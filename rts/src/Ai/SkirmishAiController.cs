@@ -156,12 +156,20 @@ namespace Rts.Ai
                 if (simEvent.Tick > Memory.LastEventTickRead && simEvent is BuildOrderCancelledEvent cancelled && cancelled.Owner == Player
                     && cancelled.Reason != "new_order")
                 {
-                    // Own build order cancelled (worker_lost, site_blocked, site_occupied or unreachable): the refund is already in the stock;
-                    // let the next think try again. A blocked site is remembered so it is not chosen again while it is in the fog.
-                    Memory.LastBuildAttemptTick.Remove(cancelled.DefinitionId);
+                    // Own build order cancelled (worker_lost, site_blocked, site_occupied or unreachable): the refund is already in the stock.
+                    // worker_lost keeps the retry timer (a raid that kills builders is not fed new ones at once); the others let the next think try again.
+                    // A blocked site is remembered so it is not chosen again while it is in the fog; an unreachable site is never chosen again.
+                    if (cancelled.Reason != "worker_lost")
+                    {
+                        Memory.LastBuildAttemptTick.Remove(cancelled.DefinitionId);
+                    }
                     if (cancelled.Reason == "site_blocked" && sim.Terrain.Contains(cancelled.TileX, cancelled.TileY))
                     {
                         Memory.RejectedSites.Add(sim.Terrain.IndexOf(cancelled.TileX, cancelled.TileY));
+                    }
+                    else if (cancelled.Reason == "unreachable" && sim.Terrain.Contains(cancelled.TileX, cancelled.TileY))
+                    {
+                        Memory.UnreachableSites.Add(sim.Terrain.IndexOf(cancelled.TileX, cancelled.TileY));
                     }
                     continue;
                 }

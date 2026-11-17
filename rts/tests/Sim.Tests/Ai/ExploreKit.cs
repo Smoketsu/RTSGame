@@ -19,11 +19,12 @@ namespace Rts.Sim.Tests.Ai
         /// <param name="sim">A started simulation between steps.</param>
         public static void ExploreAll(Simulation sim)
         {
-            // Team index. Range: 0 to the number of teams - 1.
+            // Vision grids of one team each. Range: one per team.
             foreach (TeamVision grids in sim.Vision.Teams)
             {
-                // Tile index. Unit: tile index. Range: 0 to TileCount - 1.
+                // Visible flag per tile index (index 0 to TileCount - 1) before marking, restored afterwards.
                 bool[] wasVisible = new bool[grids.TileCount];
+                // Tile index. Unit: tile index. Range: 0 to TileCount - 1.
                 for (int index = 0; index < grids.TileCount; index++)
                 {
                     wasVisible[index] = grids.IsVisible(index);

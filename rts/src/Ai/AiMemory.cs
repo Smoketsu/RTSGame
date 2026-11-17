@@ -160,6 +160,13 @@ namespace Rts.Ai
         public SortedSet<int> RejectedSites { get; } = new SortedSet<int>();
 
         /// <summary>
+        /// Tile indices (y * width + x) where an own build order was cancelled as unreachable (the worker could not walk to the site, for
+        /// example a walled-off tile). Unlike <see cref="RejectedSites"/> they are skipped whether or not the tile is visible, for the
+        /// rest of the match. Ascending. Range: each 0 to tile count - 1; empty at the start.
+        /// </summary>
+        public SortedSet<int> UnreachableSites { get; } = new SortedSet<int>();
+
+        /// <summary>
         /// Fields a relocation timed out on; skipped when choosing a relocation target until the HQ roots again, when the set is
         /// cleared (rule H step 4). Ascending. Range: each 0 to field count - 1; empty at the start.
         /// </summary>

@@ -242,18 +242,113 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(scout, Is.Not.Null, "the builder is sent to the site centre; intents: " + string.Join(";", intents.ConvertAll(i => i.Kind + "@" + i.Point + "/" + i.TileX + "," + i.TileY)));
             Assert.That(UnitOf(sim, scout!.Unit).Definition.Economy.CanGather, Is.True);
             Assert.That(memory.LastBuildAttemptTick.ContainsKey("skai.perch_depot"), Is.True, "the retry timer is set");
-            // The walk explores the tile; after the retry time the AI builds there.
-            ExploreKit.ExploreAll(sim);
-            // Ticks of build_retry_seconds. Unit: ticks. Range: 20 to 1200.
-            int retry = 5 * TicksPerSecond;
-            for (int i = 0; i < retry; i++)
+            // The scouting move is carried out as a command; the walk itself explores the tile.
+            sim.Submit(new MoveUnitCommand(sim.Clock.Tick, P0, _sequence++, scout.Unit, scout.Point));
+            // Tick at which the retry time (build_retry_seconds = 5) has passed. Unit: ticks. Range: 0 upward.
+            int retryTick = sim.Clock.Tick + 5 * TicksPerSecond;
+            // Ticks stepped while waiting for the walk. Unit: ticks. Range: 0 to 1500.
+            int waited = 0;
+            while (waited < 1500 && (!sim.Vision.IsTileExplored(new TeamId(0), 27, 13) || sim.Clock.Tick < retryTick))
+            {
+                sim.Step();
+                waited++;
+                Assert.That(UnitOf(sim, scout.Unit).BuildState, Is.EqualTo(BuildOrderState.None), "no order was given while the site was unexplored");
+            }
+            Assert.That(sim.Vision.IsTileExplored(new TeamId(0), 27, 13), Is.True, "the walk explored the site");
+            // Nothing was bought on the way: the stock only grew (workers gather), so the depot was not paid for.
+            Assert.That(sim.Players.TryGet(P0, out Player? self) && self.Common >= 200, Is.True, "common stock is unchanged or higher until the order");
+            List<AiIntent> later = Builds(DecideP0(sim, memory), "skai.perch_depot");
+            Assert.That(later.Count, Is.EqualTo(1), "the order is given once the tile is explored");
+            Assert.That((later[0].TileX, later[0].TileY), Is.EqualTo((27, 13)));
+        }
+
+        /// <summary>
+        /// WCA-9: a walled-off site: a ring of enemy turrets two tiles out cuts the Roost's site off. The AI orders it once, the order is cancelled
+        /// as unreachable, and no later think orders that tile again.
+        /// </summary>
+        [Test]
+        public void WCA9_UnreachableSiteIsNotOrderedAgain()
+        {
+            Simulation sim = Game("greybox_1v1", 2, true);
+            SkirmishAiController controller = new SkirmishAiController(P0, Aggressive);
+            controller.OnMatchStart(sim);
+            SimulationCommandSink sink = new SimulationCommandSink(sim);
+            while (!controller.IsThinkTick(sim.Clock.Tick))
             {
                 sim.Step();
             }
-            SetStock(sim, P0, 200, 0);
-            List<AiIntent> later = Builds(DecideP0(sim, memory), "skai.perch_depot");
-            Assert.That(later.Count, Is.EqualTo(1));
-            Assert.That((later[0].TileX, later[0].TileY), Is.EqualTo((27, 13)));
+            controller.Think(sim, sink);
+            BuildStructureCommand? first = null;
+            foreach (Command command in controller.LastCommands)
+            {
+                first ??= command as BuildStructureCommand;
+            }
+            Assert.That(first, Is.Not.Null, "the AI orders its Roost");
+            // The wall: the 16 tiles at Chebyshev distance 2 from the site, spawned on the same tick after the order is accepted.
+            for (int dy = -2; dy <= 2; dy++)
+            {
+                for (int dx = -2; dx <= 2; dx++)
+                {
+                    if (System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy)) == 2)
+                    {
+                        sim.Submit(new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, "water.coral_turret", P1,
+                            new FixVec2(Fix64.FromInt(first!.TileX + dx) + Fix64.Half, Fix64.FromInt(first.TileY + dy) + Fix64.Half)));
+                    }
+                }
+            }
+            // Orders to the site, cancellations by reason, and the thinks' order count. Unit: counts.
+            int orders = 1;
+            List<string> reasons = new List<string>();
+            // Ticks stepped. Unit: ticks. Range: 0 to 1200.
+            for (int i = 0; i < 1200; i++)
+            {
+                sim.Step();
+                foreach (SimEvent evt in sim.Events.Current)
+                {
+                    if (evt is BuildOrderCancelledEvent cancelled)
+                    {
+                        reasons.Add(cancelled.Reason);
+                    }
+                }
+                SetStock(sim, P0, 500, 0);
+                controller.Think(sim, sink);
+                foreach (Command command in controller.LastCommands)
+                {
+                    if (command is BuildStructureCommand build && build.TileX == first!.TileX && build.TileY == first!.TileY)
+                    {
+                        orders++;
+                    }
+                }
+            }
+            Assert.That(reasons, Does.Contain("unreachable"));
+            Assert.That(orders, Is.EqualTo(1), "the cut-off tile is ordered once");
+            Assert.That(reasons.FindAll(r => r == "unreachable").Count, Is.EqualTo(1), "and cancelled once");
+        }
+
+        /// <summary>WCA-10: two builds in one think use two different workers (the second pick skips the worker that already has the first order).</summary>
+        [Test]
+        public void WCA10_TwoBuildsInOneThinkUseTwoWorkers()
+        {
+            Simulation sim = Game("prototype_1v1", 3, true);
+            while (sim.Clock.Tick < 240 * TicksPerSecond)
+            {
+                sim.Step();
+            }
+            sim.Submit(new GatherCommand(sim.Clock.Tick, P0, _sequence++, Workers(sim, P0)[1], 0));
+            sim.Step();
+            SetStock(sim, P0, 500, 0);
+            List<AiIntent> roosts = Builds(DecideP0(sim), "skai.roost");
+            Assert.That(roosts.Count, Is.EqualTo(1));
+            // A worker 2 tiles east of the Roost site (towards the depot site): it is the nearest worker to both sites.
+            EntityId near = Spawn(sim, "skai.fledgling", P0, new FixVec2(Fix64.FromInt(roosts[0].TileX + 2) + Fix64.Half, Fix64.FromInt(roosts[0].TileY) + Fix64.Half));
+            SetStock(sim, P0, 500, 0);
+            List<AiIntent> intents = DecideP0(sim);
+            List<AiIntent> roost = Builds(intents, "skai.roost");
+            List<AiIntent> depot = Builds(intents, "skai.perch_depot");
+            Assert.That(roost.Count, Is.EqualTo(1), "a Roost is due");
+            Assert.That(depot.Count, Is.EqualTo(1), "and a depot");
+            Assert.That(roost[0].Unit, Is.EqualTo(near), "the nearest worker builds the Roost");
+            Assert.That(depot[0].Unit, Is.Not.EqualTo(near), "the depot goes to another worker, not the one that already has an order");
         }
 
         /// <summary>WCA-5: the site of an own pending order is skipped: the next build goes on another tile.</summary>
@@ -273,13 +368,13 @@ namespace Rts.Sim.Tests.Ai
 
         /// <summary>
         /// WCA-6: cancelled own orders: site_blocked remembers the tile and clears the retry time; site_occupied only clears the retry time;
-        /// new_order changes neither.
+        /// new_order and worker_lost keep the retry time (worker_lost so a raid is not fed new builders at once).
         /// </summary>
         [Test]
         public void WCA6_CancelHandling()
         {
             // Reason, whether a blocking structure (true) or a unit (false) is put on the site, and the expectations.
-            foreach ((string reason, bool structure) in new[] { ("site_blocked", true), ("site_occupied", false), ("new_order", false) })
+            foreach ((string reason, bool structure) in new[] { ("site_blocked", true), ("site_occupied", false), ("new_order", false), ("worker_lost", false) })
             {
                 Simulation sim = Game("greybox_1v1", 1, true);
                 SkirmishAiController controller = new SkirmishAiController(P0, Aggressive);
@@ -289,7 +384,11 @@ namespace Rts.Sim.Tests.Ai
                 Order(sim, worker, "skai.roost", 13, 9);
                 controller.Memory.LastBuildAttemptTick["skai.roost"] = sim.Clock.Tick;
                 SimulationCommandSink sink = new SimulationCommandSink(sim);
-                if (reason == "new_order")
+                if (reason == "worker_lost")
+                {
+                    sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, worker));
+                }
+                else if (reason == "new_order")
                 {
                     sim.Submit(new StopCommand(sim.Clock.Tick, P0, _sequence++, worker));
                 }
@@ -314,7 +413,7 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(seen, Is.EqualTo(reason));
                 controller.Think(sim, sink);
                 Assert.That(controller.Memory.RejectedSites.Contains(sim.Terrain.IndexOf(13, 9)), Is.EqualTo(reason == "site_blocked"), reason);
-                Assert.That(controller.Memory.LastBuildAttemptTick.ContainsKey("skai.roost"), Is.EqualTo(reason == "new_order"), reason);
+                Assert.That(controller.Memory.LastBuildAttemptTick.ContainsKey("skai.roost"), Is.EqualTo(reason == "new_order" || reason == "worker_lost"), reason);
             }
         }
 
