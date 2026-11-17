@@ -132,7 +132,7 @@
   "use_tech_on_demand": false,
   // Rule SD on: the AI builds static defences at raided bases and against a layer nothing answers. Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md C.6; placeholder.
   "use_static_defence": false,
-  // Rule RS on: rare-cost units in the mix bring the first rare depot forward. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C.7; placeholder.
+  // Rule RS on: when rare-cost units weigh enough in the mix and no rare field is served, rule E puts rare sites first in its target order (it only reorders; it no longer moves the clock gate). Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C.7; placeholder.
   "use_rare_priority": false,
   // Fight predictor: longest time a side needs (also "never"). Unit: seconds. Range: 10 to 36000. Source: skirmish_ai_v3.md C.1; placeholder.
   "predictor_max_seconds": 600,
@@ -174,7 +174,7 @@
   "static_defence_ring_max_tiles": 4,
   // Rule SD: model supply of a layer that nothing answers before a defence is built at the HQ. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C.6; placeholder.
   "unanswered_layer_min_supply": 3,
-  // Rule RS: mix weight share of rare-cost units at which rule E ignores its clock gate. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.7; placeholder.
+  // Rule RS: mix weight share of rare-cost units at which rule E puts rare sites first in its target order (rule RS only reorders rule E's targets since C2.5; the clock gate is use_early_expansion's). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.7, C2.5; placeholder.
   "rare_need_weight_share": 0.25,
   // Predictor mix: C2.2 replaces the counter-mix scoring (C.4 steps 1 to 3) by the fight predictor's advantage of each candidate purchase. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C2.2; placeholder.
   "use_predictor_mix": false,

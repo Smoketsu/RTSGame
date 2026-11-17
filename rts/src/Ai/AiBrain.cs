@@ -567,8 +567,11 @@ namespace Rts.Ai
                 {
                     return _profile.WorkersPerField;
                 }
-                return _profile.RareBankSoftCap > 0 && _view.Rare >= _profile.RareBankSoftCap ? 0 : _profile.RareWorkersPerField;
+                return RareCapped ? 0 : _profile.RareWorkersPerField;
             }
+
+            /// <summary>True while rare_bank_soft_cap is on (above 0) and the rare bank is at or above it (C2.3): rare fields take no workers. Unit: boolean.</summary>
+            private bool RareCapped => _profile.RareBankSoftCap > 0 && _view.Rare >= _profile.RareBankSoftCap;
 
             /// <summary>The enemy model M(t) per army type (B.3) this think; empty when use_enemy_model is off. Unit: units. Range: above 0 each.</summary>
             private readonly SortedDictionary<string, Fix64> _model;
@@ -1105,6 +1108,11 @@ namespace Rts.Ai
                         }
                         // Nearest served field below its cap, other than the full one (it is at or over its cap, so it never qualifies).
                         AiFieldView? target = NearestField(worker.Position, assigned, true);
+                        if (target == null && field.Kind == ResourceKind.Rare && RareCapped)
+                        {
+                            // C2 review item 2: the rare bank is at the soft cap, so rare workers leave for the nearest served common field even when it is full.
+                            target = NearestCommonField(worker.Position);
+                        }
                         if (target == null)
                         {
                             return;
@@ -1118,6 +1126,26 @@ namespace Rts.Ai
                         }
                     }
                 }
+            }
+
+            /// <summary>The served common field nearest <paramref name="from"/>, ties to the lowest index, whatever its worker count; null when none is served.</summary>
+            private AiFieldView? NearestCommonField(FixVec2 from)
+            {
+                // Best candidate so far, or null.
+                AiFieldView? best = null;
+                // Squared distance of the best field. Unit: squared tiles. Range: 0 upward.
+                Fix64 bestSquared = Fix64.Zero;
+                foreach (AiFieldView field in _served)
+                {
+                    // Squared distance of this candidate. Unit: squared tiles. Range: 0 upward.
+                    Fix64 squared = (field.Centre - from).LengthSquared();
+                    if (field.Kind == ResourceKind.Common && (best == null || squared < bestSquared))
+                    {
+                        best = field;
+                        bestSquared = squared;
+                    }
+                }
+                return best;
             }
 
             /// <summary>The served field nearest <paramref name="from"/>, ties to the lowest index; with <paramref name="underCap"/> only fields below their cap.</summary>
@@ -1583,10 +1611,13 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView dropOff in dropOffs)
                 {
-                    // Sum of the raiders' positions and their number, and their supply (the raid strength of C2.4, plus 1 for a hit below).
+                    // Sum of the raiders' X positions. Unit: tiles. Range: 0 to raiders x map width.
                     Fix64 sumX = Fix64.Zero;
+                    // Sum of the raiders' Y positions. Unit: tiles. Range: 0 to raiders x map height.
                     Fix64 sumY = Fix64.Zero;
+                    // Visible enemy army units within defend_radius_tiles of the drop-off. Unit: units. Range: 0 upward.
                     int raiders = 0;
+                    // Raid strength of C2.4: their supply (plus 1 for a hit, added below). Unit: supply. Range: 0 upward.
                     int strength = 0;
                     foreach (AiUnitView enemy in _view.VisibleEnemies)
                     {
@@ -1928,13 +1959,18 @@ namespace Rts.Ai
                 }
                 // True when the served fields are running low (starved counts as empty).
                 bool low = Starved || Fix64.FromInt(servedKnown) < _profile.ExpandWhenServedRemainingFraction * Fix64.FromInt(servedStart);
+                // True while the early-expansion gate (C2.5) is in force: no rare field is served. Unit: boolean.
+                bool earlyGate = _profile.UseEarlyExpansion && !RareServed();
                 // C2.5: while no rare field is served, the first rare depot is due at early_expansion_seconds (the other gates stay).
-                if (_profile.UseEarlyExpansion && !RareServed())
+                if (earlyGate)
                 {
                     dueSeconds = Fix64.Min(dueSeconds, _profile.EarlyExpansionSeconds);
                 }
+                // True once the early gate has opened (its time has come), so the depot it allows goes to a rare site even when the mix's rare
+                // share is below rare_need_weight_share (C2 review item 1). Unit: boolean.
+                bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(_profile.EarlyExpansionSeconds);
                 // Rule RS: a needed rare resource puts rare sites first in the target order.
-                bool rarePriority = RarePriority();
+                bool rarePriority = RarePriority() || earlyLift;
                 if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
                 {
                     return;

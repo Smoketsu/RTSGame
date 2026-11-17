@@ -407,7 +407,7 @@ namespace Rts.Ai
         /// <summary>Model supply of a layer that nothing answers before rule SD builds a defence at the HQ. Unit: supply. Range: 1 to 200.</summary>
         public int UnansweredLayerMinSupply { get; }
 
-        /// <summary>Mix weight share of rare-cost units at which rule RS drops rule E's clock gate. Unit: fraction. Range: 0 to 1.</summary>
+        /// <summary>Mix weight share of rare-cost units at which rule RS puts rare sites first in rule E's target order (rule RS only reorders rule E's targets since C2.5). Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 RareNeedWeightShare { get; }
 
         /// <summary>C2.2: the counter-mix is scored by the fight predictor. Unit: boolean. Range: true or false; true needs <see cref="UseCounterMix"/>.</summary>
