@@ -1,0 +1,127 @@
+// rts/docs/art/concept/turnarounds9/shots.json: shot list for the ninth set of model sheets, three-view (front, side, back) sheets of eight Skai and water base buildings and the two HQs (Great Aerie landed, Grand Shell rooted) as input for 3D generation, read by rts/tools/ConceptArt/generate.py. Fields per shot: id = output file name without extension; size = image size WxH; quality = API quality enum; references = repository-relative reference image paths; prompt = shot text appended to the style text.
+{
+  // Shared style text prepended to every prompt. Unit: text.
+  "style": "Orthographic model sheet for a 3D modeller, science fiction strategy game BUILDING rendered as a simple low-polygon 3D game model: chunky faceted geometry with visible flat polygons, plain colours in broad areas, fully matte, flat even lighting with no cast shadows, no specular highlights, no glow. Exactly three views of the same single building in a row on a plain light-grey backdrop, evenly spaced and not overlapping, each view the same height and the same scale: on the left a FRONT view facing the viewer, in the middle a SIDE view facing left, on the right a BACK view seen from directly behind. All three are level elevations seen from the building's own height (camera at mid-height of the building, looking horizontally), NOT from above and NOT from below; the BACK view is a true level view of the far side, not a top view. The building stands still on flat ground. The three views must agree in every detail, colour and proportion. No ground shadow, no text, no labels, no arrows, no borders.",
+  "shots": [
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_perch_depot_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven Skai buildings. Use ONLY the building in the TOP-LEFT of the reference: the drop-off depot, a tree with a thick forked charcoal trunk carrying three flat diamond canopy platforms with white edges and a yellow panel on top, a yellow diamond on the trunk, a cargo-bay arch with a ramp with yellow stripes and crates inside at the base, a crane arm on the left holding a hanging cargo box, on a small rock base with talon-shaped roots. Ignore the other six buildings. Palette: storm charcoal, white edges, flat electric yellow panels. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_roost_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven Skai buildings. Use ONLY the building in the TOP ROW, SECOND from the left: the small supply roost, a slender forked charcoal tree on talon-footed roots with a yellow diamond on the trunk, a flat diamond canopy platform on top and two side branches each carrying a smaller canopy platform with a hanging hexagonal yellow-banded pod beneath it, on a small rock base. Ignore the other six buildings. Palette: storm charcoal, white edges, flat electric yellow panels. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_windspire_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven Skai buildings. Use ONLY the building in the BOTTOM ROW, FAR LEFT: the tech storm spire, a tall conifer of stacked tiers of sharp white-edged triangular boughs around a charcoal trunk with a yellow vertical stripe, an octagonal yellow-banded ring around the upper part, and a yellow lightning bolt at the very top, on talon-footed roots on a small rock base. Ignore the other six buildings. Palette: storm charcoal, white edges, flat electric yellow panels. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_perch_tower_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven Skai buildings. Use ONLY the building in the BOTTOM ROW, MIDDLE: the defence turret, a charcoal X-shaped trunk on talon-footed roots with a yellow diamond, an octagonal white-edged platform on top with a yellow band, then a forked trunk holding a diamond canopy platform with a yellow panel and two chunky charcoal and yellow emitter arms pointing forward and outward, on a small rock base. Ignore the other six buildings. Palette: storm charcoal, white edges, flat electric yellow panels. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "water_pearl_depot_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/water_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven water-faction buildings. Use ONLY the building in the TOP-LEFT: the drop-off depot, a dark-green rounded base with turquoise window slots, a coral-pink tree-like arch with flat green coral-plate canopies on top and small canopies at the sides, a turquoise doorway at the front with a green staircase with coral-pink rails leading up to it, and small coral-pink round polyps with turquoise centres, in a flat turquoise puddle. Ignore the other six buildings. Palette: muted sea-green, dusty rose-coral, dark teal, flat turquoise lights; no white. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "water_tidepool_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/water_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven water-faction buildings. Use ONLY the building in the TOP-RIGHT: the tide well, a tall hourglass-shaped tower of coral-pink fluted columns with turquoise vertical stripes, flaring at the top into a scalloped rim holding a pool of flat turquoise water, standing on a dark-green rounded base with turquoise water channels flowing out of arches at the bottom and small coral polyps, in a flat turquoise puddle. Ignore the other six buildings. Palette: muted sea-green, dusty rose-coral, dark teal, flat turquoise lights; no white. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "water_shell_forge_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/water_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven water-faction buildings. Use ONLY the building in the BOTTOM ROW, FAR LEFT: the tech workshop, a large dome covered in coral-pink brain-coral ridges on green, with a branching coral-pink antler-coral crown on top, a coral-pink arched doorway with a turquoise opening at the front, on a dark-green base with turquoise window slots and small polyps, in a flat turquoise puddle. Ignore the other six buildings. Palette: muted sea-green, dusty rose-coral, dark teal, flat turquoise lights; no white. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "water_coral_turret_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round16/water_buildings.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows seven water-faction buildings. Use ONLY the building in the BOTTOM ROW, MIDDLE: the defence turret, a heavy dark-green armoured stepped mount with two small turquoise sensor eyes, a thick straight green cannon barrel with a coral-pink octagonal muzzle ring aimed up at an angle, surrounded by a ring of thick rigid coral-pink spikes like a crown of horns, on a dark-green base with turquoise window slots and polyps, in a flat turquoise puddle. The cannon points to the viewer's left in the side view and toward the viewer's left-front as in the reference; keep it the same in the back view. Ignore the other six buildings. Palette: muted sea-green, dusty rose-coral, dark teal, flat turquoise lights; no white. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "skai_great_aerie_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round17/skai_great_aerie_hq.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows the Great Aerie citadel three times. Use ONLY the RIGHT-HAND drawing, the LANDED state: a round nest-shaped charcoal citadel standing on four mechanical taloned bird legs with yellow talons, a rim of white feather-shaped vanes all sweeping one way like turbine blades, a central charcoal and yellow command dome with an antenna mast, four ducted propellers visible under the body, two yellow cannon turrets on the deck, a long yellow-striped ramp at the front, and yellow panel lines. Show the SAME landed state in all three views, legs down on the ground. Ignore the other two drawings (hovering) and ignore the workers and crates, which are not part of the building. The ramp is at the front and the back view shows the rear of the citadel with its legs. Palette: storm charcoal, white edges, flat electric yellow panels. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    },
+    {
+      // Shot id and output file name. Unit: text.
+      "id": "water_grand_shell_sheet",
+      // Image size. Unit: pixels, width x height. Range: 1536x1024.
+      "size": "1536x1024",
+      // API render quality. Unit: enum (low, medium, high).
+      "quality": "high",
+      // Reference images passed to the edit endpoint. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/round13/water_grand_shell_hq.jpg"],
+      // Shot text appended to the style text. Unit: text.
+      "prompt": "The reference image is the approved concept drawing. The reference image shows the Grand Shell twice. Use ONLY the LARGE drawing (bottom right), the ROOTED state: a huge green armoured giant hermit-crab-like creature-fortress with a coral-red-pink banded spiral nautilus shell on its back, eight thick tentacle legs planted around it, a plated armoured head at the front with turquoise eyes, three turquoise glass domes on its back, a radar dish and spires, a twin-barrel gun, two turquoise waterfalls pouring from its side and open garage decks in the shell, with a flat turquoise water pool around its base. Draw the structure itself only. Ignore the small drawing (Uprooted) and ignore every small octopus worker and vehicle; leave the decks empty. RETRY NOTES: in the previous attempt the FRONT and BACK views showed the garage decks as wide flat shelves sticking out sideways from the body. They must not: the two garage decks are recessed openings cut into the shell's flank, flush with the body, so in the FRONT and BACK views the silhouette has NO shelves or platforms sticking out sideways; the body is only the legs, the head, the domes, the spires and the shell behind. The two waterfalls pour from the sides of the body, one on each side, mirrored. The BACK view is a level view of the rear of the spiral shell with the tentacle legs around its base, as drawn; the FRONT view shows the head and the front of the body with the shell rising behind it. Palette: muted sea-green, dusty rose-coral, dark teal, flat turquoise lights; no white. Draw ONLY that one building: the same design and colours as in the reference, standing on flat ground, complete from its base to its very top, symmetric left and right wherever the design is symmetric. No units, no creatures, no terrain, no props beyond the building, no effects. BACKDROP: the whole image background is one flat plain light-grey colour from edge to edge, exactly like a studio model sheet; NOT dark, NOT black, no vignette, no gradient. Every light and panel is a flat painted colour that does not emit light: no glow, no halo, no bloom, no light spill, no coloured haze. No red anywhere, no text."
+    }
+  ]
+}
