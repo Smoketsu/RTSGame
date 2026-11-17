@@ -45,6 +45,21 @@ namespace Rts.Sim.Units
         /// <summary>Ticks between firing and the hit landing; the hit is bound to its target at fire time. Unit: ticks. Range: 0 to <see cref="MaxHitDelayTicks"/>; 0 for a melee weapon.</summary>
         public int HitDelayTicks { get; }
 
+        /// <summary>Largest blast radius the schema accepts. Unit: tiles. Range: fixed schema bound, 4.</summary>
+        public const int MaxSplashRadiusTiles = 4;
+
+        /// <summary>Radius of the blast around the point a hit lands; 0 means no blast (combat_mechanics.md 1.4). Unit: tiles (fixed-point). Range: 0 to <see cref="MaxSplashRadiusTiles"/>; 0 when absent.</summary>
+        public Fix64 SplashRadiusTiles { get; }
+
+        /// <summary>Smallest structure damage multiplier the schema accepts. Unit: multiplier of damage. Range: fixed schema bound, 0.1.</summary>
+        public static readonly Fix64 MinStructureDamageMultiplier = Fix64.Parse("0.1");
+
+        /// <summary>Largest structure damage multiplier the schema accepts. Unit: multiplier of damage. Range: fixed schema bound, 4.</summary>
+        public static readonly Fix64 MaxStructureDamageMultiplier = Fix64.FromInt(4);
+
+        /// <summary>Extra multiplier on this weapon's damage against structures (footprint buildings and Rooted HQs), applied after the damage table (combat_mechanics.md 2.1). Unit: multiplier of damage (fixed-point). Range: 0.1 to 4; 1 (no bonus) when absent.</summary>
+        public Fix64 StructureDamageMultiplier { get; }
+
         /// <summary>True when <see cref="RangeTiles"/> is at most <see cref="MeleeMaxRangeTiles"/>.</summary>
         public bool IsMelee => RangeTiles <= MeleeMaxRangeTiles;
 
@@ -58,8 +73,11 @@ namespace Rts.Sim.Units
         /// <param name="canTargetAir">May hit the air layer.</param>
         /// <param name="appliesDrench">True when each landed hit calls the status system's drench rule. Default false.</param>
         /// <param name="hitDelayTicks">Ticks between firing and landing. Unit: ticks. Range: 0 to 10; 0 for melee. Default 0.</param>
+        /// <param name="splashRadiusTiles">Blast radius. Unit: tiles. Range: 0 to 4; 0 (the default) means no blast.</param>
+        /// <param name="structureDamageMultiplier">Multiplier on damage against structures. Unit: multiplier. Range: 0.1 to 4; null (the default) means 1.</param>
         public WeaponDefinition(Fix64 damage, string damageType, Fix64 rangeTiles, Fix64 cooldownSeconds,
-            bool canTargetGround, bool canTargetWater, bool canTargetAir, bool appliesDrench = false, int hitDelayTicks = 0)
+            bool canTargetGround, bool canTargetWater, bool canTargetAir, bool appliesDrench = false, int hitDelayTicks = 0,
+            Fix64 splashRadiusTiles = default, Fix64? structureDamageMultiplier = null)
         {
             if (damage <= Fix64.Zero)
             {
@@ -89,6 +107,16 @@ namespace Rts.Sim.Units
             {
                 throw new ArgumentOutOfRangeException(nameof(hitDelayTicks), "must be 0 for a melee weapon (range_tiles 1.5 or less)");
             }
+            if (splashRadiusTiles < Fix64.Zero || splashRadiusTiles > Fix64.FromInt(MaxSplashRadiusTiles))
+            {
+                throw new ArgumentOutOfRangeException(nameof(splashRadiusTiles), "weapon splash_radius_tiles must be 0 to " + MaxSplashRadiusTiles + ".");
+            }
+            // Structure multiplier to store. Unit: multiplier of damage. Range: 0.1 to 4.
+            Fix64 structureMultiplier = structureDamageMultiplier ?? Fix64.One;
+            if (structureMultiplier < MinStructureDamageMultiplier || structureMultiplier > MaxStructureDamageMultiplier)
+            {
+                throw new ArgumentOutOfRangeException(nameof(structureDamageMultiplier), "weapon structure_damage_multiplier must be 0.1 to 4.");
+            }
             Damage = damage;
             DamageType = damageType;
             RangeTiles = rangeTiles;
@@ -98,6 +126,8 @@ namespace Rts.Sim.Units
             CanTargetAir = canTargetAir;
             AppliesDrench = appliesDrench;
             HitDelayTicks = hitDelayTicks;
+            SplashRadiusTiles = splashRadiusTiles;
+            StructureDamageMultiplier = structureMultiplier;
         }
 
         /// <summary>True when the weapon may hit a unit on <paramref name="layer"/>.</summary>
@@ -125,6 +155,8 @@ namespace Rts.Sim.Units
             hasher.Write(CanTargetAir);
             hasher.Write(AppliesDrench);
             hasher.Write(HitDelayTicks);
+            hasher.Write(SplashRadiusTiles);
+            hasher.Write(StructureDamageMultiplier);
         }
     }
 }

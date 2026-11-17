@@ -76,7 +76,7 @@ namespace Rts.Sim.Data
             {
                 return null;
             }
-            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench", "hit_delay_ticks");
+            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench", "hit_delay_ticks", "splash_radius_tiles", "structure_damage_multiplier");
             // Damage per hit. Unit: health points (fixed-point). Range: 0.01 to 100000.
             Fix64 damage = weapon.RequireFix64("damage", "0.01", "100000");
             // Damage type name; must be one of the damage types in tuning/combat.json.
@@ -126,7 +126,13 @@ namespace Rts.Sim.Data
             {
                 throw delayNode!.Fail("must be 0 for a melee weapon (range_tiles 1.5 or less)");
             }
-            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench, hitDelay);
+            // Blast radius. Unit: tiles (fixed-point). Range: 0 to 4; 0 (no blast) when absent.
+            Fix64 splash = weapon.TryGetMember("splash_radius_tiles", out JsonValue? splashNode)
+                ? splashNode.AsFix64(Fix64.Zero, Fix64.FromInt(WeaponDefinition.MaxSplashRadiusTiles)) : Fix64.Zero;
+            // Multiplier on damage against structures. Unit: multiplier of damage. Range: 0.1 to 4; 1 (no bonus) when absent.
+            Fix64 structureMultiplier = weapon.TryGetMember("structure_damage_multiplier", out JsonValue? structureNode)
+                ? structureNode.AsFix64(WeaponDefinition.MinStructureDamageMultiplier, WeaponDefinition.MaxStructureDamageMultiplier) : Fix64.One;
+            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench, hitDelay, splash, structureMultiplier);
         }
 
         /// <summary>Reads the optional shield_dome object (all four keys required inside it). Returns null when absent.</summary>

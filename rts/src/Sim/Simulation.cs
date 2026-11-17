@@ -14,7 +14,7 @@
 //   6. combat (CombatSystem), in this order: 6a dome regen (units with a shield_dome, ascending ID; also collects the active domes);
 //      6b land due hits (PendingHits.TakeDue, in (land tick, sequence) order; a hit whose target is gone is dropped); 6c the unit loop
 //      (cooldown, target with armed-first acquisition, fire: damage fixed at fire time with the uphill multiplier, dome absorption,
-//      then land at once or queue for hit_delay_ticks; ascending ID order); 6d deaths (sorted by victim, then killer; a dead worker's
+//      then land at once or queue for hit_delay_ticks; ascending ID order; a landing hit of a weapon with splash_radius_tiles also blasts the enemy units around its target, victims in ascending ID order; damage against a structure is also multiplied by the weapon's structure_damage_multiplier); 6d deaths (sorted by victim, then killer; a dead worker's
 //      pending build order is cancelled through the RemoveUnit hook)
 //   7. economy (EconomySystem: worker gather loops, build orders (walk to the site, placement, structure spawn), production queues,
 //      construction, supply; units in ascending ID order)

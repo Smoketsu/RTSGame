@@ -1,7 +1,7 @@
 // rts/data/units/water/ink_lobber.json: Brinecaster, the Water ranged artillery unit that cannot hit air. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Brinecaster unit definition for the water faction (ranged artillery with blast water-energy shells at long range and a slow cooldown; cannot target air); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Brinecaster unit definition for the water faction (ranged artillery with blast water-energy shells and blast splash at long range and a slow cooldown; cannot target air); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.ink_lobber",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Brinecaster).
@@ -42,6 +42,8 @@
     "cooldown_seconds": 3.0,
     // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-003 row 4 (developer, 16 Nov 2026: 2 ticks = 100 ms); placeholder.
     "hit_delay_ticks": 2,
+    // Radius of the blast around the point the hit lands; every enemy unit on a layer this weapon can target whose edge is within it takes splash damage (combat.json splash_damage_fraction of the damage, then its own armour). 0 means no blast. Unit: tiles. Range: 0 to 4 (0 when absent). Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 1.4).
+    "splash_radius_tiles": 1.0,
     // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: placeholder.
     "can_target": ["ground", "water"]
   }

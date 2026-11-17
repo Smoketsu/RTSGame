@@ -38,6 +38,12 @@ namespace Rts.Sim.Combat
         /// <summary>Damage multiplier for a ranged hit on higher ground (P-003 row 1). Unit: fraction of damage (fixed-point). Range: 0.1 to 1; 1 means no penalty.</summary>
         public Fix64 UphillRangedDamageMultiplier { get; }
 
+        /// <summary>Fraction of a weapon's damage each splash victim takes before its own armour (combat_mechanics.md 1.2). Unit: fraction of weapon damage (fixed-point). Range: 0.05 to 1; 1 for <see cref="Neutral"/>.</summary>
+        public Fix64 SplashDamageFraction { get; }
+
+        /// <summary>Smallest accepted splash fraction. Unit: fraction. Range: fixed schema bound, 0.05.</summary>
+        private static readonly Fix64 MinSplashFraction = Fix64.Parse("0.05");
+
         /// <summary>Smallest accepted uphill multiplier. Unit: fraction. Range: fixed schema bound, 0.1.</summary>
         private static readonly Fix64 MinUphillMultiplier = Fix64.Parse("0.1");
 
@@ -60,6 +66,7 @@ namespace Rts.Sim.Combat
             AcquireRangeBonusTiles = Fix64.Zero;
             DefaultArmourType = string.Empty;
             UphillRangedDamageMultiplier = Fix64.One;
+            SplashDamageFraction = Fix64.One;
         }
 
         /// <summary>
@@ -80,9 +87,16 @@ namespace Rts.Sim.Combat
         /// <param name="acquireRangeBonusTiles">Extra chase distance for attack-moving units. Unit: tiles. Range: 0 to 20.</param>
         /// <param name="defaultArmourType">Armour type for units that name none. Range: a key of the inner tables.</param>
         /// <param name="uphillRangedDamageMultiplier">Damage fraction for a ranged hit on higher ground. Unit: fraction. Range: 0.1 to 1.</param>
+        /// <param name="splashDamageFraction">Damage fraction each splash victim takes. Unit: fraction. Range: 0.05 to 1; defaults to 1 when left out.</param>
         public CombatRules(IReadOnlyDictionary<string, IReadOnlyDictionary<string, Fix64>> multipliers,
-            Fix64 acquireRangeBonusTiles, string defaultArmourType, Fix64 uphillRangedDamageMultiplier)
+            Fix64 acquireRangeBonusTiles, string defaultArmourType, Fix64 uphillRangedDamageMultiplier, Fix64? splashDamageFraction = null)
         {
+            // Splash fraction to store. Unit: fraction. Range: 0.05 to 1.
+            Fix64 splash = splashDamageFraction ?? Fix64.One;
+            if (splash < MinSplashFraction || splash > Fix64.One)
+            {
+                throw new ArgumentOutOfRangeException(nameof(splashDamageFraction), "The splash damage fraction must be 0.05 to 1.");
+            }
             if (uphillRangedDamageMultiplier < MinUphillMultiplier || uphillRangedDamageMultiplier > Fix64.One)
             {
                 throw new ArgumentOutOfRangeException(nameof(uphillRangedDamageMultiplier), "The uphill ranged damage multiplier must be 0.1 to 1.");
@@ -131,6 +145,7 @@ namespace Rts.Sim.Combat
             AcquireRangeBonusTiles = acquireRangeBonusTiles;
             DefaultArmourType = defaultArmourType;
             UphillRangedDamageMultiplier = uphillRangedDamageMultiplier;
+            SplashDamageFraction = splash;
         }
 
         /// <summary>True when <paramref name="name"/> is a damage type (always true for neutral rules).</summary>
@@ -200,6 +215,7 @@ namespace Rts.Sim.Combat
             hasher.Write(AcquireRangeBonusTiles);
             hasher.Write(DefaultArmourType);
             hasher.Write(UphillRangedDamageMultiplier);
+            hasher.Write(SplashDamageFraction);
             hasher.Write(_table.Count);
             foreach (KeyValuePair<string, SortedDictionary<string, Fix64>> row in _table)
             {

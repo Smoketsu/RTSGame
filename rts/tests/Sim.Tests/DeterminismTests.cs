@@ -86,11 +86,13 @@ namespace Rts.Sim.Tests
         /// the unit texts, and new hashed state (pending hit queue, dome fields). No other behaviour of this script was intended to change.
         /// Re-pinned for P-003 package B (specs/p003_rules.md B.6): six new tuning/terrain.json keys are in the tuning text, and units of this script may now separate.
         /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key worker_placement_seconds and workers walk to build sites.
+        /// Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): new combat.json key splash_damage_fraction, new weapon field SplashRadiusTiles and four new pending-hit fields are in the content digest and the hash. Old value 0xc152b29fd0252a8d. Hash only: with the digest and the new fields left out of the hash, the old and new code give the same final hash (5508489595702149084).
+        /// Re-pinned for combat mechanics package 2 (specs/combat_mechanics.md): weapon field StructureDamageMultiplier is in the content digest. Old value 0xdb52606c6d2af2b6; hash only.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0xc152b29fd0252a8dUL;
+        private const ulong GoldenFinalHash = 0xc15f1f545726486bUL;
 
         [Test]
         public void GoldenHash_IsPinned()
