@@ -33,6 +33,9 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiWorldView.cs` | What one player may know, copied out of the simulation once per think |
 | `AiMemory.cs` | Per-controller memory: stance, thresholds, known enemy structures, damage reports, sequence counter |
 | `AiBrain.cs` | The decision rules (pure: view + profile + memory + own generator to intents) |
+| `AiIntel.cs` | Enemy model and scouting route (skirmish_ai_v3.md package B) |
+| `FightPredictor.cs` | Static fight predictor over unit definitions and the damage table (skirmish_ai_v3.md C.1) |
+| `AiCounter.cs` | Unit pool, counter scores and counter-mix weights (skirmish_ai_v3.md C.3 and C.4) |
 | `AiIntent.cs` | Intents and `AiCommandWriter` (intents to commands with sequence numbers) |
 | `SkirmishAiController.cs` | `IPlayerController` implementation tying it together |
 
@@ -45,6 +48,11 @@ when money piles up, then the army: Defend (visible enemy army or a recent hit i
 the tide window, or at once against a known enemy HQ at or below `kill_hq_health_fraction` and last seen within `kill_seen_within_seconds`), Attack (only the attack group; staging at the Core centre with `rally_at_core` while the team does not hold it, else short of the target; then attack-move; focus fire on visible enemy army units in reach; siege an
 undefended visible HQ; retreat on losses), Retreat (move home, regroup timer). All in once the base is mined out. Details and every
 number: the header of `AiBrain.cs` and the profile files.
+
+Skirmish AI v3 (rts/docs/specs/skirmish_ai_v3.md) adds, each behind a profile switch (all off in `aggressive` and `defensive`, which stay v2):
+scouting and the enemy model (`use_scouting`, `use_enemy_model`, package B), then the counter-mix (`use_counter_mix`: the plan composition is replaced
+by weights computed from the enemy model and the unit data), tech on demand (rule T), static defence (rule SD) and rare priority (rule RS) in package C.
+`aggressive_s1.json` has stage 1 on, `aggressive_s2.json` stages 1 and 2.
 
 ## Determinism
 
