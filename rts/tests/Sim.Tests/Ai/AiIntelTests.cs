@@ -66,6 +66,16 @@ namespace Rts.Sim.Tests.Ai
                 "{ \"water.grasper\": 3, \"water.shellback\": 1, \"water.ink_lobber\": 1 }", "{ \"water.shellback\": 1 }");
         }
 
+        /// <summary>The scout-only profile with one more text edit (the old text must occur once).</summary>
+        private static AiProfile ScoutOnlyWith(string oldText, string newText)
+        {
+            // The scout-only text with the edit applied.
+            string text = S1Text.Replace("{ \"skai.windrunner\": 3, \"skai.talon_archer\": 1, \"skai.roc_rider\": 1 }", "{ \"skai.talon_archer\": 1 }")
+                .Replace("{ \"water.grasper\": 3, \"water.shellback\": 1, \"water.ink_lobber\": 1 }", "{ \"water.shellback\": 1 }");
+            Assert.That(text.Contains(oldText), Is.True, oldText);
+            return AiProfile.Parse(text.Replace(oldText, newText), "ai/aggressive_s1.json", Data.Content);
+        }
+
         /// <summary>A started greybox_1v1 simulation with the given factions in slots 0 and 1 (cycles off, nothing spawned).</summary>
         private static Simulation Greybox(string faction0 = "skai", string faction1 = "skai")
         {
@@ -352,6 +362,66 @@ namespace Rts.Sim.Tests.Ai
             List<AiIntent> intents = Decide(sim, P0, ScoutOnly(), memory);
             Assert.That(memory.ScoutWaypoint, Is.EqualTo(1));
             Assert.That(Of(intents, AiIntentKind.Move).Exists(i => i.Unit == scout && i.Point.X == Fix64.FromInt(56)), Is.True);
+        }
+
+        /// <summary>B-17 (package C carry-over 2a): a unit of the plan's scout_unit type that is a cheap flyer is borrowed (branch a), so ScoutBorrowed is true.</summary>
+        [Test]
+        public void B17_ScoutUnitTypeBorrowedAsFlyer()
+        {
+            Simulation sim = Greybox();
+            SkaiBase(sim);
+            EntityId roc = Spawn(sim, "skai.roc_rider", P0, "10", "10");
+            StepTo(sim, 800);
+            AiProfile rocScout = ScoutOnlyWith("\"scout_unit\": \"skai.windrunner\"", "\"scout_unit\": \"skai.roc_rider\"");
+            AiMemory memory = new AiMemory();
+            Decide(sim, P0, rocScout, memory);
+            Assert.That(memory.ScoutId, Is.EqualTo(roc));
+            Assert.That(memory.ScoutBorrowed, Is.True);
+        }
+
+        /// <summary>B-18 (package C carry-over 2b and 3): no own scout is picked or re-taken while the stance is Defend, nor on the first think of a Defend (an enemy army unit inside the base).</summary>
+        [Test]
+        public void B18_NoScoutWhileDefending()
+        {
+            Simulation sim = Greybox();
+            SkaiBase(sim);
+            EntityId runner = Spawn(sim, "skai.windrunner", P0, "10", "10");
+            Spawn(sim, "skai.roc_rider", P0, "10", "11");
+            StepTo(sim, 800);
+            // Stance Defend: nothing is picked (neither the own scout unit nor the borrowable flyer).
+            AiMemory defending = new AiMemory { Stance = AiStance.Defend, LastThreatTick = sim.Clock.Tick, AttackThreshold = 8 };
+            Decide(sim, P0, ScoutOnly(), defending);
+            Assert.That(defending.ScoutId, Is.EqualTo(EntityId.None));
+            // A resting own scout is not re-taken while Defend holds: the round start stays where it was.
+            AiMemory resting = new AiMemory { Stance = AiStance.Defend, AttackThreshold = 8, LastThreatTick = sim.Clock.Tick, ScoutId = runner, ScoutRoundStartTick = 0, ScoutWaypoint = 0 };
+            Decide(sim, P0, ScoutOnly(), resting);
+            Assert.That(resting.ScoutRoundStartTick, Is.EqualTo(0));
+            // First think of a Defend: the stance is still Massing but an enemy army unit stands in the base.
+            Spawn(sim, "skai.windrunner", P1, "12", "12");
+            AiMemory first = new AiMemory();
+            Decide(sim, P0, ScoutOnly(), first);
+            Assert.That(first.Stance, Is.EqualTo(AiStance.Defend));
+            Assert.That(first.ScoutId, Is.EqualTo(EntityId.None));
+        }
+
+        /// <summary>B-19 (package C carry-over 1): the unreachable-waypoint skip waits until the move order has taken effect (the command delay has passed).</summary>
+        [Test]
+        public void B19_UnreachableSkipWaitsForCommandDelay()
+        {
+            Simulation sim = Greybox();
+            SkaiBase(sim);
+            EntityId scout = Spawn(sim, "skai.windrunner", P0, "20", "20");
+            StepTo(sim, 800);
+            Assert.That(sim.Units.TryGet(scout, out Unit? unit), Is.True);
+            AiMemory memory = new AiMemory { ScoutId = scout, ScoutRoundStartTick = sim.Clock.Tick, ScoutHasOrder = true, ScoutOrderPosition = unit!.Position,
+                ScoutOrderEffectiveTick = sim.Clock.Tick + 2 };
+            memory.ScoutRoute.Add(FixVec2.FromInts(40, 40));
+            memory.ScoutRoute.Add(FixVec2.FromInts(56, 56));
+            Decide(sim, P0, ScoutOnly(), memory);
+            Assert.That(memory.ScoutWaypoint, Is.EqualTo(0), "the order has not taken effect yet");
+            StepTo(sim, sim.Clock.Tick + 3);
+            Decide(sim, P0, ScoutOnly(), memory);
+            Assert.That(memory.ScoutWaypoint, Is.EqualTo(1));
         }
 
         /// <summary>B-16 (review fix 5): a kill whose victim's last tile is not visible now does not lower the count.</summary>

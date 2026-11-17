@@ -126,6 +126,7 @@ namespace Rts.Ai
             // What the AI may know this think.
             AiWorldView view = AiWorldView.Build(sim, Player, Memory.KnownFieldRemaining);
             Memory.ThinkCount++;
+            Memory.CommandDelayTicks = Math.Max(0, sink.ScheduleTick - sim.Clock.Tick);
             // Intents decided this think, in rule order.
             List<AiIntent> intents = AiBrain.Decide(view, Profile, Plan!, Memory, Rng!);
             LastCommands = AiCommandWriter.Write(intents, Player, sink, Memory);

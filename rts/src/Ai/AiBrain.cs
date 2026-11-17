@@ -1572,6 +1572,13 @@ namespace Rts.Ai
                 return null;
             }
 
+            /// <summary>
+            /// True when the army defends this think: the stance is already Defend, or this think's threat would start (or keep) Defend (the same
+            /// test as <see cref="DefendIfThreatened"/>, which runs later in Army). Rule S reads it so no scout is taken on the first think of a Defend.
+            /// </summary>
+            private bool WillDefend => _memory.Stance == AiStance.Defend
+                || ((_threatCount > 0 || _latestHit != null) && !(_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply));
+
             /// <summary>Rule 4c (skirmish_ai_v3.md B.2): keeps one scout on its route, assigns or trains one when it is due (see the class header).</summary>
             public void Scout()
             {
@@ -1596,7 +1603,7 @@ namespace Rts.Ai
                 if (scout != null)
                 {
                     if (!_memory.ScoutBorrowed && _memory.ScoutWaypoint >= _memory.ScoutRoute.Count && roundDue
-                        && _memory.Stance != AiStance.Defend && !_memory.AttackGroup.Contains(scout.Id))
+                        && !WillDefend && !_memory.AttackGroup.Contains(scout.Id))
                     {
                         // An own scout resting with the army (not defending, not in the attack group) is taken again for the next round.
                         StartRound();
@@ -1629,7 +1636,7 @@ namespace Rts.Ai
                     changed = true;
                 }
                 if (!changed && _memory.ScoutWaypoint < _memory.ScoutRoute.Count && !scout.HasMoveTarget && _memory.ScoutHasOrder
-                    && scout.Position == _memory.ScoutOrderPosition)
+                    && _view.Tick > _memory.ScoutOrderEffectiveTick && scout.Position == _memory.ScoutOrderPosition)
                 {
                     // The last order moved nothing (the waypoint cannot be reached): skip it, then go on to the next one.
                     _memory.ScoutWaypoint++;
@@ -1648,6 +1655,7 @@ namespace Rts.Ai
                         {
                             _memory.ScoutHasOrder = true;
                             _memory.ScoutOrderPosition = scout.Position;
+                            _memory.ScoutOrderEffectiveTick = _view.Tick + _memory.CommandDelayTicks;
                         }
                     }
                 }
@@ -1691,11 +1699,11 @@ namespace Rts.Ai
                     {
                         continue;
                     }
-                    if (own == null && _memory.Stance != AiStance.Defend && _plan.ScoutUnitId.Length > 0 && string.Equals(unit.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal))
+                    if (own == null && !WillDefend && _plan.ScoutUnitId.Length > 0 && string.Equals(unit.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal))
                     {
                         own = unit;
                     }
-                    if (_memory.Stance == AiStance.Massing && unit.Layer == MovementLayer.Air
+                    if (_memory.Stance == AiStance.Massing && !WillDefend && unit.Layer == MovementLayer.Air
                         && unit.Definition.CostCommon + unit.Definition.CostRare <= _profile.ScoutAirMaxCost
                         && (flyer == null || _view.SupplyOf(unit.Definition) < _view.SupplyOf(flyer.Definition)))
                     {

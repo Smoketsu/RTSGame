@@ -201,11 +201,17 @@ namespace Rts.Ai
         /// <summary>No scout may be wanted before this tick (set when a scout dies). Unit: ticks. Range: 0 upward.</summary>
         public int NextScoutTick { get; set; }
 
-        /// <summary>True when the scout has been given a move order this round (so <see cref="ScoutOrderPosition"/> is valid).</summary>
+        /// <summary>True when the scout has been given a move order this round (so <see cref="ScoutOrderPosition"/> and <see cref="ScoutOrderEffectiveTick"/> are valid). Unit: boolean. Range: true or false.</summary>
         public bool ScoutHasOrder { get; set; }
 
         /// <summary>Where the scout stood when the latest move order was given; a scout with no move target still standing here has an unreachable waypoint. Unit: tiles. Range: inside the map.</summary>
         public FixVec2 ScoutOrderPosition { get; set; }
+
+        /// <summary>Tick at whose step the latest scout move order is applied (the think tick plus the command delay); the unreachable-waypoint skip waits until a later think. Unit: ticks. Range: 0 upward; meaningful only while <see cref="ScoutHasOrder"/>.</summary>
+        public int ScoutOrderEffectiveTick { get; set; }
+
+        /// <summary>Ticks between a think and the step that applies its commands, set by the controller before each think (the sink's schedule tick minus the current tick). Unit: ticks. Range: 0 to 20.</summary>
+        public int CommandDelayTicks { get; set; }
 
         /// <summary>Positions of the units in <see cref="LastVisibleEnemyTypes"/> at the last think; a kill counts only while its victim's last tile is visible. Unit: tiles. Range: inside the map; same keys as <see cref="LastVisibleEnemyTypes"/>.</summary>
         public SortedDictionary<EntityId, FixVec2> LastVisibleEnemyPositions { get; } = new SortedDictionary<EntityId, FixVec2>();
