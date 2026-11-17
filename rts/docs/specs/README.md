@@ -50,6 +50,12 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | --- | --- | --- | --- |
 | [missing_roster.md](missing_roster.md) | Thunderhead, Tidecaller and Leviathan unit files (placeholder stats from stated rules), AI pool guard for unarmed units, re-measure of WC-3; no `rts/src/Sim` change | after WC-3 | skirmish AI v3, worker construction (built); build R-1, R-2, R-3 in order |
 
+## Equal-value fights (P-005 option M, 18 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [micro_benchmark.md](micro_benchmark.md) | Harness `--fights`: equal-value army fights without strategic AI (attack-move, both seats, flat, high ground, flooded and choke arenas), value-exchange matrix, design-rule checks 1 to 6 with the 15 s Rooted HQ floor, the matchups file (rule 7) outside the content digest; no `rts/src/Sim` change | P-005 decision 9 (built first) | balance harness (built); build F0 to F4 in order |
+
 ## Shared decisions (resolved across specs)
 
 **Step order** (the `Simulation.cs` header is authoritative; Phase 2 adds step 9, the coordinator makes the edit): 1. clear events; 2. apply commands in (issuer, sequence) order; 3. statuses (`StatusSystem.BeginTick`); 4. HQ timers (`HqSystem.Step`); 5. movement, then separation (`UnitSeparation`); 6. combat; 7. economy; 8. faction mechanics in ascending ordinal ID (`flooding` before `momentum`); 9. **cycles and Core** (`CycleSystem.Step`: out-of-match sides, presence, capture, hold accrual, Core win, lock, shift and quake paths, quake damage); 10. vision recompute; 11. state hash every interval; 12. advance the clock. A status applied by combat on tick t wipes Momentum on tick t and changes movement from tick t+1; a cycle that starts on tick S changes movement and combat from tick S+1; the hash and the AI read end-of-tick vision and Core state.
