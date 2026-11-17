@@ -55,6 +55,7 @@ namespace Rts.Net.Tests
                 new SurrenderCommand(20, P1, 14, P1),
                 new SetConnectionStateCommand(21, PlayerId.None, 15, P0, ConnectionState.Disconnected),
                 new CastWaveCommand(22, P1, 16, new EntityId(54), Spot),
+                new CastGroundingCommand(23, P0, 17, new EntityId(55), Spot),
             };
         }
 

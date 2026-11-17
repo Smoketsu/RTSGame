@@ -10,6 +10,81 @@ using Rts.Sim.Units;
 namespace Rts.Sim.Commands
 {
     /// <summary>
+    /// A unit casts its grounding ability (Downdraft) at a point: every enemy flyer whose edge is within the ability's radius is grounded at once for the
+    /// shared Grounded duration (rts/docs/specs/combat_mechanics.md package 4). Script name <c>cast_grounding</c>. Rejections, in this order: unknown_unit,
+    /// not_owner (the issuer is a player other than the owner; the script issuer None may command any unit), no_ability (the definition has no
+    /// grounding_ability), under_construction, out_of_bounds (the point is beyond <see cref="Simulation.WorldBoundTiles"/>), out_of_range (the point is farther
+    /// than range_tiles from the caster's centre) and on_cooldown (the tick is before <see cref="Unit.GroundingReadyTick"/>). Bad input is rejected, never thrown.
+    /// </summary>
+    public sealed class CastGroundingCommand : Command
+    {
+        /// <summary>Script and log name of the command kind.</summary>
+        public const string KindName = "cast_grounding";
+
+        /// <summary>The casting unit. Must exist, belong to the issuer and have a grounding ability.</summary>
+        public EntityId Caster { get; }
+
+        /// <summary>Centre of the pulse. Unit: tiles. Range: each component within the world bound and within range_tiles of the caster, else rejected.</summary>
+        public FixVec2 Target { get; }
+
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
+        public CastGroundingCommand(int tick, PlayerId issuer, uint sequence, EntityId caster, FixVec2 target)
+            : base(tick, issuer, sequence)
+        {
+            Caster = caster;
+            Target = target;
+        }
+
+        /// <summary>Machine-readable kind name: "cast_grounding".</summary>
+        public override string Kind => KindName;
+
+        /// <summary>Applies the command; see the class summary for the rejections.</summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Caster, out Unit? caster))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && caster.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            // The caster's ability; null when its definition has none.
+            GroundingAbilityDefinition? ability = caster.Definition.GroundingAbility;
+            if (ability == null)
+            {
+                return CommandResult.Reject("no_ability");
+            }
+            if (caster.IsUnderConstruction)
+            {
+                return CommandResult.Reject("under_construction");
+            }
+            if (!Simulation.IsWithinWorldBounds(Target))
+            {
+                return CommandResult.Reject("out_of_bounds");
+            }
+            if ((Target - caster.Position).LengthSquared() > ability.RangeTiles * ability.RangeTiles)
+            {
+                return CommandResult.Reject("out_of_range");
+            }
+            if (sim.Clock.Tick < caster.GroundingReadyTick)
+            {
+                return CommandResult.Reject("on_cooldown");
+            }
+            StatusSystem.CastGrounding(sim, caster, Target);
+            return CommandResult.Ok;
+        }
+
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Caster);
+            hasher.Write(Target);
+        }
+    }
+
+    /// <summary>
     /// Applies a status to a unit. Script name <c>apply_status</c>. Rejections, in order: status_requires_script_issuer
     /// (the issuer is not <see cref="PlayerId.None"/>), unknown_unit, invalid_duration (0 seconds or less, or 0 ticks; for
     /// Grounded a duration of 0 means "omitted" and uses grounded_duration_seconds), invalid_multiplier (Slowed outside

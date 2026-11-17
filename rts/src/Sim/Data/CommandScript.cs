@@ -28,7 +28,7 @@ namespace Rts.Sim.Data
         private static readonly string[] CoreKinds =
         {
             "noop", "spawn_unit", "move_unit", "remove_unit", "attack_move", "attack_unit", "stop", "root_hq", "uproot_hq",
-            "gather", "train_unit", "build_structure", "apply_status", "pick_cycle",
+            "gather", "train_unit", "build_structure", "apply_status", "pick_cycle", "cast_grounding",
         };
 
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
@@ -225,6 +225,9 @@ namespace Rts.Sim.Data
                 case "apply_status":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "status", "multiplier", "seconds", "source");
                     return ReadApplyStatus(node, tick, issuer, sequence);
+                case "cast_grounding":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "x", "y");
+                    return new CastGroundingCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)), ReadPoint(node));
                 case "pick_cycle":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "cycle");
                     return new PickCycleCommand(tick, issuer, sequence, node.RequireNonEmptyString("cycle"));

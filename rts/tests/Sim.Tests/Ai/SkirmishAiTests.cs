@@ -840,8 +840,9 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for combat mechanics package 2 (specs/combat_mechanics.md): the weapon field structure_damage_multiplier is in the content digest and the Leviathan carries 1.5. Old value 0xdc02e08d8f5ea150; outcome unchanged (winner 1, tick 7613).
         /// Re-pinned for F0 (specs/micro_benchmark.md 3.3, developer decision 4 of 18 Nov 2026: Rooted HQ floor 20 s to 15 s in hq.json and harness.json, both in the content digest). Old value 0xe63298d8a0fd6954; outcome unchanged (winner 1, tick 7613).
         /// Re-pinned for combat mechanics package 3 (specs/combat_mechanics.md: can_target_air_on_water is in the weapon digest, Reef Runner and Shellback carry it). Old value 0xe617bf6cc6ffd055; outcome unchanged (winner 1, tick 7613).
+        /// Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability). Old value 0xc055605b9505f7a0; outcome unchanged (winner 1, tick 7613; the AI never casts).
         /// </summary>
-        private const ulong V2ReferenceHash = 0xc055605b9505f7a0UL;
+        private const ulong V2ReferenceHash = 0x9ce80037ea382870UL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -864,11 +865,12 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for combat mechanics package 2 (specs/combat_mechanics.md): structure_damage_multiplier is in the content digest and the Leviathan carries 1.5. Old hash fcfe74fa7880221d; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for F0 (specs/micro_benchmark.md 3.3, developer decision 4 of 18 Nov 2026: Rooted HQ floor 20 s to 15 s in hq.json and harness.json, both in the content digest). Old hash 8a7d8fbb4093f9ef; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for combat mechanics package 3 (specs/combat_mechanics.md: can_target_air_on_water is in the weapon digest, Reef Runner and Shellback carry it). Old hash 31aa48cc6f7c681b; the end tick (20151) and the winner (slot 0) do not move (the water units in this game never meet a flyer).
+        /// Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability). Old hash 79031cdfce62011e; the end tick (20151) and the winner (slot 0) do not move.
         /// </summary>
         private const int BlindTraceEndTick = 20151;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "79031cdfce62011e";
+        private const string BlindTraceHash = "22b692cd508a7958";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

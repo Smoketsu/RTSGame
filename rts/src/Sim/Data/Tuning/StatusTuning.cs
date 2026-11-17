@@ -21,6 +21,9 @@ namespace Rts.Sim.Data
         /// <summary>Source key the drench status entries carry, a label (not a faction or unit name) so the hash and events can tell a drench slow or ground from one applied by another source. Unit: text id. Range: fixed constant "drench", a valid status source key (1 to 64 characters of a-z, 0-9, underscore, dot).</summary>
         public const string DrenchSourceKey = "drench";
 
+        /// <summary>Source key the Grounded status carries when a grounding ability (cast_grounding) applied it; a label, not a unit or faction name. Unit: text id. Range: fixed constant "grounding", a valid status source key (1 to 64 characters of a-z, 0-9, underscore, dot).</summary>
+        public const string GroundingSourceKey = "grounding";
+
         /// <summary>How long a drench hit is remembered after the latest hit before the hit counter resets. Unit: seconds. Range: 0.5 to 30. Source: placeholder, not in the design doc (statuses spec).</summary>
         public Fix64 SpoutlingDrenchResetSeconds { get; }
 

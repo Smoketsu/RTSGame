@@ -124,6 +124,11 @@ namespace Rts.Sim.Core
                 {
                     unit.ShieldDome.WriteHash(hasher);
                 }
+                hasher.Write(unit.GroundingAbility != null);
+                if (unit.GroundingAbility != null)
+                {
+                    unit.GroundingAbility.WriteHash(hasher);
+                }
             }
             hasher.Write(_factions.Count);
             foreach (FactionDefinition faction in _factions.Values)

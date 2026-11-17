@@ -157,6 +157,21 @@ namespace Rts.Sim.Data
                 dome.RequireFix64("regen_per_second", "0.01", "10000"));
         }
 
+        /// <summary>Reads the optional grounding_ability object (all three keys required inside it). Returns null when absent.</summary>
+        /// <param name="root">The unit file's root object.</param>
+        public static GroundingAbilityDefinition? ReadGroundingAbility(JsonValue root)
+        {
+            if (!root.TryGetMember("grounding_ability", out JsonValue? ability))
+            {
+                return null;
+            }
+            ability.RejectUnknownKeys("range_tiles", "radius_tiles", "cooldown_seconds");
+            return new GroundingAbilityDefinition(
+                ability.RequireFix64("range_tiles", "0.5", "32"),
+                ability.RequireFix64("radius_tiles", "0.5", "8"),
+                ability.RequireFix64("cooldown_seconds", "1", "300"));
+        }
+
         /// <summary>
         /// Reads the optional hq object: { "is_hq": true, "rooted_armour_type", "uprooted_armour_type", "worker_unit" }. Returns null
         /// when the key is absent or is_hq is false. Both armour types are checked against tuning/combat.json; the worker unit's

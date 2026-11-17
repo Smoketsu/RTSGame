@@ -56,6 +56,7 @@ namespace Rts.Sim.Tests
                 new SurrenderCommand(20, P1, 14, P1),
                 new SetConnectionStateCommand(21, PlayerId.None, 15, P0, ConnectionState.Disconnected),
                 new CastWaveCommand(22, P1, 16, new EntityId(54), Spot),
+                new CastGroundingCommand(23, P0, 17, new EntityId(55), Spot),
             };
         }
 
@@ -131,13 +132,13 @@ namespace Rts.Sim.Tests
             CommandCodecRegistry core = new CommandCodecRegistry();
             CoreCommandCodecs.RegisterAll(core);
             Assert.That(core.Contains(CastWaveCommand.KindName), Is.False);
-            Assert.That(core.Count, Is.EqualTo(16));
+            Assert.That(core.Count, Is.EqualTo(17));
             CommandCodecException ex = Expect.Throws<CommandCodecException>(() => core.EncodePayload(new CastWaveCommand(1, P1, 1, new EntityId(1), Spot)));
             Assert.That(ex.Message, Does.Contain("CastWaveCommand"), "the error names the command type");
             // The built-in registry is core plus the faction codecs.
             CommandCodecRegistry builtIn = Registry;
             Assert.That(builtIn.Contains(CastWaveCommand.KindName), Is.True);
-            Assert.That(builtIn.Count, Is.EqualTo(17));
+            Assert.That(builtIn.Count, Is.EqualTo(18));
         }
 
         /// <summary>The byte layout keeps the field order the network codecs had: pinned for move_unit, spawn_unit and apply_status.</summary>
@@ -340,7 +341,7 @@ namespace Rts.Sim.Tests
             Expect.Throws<ArgumentNullException>(() => registry.Register(null!));
             Expect.Throws<ArgumentException>(() => registry.Register(new AbstractTypeCodec()));
             // A failed registration leaves the registry as it was.
-            Assert.That(registry.Count, Is.EqualTo(17));
+            Assert.That(registry.Count, Is.EqualTo(18));
             Assert.That(registry.Contains("noop_again"), Is.False);
             // Lookup failures name the kind and the type.
             Assert.That(Expect.Throws<CommandCodecException>(() => registry.GetByKind("warp")).Message, Does.Contain("warp"));

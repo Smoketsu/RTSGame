@@ -6,7 +6,7 @@
 //
 // Step order (fixed, documented here and in rts/src/Sim/README.md):
 //   1. clear the event log
-//   2. apply this tick's commands in (issuer, sequence) order (an accepted move, attack, stop, gather or build order cancels a
+//   2. apply this tick's commands in (issuer, sequence) order (cast_grounding grounds the enemy flyers around its point at once, StatusSystem.CastGrounding; an accepted move, attack, stop, gather or build order cancels a
 //      worker's pending build order and refunds it)
 //   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 //   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
@@ -221,6 +221,10 @@ namespace Rts.Sim
                 if (definition.ShieldDome != null && Clock.PerSecondToPerTick(definition.ShieldDome.RegenPerSecond) <= Fix64.Zero)
                 {
                     throw new InvalidOperationException("Unit '" + definition.Id + "' has shield_dome.regen_per_second so small that it is 0 per tick at this tick rate.");
+                }
+                if (definition.GroundingAbility != null && Clock.SecondsToTicks(definition.GroundingAbility.CooldownSeconds) < 1)
+                {
+                    throw new InvalidOperationException("Unit '" + definition.Id + "' has grounding_ability.cooldown_seconds so small that it is 0 ticks at this tick rate.");
                 }
             }
             // No definition may change once the match is running; the digest below would otherwise go stale.
