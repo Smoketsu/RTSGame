@@ -247,7 +247,7 @@ Quick tests use `CopyData` with `units` limited to `["skai.windrunner", "water.g
 | F3 | `FightChecks` (checks 1 to 8 of section 6), matchups parser and validation (3.2), suggested entries. Tests 13, 14. | Sonnet builder | none beyond tests |
 | F4 | Run the default sweep; write `matchups.json` for the 9 units from the suggested entries (jobs from the P-005 1.1 table, comments per the standard, digest in each Source); commit `docs/reports/fights_<date>/` (`fights.md`, `fights.jsonl`, `hq_floor.jsonl`, wall time); give the coordinator the check results. | Sonnet builder; Haiku for the comment pass | coordinator reads the report |
 
-Runtime: one 25-unit Pummeler-against-Brinecaster fight (1220 ticks on a 64 by 64 map) took 0.8 s in a single process on the cloud machine (measured 17 Nov 2026). At roughly 0.5 to 1 s per fight on the smaller arena, the 780 fights plus 60 floor trials were estimated at 6 to 9 minutes of processor time. Measured (F1 to F3 build, 4 cores, Release): **57 s wall time** for the default sweep. F4 records the figure for its own run. If it exceeds 5 minutes, cut `army_values` in data, not code.
+Runtime: one 25-unit Pummeler-against-Brinecaster fight (1220 ticks on a 64 by 64 map) took 0.8 s in a single process on the cloud machine (measured 17 Nov 2026). At roughly 0.5 to 1 s per fight on the smaller arena, the 780 fights plus 60 floor trials were estimated at 6 to 9 minutes of processor time. Measured (F1 to F3 build, 4 cores, Release): **37 s wall time** for the default sweep (57 s on a first run while other builds were running). F4 records the figure for its own run. If it exceeds 5 minutes, cut `army_values` in data, not code.
 
 ## 10. Out of scope
 
