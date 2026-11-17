@@ -758,6 +758,70 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(same[0].Unit, Is.EqualTo(idleOff));
         }
 
+        /// <summary>
+        /// C2 review item 2: with the rare bank at the cap the two rare workers move to a served common field even when both common fields
+        /// are full (3 workers each); below the cap they stay.
+        /// </summary>
+        [Test]
+        public void C2_7b_RareWorkersLeaveForAFullCommonField()
+        {
+            AiProfile capped = Edited("\"rare_bank_soft_cap\": 0,", "\"rare_bank_soft_cap\": 300,");
+            // A game where common fields 0 and 1 hold 3 workers each (at their cap) and rare field 4 holds two; returns the two rare workers.
+            Simulation Setup(int rare, out EntityId rareLow, out EntityId rareHigh)
+            {
+                Simulation sim = Game(workers: 0);
+                SpawnAtTile(sim, "skai.perch_depot", P0, 8, 60);
+                // Field index of the common fields. Range: 0 to 1.
+                for (int field = 0; field < 2; field++)
+                {
+                    // Worker number on the field. Range: 0 to 2.
+                    for (int i = 0; i < 3; i++)
+                    {
+                        Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), field);
+                    }
+                }
+                rareLow = SpawnAtTile(sim, "skai.fledgling", P0, 6, 9);
+                rareHigh = SpawnAtTile(sim, "skai.fledgling", P0, 6, 9);
+                Gather(sim, P0, rareLow, 4);
+                Gather(sim, P0, rareHigh, 4);
+                SetStock(sim, P0, 0, rare);
+                return sim;
+            }
+            Simulation atCap = Setup(300, out EntityId low, out EntityId high);
+            Assert.That(Probe(atCap, null, capped).Served, Does.Contain(4));
+            List<AiIntent> gathers = Of(Decide(atCap, P0, capped), AiIntentKind.Gather);
+            Assert.That(gathers.Count, Is.EqualTo(2), "both rare workers leave although the common fields are full");
+            Assert.That(gathers[0].Unit, Is.EqualTo(high), "the higher ID leaves first");
+            Assert.That(gathers[1].Unit, Is.EqualTo(low));
+            foreach (AiIntent gather in gathers)
+            {
+                Assert.That(gather.Field, Is.InRange(0, 1));
+            }
+            Simulation below = Setup(299, out _, out _);
+            Assert.That(Of(Decide(below, P0, capped), AiIntentKind.Gather), Is.Empty, "below the cap nobody moves");
+        }
+
+        /// <summary>Review item 6: with rare_bank_return_cap 200 the rare fields close at a bank of 300 and open again only below 200 (no walking back and forth at the cap).</summary>
+        [Test]
+        public void C2_7c_RareCapHasHysteresis()
+        {
+            AiProfile capped = Edited("\"rare_bank_soft_cap\": 0,", "\"rare_bank_soft_cap\": 300,", "\"rare_bank_return_cap\": 0,", "\"rare_bank_return_cap\": 200,");
+            // The match: a depot serving rare field 4, one worker on common field 0 and two on the rare field.
+            Simulation sim = Game(workers: 0);
+            SpawnAtTile(sim, "skai.perch_depot", P0, 8, 60);
+            Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 0);
+            Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 4);
+            Gather(sim, P0, SpawnAtTile(sim, "skai.fledgling", P0, 6, 9), 4);
+            // The one memory carried through the bank levels.
+            AiMemory memory = new AiMemory();
+            // Workers wanted at each bank level: closed at 300, still closed at 250, open at 199, closed again only at 300.
+            foreach ((int rare, int wanted) in new[] { (250, 8), (300, 6), (250, 6), (199, 8), (250, 8), (300, 6) })
+            {
+                SetStock(sim, P0, 0, rare);
+                Assert.That(Probe(sim, memory, capped).WantedWorkers, Is.EqualTo(wanted), "rare " + rare);
+            }
+        }
+
         /// <summary>B-11: starved with the HQ Rooted and a live field 43 tiles away: an idle worker is sent to it.</summary>
         [Test]
         public void B11_LongHaul()

@@ -169,6 +169,20 @@ namespace Rts.Sim.Tests.Ai
             return AiCounter.Mix(AiWorldView.Build(sim, P0), profile, profile.RequireFaction(faction), memory);
         }
 
+        /// <summary>Asserts the predictor advantages of the pool units against the spec's C2.8 values, each within 0.001 (units not listed are not checked).</summary>
+        private static void AssertAdvantages(Simulation sim, AiProfile profile, string faction, AiMemory memory, params (string Id, string Expected)[] expected)
+        {
+            // Advantage per pool unit, filled by the predictor mix. Unit: ratio.
+            SortedDictionary<string, Fix64> advantages = new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
+            AiCounter.PredictorMix(AiWorldView.Build(sim, P0), profile, profile.RequireFaction(faction), memory, advantages);
+            foreach ((string id, string want) in expected)
+            {
+                // Distance from the spec's value. Unit: ratio. Range: 0 upward.
+                Fix64 error = (advantages[id] - Fix64.Parse(want)).Abs();
+                Assert.That(error <= Fix64.Parse("0.001"), Is.True, id + " advantage " + advantages[id] + " expected " + want);
+            }
+        }
+
         /// <summary>C-8: water against 4 Roc Riders: only the Spoutling can hit air, so it takes the counter share.</summary>
         [Test]
         public void C8_WaterAgainstRocRiders()
@@ -372,16 +386,17 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>The shipped package C2 candidate profile, as loaded (mix_eval_budget_common was retuned after the spec; see the C2 report).</summary>
         private static AiProfile S2bShipped => AiProfile.FromDataSet(Data, "aggressive_s2b");
 
-        /// <summary>The package C2 candidate with the spec's counter_weight 0.7 and mix_eval_budget_common 600, the values the C2.8 test numbers assume (every other value as shipped; the shipped file retuned the budget; the confidence weight is only normalised here).</summary>
+        /// <summary>The package C2 candidate with the spec's mix_eval_budget_common 600, the value the C2.8 test numbers assume (every other value as shipped; the shipped file retuned the budget to 1200 and keeps the spec's counter_weight 0.7).</summary>
         private static AiProfile S2b
         {
             get
             {
-                // The shipped file text with the spec's confidence weight put back.
+                // The shipped file text with the spec's evaluation budget put back.
                 string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s2b.json")).Replace("\r\n", "\n");
-                Assert.That(System.Text.RegularExpressions.Regex.IsMatch(text, "\"counter_weight\": [0-9.]+,"), Is.True, "aggressive_s2b counter_weight");
-                text = System.Text.RegularExpressions.Regex.Replace(text, "\"counter_weight\": [0-9.]+,", "\"counter_weight\": 0.7,");
-                return AiProfile.Parse(System.Text.RegularExpressions.Regex.Replace(text, "\"mix_eval_budget_common\": [0-9]+,", "\"mix_eval_budget_common\": 600,"), "ai/aggressive_s2b.json", Data.Content);
+                // The key and its shipped value, which must be present or the replace below would silently do nothing.
+                const string budgetPattern = "\"mix_eval_budget_common\": [0-9]+,";
+                Assert.That(System.Text.RegularExpressions.Regex.IsMatch(text, budgetPattern), Is.True, "aggressive_s2b mix_eval_budget_common");
+                return AiProfile.Parse(System.Text.RegularExpressions.Regex.Replace(text, budgetPattern, "\"mix_eval_budget_common\": 600,"), "ai/aggressive_s2b.json", Data.Content);
             }
         }
 
@@ -432,8 +447,10 @@ namespace Rts.Sim.Tests.Ai
             AiMemory memory = new AiMemory();
             Believe(memory, "water.grasper", 6, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.0000"), ("water.ink_lobber", "0.1736"), ("water.reef_runner", "0.4878"), ("water.shellback", "0.5514"), ("water.spoutling", "0.1228"));
             SetStock(sim, P0, 0, 400);
             AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
+            AssertAdvantages(sim, S2b, "water", memory, ("water.ink_lobber", "0.4728"), ("water.spoutling", "0.2823"));
         }
 
         /// <summary>C2-2: water against 4 Roc Riders buys Spoutlings; with 4 Spoutlings already owned it adds Shellbacks.</summary>
@@ -445,12 +462,14 @@ namespace Rts.Sim.Tests.Ai
             AiMemory memory = new AiMemory();
             Believe(memory, "skai.roc_rider", 4, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 750));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.0397"), ("water.ink_lobber", "0.0119"), ("water.reef_runner", "0.0225"), ("water.shellback", "0.0778"), ("water.spoutling", "0.3333"));
             // Own Spoutling number. Range: 0 to 3.
             for (int i = 0; i < 4; i++)
             {
                 Spawn(sim, "water.spoutling", P0, "9", Row(i));
             }
             AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 750), ("water.ink_lobber", 50), ("water.spoutling", 50));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.4038"), ("water.ink_lobber", "0.1877"), ("water.reef_runner", "0.2692"), ("water.shellback", "0.6708"), ("water.spoutling", "0.3967"));
         }
 
         /// <summary>C2-3 and C2-4: Skai against 6 Pummelers keeps the Roc Rider; against 8 Windrunners it keeps Windrunner and Talon.</summary>
@@ -462,9 +481,11 @@ namespace Rts.Sim.Tests.Ai
             AiMemory pummelers = new AiMemory();
             Believe(pummelers, "water.grasper", 6, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "skai", pummelers), ("skai.windrunner", 128), ("skai.talon_archer", 85), ("skai.roc_rider", 742), ("skai.stormcaller", 42));
+            AssertAdvantages(sim, S2b, "skai", pummelers, ("skai.roc_rider", "16.4921"), ("skai.stormcaller", "0.1281"), ("skai.talon_archer", "0.4500"), ("skai.windrunner", "0.4878"));
             AiMemory windrunners = new AiMemory();
             Believe(windrunners, "skai.windrunner", 8, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "skai", windrunners), ("skai.windrunner", 581), ("skai.talon_archer", 332), ("skai.roc_rider", 42), ("skai.stormcaller", 42));
+            AssertAdvantages(sim, S2b, "skai", windrunners, ("skai.roc_rider", "0.3505"), ("skai.stormcaller", "0.1516"), ("skai.talon_archer", "0.9545"), ("skai.windrunner", "1.0000"));
         }
 
         /// <summary>C2-5: the traced situation: with 5 Pummelers, 2 Shellbacks and a Spoutling against the blind water army, only the Pummeler is kept.</summary>
@@ -489,6 +510,7 @@ namespace Rts.Sim.Tests.Ai
             Believe(memory, "water.spoutling", 1, sim.Clock.Tick);
             Believe(memory, "water.reef_runner", 1, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.5376"), ("water.ink_lobber", "0.8568"), ("water.reef_runner", "1.1546"), ("water.shellback", "1.3267"), ("water.spoutling", "0.7932"));
         }
 
         /// <summary>C2-6: implied units never raise the confidence; sightings do; the switch off keeps the package C confidence.</summary>
@@ -661,6 +683,14 @@ namespace Rts.Sim.Tests.Ai
             Spawn(served, "skai.perch_depot", P0, "9.5", "49.5");
             StepTo(served, 2000);
             Assert.That(BuildsOf(Decide(served, early, new AiMemory()), "skai.perch_depot").Count, Is.EqualTo(0));
+            // (e) C2 review item 1: a mix whose rare share (166 of 1000) is below rare_need_weight_share still sends the early depot to the rare site.
+            AiProfile lowRare = S2Edited(SkaiBase, "{ \"skai.windrunner\": 5, \"skai.roc_rider\": 1 }");
+            Simulation low = Greybox();
+            Base(low, "skai.great_aerie", "skai.fledgling", "skai.roost");
+            StepTo(low, 100);
+            List<AiIntent> lowDepots = BuildsOf(Decide(low, lowRare, new AiMemory()), "skai.perch_depot");
+            Assert.That(lowDepots.Count, Is.EqualTo(1));
+            Assert.That(Math.Max(Math.Abs(lowDepots[0].TileX - 12), Math.Abs(lowDepots[0].TileY - 49)), Is.InRange(3, 6));
         }
 
         /// <summary>C2-14: validation: the predictor mix needs the counter-mix, a missing key is named, and the shipped candidate loads with its C2.6 values.</summary>

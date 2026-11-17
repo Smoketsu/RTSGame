@@ -218,7 +218,13 @@ namespace Rts.Ai
         /// unit against the enemy model scaled to equal value; units within counter_keep_fraction of the best share the counter weight;
         /// confidence comes from sighted supply only.
         /// </summary>
-        private static SortedDictionary<string, int> PredictorMix(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory)
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The profile.</param>
+        /// <param name="plan">The plan (faction and base composition).</param>
+        /// <param name="memory">The memory (the enemy model; read only).</param>
+        /// <param name="advantagesOut">Test hook: when not null, receives the predictor advantage of every pool unit (step 4). Unit: ratio. Range: 0 to predictor_max_advantage.</param>
+        internal static SortedDictionary<string, int> PredictorMix(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory,
+            SortedDictionary<string, Fix64>? advantagesOut = null)
         {
             // Pool, and the model entries with a value above 0 (a zero-cost definition is skipped, step 2).
             List<UnitDefinition> pool = Pool(view, plan.FactionId);
@@ -252,24 +258,29 @@ namespace Rts.Ai
                         ownValue += Value(unit.Definition, profile);
                     }
                 }
+                // O as predictor entries, ordinal order (Group sorts). Unit: units and health points.
                 List<FightEntry> ownEntries = FightPredictor.Group(own);
                 // Budget B and the equal-value factor f of step 3. Unit: resource units; ratio.
                 Fix64 budget = Fix64.FromInt(profile.MixEvalBudgetCommon);
                 Fix64 factor = (ownValue + budget) / enemyValue;
+                // E_f: the enemy model with Count and Health multiplied by f. Unit: units and health points.
                 List<FightEntry> scaled = new List<FightEntry>();
                 foreach (FightEntry entry in enemies)
                 {
                     scaled.Add(new FightEntry(entry.Definition, entry.Count * factor, entry.Health * factor));
                 }
+                // The predictor settings of the profile (C.1 keys).
                 PredictorSettings settings = PredictorSettings.From(profile);
                 // Advantage per pool unit (step 4) and the best of them. Unit: ratio.
                 SortedDictionary<string, Fix64> advantages = new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
                 Fix64 top = Fix64.Zero;
                 foreach (UnitDefinition unit in pool)
                 {
-                    // Units of this type the budget buys (common limit, rare limit). Unit: units.
+                    // Units of this type the budget buys: the common limit, then the smaller of the limits. Unit: units. Range: 0 upward.
                     Fix64 buy = Fix64.Zero;
+                    // Units the rare bank plus allowance buys. Unit: units. Range: 0 upward.
                     Fix64 rareBuy = Fix64.Zero;
+                    // True once some cost limits the purchase (a unit costing nothing is not scored). Unit: boolean. Range: true or false.
                     bool limited = false;
                     if (unit.CostCommon > 0)
                     {
@@ -289,6 +300,7 @@ namespace Rts.Ai
                         advantage = FightPredictor.Predict(WithPurchase(ownEntries, unit, buy), scaled, false, view.Content.Combat, settings).Advantage;
                     }
                     advantages[unit.Id] = advantage;
+                    advantagesOut?.Add(unit.Id, advantage);
                     top = Fix64.Max(top, advantage);
                 }
                 // Step 5: kept units and weights.
@@ -331,6 +343,7 @@ namespace Rts.Ai
         {
             // The new list; the unit's entry is replaced or inserted at its ordinal place.
             List<FightEntry> result = new List<FightEntry>();
+            // True once the unit's entry has been put in the result. Unit: boolean. Range: true or false.
             bool placed = false;
             foreach (FightEntry entry in army)
             {

@@ -1,0 +1,27 @@
+Test run for /home/user/RTSGame/.claude/worktrees/agent-a2399e9c9330ba4f2/rts/build/bin/Rts.Replay.Tests/Debug/net8.0/Rts.Replay.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Test run for /home/user/RTSGame/.claude/worktrees/agent-a2399e9c9330ba4f2/rts/build/bin/Rts.Sim.Tests/Debug/net8.0/Rts.Sim.Tests.dll (.NETCoreApp,Version=v8.0)
+Test run for /home/user/RTSGame/.claude/worktrees/agent-a2399e9c9330ba4f2/rts/build/bin/Rts.Net.Tests/Debug/net8.0/Rts.Net.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+A total of 1 test files matched the specified pattern.
+Starting test execution, please wait...
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    27, Skipped:     0, Total:    27, Duration: 1 m 1 s - Rts.Replay.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
+
+Passed!  - Failed:     0, Passed:    33, Skipped:     0, Total:    33, Duration: 2 m 8 s - Rts.Net.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
+
+Passed!  - Failed:     0, Passed:   651, Skipped:     0, Total:   651, Duration: 14 m 13 s - Rts.Sim.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
