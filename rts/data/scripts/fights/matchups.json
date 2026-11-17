@@ -1,0 +1,5 @@
+// rts/data/scripts/fights/matchups.json: the matchups file of the equal-value fight mode (spec rts/docs/specs/micro_benchmark.md section 3.2): per combat unit, its job and the fight it wins and the fight it loses. Documentation, not simulation input: it lives under scripts/ so DataLoader skips it (outside the content digest); only rts/tools/BalanceHarness/FightMatchups.cs reads it. Entries are keyed by unit ID and are added by the content step (package F4); the check matchups_agree reports a combat unit without an entry as missing.
+{
+  "$schema_version": 1,
+  "$doc": "Per combat unit: job (designed role, 1 to 120 characters), wins and loses ({ against: combat unit ID, case: case ID of fights.json whose army values contain rule_army_value } or null). No entries yet."
+}

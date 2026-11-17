@@ -16,6 +16,7 @@ namespace Rts.Tools.BalanceHarness
             + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]"
             + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression]"
             + " | --data <data folder> --response --profile <id> [--only <script file name>]"
+            + " | --data <data folder> --fights [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
             + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>]";
 
         /// <summary>Fault switch value that makes a re-run (verification) worker perturb the seed of its first game. Test use only.</summary>
@@ -69,6 +70,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>True when --response was given: run the scripted-opponent scenarios (see <see cref="ResponseRunner"/>).</summary>
         public bool Response { get; private set; }
 
+        /// <summary>True when --fights was given: play the equal-value fight sweep (see <see cref="FightCoordinator"/>); with --worker, play a chunk of its fights.</summary>
+        public bool Fights { get; private set; }
+
+        /// <summary>True when --strict was given: a failed fight check exits 2.</summary>
+        public bool Strict { get; private set; }
+
         /// <summary>True when --non-regression was given: the ladder bar is ladder_non_regression_fraction_min instead of ladder_candidate_win_fraction_min.</summary>
         public bool NonRegression { get; private set; }
 
@@ -116,7 +123,7 @@ namespace Rts.Tools.BalanceHarness
         public static bool IsBatchMode(string[] args)
         {
             return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0 || Array.IndexOf(args, "--trace") >= 0
-                || Array.IndexOf(args, "--ladder") >= 0 || Array.IndexOf(args, "--response") >= 0;
+                || Array.IndexOf(args, "--ladder") >= 0 || Array.IndexOf(args, "--response") >= 0 || Array.IndexOf(args, "--fights") >= 0;
         }
 
         /// <summary>Parses the arguments; throws <see cref="HarnessException"/> on anything unexpected.</summary>
@@ -146,6 +153,12 @@ namespace Rts.Tools.BalanceHarness
                         continue;
                     case "--response":
                         options.Response = true;
+                        continue;
+                    case "--fights":
+                        options.Fights = true;
+                        continue;
+                    case "--strict":
+                        options.Strict = true;
                         continue;
                     case "--non-regression":
                         options.NonRegression = true;
@@ -281,7 +294,11 @@ namespace Rts.Tools.BalanceHarness
             {
                 throw new HarnessException("--trace needs --map and --matchup. " + Usage);
             }
-            if (options.IsWorker && options.WorkerHqFloor.Length == 0 && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0 || options.WorkerCount == 0))
+            if (options.IsWorker && options.Fights && options.WorkerHqFloor.Length == 0 && options.WorkerCount == 0)
+            {
+                throw new HarnessException("a fight worker needs --first and --count, or --hq-floor. " + Usage);
+            }
+            if (options.IsWorker && !options.Fights && options.WorkerHqFloor.Length == 0 && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0 || options.WorkerCount == 0))
             {
                 throw new HarnessException("a game worker needs --map, --matchup and --count. " + Usage);
             }

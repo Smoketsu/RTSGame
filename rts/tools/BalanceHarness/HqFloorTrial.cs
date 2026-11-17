@@ -76,6 +76,19 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="matchups">Matchup IDs "a_vs_b".</param>
         public static List<HqFloorSpec> Plan(DataSet data, IReadOnlyList<string> matchups)
         {
+            return Plan(data, matchups, Array.Empty<FightSide>(), null);
+        }
+
+        /// <summary>
+        /// <see cref="Plan(DataSet, IReadOnlyList{string})"/> plus, after the unit trials of each pair, a Rooted and an Uprooted trial for every composition of the attacker's
+        /// faction (rule 6 of the fight mode). A composition whose recipe costs more supply than hq_floor_supply gets no trial and a line in <paramref name="warnings"/>.
+        /// </summary>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="matchups">Matchup IDs "a_vs_b".</param>
+        /// <param name="compositions">Sides; only compositions are used, and <see cref="HqFloorSpec.Unit"/> holds the composition ID.</param>
+        /// <param name="warnings">Receives one line per skipped composition, or null to drop them.</param>
+        public static List<HqFloorSpec> Plan(DataSet data, IReadOnlyList<string> matchups, IReadOnlyList<FightSide> compositions, List<string>? warnings)
+        {
             // Ordered pairs without duplicates, in ordinal order.
             SortedSet<string> pairs = new SortedSet<string>(StringComparer.Ordinal);
             foreach (string matchup in matchups)
@@ -106,6 +119,21 @@ namespace Rts.Tools.BalanceHarness
                         specs.Add(new HqFloorSpec(sides[0], unit.Id, sides[1], false));
                     }
                 }
+                foreach (FightSide side in compositions)
+                {
+                    if (!side.IsComposition || side.Faction != sides[0])
+                    {
+                        continue;
+                    }
+                    if (data.Tuning.Harness.HqFloorSupply / side.RecipeSupply < 1)
+                    {
+                        warnings?.Add("composition " + side.Id + " costs " + side.RecipeSupply.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            + " supply per recipe, more than hq_floor_supply; no HQ floor trial");
+                        continue;
+                    }
+                    specs.Add(new HqFloorSpec(sides[0], side.Id, sides[1], true));
+                    specs.Add(new HqFloorSpec(sides[0], side.Id, sides[1], false));
+                }
             }
             return specs;
         }
@@ -132,17 +160,58 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="spec">The trial.</param>
         public static HqFloorRecord Run(DataSet data, HqFloorSpec spec)
         {
+            return Run(data, spec, null);
+        }
+
+        /// <summary>
+        /// Runs one trial; with a <paramref name="recipe"/> (unit ID to count) the attackers are that composition repeated as often as hq_floor_supply allows
+        /// (integer division by the recipe's supply), placed in ordinal unit ID order in the same columns of 5.
+        /// </summary>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="spec">The trial.</param>
+        /// <param name="recipe">Composition recipe, or null when <see cref="HqFloorSpec.Unit"/> is a unit ID.</param>
+        public static HqFloorRecord Run(DataSet data, HqFloorSpec spec, IReadOnlyDictionary<string, int>? recipe)
+        {
             HarnessBatchTuning batch = data.Tuning.HarnessBatch;
             UnitDefinition hqDefinition = HqOf(data, spec.DefenderFaction);
-            if (!data.Content.Units.TryGetValue(spec.Unit, out UnitDefinition? attacker) || attacker.Supply <= 0)
+            // Unit IDs of the attackers in placement order. Unit: unit IDs.
+            List<string> army = new List<string>();
+            if (recipe == null)
             {
-                throw new HarnessException("HQ floor trial: unit '" + spec.Unit + "' is not a supplied unit");
+                if (!data.Content.Units.TryGetValue(spec.Unit, out UnitDefinition? attacker) || attacker.Supply <= 0)
+                {
+                    throw new HarnessException("HQ floor trial: unit '" + spec.Unit + "' is not a supplied unit");
+                }
+                // Attackers placed: the floor army's supply divided by the unit's supply (integer division). Unit: units. Range: 0 upward.
+                for (int n = data.Tuning.Harness.HqFloorSupply / attacker.Supply; n > 0; n--)
+                {
+                    army.Add(attacker.Id);
+                }
             }
-            // Attackers placed: the floor army's supply divided by the unit's supply (integer division). Unit: units. Range: 0 upward.
-            int count = data.Tuning.Harness.HqFloorSupply / attacker.Supply;
+            else
+            {
+                // Supply of one recipe. Unit: supply. Range: 1 upward.
+                int recipeSupply = 0;
+                foreach (KeyValuePair<string, int> pair in recipe)
+                {
+                    recipeSupply += data.Content.Units[pair.Key].Supply * pair.Value;
+                }
+                for (int k = data.Tuning.Harness.HqFloorSupply / recipeSupply; k > 0; k--)
+                {
+                    foreach (KeyValuePair<string, int> pair in recipe)
+                    {
+                        for (int n = 0; n < pair.Value; n++)
+                        {
+                            army.Add(pair.Key);
+                        }
+                    }
+                }
+            }
+            // Attackers placed. Unit: units. Range: 0 upward.
+            int count = army.Count;
             if (count < 1)
             {
-                throw new HarnessException("HQ floor trial: unit '" + spec.Unit + "' costs more supply than hq_floor_supply");
+                throw new HarnessException("HQ floor trial: '" + spec.Unit + "' costs more supply than hq_floor_supply");
             }
             // Arena side and its middle row. Unit: tiles.
             int size = batch.HqArenaSizeTiles;
@@ -175,7 +244,7 @@ namespace Rts.Tools.BalanceHarness
                 // Column and row of the attacker in the formation. Unit: tiles.
                 int column = i / ColumnSize;
                 int row = i % ColumnSize;
-                sim.Submit(new SpawnUnitCommand(0, PlayerId.None, sequence++, attacker.Id, new PlayerId(0),
+                sim.Submit(new SpawnUnitCommand(0, PlayerId.None, sequence++, army[i], new PlayerId(0),
                     new FixVec2(Fix64.FromInt(hqTileX + gap + column) + Fix64.Half, Fix64.FromInt(hqTileY - 2 + row) + Fix64.Half)));
             }
             // Ticks the trial may run. Unit: ticks.
