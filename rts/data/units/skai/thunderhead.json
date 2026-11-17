@@ -1,7 +1,7 @@
 // rts/data/units/skai/thunderhead.json: Thunderhead, Skai flying-wing bomber that hits surface targets only. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for the developer to confirm (rts/docs/specs/missing_roster.md section 3.1), not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Thunderhead unit definition for the skai faction (flying-wing bomber, an air unit with a blast weapon that hits ground and water only, trained at the Windspire); every number is derived by the rules in rts/docs/specs/missing_roster.md section 2 and is a placeholder. Its bomb has a blast (splash_radius_tiles). Developer decisions of 18 Nov 2026: stats accepted as derived, trained at the Windspire, cannot target air.",
+  "$doc": "Thunderhead unit definition for the skai faction (flying-wing bomber, an air unit with a blast weapon that hits ground and water only, trained at the Windspire); every number is derived by the rules in rts/docs/specs/missing_roster.md section 2 and is a placeholder. Its bomb has a blast (splash_radius_tiles). Developer decisions of 18 Nov 2026: stats accepted as derived, trained at the Windspire, cannot target air. Needs a Storm Spire.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.thunderhead",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (Thunderhead, flying-wing bomber).
@@ -24,6 +24,8 @@
   "cost_rare": 65,
   // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
   "build_seconds": 40,
+  // Buildings the owner must have standing and complete to train or build this; checked only when the order is given. Unit: list of unit IDs. Range: 0 to 8 distinct IDs of buildings (footprint 1) of this unit's faction, never this unit, no cycles (empty when absent). Source: P-005 developer decision 8 (18 Nov 2026); choice of gated units is a placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "requires": ["skai.storm_spire"],
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
   "armour_type": "armoured",
   // How far the unit sees; used by fog of war (rts/src/Sim/Vision) while the unit is on the ground or water layer, or Grounded. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).

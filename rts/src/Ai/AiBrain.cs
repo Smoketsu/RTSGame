@@ -1294,6 +1294,10 @@ namespace Rts.Ai
             /// </summary>
             private bool TryBuild(UnitDefinition definition, (int X, int Y)? site = null)
             {
+                if (!RequirementsMet(definition))
+                {
+                    return false;
+                }
                 // Ticks between attempts at one structure. Unit: ticks.
                 int retryTicks = _view.SecondsToTicks(_profile.BuildRetrySeconds);
                 if (_memory.LastBuildAttemptTick.TryGetValue(definition.Id, out int last) && _view.Tick < last + retryTicks)
@@ -1618,6 +1622,50 @@ namespace Rts.Ai
                 {
                     return;
                 }
+                if (!TechProducer())
+                {
+                    TechPrerequisite();
+                }
+            }
+
+            /// <summary>
+            /// Rule T2 (walls_and_tech.md T.4), run when rule T built nothing: among composition units with weight at least tech_min_weight_share x
+            /// mix_resolution (descending weight, then ordinal ID) the first whose producer exists but whose requirements are not met gets its first
+            /// unmet requirement built, unless an own unit (complete, under construction or a pending order) already has that definition.
+            /// </summary>
+            private void TechPrerequisite()
+            {
+                // Composition units in the order T2 considers them.
+                List<KeyValuePair<string, int>> ranked = new List<KeyValuePair<string, int>>(_composition);
+                ranked.Sort((a, b) => a.Value != b.Value ? b.Value.CompareTo(a.Value) : string.CompareOrdinal(a.Key, b.Key));
+                foreach (KeyValuePair<string, int> pair in ranked)
+                {
+                    if (pair.Value <= 0 || Fix64.FromInt(pair.Value) < _profile.TechMinWeightShare * Fix64.FromInt(_profile.MixResolution))
+                    {
+                        continue;
+                    }
+                    // Definition of this composition unit and its first missing building.
+                    UnitDefinition unit = _view.Content.Units[pair.Key];
+                    string? missing = FirstUnmetRequirement(unit);
+                    if (missing == null || !AnyOwnTrains(pair.Key))
+                    {
+                        continue;
+                    }
+                    foreach (AiUnitView planned in _planned)
+                    {
+                        if (string.Equals(planned.Definition.Id, missing, StringComparison.Ordinal))
+                        {
+                            return;
+                        }
+                    }
+                    TryBuild(_view.Content.Units[missing]);
+                    return;
+                }
+            }
+
+            /// <summary>Rule T proper: builds the producer of the heaviest mix unit nothing trains yet. Returns true when a build intent was emitted.</summary>
+            private bool TechProducer()
+            {
                 // The best unit nothing trains yet, and its weight. Unit: weight units. Range: 0 upward.
                 string? top = null;
                 int topWeight = 0;
@@ -1631,21 +1679,18 @@ namespace Rts.Ai
                 }
                 if (top == null || Fix64.FromInt(topWeight) < _profile.TechMinWeightShare * Fix64.FromInt(_profile.MixResolution))
                 {
-                    return;
+                    return false;
                 }
                 foreach (AiUnitView unit in _planned)
                 {
                     if (unit.IsStructure && unit.IsUnderConstruction && TrainsCompositionUnit(unit.Definition))
                     {
-                        return;
+                        return false;
                     }
                 }
                 // The structure that trains the unit, or null when the faction has none.
                 UnitDefinition? structure = ProducerStructureFor(top);
-                if (structure != null)
-                {
-                    TryBuild(structure);
-                }
+                return structure != null && TryBuild(structure);
             }
 
             /// <summary>Own drop-offs for rule SD: the Rooted HQ and every complete drop-off structure, ascending ID.</summary>
@@ -2498,9 +2543,41 @@ namespace Rts.Ai
                     && !_usedProducers.Contains(unit.Id);
             }
 
+            /// <summary>
+            /// True when every <c>requires</c> building of <paramref name="definition"/> is an own, complete unit (walls_and_tech.md T.4). Own units
+            /// only; pending build orders do not count.
+            /// </summary>
+            private bool RequirementsMet(UnitDefinition definition)
+            {
+                return FirstUnmetRequirement(definition) == null;
+            }
+
+            /// <summary>The first <c>requires</c> entry of <paramref name="definition"/>, in file order, that no own complete unit satisfies, or null.</summary>
+            private string? FirstUnmetRequirement(UnitDefinition definition)
+            {
+                foreach (string required in definition.Economy.Requires)
+                {
+                    // True once an own complete unit of the required definition is found.
+                    bool met = false;
+                    foreach (AiUnitView unit in _view.OwnUnits)
+                    {
+                        met |= !unit.IsUnderConstruction && string.Equals(unit.Definition.Id, required, StringComparison.Ordinal);
+                    }
+                    if (!met)
+                    {
+                        return required;
+                    }
+                }
+                return null;
+            }
+
             /// <summary>The lowest-ID free producer that lists <paramref name="unitId"/> in its trains, or null.</summary>
             private AiUnitView? FindFreeProducer(string unitId)
             {
+                if (!RequirementsMet(_view.Content.Units[unitId]))
+                {
+                    return null;
+                }
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
                     if (IsFreeProducer(unit) && Contains(unit.Definition.Economy.Trains, unitId))

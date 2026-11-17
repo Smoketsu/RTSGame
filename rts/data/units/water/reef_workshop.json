@@ -1,0 +1,35 @@
+// rts/data/units/water/reef_workshop.json: Reef Workshop, Water tech building. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Reef Workshop building definition for the water faction (tech building: leviathans need one standing); placeholder numbers.",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.reef_workshop",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "display_name": "Reef Workshop",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building". Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "kind": "building",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "layer": "ground",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "max_health": 400,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "speed_tiles_per_second": 0,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "supply": 0,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "radius_tiles": 0.5,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "cost_common": 150,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "cost_rare": 50,
+  // Time to construct this structure after placement. Unit: seconds. Range: 0.05 to 3600. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "build_seconds": 30,
+  // Tiles the unit blocks to ground and water movement while it stands. Unit: tiles. Range: 0 or 1. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "footprint": 1,
+  // Armour type, picks the row of the damage table in tuning/combat.json. Unit: armour type name. Range: one of the armour_types in tuning/combat.json. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "armour_type": "structure",
+  // How far the unit sees. Unit: tiles. Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "sight_range_tiles": 8
+}

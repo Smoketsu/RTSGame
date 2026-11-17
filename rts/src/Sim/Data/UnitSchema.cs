@@ -206,7 +206,7 @@ namespace Rts.Sim.Data
 
         /// <summary>
         /// Reads the optional economy keys of a unit file: build_seconds (0.05 to 3600, default <see cref="UnitEconomyDefinition.DefaultBuildSeconds"/>),
-        /// can_gather, is_drop_off, is_static_defence, is_wall (booleans, default false; is_wall needs footprint 1), trains (array of unit IDs, default empty),
+        /// can_gather, is_drop_off, is_static_defence, is_wall (booleans, default false; is_wall needs footprint 1), trains and requires (arrays of unit IDs, default empty; requires at most 8, no duplicates),
         /// footprint (0 or 1, default 0) and provides_supply (0 to 100, default 0). References in trains are checked once every unit is loaded.
         /// </summary>
         /// <param name="root">The unit file's root object.</param>
@@ -237,6 +237,25 @@ namespace Rts.Sim.Data
                     trains.Add(id);
                 }
             }
+            // Prerequisite building IDs, in file order. Range: 0 to 8 distinct IDs; references are checked once every unit is loaded.
+            List<string> requires = new List<string>();
+            if (root.TryGetMember("requires", out JsonValue? requiresNode))
+            {
+                if (requiresNode.Items.Count > 8)
+                {
+                    throw requiresNode.Fail("lists more than 8 entries");
+                }
+                foreach (JsonValue item in requiresNode.Items)
+                {
+                    // One required building ID.
+                    string id = item.AsString();
+                    if (requires.Contains(id))
+                    {
+                        throw item.Fail("lists '" + id + "' twice");
+                    }
+                    requires.Add(id);
+                }
+            }
             // Tiles blocked while the unit lives. Unit: tiles. Range: 0 or 1.
             int footprint = root.TryGetMember("footprint", out JsonValue? footprintNode) ? footprintNode.AsInt(0, 1) : 0;
             // Supply added to the owner's cap. Unit: supply. Range: 0 to 100.
@@ -245,7 +264,7 @@ namespace Rts.Sim.Data
             {
                 throw root.Require("is_wall").Fail("is_wall needs footprint 1");
             }
-            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply, isWall);
+            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply, isWall, requires);
         }
 
         /// <summary>

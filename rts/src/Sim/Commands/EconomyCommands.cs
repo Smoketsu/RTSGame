@@ -99,7 +99,7 @@ namespace Rts.Sim.Commands
 
         /// <summary>
         /// Applies the command. Rejections, in order: unknown_unit (the producer), not_owner, unknown_definition, under_construction,
-        /// cannot_train (the definition is not in the producer's trains list, or the HQ's worker), hq_not_rooted, queue_full,
+        /// cannot_train (the definition is not in the producer's trains list, or the HQ's worker), hq_not_rooted, missing_prerequisite (the owner lacks a complete building the definition requires), queue_full,
         /// insufficient_resources, supply_cap (supply used plus this unit's supply, queued units included, would exceed the cap).
         /// </summary>
         public override CommandResult Apply(Simulation sim)
@@ -138,6 +138,10 @@ namespace Rts.Sim.Commands
             if (producer.Definition.Hq != null && producer.HqState != HqState.Rooted)
             {
                 return CommandResult.Reject("hq_not_rooted");
+            }
+            if (EconomyRules.FirstMissingRequirement(sim, producer.Owner, definition) != null)
+            {
+                return CommandResult.Reject("missing_prerequisite");
             }
             if (producer.ProductionQueue.Count >= sim.Tuning.Economy.MaxQueueLength)
             {
@@ -202,7 +206,7 @@ namespace Rts.Sim.Commands
 
         /// <summary>
         /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker),
-        /// unknown_definition, not_a_structure (no footprint), wrong_faction, out_of_bounds, site_unexplored (the worker owner's team
+        /// unknown_definition, not_a_structure (no footprint), wrong_faction, missing_prerequisite (the owner lacks a complete building the definition requires), out_of_bounds, site_unexplored (the worker owner's team
         /// has never seen the tile; checked before tile_blocked so a rejection reveals nothing), tile_blocked, tile_occupied (a ground
         /// or water unit stands on the tile), site_pending (an own unit already has a build order for the tile), no_base (a static
         /// defence needs an own drop-off within base_radius_tiles of the site), static_defence_cap (static_defences_per_base_max of them,
@@ -235,6 +239,10 @@ namespace Rts.Sim.Commands
             if (!string.Equals(definition.FactionId, owner.FactionId, System.StringComparison.Ordinal))
             {
                 return CommandResult.Reject("wrong_faction");
+            }
+            if (EconomyRules.FirstMissingRequirement(sim, worker.Owner, definition) != null)
+            {
+                return CommandResult.Reject("missing_prerequisite");
             }
             if (!sim.Terrain.Contains(TileX, TileY))
             {

@@ -25,6 +25,7 @@
     "water.shell_forge",
     "water.coral_turret",
     "water.pearl_depot",
-    "water.coral_wall"
+    "water.coral_wall",
+    "water.reef_workshop"
   ]
 }
