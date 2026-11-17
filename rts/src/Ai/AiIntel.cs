@@ -202,6 +202,24 @@ namespace Rts.Ai
             return SupplyWhere(view, profile, memory, true);
         }
 
+        /// <summary>Model supply of the enemy army types on one movement layer: the sum of M(t) x supply(t) over types whose layer is <paramref name="layer"/> (C.6 step 3). Unit: supply. Range: 0 upward.</summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="counts">The model counts M(t) from <see cref="ModelCounts"/>.</param>
+        /// <param name="layer">The layer.</param>
+        internal static Fix64 LayerSupply(AiWorldView view, SortedDictionary<string, Fix64> counts, MovementLayer layer)
+        {
+            // Supply total so far. Unit: supply.
+            Fix64 total = Fix64.Zero;
+            foreach (KeyValuePair<string, Fix64> pair in counts)
+            {
+                if (view.Content.Units.TryGetValue(pair.Key, out UnitDefinition? definition) && definition.Layer == layer)
+                {
+                    total += pair.Value * Fix64.FromInt(view.SupplyOf(definition));
+                }
+            }
+            return total;
+        }
+
         /// <summary>Sums M(t) x supply(t), over air types only when <paramref name="airOnly"/>.</summary>
         /// <param name="view">What the AI may know this think.</param>
         /// <param name="profile">The profile.</param>

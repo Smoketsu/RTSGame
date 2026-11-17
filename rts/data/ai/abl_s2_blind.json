@@ -1,0 +1,236 @@
+// rts/data/ai/abl_s2_blind.json: ABLATION profile for the Package C review (not a game profile): aggressive_s2 with the reaction to the enemy off but rare priority on: counter_weight 0 (the counter-mix equals the base composition; the validation needs use_counter_mix for rare priority), use_tech_on_demand false, use_static_defence false. Part of rts/data/ai; DataLoader keeps the parsed file in DataSet.AiProfiles and Rts.Ai.AiProfile.Parse validates it. Every other value equals aggressive_s2.json.
+{
+  "$schema_version": 1,
+  "$doc": "Aggressive skirmish AI: a short economy, early production buildings and an early, persistent attack. Every number is a placeholder; AI-versus-AI on greybox_1v1 is checked within the 24000-tick exit run (rts/data/scripts/ai_vs_ai.json).",
+  // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "abl_s2_blind",
+  // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
+  "think_interval_seconds": 0.5,
+  // Most commands one decision may submit; later intents are dropped. Unit: commands. Range: 1 to 200. Source: placeholder.
+  "max_commands_per_think": 40,
+  // Workers sent to one served common field before the next field is used (rare fields: rare_workers_per_field). Unit: workers. Range: 1 to 8. Source: Core gameplay loop (Opening: gather); placeholder.
+  "workers_per_field": 3,
+  // Worker count the AI stops training at (the real target also depends on the served fields, rule W). Unit: workers. Range: 1 to 100. Source: skirmish_ai_v2.md B.1; placeholder.
+  "max_workers": 24,
+  // A field is served (worked from a drop-off) when its centre is this close to an own drop-off: the Rooted HQ, a complete depot or a depot under construction. Unit: tiles. Range: 2 to 64. Source: skirmish_ai_v2.md B.1; placeholder.
+  "field_max_distance_tiles": 10,
+  // Build a supply structure when free supply is at or below this. Unit: supply. Range: 0 to 40. Source: Core gameplay loop (Opening: build supply); placeholder.
+  "supply_buffer": 3,
+  // Wait before re-trying a structure whose last attempt did not appear. Unit: seconds. Range: 1 to 60. Source: placeholder.
+  "build_retry_seconds": 5,
+  // Innermost Chebyshev ring around the HQ tile searched for a building site. Unit: tiles. Range: 1 to 20. Source: placeholder.
+  "build_ring_min_tiles": 3,
+  // Outermost Chebyshev ring around the HQ tile searched for a building site. Unit: tiles. Range: build_ring_min_tiles to 30. Source: placeholder.
+  "build_ring_max_tiles": 10,
+  // No structure is placed within this Chebyshev distance of a resource field tile, so worker paths stay open. Unit: tiles. Range: 0 to 10. Source: placeholder.
+  "field_clearance_tiles": 2,
+  // Massing army waits this far from the HQ toward the attack target. Unit: tiles. Range: 0 to 20. Source: placeholder.
+  "rally_distance_tiles": 4,
+  // Army supply at which the AI attacks, before jitter. Unit: supply. Range: 1 to 200. Source: placeholder.
+  "attack_army_supply": 8,
+  // Extra supply drawn 0 to this from the AI's own generator for each attack wave. Unit: supply. Range: 0 to 40. Source: placeholder.
+  "attack_supply_jitter": 2,
+  // Retreat when the army falls below this share of its supply at the start of the attack. Unit: fraction. Range: 0 to 1. Source: placeholder.
+  "retreat_army_fraction": 0.25,
+  // Retreat when the army's power (supply x health fraction, summed) is below this multiple of the power of the visible armed enemies within engagement_radius_tiles of any army unit. Unit: ratio. Range: 0 to 2. Source: placeholder.
+  "retreat_power_ratio": 0.4,
+  // Radius used for the retreat power test (visible armed enemies this close to any army unit) and the siege test (no enemy army this close to the enemy HQ). Unit: tiles. Range: 4 to 40. Source: placeholder.
+  "engagement_radius_tiles": 10,
+  // The attacking army first gathers this far short of the target, toward the own HQ, so fast and slow units arrive together; 0 attacks straight away. Unit: tiles. Range: 0 to 40. Source: placeholder.
+  "stage_distance_tiles": 14,
+  // Army units within this distance of the staging point count as gathered. Unit: tiles. Range: 1 to 20. Source: placeholder.
+  "stage_radius_tiles": 5,
+  // The army pushes from the staging point once this share of its supply has gathered there. Unit: fraction. Range: 0 to 1. Source: placeholder.
+  "stage_gather_fraction": 0.7,
+  // The army pushes anyway this long after the attack started. Unit: seconds. Range: 0 to 120. Source: placeholder.
+  "stage_timeout_seconds": 25,
+  // Focus fire reach: an army unit in a fight attacks the nearest visible enemy army unit within this distance (army first, buildings after); 0 turns focus fire off. Unit: tiles. Range: 0 to 20. Source: placeholder.
+  "focus_radius_tiles": 8,
+  // Visible enemy army units this close to an own structure or HQ are a threat. Unit: tiles. Range: 4 to 40. Source: placeholder.
+  "defend_radius_tiles": 12,
+  // Visible threat supply that recalls an attacking army home. Unit: supply. Range: 1 to 100. Source: placeholder.
+  "defend_recall_supply": 8,
+  // How long a hit on an own unit inside the base counts as a threat. Unit: seconds. Range: 0 to 30. Source: placeholder.
+  "damage_memory_seconds": 3,
+  // Time after a retreat before the next attack may start. Unit: seconds. Range: 0 to 120. Source: placeholder.
+  "regroup_seconds": 10,
+  // Go all in once no field on the whole map has known resources: attack with any army, ignore the tide window, never retreat. Unit: boolean. Range: true or false. Source: skirmish_ai_v2.md B.5 rule A; placeholder.
+  "all_in_when_mined_out": true,
+  // When true and the own team does not hold the Core, the attack group stages at the Core centre instead of short of the target (the massing army always rallies at home). Unit: boolean. Range: true or false. Source: Win condition and twists / Holding the Core; PLACEHOLDER (skirmish_ai_v2.md C.2 rule G).
+  "rally_at_core": true,
+  // Stay in Defend this long after the last threat before massing again, so a threat that flickers in and out of sight does not flip the stance. Unit: seconds. Range: 0 to 60. Source: skirmish_ai_v2.md C.2 rule D; placeholder.
+  "defend_hold_seconds": 5,
+  // A known enemy HQ last seen at or below this share of its health is finished off by a small army (rule K). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md C.2 rule K; placeholder.
+  "kill_hq_health_fraction": 0.35,
+  // A remembered enemy HQ is a kill target only if it was last seen within this time (its health may have changed since); ends the kill mode when nobody sees the HQ. Unit: seconds. Range: 1 to 600. Source: skirmish_ai_v2.md C.2 rule K (review fix 16 Nov 2026); placeholder.
+  "kill_seen_within_seconds": 30,
+  // Army supply the kill rule needs to start (ignores the attack threshold, the tide window and the regroup timer). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v2.md C.2 rule K; placeholder.
+  "kill_min_army_supply": 4,
+  // Bank (after this think's spending and reservations) at which rule X builds one more production building when every producer is busy. Unit: resource units. Range: 0 to 100000. Source: skirmish_ai_v2.md C.2 rule X; placeholder.
+  "extra_producer_bank_common": 400,
+  // Most own structures that train a composition unit (complete or under construction). Unit: structures. Range: 1 to 30. Source: skirmish_ai_v2.md C.2 rule X; placeholder.
+  "max_producers": 8,
+  // Workers sent to each served rare field (a served common field takes workers_per_field). Unit: workers. Range: 0 to 8. Source: skirmish_ai_v2.md B.5 rule G; placeholder.
+  "rare_workers_per_field": 2,
+  // Earliest time for the first depot by the clock (a field running low brings it forward). Unit: seconds. Range: 0 to 1800. Source: Core gameplay loop (Expansion 3 to 9 min); placeholder.
+  "expand_at_seconds": 240,
+  // Seconds added to expand_at_seconds for every depot already placed. Unit: seconds. Range: 0 to 900. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_interval_seconds": 150,
+  // Expand early when the served fields hold less than this share of their start amount. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_when_served_remaining_fraction": 0.5,
+  // Most live depots (under construction, or complete with a field that has resources in reach); 0 turns depots off. Unit: depots. Range: 0 to 6. Source: skirmish_ai_v2.md B.1; placeholder.
+  "max_live_depots": 2,
+  // A field holding less than this is not an expansion or relocation target unless no field qualifies. Unit: resource units. Range: 1 to 1000000. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_min_field_remaining": 300,
+  // A target this close to a known enemy structure, an uncleared enemy spawn or a recently seen enemy army is unsafe. Unit: tiles. Range: 2 to 64. Source: skirmish_ai_v2.md B.1; placeholder.
+  "expand_safe_radius_tiles": 14,
+  // How long the last seen enemy army position counts for safety. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
+  "enemy_army_memory_seconds": 60,
+  // Innermost Chebyshev ring around the target field searched for a depot site. Unit: tiles. Range: 1 to 10. Source: skirmish_ai_v2.md B.1; placeholder.
+  "depot_ring_min_tiles": 3,
+  // Outermost Chebyshev ring around the target field searched for a depot site. Unit: tiles. Range: depot_ring_min_tiles to 20. Source: skirmish_ai_v2.md B.1; placeholder.
+  "depot_ring_max_tiles": 6,
+  // Most workers moved off an over-full field per think. Unit: workers. Range: 0 to 20. Source: skirmish_ai_v2.md B.1; placeholder.
+  "rebalance_workers_per_think": 2,
+  // The HQ may relocate once its home fields hold this share or less of their start amount (and no cheaper option exists). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_when_home_remaining_fraction": 0.1,
+  // Where the relocating HQ stops: this far from the target field centre toward its old position (capped at half the HQ root distance). Unit: tiles. Range: 0.5 to 32. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_stand_off_tiles": 3,
+  // A relocation not rooted after this long re-targets from where the HQ stands. Unit: seconds. Range: 10 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_timeout_seconds": 120,
+  // No new relocation this soon after the HQ rooted. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
+  "relocate_cooldown_seconds": 60,
+  // Rule S on: the AI scouts the enemy base and the map's fields (a scout unit, or a borrowed flyer). Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md B.1; placeholder.
+  "use_scouting": true,
+  // Enemy model on: the AI remembers which enemy army unit types it has seen (with decay) and which it implies from enemy structures. Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md B.1; placeholder.
+  "use_enemy_model": true,
+  // Counter-mix on: the plan composition is replaced by counter-mix weights computed from the enemy model and the unit data. Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md C.4; placeholder.
+  "use_counter_mix": true,
+  // First scout is wanted from this time. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_first_seconds": 40,
+  // A new scouting round starts this long after the last one started. Unit: seconds. Range: 10 to 900. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_interval_seconds": 90,
+  // Wait after a scout dies before the next is trained or borrowed. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_retry_seconds": 30,
+  // After this many dead scouts no scout is trained (borrowed flyers still scout). Unit: units. Range: 0 to 20. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_max_losses": 3,
+  // Longest scouting route. Unit: waypoints. Range: 1 to 32. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_route_max_waypoints": 8,
+  // A field this close to an earlier waypoint adds no waypoint. Unit: tiles. Range: 0 to 64. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_merge_tiles": 8,
+  // An own air army unit costing (common + rare) at most this may be borrowed as scout; 0 never borrows. Unit: resource units. Range: 0 to 100000. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_air_max_cost": 250,
+  // A sighting of an enemy unit type counts fully for this long. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_hold_seconds": 30,
+  // After the hold time a sighting fades linearly to the floor over this long. Unit: seconds. Range: 1 to 3600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_decay_seconds": 120,
+  // Old sightings never count for less than this share. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_floor_fraction": 0.25,
+  // Count implied for each unit type a known enemy structure trains. Unit: units. Range: 0 to 20. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_implied_count": 1,
+  // Rule T on: the AI builds the producer of the best counter unit when none of its structures trains it. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C.5; placeholder.
+  "use_tech_on_demand": false,
+  // Rule SD on: the AI builds static defences at raided bases and against a layer nothing answers. Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md C.6; placeholder.
+  "use_static_defence": false,
+  // Rule RS on: rare-cost units in the mix bring the first rare depot forward. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C.7; placeholder.
+  "use_rare_priority": true,
+  // Fight predictor: longest time a side needs (also "never"). Unit: seconds. Range: 10 to 36000. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_max_seconds": 600,
+  // Fight predictor: shortest time a side needs. Unit: seconds. Range: 0.01 to 10. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_min_seconds": 0.05,
+  // Fight predictor: share of the range head start subtracted from a time. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_range_weight": 1,
+  // Fight predictor: longest range head start. Unit: seconds. Range: 0 to 60. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_range_headstart_max_seconds": 5,
+  // Fight predictor: share of shield domes counted as extra health against ranged damage. Unit: fraction. Range: 0 to 2. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_dome_weight": 1,
+  // Fight predictor: cap of the advantage ratio. Unit: ratio. Range: 1 to 10000. Source: skirmish_ai_v3.md C.1; placeholder.
+  "predictor_max_advantage": 100,
+  // Counter-mix: weight of the counter share against the base composition at full confidence. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_weight": 0,
+  // Counter-mix: known enemy army supply at which the confidence is full. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_full_confidence_supply": 8,
+  // Counter-mix: a unit is kept when its score is at least this share of the best score. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_keep_fraction": 0.5,
+  // Counter-mix: weight of a unit's rare cost in its score cost. Unit: ratio. Range: 0 to 20. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_rare_cost_weight": 2,
+  // Counter-mix: floor of the damage an enemy is assumed to deal to a unit. Unit: health points per second. Range: 0.01 to 1000. Source: skirmish_ai_v3.md C.4; placeholder.
+  "counter_min_incoming_dps": 1,
+  // Counter-mix: the mix weights are integers out of this many. Unit: weight units. Range: 10 to 100000. Source: skirmish_ai_v3.md C.4; placeholder.
+  "mix_resolution": 1000,
+  // Rule T: builds a producer when the best missing unit's mix weight is at least this share of mix_resolution. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.5; placeholder.
+  "tech_min_weight_share": 0.15,
+  // Rule SD: raid starts within this long count. Unit: seconds. Range: 10 to 1800. Source: skirmish_ai_v3.md C.6; placeholder.
+  "raided_window_seconds": 120,
+  // Rule SD: quiet time at a drop-off after which new activity is a new raid. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md C.6; placeholder.
+  "raided_gap_seconds": 20,
+  // Rule SD: raids in the window that call for a static defence. Unit: raids. Range: 1 to 20. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_after_raids": 1,
+  // Rule SD: most own static defences near one base. Unit: structures. Range: 0 to 6, and not above supply.json static_defences_per_base_max. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_max_per_base": 2,
+  // Rule SD: innermost Chebyshev ring around the drop-off searched for a site. Unit: tiles. Range: 1 to 10. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_ring_min_tiles": 2,
+  // Rule SD: outermost Chebyshev ring searched for a site. Unit: tiles. Range: static_defence_ring_min_tiles to 12. Source: skirmish_ai_v3.md C.6; placeholder.
+  "static_defence_ring_max_tiles": 4,
+  // Rule SD: model supply of a layer that nothing answers before a defence is built at the HQ. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C.6; placeholder.
+  "unanswered_layer_min_supply": 3,
+  // Rule RS: mix weight share of rare-cost units at which rule E ignores its clock gate. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.7; placeholder.
+  "rare_need_weight_share": 0.25,
+  // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
+  "factions": {
+    "skai": {
+      // Worker the Great Aerie trains. Unit: unit ID. Range: a skai unit with can_gather. Source: Factions / Skai Riders.
+      "worker_unit": "skai.fledgling",
+      // Scout unit trained for rule S: mobile, not a worker, not an HQ, trained by some structure of the faction. Optional. Unit: unit ID. Range: a unit of the faction, or absent for no trained scout. Source: skirmish_ai_v3.md B.1; placeholder.
+      "scout_unit": "skai.windrunner",
+      // Structure built when free supply runs low. Unit: unit ID. Range: a skai structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
+      "supply_building": "skai.roost",
+      // Drop-off structure built at a new base (rule E). Optional. Unit: unit ID. Range: a skai structure with footprint 1 and is_drop_off, or absent for no depots. Source: skirmish_ai_v2.md B.1; placeholder.
+      "drop_off_building": "skai.perch_depot",
+      // Build order: keep at least count of structure once supply used reaches at_supply_used (strict order). Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: Core gameplay loop (Opening: first production building); placeholder.
+      "build_order": [
+        { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
+        { "structure": "skai.roost", "count": 2, "at_supply_used": 6 },
+        { "structure": "skai.windspire", "count": 1, "at_supply_used": 10 },
+        { "structure": "skai.roost", "count": 3, "at_supply_used": 14 }
+      ],
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Skai Riders / Unit concepts; placeholder (the Roc Rider costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
+      "composition": { "skai.windrunner": 3, "skai.talon_archer": 2, "skai.roc_rider": 1, "skai.stormcaller": 1 },
+      // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (Skai strike at low tide); placeholder.
+      "attack_tide_min": 0,
+      // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups (Skai strike at low tide); placeholder.
+      "attack_tide_max": 1,
+      // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
+      "attack_tide_override_supply": 20,
+      // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
+      "cycle_preference": ["windstorm", "core_surge", "quake"]
+    },
+    "water": {
+      // Worker the Grand Shell trains. Unit: unit ID. Range: a water unit with can_gather. Source: Factions / Water faction.
+      "worker_unit": "water.tender",
+      // Scout unit trained for rule S: mobile, not a worker, not an HQ, trained by some structure of the faction. Optional. Unit: unit ID. Range: a unit of the faction, or absent for no trained scout. Source: skirmish_ai_v3.md B.1; placeholder.
+      "scout_unit": "water.reef_runner",
+      // Structure built when free supply runs low. Unit: unit ID. Range: a water structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
+      "supply_building": "water.tidepool",
+      // Drop-off structure built at a new base (rule E). Optional. Unit: unit ID. Range: a water structure with footprint 1 and is_drop_off, or absent for no depots. Source: skirmish_ai_v2.md B.1; placeholder.
+      "drop_off_building": "water.pearl_depot",
+      // Build order: keep at least count of structure once supply used reaches at_supply_used (strict order). Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: Core gameplay loop (Opening: first production building); placeholder.
+      "build_order": [
+        { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
+        { "structure": "water.tidepool", "count": 2, "at_supply_used": 6 },
+        { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
+        { "structure": "water.tidepool", "count": 3, "at_supply_used": 14 }
+      ],
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; placeholder (the Ink Lobber costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
+      "composition": { "water.grasper": 3, "water.shellback": 1, "water.ink_lobber": 1, "water.spoutling": 1 },
+      // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (the water player times attacks for high tide); placeholder.
+      "attack_tide_min": 0,
+      // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups; placeholder.
+      "attack_tide_max": 1,
+      // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
+      "attack_tide_override_supply": 20,
+      // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
+      "cycle_preference": ["core_surge", "quake", "windstorm"]
+    }
+  }
+}

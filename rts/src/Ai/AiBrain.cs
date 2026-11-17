@@ -35,6 +35,14 @@
 //      the HQ tile (ring by ring, ascending tile index) whose 3x3 block is on the map, unblocked, not a ramp and on the HQ's
 //      height layer, whose own tile is not occupied by a unit, and that is more than field_clearance_tiles from every field.
 //      The builder is the lowest-ID gathering worker (else the lowest-ID worker).
+//   3b. Tech on demand (rule T, skirmish_ai_v3.md C.5, only when use_tech_on_demand): the counter-mix unit with the largest weight that no
+//      own structure trains gets its producer built (rule X's choice of structure) when its weight is at least tech_min_weight_share x
+//      mix_resolution and no producer of a mix unit is under construction.
+//   3c. Static defence (rule SD, C.6, only when use_static_defence): raids on an own drop-off are logged (enemy army within defend_radius_tiles
+//      or a recent hit there; a new raid after raided_gap_seconds of quiet). A drop-off raided static_defence_after_raids times within
+//      raided_window_seconds gets one static defence (ring sites, nearest the raiders); else a layer of the enemy model with
+//      unanswered_layer_min_supply that no own unit, defence or affordable pool unit can hit gets one at the HQ. At most
+//      static_defence_max_per_base per base, one under construction at a time.
 //   4. Expand (rule E): when the plan has a drop_off_building, no threat is seen, live depots < max_live_depots and no depot is under
 //      construction, and either the clock reached expand_at_seconds + depots placed x expand_interval_seconds or the served fields hold
 //      less than expand_when_served_remaining_fraction of their start amount, build a depot at the best site beside the first field in
@@ -83,10 +91,15 @@
 //      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no
 //      field on the map has known resources (rule A), the attack threshold drops to 1 supply, the tide window is ignored, the army never
 //      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
+// Package C (skirmish_ai_v3.md C.4 and C.7) replaces, while its switch is on: the plan's composition by the counter-mix weights (use_counter_mix:
+// AiCounter.Mix from the enemy model and unit data; read by rules P, X and T) and rule E's clock gate and target order (use_rare_priority:
+// when rare-cost units weigh at least rare_need_weight_share of the mix and no rare field is served, a depot is due at once and rare sites come first).
+// Rule S now also treats a Defend that this think's threat would start as Defend (the scout is not taken on the first think of a Defend), and the
+// unreachable-waypoint skip waits until the move order has taken effect (AiMemory.ScoutOrderEffectiveTick).
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
 // that holds for enemy_model_hold_seconds and then fades to enemy_model_floor_fraction, reduced by seen kills, plus the types a known
-// enemy structure trains (AiIntel). Nothing reads the model yet except the harness response check (package C reads it); with both
-// switches off the AI plays exactly as v2 (test A-11). Army membership: the scout (rule 4c) is not an army unit (and not counted by rule P)
+// enemy structure trains (AiIntel). Package C reads it (the counter-mix, rule SD) as does the harness response check; with every v3 switch
+// off the AI plays exactly as v2 (test A-11). Army membership: the scout (rule 4c) is not an army unit (and not counted by rule P)
 // while it is away on its route; an own scout resting between rounds is an army unit again and is re-taken when the next round is due.
 // Deleted or replaced by skirmish_ai_v2.md package C: the Massing rally at the Core (rally_at_core now moves the staging point),
 // attack reinforcement by idle army units, the per-producer production loop, and the threshold redraw on every Massing entry.
@@ -148,6 +161,8 @@ namespace Rts.Ai
             turn.Cycle();
             turn.Gather();
             turn.Structures();
+            turn.Tech();
+            turn.StaticDefence();
             turn.Expand();
             turn.TrainWorkers();
             turn.Scout();
@@ -541,6 +556,15 @@ namespace Rts.Ai
                 return field.Kind == ResourceKind.Common ? _profile.WorkersPerField : _profile.RareWorkersPerField;
             }
 
+            /// <summary>The enemy model M(t) per army type (B.3) this think; empty when use_enemy_model is off. Unit: units. Range: above 0 each.</summary>
+            private readonly SortedDictionary<string, Fix64> _model;
+
+            /// <summary>The enemy model as fight entries (C.1), ordinal order; empty when nothing is known.</summary>
+            private readonly List<FightEntry> _enemies;
+
+            /// <summary>The army composition weights in force this think: the counter-mix (C.4) when use_counter_mix, else the plan's composition. Unit: weight units. Range: 0 upward each.</summary>
+            private readonly IReadOnlyDictionary<string, int> _composition;
+
             /// <summary>Captures the think's inputs and starts the ledger from the view's stock.</summary>
             public Turn(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory, DeterministicRandom rng, AiUnitView hq, List<AiIntent> intents)
             {
@@ -605,6 +629,9 @@ namespace Rts.Ai
                     }
                 }
                 ScanThreat();
+                _model = profile.UseEnemyModel ? AiIntel.ModelCounts(view, profile, memory) : new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
+                _enemies = AiCounter.Entries(view, _model);
+                _composition = profile.UseCounterMix ? AiCounter.Mix(view, profile, plan, memory) : plan.Composition;
             }
 
             /// <summary>True when some field with known resources lies within field_max_distance_tiles of <paramref name="point"/>.</summary>
@@ -1332,7 +1359,7 @@ namespace Rts.Ai
             /// when any qualify), safe ones first, each group by squared distance from <paramref name="from"/> then field index; unsafe
             /// ones are listed only while starved.
             /// </summary>
-            private List<AiFieldView> TargetOrder(FixVec2 from)
+            private List<AiFieldView> TargetOrder(FixVec2 from, bool rarePriority = false)
             {
                 // Fields that may be targets.
                 List<AiFieldView> pool = new List<AiFieldView>();
@@ -1361,13 +1388,61 @@ namespace Rts.Ai
                 {
                     (IsUnsafe(field.Centre) ? unsafeFields : safe).Add(field);
                 }
-                safe.Sort((a, b) => CompareByDistance(a, b, from));
-                unsafeFields.Sort((a, b) => CompareByDistance(a, b, from));
+                // Rule RS: rare sites first inside each safety group (a stable key: rare flag, then distance, then index).
+                Comparison<AiFieldView> order = (a, b) =>
+                {
+                    int byRare = rarePriority ? IsRareSite(b).CompareTo(IsRareSite(a)) : 0;
+                    return byRare != 0 ? byRare : CompareByDistance(a, b, from);
+                };
+                safe.Sort(order);
+                unsafeFields.Sort(order);
                 if (Starved)
                 {
                     safe.AddRange(unsafeFields);
                 }
                 return safe;
+            }
+
+            /// <summary>True for a rare field, or a field within field_max_distance_tiles of a field that holds known rare resources (rule RS).</summary>
+            private bool IsRareSite(AiFieldView field)
+            {
+                foreach (AiFieldView other in _view.Fields)
+                {
+                    if (other.Kind == ResourceKind.Rare && Known(other) > 0 && (other.Index == field.Index || (other.Centre - field.Centre).LengthSquared() <= ReachSquared))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>
+            /// Rule RS (skirmish_ai_v3.md C.7): true when use_rare_priority is on, the mix weights of units with a rare cost sum to at least
+            /// rare_need_weight_share x mix_resolution, and no served field holds the rare resource.
+            /// </summary>
+            private bool RarePriority()
+            {
+                if (!_profile.UseRarePriority)
+                {
+                    return false;
+                }
+                foreach (AiFieldView field in _served)
+                {
+                    if (field.Kind == ResourceKind.Rare)
+                    {
+                        return false;
+                    }
+                }
+                // Mix weight of the units that cost rare. Unit: weight units. Range: 0 upward.
+                int rareWeight = 0;
+                foreach (KeyValuePair<string, int> pair in _composition)
+                {
+                    if (_view.Content.Units.TryGetValue(pair.Key, out UnitDefinition? unit) && unit.CostRare > 0)
+                    {
+                        rareWeight += pair.Value;
+                    }
+                }
+                return Fix64.FromInt(rareWeight) >= _profile.RareNeedWeightShare * Fix64.FromInt(_profile.MixResolution);
             }
 
             /// <summary>Orders two fields by squared distance from <paramref name="from"/>, then by index (a total order, so the sort is deterministic).</summary>
@@ -1379,6 +1454,391 @@ namespace Rts.Ai
                 Fix64 db = (b.Centre - from).LengthSquared();
                 int byDistance = da.CompareTo(db);
                 return byDistance != 0 ? byDistance : a.Index.CompareTo(b.Index);
+            }
+
+            /// <summary>True when some own structure (complete or under construction) lists <paramref name="unitId"/> in its trains.</summary>
+            private bool AnyOwnTrains(string unitId)
+            {
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && Contains(unit.Definition.Economy.Trains, unitId))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>
+            /// Rule T (skirmish_ai_v3.md C.5, only when use_tech_on_demand): the mix unit with the largest weight that no own structure trains
+            /// (ties to the ordinally lower ID) gets its producer built when its weight is at least tech_min_weight_share x mix_resolution and no
+            /// own structure that trains a mix unit is under construction.
+            /// </summary>
+            public void Tech()
+            {
+                if (!_profile.UseTechOnDemand)
+                {
+                    return;
+                }
+                // The best unit nothing trains yet, and its weight. Unit: weight units. Range: 0 upward.
+                string? top = null;
+                int topWeight = 0;
+                foreach (KeyValuePair<string, int> pair in _composition)
+                {
+                    if (pair.Value > topWeight && !AnyOwnTrains(pair.Key))
+                    {
+                        top = pair.Key;
+                        topWeight = pair.Value;
+                    }
+                }
+                if (top == null || Fix64.FromInt(topWeight) < _profile.TechMinWeightShare * Fix64.FromInt(_profile.MixResolution))
+                {
+                    return;
+                }
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && unit.IsUnderConstruction && TrainsCompositionUnit(unit.Definition))
+                    {
+                        return;
+                    }
+                }
+                // The structure that trains the unit, or null when the faction has none.
+                UnitDefinition? structure = ProducerStructureFor(top);
+                if (structure != null)
+                {
+                    TryBuild(structure);
+                }
+            }
+
+            /// <summary>Own drop-offs for rule SD: the Rooted HQ and every complete drop-off structure, ascending ID.</summary>
+            private List<AiUnitView> DropOffs()
+            {
+                // The drop-offs found.
+                List<AiUnitView> found = new List<AiUnitView>();
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (!unit.IsUnderConstruction && ((unit.IsHq && unit.HqState == HqState.Rooted) || (unit.IsStructure && unit.Definition.Economy.IsDropOff)))
+                    {
+                        found.Add(unit);
+                    }
+                }
+                return found;
+            }
+
+            /// <summary>
+            /// Rule SD step 1 (C.6): records enemy activity at every own drop-off: a visible enemy army unit within defend_radius_tiles, or a
+            /// recent hit on an own unit there. Activity with none in the previous raided_gap_seconds starts a raid (its tick is appended to the log).
+            /// Forgets the logs of units that no longer exist (an uprooted HQ keeps its log).
+            /// </summary>
+            /// <param name="dropOffs">The own drop-offs, ascending ID.</param>
+            private void UpdateRaids(List<AiUnitView> dropOffs)
+            {
+                // Squared defend radius. Unit: squared tiles.
+                Fix64 radiusSquared = _profile.DefendRadiusTiles * _profile.DefendRadiusTiles;
+                // Quiet time that separates two raids. Unit: ticks.
+                int gapTicks = _view.SecondsToTicks(_profile.RaidedGapSeconds);
+                // Entries kept per log. Unit: raids. Range: 2 to 21.
+                int keep = _profile.StaticDefenceAfterRaids + 1;
+                // Logged drop-offs that are gone.
+                List<EntityId> gone = new List<EntityId>();
+                foreach (EntityId id in _memory.RaidLog.Keys)
+                {
+                    // An HQ that is uprooted (relocating) is not a drop-off for now but keeps its raid history; only units that no longer exist are forgotten.
+                    if (FindOwn(id) == null)
+                    {
+                        gone.Add(id);
+                    }
+                }
+                foreach (EntityId id in gone)
+                {
+                    _memory.RaidLog.Remove(id);
+                    _memory.LastRaidTick.Remove(id);
+                    _memory.RaidPosition.Remove(id);
+                }
+                foreach (AiUnitView dropOff in dropOffs)
+                {
+                    // Sum of the raiders' positions and their number.
+                    Fix64 sumX = Fix64.Zero;
+                    Fix64 sumY = Fix64.Zero;
+                    int raiders = 0;
+                    foreach (AiUnitView enemy in _view.VisibleEnemies)
+                    {
+                        if (enemy.IsArmy && (enemy.Position - dropOff.Position).LengthSquared() <= radiusSquared)
+                        {
+                            sumX += enemy.Position.X;
+                            sumY += enemy.Position.Y;
+                            raiders++;
+                        }
+                    }
+                    // Where the activity is, and whether there is any.
+                    FixVec2 at = raiders > 0 ? new FixVec2(sumX / raiders, sumY / raiders) : dropOff.Position;
+                    bool active = raiders > 0;
+                    // Tick of the newest hit near the drop-off. Unit: ticks.
+                    int newest = -1;
+                    foreach (DamageReport report in _memory.RecentDamage.Values)
+                    {
+                        if ((report.Position - dropOff.Position).LengthSquared() <= radiusSquared && report.Tick > newest)
+                        {
+                            newest = report.Tick;
+                            if (raiders == 0)
+                            {
+                                at = report.Position;
+                            }
+                            active = true;
+                        }
+                    }
+                    if (!active)
+                    {
+                        continue;
+                    }
+                    if (!_memory.LastRaidTick.TryGetValue(dropOff.Id, out int last) || _view.Tick - last > gapTicks)
+                    {
+                        if (!_memory.RaidLog.TryGetValue(dropOff.Id, out List<int>? log))
+                        {
+                            log = new List<int>();
+                            _memory.RaidLog.Add(dropOff.Id, log);
+                        }
+                        log.Add(_view.Tick);
+                        if (log.Count > keep)
+                        {
+                            log.RemoveRange(0, log.Count - keep);
+                        }
+                    }
+                    _memory.LastRaidTick[dropOff.Id] = _view.Tick;
+                    _memory.RaidPosition[dropOff.Id] = at;
+                }
+            }
+
+            /// <summary>Own static defences (complete or under construction) within field_max_distance_tiles of <paramref name="point"/>. Unit: structures.</summary>
+            private int StaticDefencesNear(FixVec2 point)
+            {
+                // Matches found. Unit: structures.
+                int count = 0;
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && unit.Definition.Economy.IsStaticDefence && (unit.Position - point).LengthSquared() <= ReachSquared)
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+
+            /// <summary>True when an own static defence is under construction anywhere.</summary>
+            private bool StaticDefenceUnderConstruction()
+            {
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && unit.IsUnderConstruction && unit.Definition.Economy.IsStaticDefence)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>True when a complete own army unit or static defence has a weapon that can hit <paramref name="layer"/>.</summary>
+            private bool OwnAnswers(MovementLayer layer)
+            {
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (!unit.IsUnderConstruction && (unit.IsArmy || (unit.IsStructure && unit.Definition.Economy.IsStaticDefence))
+                        && unit.Definition.Weapon != null && unit.Definition.Weapon.CanTarget(layer))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>True when some unit of the faction's pool can hit <paramref name="layer"/> and its rare cost is within the rare stock.</summary>
+            private bool PoolAnswers(MovementLayer layer)
+            {
+                foreach (UnitDefinition unit in AiCounter.Pool(_view, _plan.FactionId))
+                {
+                    if (unit.Weapon != null && unit.Weapon.CanTarget(layer) && unit.CostRare <= _rare)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>The nearest enemy spawn to the own HQ (lower index on a tie), or the HQ position when the map has none.</summary>
+            private FixVec2 EnemySpawn()
+            {
+                // Best spawn so far and its squared distance. Unit: tiles; squared tiles.
+                FixVec2 best = _hq.Position;
+                Fix64 bestSquared = Fix64.Zero;
+                bool found = false;
+                // Spawn index. Range: 0 to spawn count - 1.
+                for (int i = 0; i < _view.Spawns.Count; i++)
+                {
+                    if (i == _memory.OwnSpawnIndex)
+                    {
+                        continue;
+                    }
+                    Fix64 squared = (_view.Spawns[i] - _hq.Position).LengthSquared();
+                    if (!found || squared < bestSquared)
+                    {
+                        best = _view.Spawns[i];
+                        bestSquared = squared;
+                        found = true;
+                    }
+                }
+                return best;
+            }
+
+            /// <summary>
+            /// The faction static defence with the highest counter score against the enemy model (ties to the ordinally lower ID) among those
+            /// whose weapon can hit every layer in <paramref name="layers"/>; null when none can.
+            /// </summary>
+            /// <param name="layers">The layers that triggered the build (empty: any defence).</param>
+            private UnitDefinition? PickDefence(List<MovementLayer> layers)
+            {
+                // Best defence so far, and its score.
+                UnitDefinition? best = null;
+                Fix64 bestScore = Fix64.Zero;
+                foreach (UnitDefinition defence in AiCounter.StaticDefences(_view, _plan.FactionId))
+                {
+                    // True when the weapon can hit every triggering layer.
+                    bool fits = true;
+                    foreach (MovementLayer layer in layers)
+                    {
+                        fits &= defence.Weapon!.CanTarget(layer);
+                    }
+                    if (!fits)
+                    {
+                        continue;
+                    }
+                    Fix64 score = _enemies.Count == 0 ? Fix64.Zero : AiCounter.Score(defence, _enemies, _profile, _view);
+                    if (best == null || score > bestScore)
+                    {
+                        best = defence;
+                        bestScore = score;
+                    }
+                }
+                return best;
+            }
+
+            /// <summary>
+            /// The static defence site (C.6 step 4): on Chebyshev rings static_defence_ring_min_tiles to static_defence_ring_max_tiles around
+            /// <paramref name="origin"/> (scanned like rule 3's ring scan), the tile that passes <see cref="IsGoodSite"/> on the origin tile's
+            /// height layer with the lowest squared distance to <paramref name="toward"/>; a later tile must score strictly lower.
+            /// </summary>
+            private bool TryFindDefenceSite(FixVec2 origin, FixVec2 toward, out int siteX, out int siteY)
+            {
+                siteX = 0;
+                siteY = 0;
+                // Origin tile and its height layer.
+                int ox = origin.X.FloorToInt();
+                // Origin tile row. Unit: tiles.
+                int oy = origin.Y.FloorToInt();
+                if (!_view.Contains(ox, oy))
+                {
+                    return false;
+                }
+                // Height layer of the origin tile; a site must be on the same layer. Unit: height level. Range: 0 to 255.
+                byte baseHeight = _view.HeightAt(ox, oy);
+                // Scan directions, as in rule 3.
+                int sx = _view.Width / 2 >= ox ? 1 : -1;
+                // Scan direction along the rows: +1 when the map centre lies at or below the origin tile, else -1. Unit: sign. Range: -1 or 1.
+                int sy = _view.Height / 2 >= oy ? 1 : -1;
+                // True once a site is found, and the squared distance of the best so far. Unit: squared tiles.
+                bool found = false;
+                Fix64 bestSquared = Fix64.Zero;
+                // Ring distance from the origin tile. Unit: tiles. Range: static_defence_ring_min_tiles to static_defence_ring_max_tiles.
+                for (int ring = _profile.StaticDefenceRingMinTiles; ring <= _profile.StaticDefenceRingMaxTiles; ring++)
+                {
+                    // Scan step along the row axis. Unit: tiles. Range: -ring to ring.
+                    for (int stepY = -ring; stepY <= ring; stepY++)
+                    {
+                        // Scan step along the column axis. Unit: tiles. Range: -ring to ring.
+                        for (int stepX = -ring; stepX <= ring; stepX++)
+                        {
+                            // Offsets flipped toward the map centre.
+                            int dx = stepX * sx;
+                            int dy = stepY * sy;
+                            if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != ring || !IsGoodSite(ox + dx, oy + dy, baseHeight))
+                            {
+                                continue;
+                            }
+                            Fix64 squared = (_view.CentreOf(ox + dx, oy + dy) - toward).LengthSquared();
+                            if (!found || squared < bestSquared)
+                            {
+                                found = true;
+                                bestSquared = squared;
+                                siteX = ox + dx;
+                                siteY = oy + dy;
+                            }
+                        }
+                    }
+                }
+                return found;
+            }
+
+            /// <summary>Picks a defence for <paramref name="layers"/> and builds it at the best site around <paramref name="origin"/>.</summary>
+            private void BuildDefence(FixVec2 origin, FixVec2 toward, List<MovementLayer> layers)
+            {
+                // The defence to build, or null when none fits.
+                UnitDefinition? defence = PickDefence(layers);
+                if (defence != null && TryFindDefenceSite(origin, toward, out int x, out int y))
+                {
+                    TryBuild(defence, (x, y));
+                }
+            }
+
+            /// <summary>
+            /// Rule SD (skirmish_ai_v3.md C.6, only when use_static_defence): logs raids (step 1); builds one static defence beside a drop-off
+            /// raided static_defence_after_raids times within raided_window_seconds (step 2), else one at the HQ against a layer of the model
+            /// that nothing answers (step 3); at most static_defence_max_per_base per base, one under construction at a time, one order per think.
+            /// </summary>
+            public void StaticDefence()
+            {
+                if (!_profile.UseStaticDefence)
+                {
+                    return;
+                }
+                // Own drop-offs, ascending ID.
+                List<AiUnitView> dropOffs = DropOffs();
+                UpdateRaids(dropOffs);
+                if (_profile.StaticDefenceMaxPerBase == 0 || StaticDefenceUnderConstruction())
+                {
+                    return;
+                }
+                // Oldest raid start that still counts. Unit: ticks.
+                int windowStart = _view.Tick - _view.SecondsToTicks(_profile.RaidedWindowSeconds);
+                foreach (AiUnitView dropOff in dropOffs)
+                {
+                    if (!_memory.RaidLog.TryGetValue(dropOff.Id, out List<int>? log))
+                    {
+                        continue;
+                    }
+                    // Raids in the window. Unit: raids.
+                    int raids = 0;
+                    foreach (int start in log)
+                    {
+                        raids += start >= windowStart ? 1 : 0;
+                    }
+                    if (raids >= _profile.StaticDefenceAfterRaids && StaticDefencesNear(dropOff.Position) < _profile.StaticDefenceMaxPerBase)
+                    {
+                        BuildDefence(dropOff.Position, _memory.RaidPosition[dropOff.Id], new List<MovementLayer>());
+                        return;
+                    }
+                }
+                // Step 3: layers of the model that nothing answers.
+                List<MovementLayer> unanswered = new List<MovementLayer>();
+                foreach (MovementLayer layer in new[] { MovementLayer.Ground, MovementLayer.Water, MovementLayer.Air })
+                {
+                    if (AiIntel.LayerSupply(_view, _model, layer) >= Fix64.FromInt(_profile.UnansweredLayerMinSupply) && !OwnAnswers(layer) && !PoolAnswers(layer))
+                    {
+                        unanswered.Add(layer);
+                    }
+                }
+                if (unanswered.Count > 0 && StaticDefencesNear(_hq.Position) < _profile.StaticDefenceMaxPerBase)
+                {
+                    BuildDefence(_hq.Position, EnemySpawn(), unanswered);
+                }
             }
 
             /// <summary>Rule E (skirmish_ai_v2.md B.5): builds a depot beside the first unserved field in target order when one is due.</summary>
@@ -1401,13 +1861,15 @@ namespace Rts.Ai
                 }
                 // True when the served fields are running low (starved counts as empty).
                 bool low = Starved || Fix64.FromInt(servedKnown) < _profile.ExpandWhenServedRemainingFraction * Fix64.FromInt(servedStart);
-                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
+                // Rule RS: a needed rare resource brings the depot forward (the clock gate only; every other gate stays).
+                bool rarePriority = RarePriority();
+                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low && !rarePriority)
                 {
                     return;
                 }
                 // The first field in target order that is neither served nor known to have no depot site.
                 AiFieldView? target = null;
-                foreach (AiFieldView field in TargetOrder(_hq.Position))
+                foreach (AiFieldView field in TargetOrder(_hq.Position, rarePriority))
                 {
                     if (!_served.Contains(field) && !_memory.UnbuildableFields.Contains(field.Index))
                     {
@@ -1572,6 +2034,13 @@ namespace Rts.Ai
                 return null;
             }
 
+            /// <summary>
+            /// True when the army defends this think: the stance is already Defend, or this think's threat would start (or keep) Defend (the same
+            /// test as <see cref="DefendIfThreatened"/>, which runs later in Army). Rule S reads it so no scout is taken on the first think of a Defend.
+            /// </summary>
+            private bool WillDefend => _memory.Stance == AiStance.Defend
+                || ((_threatCount > 0 || _latestHit != null) && !(_memory.Stance == AiStance.Attack && _threatSupply < _profile.DefendRecallSupply));
+
             /// <summary>Rule 4c (skirmish_ai_v3.md B.2): keeps one scout on its route, assigns or trains one when it is due (see the class header).</summary>
             public void Scout()
             {
@@ -1596,7 +2065,7 @@ namespace Rts.Ai
                 if (scout != null)
                 {
                     if (!_memory.ScoutBorrowed && _memory.ScoutWaypoint >= _memory.ScoutRoute.Count && roundDue
-                        && _memory.Stance != AiStance.Defend && !_memory.AttackGroup.Contains(scout.Id))
+                        && !WillDefend && !_memory.AttackGroup.Contains(scout.Id))
                     {
                         // An own scout resting with the army (not defending, not in the attack group) is taken again for the next round.
                         StartRound();
@@ -1629,7 +2098,7 @@ namespace Rts.Ai
                     changed = true;
                 }
                 if (!changed && _memory.ScoutWaypoint < _memory.ScoutRoute.Count && !scout.HasMoveTarget && _memory.ScoutHasOrder
-                    && scout.Position == _memory.ScoutOrderPosition)
+                    && _view.Tick > _memory.ScoutOrderEffectiveTick && scout.Position == _memory.ScoutOrderPosition)
                 {
                     // The last order moved nothing (the waypoint cannot be reached): skip it, then go on to the next one.
                     _memory.ScoutWaypoint++;
@@ -1648,6 +2117,7 @@ namespace Rts.Ai
                         {
                             _memory.ScoutHasOrder = true;
                             _memory.ScoutOrderPosition = scout.Position;
+                            _memory.ScoutOrderEffectiveTick = _view.Tick + _memory.CommandDelayTicks;
                         }
                     }
                 }
@@ -1691,11 +2161,11 @@ namespace Rts.Ai
                     {
                         continue;
                     }
-                    if (own == null && _memory.Stance != AiStance.Defend && _plan.ScoutUnitId.Length > 0 && string.Equals(unit.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal))
+                    if (own == null && !WillDefend && _plan.ScoutUnitId.Length > 0 && string.Equals(unit.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal))
                     {
                         own = unit;
                     }
-                    if (_memory.Stance == AiStance.Massing && unit.Layer == MovementLayer.Air
+                    if (_memory.Stance == AiStance.Massing && !WillDefend && unit.Layer == MovementLayer.Air
                         && unit.Definition.CostCommon + unit.Definition.CostRare <= _profile.ScoutAirMaxCost
                         && (flyer == null || _view.SupplyOf(unit.Definition) < _view.SupplyOf(flyer.Definition)))
                     {
@@ -1755,7 +2225,7 @@ namespace Rts.Ai
             public void Produce()
             {
                 // Own count per composition unit, queued included, in ordinal order. Unit: units.
-                foreach (string id in _plan.Composition.Keys)
+                foreach (string id in _composition.Keys)
                 {
                     _counts[id] = 0;
                 }
@@ -1774,7 +2244,7 @@ namespace Rts.Ai
                     }
                 }
                 // Upper bound on units bought this think (one per producer), a guard against a loop that never ends. Unit: units.
-                int guard = _view.OwnUnits.Count + _plan.Composition.Count;
+                int guard = _view.OwnUnits.Count + _composition.Count;
                 // Units the bank cannot pay while the player has no income: they hold no reservation, so cheaper units may be bought instead (rule R).
                 SortedSet<string> unaffordable = new SortedSet<string>(StringComparer.Ordinal);
                 // Purchase number. Range: 0 to guard.
@@ -1782,7 +2252,7 @@ namespace Rts.Ai
                 {
                     // Composition units some free producer can make and whose rare cost the stock can pay.
                     SortedSet<string> candidates = new SortedSet<string>(StringComparer.Ordinal);
-                    foreach (KeyValuePair<string, int> pair in _plan.Composition)
+                    foreach (KeyValuePair<string, int> pair in _composition)
                     {
                         // Definition of this composition unit.
                         UnitDefinition candidate = _view.Content.Units[pair.Key];
@@ -1792,7 +2262,7 @@ namespace Rts.Ai
                         }
                     }
                     // The most needed candidate, or null when none.
-                    string? choice = PickByDeficit(_plan.Composition, _counts, id => candidates.Contains(id));
+                    string? choice = PickByDeficit(_composition, _counts, id => candidates.Contains(id));
                     if (choice == null)
                     {
                         return;
@@ -1846,7 +2316,7 @@ namespace Rts.Ai
             /// <summary>True when the structure trains at least one composition unit (weight above 0).</summary>
             private bool TrainsCompositionUnit(UnitDefinition structure)
             {
-                foreach (KeyValuePair<string, int> pair in _plan.Composition)
+                foreach (KeyValuePair<string, int> pair in _composition)
                 {
                     if (pair.Value > 0 && Contains(structure.Economy.Trains, pair.Key))
                     {
@@ -1882,39 +2352,40 @@ namespace Rts.Ai
                     return;
                 }
                 // The composition unit with the largest deficit over all composition units.
-                string? needed = PickByDeficit(_plan.Composition, _counts, id => true);
+                string? needed = PickByDeficit(_composition, _counts, id => true);
                 if (needed == null)
                 {
                     return;
                 }
-                // The structure to build: the first build order step that trains it, else the lowest ID of the faction.
-                UnitDefinition? structure = null;
-                foreach (AiBuildStep step in _plan.BuildOrder)
-                {
-                    // Definition of this step's structure.
-                    UnitDefinition stepDefinition = _view.Content.Units[step.StructureId];
-                    if (Contains(stepDefinition.Economy.Trains, needed))
-                    {
-                        structure = stepDefinition;
-                        break;
-                    }
-                }
-                if (structure == null)
-                {
-                    foreach (UnitDefinition candidate in _view.Content.Units.Values)
-                    {
-                        if (string.Equals(candidate.FactionId, _plan.FactionId, StringComparison.Ordinal) && candidate.Economy.FootprintTiles > 0
-                            && Contains(candidate.Economy.Trains, needed))
-                        {
-                            structure = candidate;
-                            break;
-                        }
-                    }
-                }
+                // The structure to build.
+                UnitDefinition? structure = ProducerStructureFor(needed);
                 if (structure != null)
                 {
                     TryBuild(structure);
                 }
+            }
+
+            /// <summary>The structure to build to be able to train <paramref name="unitId"/>: the first build order step that trains it, else the lowest ID structure of the faction that does, else null.</summary>
+            private UnitDefinition? ProducerStructureFor(string unitId)
+            {
+                foreach (AiBuildStep step in _plan.BuildOrder)
+                {
+                    // Definition of this step's structure.
+                    UnitDefinition stepDefinition = _view.Content.Units[step.StructureId];
+                    if (Contains(stepDefinition.Economy.Trains, unitId))
+                    {
+                        return stepDefinition;
+                    }
+                }
+                foreach (UnitDefinition candidate in _view.Content.Units.Values)
+                {
+                    if (string.Equals(candidate.FactionId, _plan.FactionId, StringComparison.Ordinal) && candidate.Economy.FootprintTiles > 0
+                        && Contains(candidate.Economy.Trains, unitId))
+                    {
+                        return candidate;
+                    }
+                }
+                return null;
             }
 
             /// <summary>True when <paramref name="list"/> holds <paramref name="id"/> (ordinal).</summary>

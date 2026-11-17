@@ -33,3 +33,26 @@ dotnet run -c Release --project rts/tools/BalanceHarness -- --data rts/data --la
 | turtle_water | FAIL | 83 supply lost before the first structure kill (498.4 s; limit 16); p2 passes (won at 498.4 s) |
 
 Notes: the air_answer part 1 reads the enemy model, which arrives with package B; until then `ResponseSeries.ModelAirKnownTick` stays -1 and the part fails by construction. The runs are deterministic: running the command twice gave identical lines.
+
+## Package C: `aggressive_s2` (counter-mix, tech on demand, static defence, rare priority)
+
+- Ladder against the v2 `aggressive` (full 288 games, Release, 4 workers, 11 min): `ladder_aggressive_vs_aggressive_s2/` (`ladder.md`, `ladder.jsonl`, `stdout.txt`).
+  `LADDER candidate=aggressive_s2 baseline=aggressive decided=288 wins=285 fraction=0.990 bar=0.650 PASS`. Cells below 100 percent: long_lowland water mirror 23 of 24, twin_chokes Skai versus water 22 of 24.
+- Response tests, `response_aggressive_s2.txt`: 4 of 10 pass (both `air_answer`, `armoured_answer` Skai, `trade` water). Failing and why: see the builder report; short version: `armoured_answer` water (the Lanchester score prefers Graspers over Ink Lobbers, the check wants the highest damage multiplier), `trade` Skai 0.847, `raid` part 1 (the check measures the depot nearest the wave spawn, a later depot the defences near the HQ do not cover), `turtle` (package D).
+- `traces/s2_vs_aggressive_greybox_skai_game0.txt`: one traced ladder game (aggressive in slot 0, `aggressive_s2` in slot 1; ladder game 0, ends at tick 6132, hash 017cdd392bb119ca).
+- The profile was tuned once from the spec's placeholders: `static_defence_after_raids` 2 to 1 (see the builder report). `counter_weight` 0.9 was tried on the response scenarios and reverted.
+
+### Package C review: what the 99.0 percent shows (ablations, no tuning)
+
+The shipped `aggressive_s2` result (285 of 288 against `aggressive`) is mostly rare priority, not counter-mix play. Rare priority fires at tick 0 (the base composition's rare share 2/7 = 286 of 1000 is above `rare_need_weight_share` 250), which removes rule E's clock, so `aggressive_s2` places its first depot at about 30 s and has far more workers than v2 by 120 s.
+Both ablation profiles are committed as `rts/data/ai/abl_s2_no_rare.json` and `abl_s2_blind.json` (ablation only, not game profiles; the profile loading and list tests stay green). Both ladders are full (288 games) and were run with the code after the review fixes.
+
+- **A. `abl_s2_no_rare` (rare priority off) against `aggressive`**, `ladder_ablation_A_no_rare_vs_aggressive/`:
+  `LADDER candidate=abl_s2_no_rare baseline=aggressive decided=288 wins=77 fraction=0.267 bar=0.650 FAIL`.
+  Per matchup (greybox, long_lowland, prototype, twin_chokes; skai mirror / skai vs water / water mirror): greybox 0.417 / 0.375 / 0.250; long_lowland 0.417 / 0.500 / 0.083; prototype 0.083 / 0.500 / 0.000; twin_chokes 0.125 / 0.458 / 0.000.
+  It shows: with the early rare depot removed, counter-mix, tech on demand and static defence together do not beat v2 (they lose, mostly in the mirrors). The 99.0 percent is the economy.
+- **B. `aggressive_s2` against `abl_s2_blind`** (same economy: rare priority on, counter-mix weight 0 so the mix equals the base composition, tech on demand and static defence off), `ladder_ablation_B_s2_vs_blind/`:
+  `LADDER candidate=aggressive_s2 baseline=abl_s2_blind decided=288 wins=126 fraction=0.438 bar=0.650 FAIL`.
+  Per matchup: greybox 0.208 / 0.542 / 0.250; long_lowland 0.583 / 0.833 / 0.708; prototype 0.500 / 0.500 / 0.000; twin_chokes 0.542 / 0.500 / 0.083.
+  It shows: between two sides with the same economy, reacting to the enemy does not win on average (43.8 percent, interval 38.1 to 49.5). It helps on long_lowland (70.8 percent) and hurts in the water mirrors and the greybox Skai mirror. `abl_s2_blind` is the counter-mix with `counter_weight` 0, because the switch validation requires `use_counter_mix` for rare priority; tech on demand and static defence are off.
+- The earlier trace `traces/s2_vs_aggressive_greybox_skai_game0.txt` was re-recorded with the shipped profile and now equals ladder game 0 (end tick 6132, hash 017cdd392bb119ca). The first version was recorded with `static_defence_after_raids` 2, so it ended at tick 6255; the shipped-profile game ends at tick 6132 (306.6 s).

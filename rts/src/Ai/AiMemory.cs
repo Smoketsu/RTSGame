@@ -2,7 +2,7 @@
 // The per-controller memory of the skirmish AI (spec section 3): stance, attack threshold, regroup timer, build attempts,
 // the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, the
 // known amount left in every resource field, the depots placed, the fields with no depot site and the HQ relocation state (skirmish_ai_v2.md
-// package B), the scout (route, losses, timers) and the enemy model of skirmish_ai_v3.md package B, and the command sequence counter. Part of
+// package B), the scout (route, losses, timers), the enemy model of skirmish_ai_v3.md package B and the raid log of package C (rule SD), and the command sequence counter. Part of
 // Rts.Ai. This is NOT simulation state and is never hashed: it lives in the controller instance (no static fields), and it is
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
@@ -201,11 +201,17 @@ namespace Rts.Ai
         /// <summary>No scout may be wanted before this tick (set when a scout dies). Unit: ticks. Range: 0 upward.</summary>
         public int NextScoutTick { get; set; }
 
-        /// <summary>True when the scout has been given a move order this round (so <see cref="ScoutOrderPosition"/> is valid).</summary>
+        /// <summary>True when the scout has been given a move order this round (so <see cref="ScoutOrderPosition"/> and <see cref="ScoutOrderEffectiveTick"/> are valid). Unit: boolean. Range: true or false.</summary>
         public bool ScoutHasOrder { get; set; }
 
         /// <summary>Where the scout stood when the latest move order was given; a scout with no move target still standing here has an unreachable waypoint. Unit: tiles. Range: inside the map.</summary>
         public FixVec2 ScoutOrderPosition { get; set; }
+
+        /// <summary>Tick at whose step the latest scout move order is applied (the think tick plus the command delay); the unreachable-waypoint skip waits until a later think. Unit: ticks. Range: 0 upward; meaningful only while <see cref="ScoutHasOrder"/>.</summary>
+        public int ScoutOrderEffectiveTick { get; set; }
+
+        /// <summary>Ticks between a think and the step that applies its commands, set by the controller before each think (the sink's schedule tick minus the current tick). Unit: ticks. Range: 0 to 20.</summary>
+        public int CommandDelayTicks { get; set; }
 
         /// <summary>Positions of the units in <see cref="LastVisibleEnemyTypes"/> at the last think; a kill counts only while its victim's last tile is visible. Unit: tiles. Range: inside the map; same keys as <see cref="LastVisibleEnemyTypes"/>.</summary>
         public SortedDictionary<EntityId, FixVec2> LastVisibleEnemyPositions { get; } = new SortedDictionary<EntityId, FixVec2>();
@@ -227,5 +233,17 @@ namespace Rts.Ai
 
         /// <summary>First tick at which the enemy model reported air supply above 0, or -1 (read by the harness response check). Unit: ticks. Range: -1, or 0 upward.</summary>
         public int ModelAirKnownTick { get; set; } = -1;
+
+        /// <summary>
+        /// Rule SD (skirmish_ai_v3.md C.6): start ticks of the raids at each own drop-off, by the drop-off's ID (ascending), oldest first. Each list
+        /// holds at most static_defence_after_raids + 1 entries; entries of drop-offs that no longer exist are removed every think. Unit: ticks. Range: 0 upward.
+        /// </summary>
+        public SortedDictionary<EntityId, List<int>> RaidLog { get; } = new SortedDictionary<EntityId, List<int>>();
+
+        /// <summary>Rule SD: tick of the latest enemy activity at each own drop-off, by drop-off ID (ascending); same keys as <see cref="RaidLog"/>. Unit: ticks. Range: 0 upward.</summary>
+        public SortedDictionary<EntityId, int> LastRaidTick { get; } = new SortedDictionary<EntityId, int>();
+
+        /// <summary>Rule SD: where the enemy was at the latest activity at each own drop-off (mean of the visible raiders, else the hit unit's position), by drop-off ID; same keys as <see cref="RaidLog"/>. Unit: tiles. Range: inside the map.</summary>
+        public SortedDictionary<EntityId, FixVec2> RaidPosition { get; } = new SortedDictionary<EntityId, FixVec2>();
     }
 }
