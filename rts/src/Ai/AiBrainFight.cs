@@ -631,7 +631,9 @@ namespace Rts.Ai
                             fixedUnits.Add(own);
                         }
                     }
+                    // The threat as predictor entries (real health). Unit: units and health points.
                     List<FightEntry> threat = FightPredictor.Group(_threats);
+                    // The fixed defences as predictor entries (real health). Unit: units and health points.
                     List<FightEntry> fixedEntries = FightPredictor.Group(fixedUnits);
                     // True once the chosen units and the fixed defences reach defend_min_advantage.
                     bool enough = PredictFight(fixedEntries, threat, false).Advantage >= _profile.DefendMinAdvantage;

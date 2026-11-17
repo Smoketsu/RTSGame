@@ -65,11 +65,13 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>A started greybox_1v1 simulation with the given factions in slots 0 and 1.</summary>
         private static Simulation Greybox(string faction0 = "skai", string faction1 = "water", string map = "greybox_1v1")
         {
+            // Value of this case.
             List<PlayerSetup> players = new List<PlayerSetup>
             {
                 new PlayerSetup(P0, new TeamId(0), faction0, "A"),
                 new PlayerSetup(P1, new TeamId(1), faction1, "B"),
             };
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players,
                 BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap(map)));
             sim.Start();
@@ -162,6 +164,7 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>One predictor entry at full health.</summary>
         private static FightEntry Full(string id, int count)
         {
+            // The definition of the unit type being built.
             UnitDefinition definition = Data.Content.Units[id];
             return new FightEntry(definition, Fix64.FromInt(count), definition.MaxHealth * count);
         }
@@ -194,9 +197,11 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Advantage(S3, new List<FightEntry> { Full("skai.windrunner", 6) }, new List<FightEntry> { Full("water.grasper", 2) }), Is.GreaterThan(Fix64.Parse("1.3")));
             foreach ((int count, AiStance expected) in new[] { (4, AiStance.Massing), (6, AiStance.Attack) })
             {
+                // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
                 Simulation sim = Greybox();
                 SkaiHq(sim);
                 Row(sim, "skai.windrunner", P0, count, 10, 10);
+                // The AI memory of this case (stance, groups, known enemies; one per case).
                 AiMemory memory = new AiMemory();
                 Believe(memory, "water.grasper", 2, sim.Clock.Tick);
                 Decide(sim, S3Spec, memory);
@@ -206,6 +211,7 @@ namespace Rts.Sim.Tests.Ai
             Simulation shipped = Greybox();
             SkaiHq(shipped);
             Row(shipped, "skai.windrunner", P0, 6, 10, 10);
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory shippedMemory = new AiMemory();
             Believe(shippedMemory, "water.grasper", 2, shipped.Clock.Tick);
             Decide(shipped, S3, shippedMemory);
@@ -214,6 +220,7 @@ namespace Rts.Sim.Tests.Ai
             Simulation v2 = Greybox();
             SkaiHq(v2);
             Row(v2, "skai.windrunner", P0, 6, 10, 10);
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory v2Memory = new AiMemory();
             Believe(v2Memory, "water.grasper", 2, v2.Clock.Tick);
             Decide(v2, S2b, v2Memory);
@@ -228,10 +235,12 @@ namespace Rts.Sim.Tests.Ai
             bool tested = false;
             foreach (string map in new[] { "greybox_1v1", "prototype_1v1", "twin_chokes", "long_lowland" })
             {
+                // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
                 Simulation sim = Greybox("skai", "water", map);
                 // The own HQ at the first spawn and the rally point toward the second, as the brain computes it.
                 FixVec2 hq = sim.Map.Spawns[0];
                 Spawn(sim, "skai.great_aerie", P0, hq.X.ToString(), hq.Y.ToString());
+                // What the AI sees in this case (own units, visible enemies, map).
                 AiWorldView probe = AiWorldView.Build(sim, P0);
                 FixVec2 rally = hq.MoveTowards(sim.Map.Spawns[1], S3.RallyDistanceTiles);
                 byte rallyHeight = probe.HeightAt(rally.X.FloorToInt(), rally.Y.FloorToInt());
@@ -256,6 +265,7 @@ namespace Rts.Sim.Tests.Ai
                 tested = true;
                 // Six Windrunners at the HQ, a model of 2 Pummelers and a known enemy depot on the higher tile.
                 Row(sim, "skai.windrunner", P0, 6, hq.X.FloorToInt() + 2, hq.Y.FloorToInt() + 2);
+                // The AI memory of this case (stance, groups, known enemies; one per case).
                 AiMemory memory = new AiMemory();
                 Believe(memory, "water.grasper", 2, sim.Clock.Tick);
                 Know(memory, 900, "water.pearl_depot", upX + ".5", upY + ".5", sim.Clock.Tick);
@@ -275,9 +285,11 @@ namespace Rts.Sim.Tests.Ai
         {
             foreach ((int count, AiStance expected) in new[] { (7, AiStance.Massing), (8, AiStance.Attack) })
             {
+                // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
                 Simulation sim = Greybox();
                 SkaiHq(sim);
                 Row(sim, "skai.windrunner", P0, count, 10, 10);
+                // The AI memory of this case (stance, groups, known enemies; one per case).
                 AiMemory memory = new AiMemory();
                 DeterministicRandom rng = new DeterministicRandom(1);
                 Decide(sim, S3, memory, rng);
@@ -299,11 +311,13 @@ namespace Rts.Sim.Tests.Ai
             int supply = Data.Content.Units["water.grasper"].Supply;
             foreach ((int total, AiStance expected) in new[] { (60, AiStance.Attack), (58, AiStance.Massing) })
             {
+                // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
                 Simulation sim = Greybox("water", "skai");
                 WaterHq(sim);
                 // Pummelers needed for the supply (rounded up).
                 int count = (total + supply - 1) / supply;
                 Row(sim, "water.grasper", P0, count, 10, 10);
+                // The AI memory of this case (stance, groups, known enemies; one per case).
                 AiMemory memory = new AiMemory { AttackThreshold = 1000 };
                 Believe(memory, "skai.roc_rider", 6, sim.Clock.Tick);
                 Decide(sim, S3, memory);
@@ -315,11 +329,14 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D4_RetreatByPrediction()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox("water", "skai");
             WaterHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
             List<EntityId> group = Row(sim, "water.grasper", P0, 3, 30, 30);
             Row(sim, "skai.roc_rider", P1, 2, 34, 30);
             Near(Advantage(S3, new List<FightEntry> { Full("water.grasper", 3) }, new List<FightEntry> { Full("skai.roc_rider", 2) }), "0.0292");
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 6, AttackThreshold = 8 };
             foreach (EntityId id in group)
             {
@@ -345,9 +362,11 @@ namespace Rts.Sim.Tests.Ai
         {
             foreach (bool turret in new[] { false, true })
             {
+                // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
                 Simulation sim = Greybox();
                 SkaiHq(sim);
                 Row(sim, "skai.windrunner", P0, 8, 10, 10);
+                // The AI memory of this case (stance, groups, known enemies; one per case).
                 AiMemory memory = new AiMemory();
                 Know(memory, 900, "water.grand_shell", "57.5", "57.5", sim.Clock.Tick);
                 Know(memory, 901, "water.pearl_depot", "27.5", "30.5", sim.Clock.Tick);
@@ -380,18 +399,21 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D6_Harass()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
             // The squad is the 4 Windrunners; the 4 Talon Archers (8 supply) stay home and are not harassers (speed 2.5).
             List<EntityId> runners = Row(sim, "skai.windrunner", P0, 4, 10, 10);
             Row(sim, "skai.talon_archer", P0, 4, 10, 14);
             Assert.That(Data.Content.Units["skai.windrunner"].Supply * 4 + Data.Content.Units["skai.talon_archer"].Supply * 4, Is.GreaterThanOrEqualTo(S3.HarassMinArmySupply));
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory memory = new AiMemory();
             Know(memory, 900, "water.grand_shell", "57.5", "57.5", sim.Clock.Tick);
             Know(memory, 901, "water.pearl_depot", "12.5", "50.5", sim.Clock.Tick);
             memory.HasLastSeenEnemy = true;
             memory.LastSeenEnemyPosition = new FixVec2(Fix64.Parse("55.5"), Fix64.Parse("55.5"));
             memory.LastSeenEnemyTick = sim.Clock.Tick;
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> first = Decide(sim, S3, memory);
             Assert.That(new List<EntityId>(memory.HarassGroup), Is.EqualTo(runners));
             // Attack-move orders of the squad: all four go to the far depot.
@@ -412,11 +434,13 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D6b_HarassWorkersAndLinger()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
             // The squad at the enemy depot, so it has "arrived" at the first think of the run phase.
             List<EntityId> runners = Row(sim, "skai.windrunner", P0, 4, 50, 14);
             Row(sim, "skai.talon_archer", P0, 4, 10, 14);
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory memory = new AiMemory();
             Know(memory, 900, "water.grand_shell", "57.5", "57.5", sim.Clock.Tick);
             // The depot really stands there (the squad sees the tile, so a depot that is not there would be forgotten).
@@ -428,8 +452,10 @@ namespace Rts.Sim.Tests.Ai
             EntityId worker = Spawn(sim, "water.tender", P1, "52", "16");
             Decide(sim, S3, memory);
             Assert.That(memory.HarassGroup.Count, Is.EqualTo(4), "the squad starts");
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> run = Decide(sim, S3, memory);
             Assert.That(memory.HarassArrivedTick, Is.GreaterThanOrEqualTo(0), "arrived");
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> attacks = Of(run, AiIntentKind.AttackUnit);
             Assert.That(attacks.Count, Is.EqualTo(4));
             foreach (AiIntent attack in attacks)
@@ -439,6 +465,7 @@ namespace Rts.Sim.Tests.Ai
             // Remove the worker and wait 10 s: the squad is sent home and the cooldown starts.
             sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, worker));
             sim.Step();
+            // Counter of this case. Unit: count (ticks for tick values). Range: 0 upward.
             int arrived = memory.HarassArrivedTick;
             while (sim.Clock.Tick < arrived + 199)
             {
@@ -448,9 +475,11 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(memory.HarassGroup.Count, Is.EqualTo(4), "inside the linger time");
             sim.Step();
             sim.Step();
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> home = Decide(sim, S3, memory);
             Assert.That(memory.HarassGroup.Count, Is.EqualTo(0));
             Assert.That(memory.NextHarassTick, Is.EqualTo(sim.Clock.Tick + 60 * 20));
+            // Counter of this case. Unit: count (ticks for tick values). Range: 0 upward.
             int moves = 0;
             foreach (AiIntent intent in Of(home, AiIntentKind.Move))
             {
@@ -471,9 +500,11 @@ namespace Rts.Sim.Tests.Ai
             // Own side: 8 Pummelers at home, 4 more far away in the attack group.
             Simulation sim = Greybox("water", "skai");
             WaterHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
             List<EntityId> home = Row(sim, "water.grasper", P0, 8, 12, 10);
             List<EntityId> away = Row(sim, "water.grasper", P0, 4, 40, 40);
             Row(sim, "skai.windrunner", P1, 2, 14, 12);
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 24, AttackThreshold = 8, HasAttackTarget = true };
             foreach (EntityId id in away)
             {
@@ -487,6 +518,7 @@ namespace Rts.Sim.Tests.Ai
                 expected++;
             }
             Assert.That(expected, Is.InRange(1, home.Count - 1), "the scenario needs some but not all of the units at home");
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> intents = Decide(sim, S3, memory);
             Assert.That(memory.Stance, Is.EqualTo(AiStance.Attack), "the attack goes on");
             Assert.That(memory.DefendGroup.Count, Is.EqualTo(expected));
@@ -503,8 +535,10 @@ namespace Rts.Sim.Tests.Ai
             Simulation air = Greybox("water", "skai");
             WaterHq(air);
             Row(air, "water.grasper", P0, 8, 12, 10);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
             List<EntityId> awayAir = Row(air, "water.grasper", P0, 4, 40, 40);
             Row(air, "skai.roc_rider", P1, 8, 14, 12);
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory recalled = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 24, AttackThreshold = 8, HasAttackTarget = true };
             foreach (EntityId id in awayAir)
             {
@@ -524,14 +558,18 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D8_FallBack()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId hurt = Spawn(sim, "skai.windrunner", P0, "30", "30");
             Hurt(sim, hurt, "0.25");
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId healthy = Spawn(sim, "skai.windrunner", P0, "30", "31");
             // More healthy units so the group is not outgunned by the one Pummeler (no predicted retreat).
             List<EntityId> others = Row(sim, "skai.windrunner", P0, 6, 28, 33);
             Spawn(sim, "water.grasper", P1, "35", "30");
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 8, AttackThreshold = 8 };
             memory.AttackGroup.Add(hurt);
             memory.AttackGroup.Add(healthy);
@@ -539,6 +577,7 @@ namespace Rts.Sim.Tests.Ai
             {
                 memory.AttackGroup.Add(id);
             }
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> intents = Decide(sim, S3, memory);
             AiIntent? order = Of(intents, AiIntentKind.Move).Find(i => i.Unit == hurt);
             Assert.That(order, Is.Not.Null);
@@ -550,6 +589,7 @@ namespace Rts.Sim.Tests.Ai
             // A fallen-back unit within 3 tiles of home is an army unit again.
             Simulation near = Greybox();
             SkaiHq(near);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId back = Spawn(near, "skai.windrunner", P0, "8", "8");
             AiMemory returned = new AiMemory { AttackThreshold = 8 };
             returned.FallenBack.Add(back);
@@ -558,10 +598,12 @@ namespace Rts.Sim.Tests.Ai
             // Under rule K (a known low enemy HQ) nobody falls back.
             Simulation kill = Greybox();
             SkaiHq(kill);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId hurtKill = Spawn(kill, "skai.windrunner", P0, "30", "30");
             Hurt(kill, hurtKill, "0.25");
             Row(kill, "skai.windrunner", P0, 3, 31, 30);
             Spawn(kill, "water.grasper", P1, "35", "30");
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory killMemory = new AiMemory { AttackThreshold = 8 };
             Know(killMemory, 900, "water.grand_shell", "57.5", "57.5", kill.Clock.Tick);
             killMemory.KnownEnemyStructures[new EntityId(900)].HealthFraction = Fix64.Parse("0.2");
@@ -573,33 +615,43 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D9_KeepDistance()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId archer = Spawn(sim, "skai.talon_archer", P0, "30", "30");
             Spawn(sim, "water.grasper", P1, "32", "30");
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> intents = Decide(sim, S3, new AiMemory());
             AiIntent? order = Of(intents, AiIntentKind.Move).Find(i => i.Unit == archer);
             Assert.That(order, Is.Not.Null);
             // Exactly 3 tiles straight away from the Pummeler (along -x).
             Assert.That((order!.Point - new FixVec2(Fix64.FromInt(27), Fix64.FromInt(30))).LengthSquared(), Is.LessThanOrEqualTo(Fix64.Parse("0.01")));
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation shell = Greybox();
             SkaiHq(shell);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId archer2 = Spawn(shell, "skai.talon_archer", P0, "30", "30");
             Spawn(shell, "water.shellback", P1, "30", "32");
+            // The order the AI gave that unit, or null when it gave none.
             AiIntent? shellOrder = Of(Decide(shell, S3, new AiMemory()), AiIntentKind.Move).Find(i => i.Unit == archer2);
             Assert.That(shellOrder, Is.Not.Null, "a Shellback (melee-range weapon 2) is kited too");
             Assert.That((shellOrder!.Point - new FixVec2(Fix64.FromInt(30), Fix64.FromInt(27))).LengthSquared(), Is.LessThanOrEqualTo(Fix64.Parse("0.01")));
             // Too fast an enemy (speed ratio below 0.8) or too long a weapon (no range gap): no keep-distance order.
             Simulation gap = Greybox();
             SkaiHq(gap);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId windrunner = Spawn(gap, "skai.windrunner", P0, "30", "30");
             Spawn(gap, "water.grasper", P1, "32", "30");
             // A Windrunner (range 4, speed 3.5) against a Pummeler (range 1, speed 3): the gap 3 and the speed ratio hold, so it kites too; with a gap requirement of 4 it does not.
             Assert.That(Of(Decide(gap, S3, new AiMemory()), AiIntentKind.Move).Exists(i => i.Unit == windrunner), Is.True);
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation wide = Greybox();
             SkaiHq(wide);
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId stays = Spawn(wide, "skai.windrunner", P0, "30", "30");
             Spawn(wide, "water.grasper", P1, "32", "30");
+            // The profile under test (a shipped file or an edited copy of it).
             AiProfile strict = S3Edited("\"kite_min_range_gap_tiles\": 2,", "\"kite_min_range_gap_tiles\": 4,");
             Assert.That(Of(Decide(wide, strict, new AiMemory()), AiIntentKind.Move).Exists(i => i.Unit == stays), Is.False);
         }
@@ -608,17 +660,21 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D10_FocusFastestKill()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
             List<EntityId> archers = Row(sim, "skai.talon_archer", P0, 3, 30, 30);
             EntityId runner = Spawn(sim, "skai.windrunner", P1, "36", "30");
             Hurt(sim, runner, (20.0 / 60.0).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture));
+            // ID of the unit spawned for this case. Unit: unit ID.
             EntityId pummeler = Spawn(sim, "water.grasper", P1, "36", "31");
             AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 6, AttackThreshold = 8 };
             foreach (EntityId id in archers)
             {
                 memory.AttackGroup.Add(id);
             }
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> first = Decide(sim, S3, memory);
             List<AiIntent> attacks = Of(first, AiIntentKind.AttackUnit);
             Assert.That(attacks.Count, Is.EqualTo(3));
@@ -634,6 +690,7 @@ namespace Rts.Sim.Tests.Ai
             sim.Step();
             sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, runner));
             sim.Step();
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> second = Of(Decide(sim, S3, memory), AiIntentKind.AttackUnit);
             Assert.That(second.Count, Is.EqualTo(3));
             foreach (AiIntent attack in second)
@@ -646,15 +703,19 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void D11_Budgets()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
             List<EntityId> archers = Row(sim, "skai.talon_archer", P0, 30, 30, 30);
             Spawn(sim, "water.grasper", P1, "36", "32");
+            // The AI memory of this case (stance, groups, known enemies; one per case).
             AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 60, AttackThreshold = 8 };
             foreach (EntityId id in archers)
             {
                 memory.AttackGroup.Add(id);
             }
+            // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
             List<AiIntent> intents = Decide(sim, S3, memory);
             Assert.That(Of(intents, AiIntentKind.AttackUnit).Count, Is.EqualTo(S3.FocusMaxCommandsPerThink));
             Assert.That(intents.Count, Is.LessThanOrEqualTo(S3.MaxCommandsPerThink));
@@ -667,17 +728,21 @@ namespace Rts.Sim.Tests.Ai
             // Builds the situation of D-10 and thinks once; returns the intent lines, the stance and the draws.
             (List<string> Lines, int Stance, ulong Draws, int Harass) Run()
             {
+                // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
                 Simulation sim = Greybox();
                 SkaiHq(sim);
+                // IDs of the units spawned for this case, ascending. Unit: unit IDs.
                 List<EntityId> archers = Row(sim, "skai.talon_archer", P0, 6, 30, 30);
                 EntityId runner = Spawn(sim, "skai.windrunner", P1, "36", "30");
                 Hurt(sim, runner, "0.3");
                 Spawn(sim, "water.grasper", P1, "36", "31");
+                // The AI memory of this case (stance, groups, known enemies; one per case).
                 AiMemory memory = new AiMemory { Stance = AiStance.Attack, AttackStaged = true, AttackStartSupply = 12, AttackThreshold = 8 };
                 foreach (EntityId id in archers)
                 {
                     memory.AttackGroup.Add(id);
                 }
+                // The think's own generator (seeded; its draw count is compared).
                 DeterministicRandom rng = new DeterministicRandom(7);
                 List<AiIntent> intents = Decide(sim, S3, memory, rng);
                 return (intents.ConvertAll(i => i.Kind + " " + i.Unit + " " + i.Target + " " + i.Point), (int)memory.Stance, rng.DrawCount, memory.HarassGroup.Count);
@@ -702,6 +767,7 @@ namespace Rts.Sim.Tests.Ai
                 {
                     continue;
                 }
+                // The profile under test (a shipped file or an edited copy of it).
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
                 Assert.That(profile.UsePredictorAttack || profile.UseTargetChoice || profile.UseMeasuredDefence || profile.UseUnitControl, Is.False, id);
             }
@@ -719,14 +785,17 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void DProximity_MatchesABruteForceScan()
         {
+            // The match of this case: a started greybox_1v1 simulation (one per case; tick 0 upward).
             Simulation sim = Greybox();
             SkaiHq(sim);
+            // IDs of the units spawned for this case, ascending. Unit: unit IDs.
             List<EntityId> ids = new List<EntityId>();
             // Spawn index. Range: 0 to 39.
             for (int i = 0; i < 40; i++)
             {
                 ids.Add(Spawn(sim, "skai.windrunner", P0, (8 + (i * 7) % 23).ToString(System.Globalization.CultureInfo.InvariantCulture), (8 + (i * 5) % 19).ToString(System.Globalization.CultureInfo.InvariantCulture)));
             }
+            // Unit views collected for this check, ascending ID. Unit: units.
             List<AiUnitView> units = new List<AiUnitView>();
             foreach (AiUnitView unit in AiWorldView.Build(sim, P0).OwnUnits)
             {
@@ -735,12 +804,15 @@ namespace Rts.Sim.Tests.Ai
                     units.Add(unit);
                 }
             }
+            // Radius of the spatial query. Unit: tiles. Range: 6.
             Fix64 radius = Fix64.FromInt(6);
             AiProximity index = new AiProximity(units, radius);
             foreach (AiUnitView centre in units)
             {
+                // Unit views collected for this check, ascending ID. Unit: units.
                 List<AiUnitView> fast = new List<AiUnitView>();
                 index.Near(centre.Position, radius, fast);
+                // Unit views collected for this check, ascending ID. Unit: units.
                 List<AiUnitView> slow = units.FindAll(u => (u.Position - centre.Position).LengthSquared() <= radius * radius);
                 Assert.That(fast.ConvertAll(u => u.Id), Is.EqualTo(slow.ConvertAll(u => u.Id)));
             }
