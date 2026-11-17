@@ -469,7 +469,7 @@ namespace Rts.Sim.Tests.Harness
             ulong baseContent = ContentDigestOf(HarnessTestSupport.CopyData(), out ulong baseTuning);
             foreach (DataEdit edit in new[]
             {
-                new DataEdit(FightTestSupport.MatchupsPath, "No entries yet.", "Edited text."),
+                new DataEdit(FightTestSupport.MatchupsPath, "Filled 18 Nov 2026", "Edited text"),
                 new DataEdit(FightTestSupport.SettingsPath, "\"base_seed\": 20261118", "\"base_seed\": 7"),
                 new DataEdit("tuning/harness_batch.json", "\"chunk_games\": 25", "\"chunk_games\": 26"),
             })
