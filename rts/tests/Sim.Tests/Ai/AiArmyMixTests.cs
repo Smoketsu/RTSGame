@@ -204,7 +204,12 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(mix["water.grasper"], Is.EqualTo(150));
             Assert.That(mix["water.shellback"], Is.EqualTo(50));
             Assert.That(mix["water.ink_lobber"], Is.EqualTo(50));
-            Assert.That(mix["water.spoutling"], Is.EqualTo(750));
+            // Changed by the missing roster and the developer's decision of 18 Nov 2026 that the Leviathan can target air. Leviathan score (hand-calculated): 80 / 3.0 = 26.667 dps (blast 1.0 against
+            // armoured) x 320 health / (incoming 14 / 1.2 x 0.75 = 8.75 x value (300 + 2 x 80 = 460)^2) = 0.0046089, above the Spoutling's 0.0013333; keep 0.5 x 0.0046089 = 0.0023 drops the
+            // Spoutling, so the Leviathan takes the whole counter share 0.7 x 1000 = 700 and the Spoutling keeps its base 50 (it was 750).
+            Near(AiCounter.Score(Data.Content.Units["water.leviathan"], enemies, S2, view), "0.0046089");
+            Assert.That(mix["water.spoutling"], Is.EqualTo(50));
+            Assert.That(mix["water.leviathan"], Is.EqualTo(700));
             Assert.That(mix["water.reef_runner"], Is.EqualTo(0));
         }
 
@@ -225,7 +230,12 @@ namespace Rts.Sim.Tests.Ai
             SortedDictionary<string, int> mix = MixOf(sim, S2, "skai", memory);
             Assert.That(mix["skai.windrunner"], Is.EqualTo(128));
             Assert.That(mix["skai.talon_archer"], Is.EqualTo(85));
-            Assert.That(mix["skai.roc_rider"], Is.EqualTo(742));
+            // Changed by the Thunderhead (specs/missing_roster.md). Its score (hand-calculated, Pummelers are armoured and cannot hit air): 44 / 2.5 = 17.6 dps x 190 health / (1 x (200 + 2 x 65 = 330)^2) =
+            // 0.0307071, the top score; keep 0.5 x 0.0307071 = 0.01535 keeps the Roc Rider (0.0224) too. Kept sum 0.0531071: the Roc Rider gets 0.7 x 1000 x 0.0224 / 0.0531071 = 295.2 plus its
+            // base 42.86 = 338, the Thunderhead 404.7 -> 404 (the Roc Rider was 742).
+            Near(AiCounter.Score(Data.Content.Units["skai.thunderhead"], enemies, S2, view), "0.0307071");
+            Assert.That(mix["skai.roc_rider"], Is.EqualTo(338));
+            Assert.That(mix["skai.thunderhead"], Is.EqualTo(404));
             Assert.That(mix["skai.stormcaller"], Is.EqualTo(42));
         }
 
@@ -451,8 +461,10 @@ namespace Rts.Sim.Tests.Ai
             AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
             AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.0000"), ("water.ink_lobber", "0.1736"), ("water.reef_runner", "0.4878"), ("water.shellback", "0.5514"), ("water.spoutling", "0.1228"));
             SetStock(sim, P0, 0, 400);
-            AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
-            AssertAdvantages(sim, S2b, "water", memory, ("water.ink_lobber", "0.4728"), ("water.spoutling", "0.2823"));
+            // Changed by the Leviathan (specs/missing_roster.md R2-8). With rare 400 its advantage is 1.2208 (R2-7 arithmetic at budget 600: n = min(600 / 300, 500 / 80) = 2), above the Pummeler's 1.0000, so the
+            // Leviathan alone is kept and takes the 700 counter share; the Pummeler keeps its base 150. Without rare (above) its advantage is 0.4323, not kept, and the mix is unchanged.
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 700), ("water.reef_runner", 0));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.leviathan", "1.2208"), ("water.grasper", "1.0000"), ("water.ink_lobber", "0.4728"), ("water.spoutling", "0.2823"));
         }
 
         /// <summary>C2-2: water against 4 Roc Riders buys Spoutlings; with 4 Spoutlings already owned it adds Shellbacks.</summary>
@@ -463,15 +475,19 @@ namespace Rts.Sim.Tests.Ai
             Spawn(sim, "water.grand_shell", P0, "7", "7");
             AiMemory memory = new AiMemory();
             Believe(memory, "skai.roc_rider", 4, sim.Clock.Tick);
-            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 750));
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.0397"), ("water.ink_lobber", "0.0119"), ("water.reef_runner", "0.0225"), ("water.shellback", "0.0778"), ("water.spoutling", "0.3333"));
+            // Changed by the Leviathan and the developer's decision of 18 Nov 2026 that it can target air (specs/missing_roster.md R2-8): at rare 0 it buys 1.25 units (rare allowance 100 / 80) and,
+            // hitting air, its advantage is 1.1372 against the Spoutling's 0.3333 (Lanchester check: 1.25 Leviathans, 400 health, 33.3 dps against 3 Roc Riders, 480 health, 26.25 dps on armour:
+            // 480 / 33.3 = 14.4 s to kill them, 400 / 26.25 = 15.2 s to die, plus the range head start). Only the Leviathan is kept, so it takes 700 and the Spoutling falls to its base 50 (it was 750).
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 700));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.0397"), ("water.ink_lobber", "0.0119"), ("water.reef_runner", "0.0225"), ("water.shellback", "0.0778"), ("water.spoutling", "0.3333"), ("water.leviathan", "1.1372"));
             // Own Spoutling number. Range: 0 to 3.
             for (int i = 0; i < 4; i++)
             {
                 Spawn(sim, "water.spoutling", P0, "9", Row(i));
             }
-            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 750), ("water.ink_lobber", 50), ("water.spoutling", 50));
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.4038"), ("water.ink_lobber", "0.1877"), ("water.reef_runner", "0.2692"), ("water.shellback", "0.6708"), ("water.spoutling", "0.3967"));
+            // Changed by the Leviathan (same reason): with 4 Spoutlings owned its advantage 0.7826 beats the Shellback's 0.6708, and 0.9 x 0.7826 = 0.7044 drops the Shellback, so the Leviathan alone takes 700 (the Shellback was 750).
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 700));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.4038"), ("water.ink_lobber", "0.1877"), ("water.reef_runner", "0.2692"), ("water.shellback", "0.6708"), ("water.spoutling", "0.3967"), ("water.leviathan", "0.7826"));
         }
 
         /// <summary>C2-3 and C2-4: Skai against 6 Pummelers keeps the Roc Rider; against 8 Windrunners it keeps Windrunner and Talon.</summary>
@@ -482,8 +498,10 @@ namespace Rts.Sim.Tests.Ai
             Spawn(sim, "skai.great_aerie", P0, "7", "7");
             AiMemory pummelers = new AiMemory();
             Believe(pummelers, "water.grasper", 6, sim.Clock.Tick);
-            AssertMix(MixOf(sim, S2b, "skai", pummelers), ("skai.windrunner", 128), ("skai.talon_archer", 85), ("skai.roc_rider", 742), ("skai.stormcaller", 42));
-            AssertAdvantages(sim, S2b, "skai", pummelers, ("skai.roc_rider", "16.4921"), ("skai.stormcaller", "0.1281"), ("skai.talon_archer", "0.4500"), ("skai.windrunner", "0.4878"));
+            // Changed by the Thunderhead (specs/missing_roster.md R2-8): at rare 0 it buys 100 / 65 = 1.54 units and its advantage is 26.0398 against the Roc Rider's 16.4921 (ratio 1.58, close to the
+            // 1.57 of R2-6, whose hand calculation is in the spec). 0.9 x 26.0398 = 23.44 drops the Roc Rider, so the Thunderhead alone takes 700 and the Roc Rider keeps its base 42 (it was 742).
+            AssertMix(MixOf(sim, S2b, "skai", pummelers), ("skai.windrunner", 128), ("skai.talon_archer", 85), ("skai.roc_rider", 42), ("skai.stormcaller", 42), ("skai.thunderhead", 700));
+            AssertAdvantages(sim, S2b, "skai", pummelers, ("skai.roc_rider", "16.4921"), ("skai.stormcaller", "0.1281"), ("skai.talon_archer", "0.4500"), ("skai.windrunner", "0.4878"), ("skai.thunderhead", "26.0398"));
             AiMemory windrunners = new AiMemory();
             Believe(windrunners, "skai.windrunner", 8, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "skai", windrunners), ("skai.windrunner", 581), ("skai.talon_archer", 332), ("skai.roc_rider", 42), ("skai.stormcaller", 42));
@@ -716,6 +734,74 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(b.UseEarlyExpansion, Is.True);
             Assert.That(S2.UsePredictorMix, Is.False);
             Assert.That(S2.RaidMinSupply, Is.EqualTo(1));
+        }
+
+        // ---------------------------------------------------------------- R-1 (rts/docs/specs/missing_roster.md): the pool holds armed units only
+
+        /// <summary>R1-1. A trainable unit with no weapon (the Tidecaller, trained at the Tidepool) is not in the pool; the armed Spoutling from the same producer is.</summary>
+        [Test]
+        public void Pool_SkipsAnUnarmedTrainableUnit()
+        {
+            Simulation sim = Greybox("water", "skai");
+            AiWorldView view = AiWorldView.Build(sim, P0);
+            UnitDefinition unarmed = Data.Content.Units["water.tidecaller"];
+            Assert.That(unarmed.Weapon, Is.Null);
+            Assert.That(Data.Content.Units["water.tidepool"].Economy.Trains, Does.Contain("water.tidecaller"));
+            // Pool unit IDs, ordinal.
+            List<string> ids = AiCounter.Pool(view, "water").ConvertAll(u => u.Id);
+            Assert.That(ids, Does.Contain("water.spoutling"));
+            Assert.That(ids, Does.Not.Contain("water.tidecaller"));
+        }
+
+        /// <summary>R1-2. On shipped data the pools hold exactly the armed combat units, in ordinal ID order (the Thunderhead and Leviathan join them, the Tidecaller does not).</summary>
+        [Test]
+        public void Pool_OnShippedData_IsTheArmedCombatUnits()
+        {
+            Simulation sim = Greybox("skai", "water");
+            AiWorldView view = AiWorldView.Build(sim, P0);
+            Assert.That(AiCounter.Pool(view, "skai").ConvertAll(u => u.Id),
+                Is.EqualTo(new[] { "skai.roc_rider", "skai.stormcaller", "skai.talon_archer", "skai.thunderhead", "skai.windrunner" }));
+            Assert.That(AiCounter.Pool(view, "water").ConvertAll(u => u.Id),
+                Is.EqualTo(new[] { "water.grasper", "water.ink_lobber", "water.leviathan", "water.reef_runner", "water.shellback", "water.spoutling" }));
+        }
+
+        /// <summary>The shipped aggressive_s3 profile (predictor mix: budget 1200, rare allowance 100, keep 0.9, counter weight 0.7).</summary>
+        private static AiProfile S3 => AiProfile.FromDataSet(Data, "aggressive_s3");
+
+        /// <summary>R2-6. Skai against 6 Pummelers with rare 400 (aggressive_s3): the Thunderhead alone is kept (advantage 53.731 against the Roc Rider's 34.239), and a free Windspire with 200 / 65 in stock trains it.</summary>
+        [Test]
+        public void R2_6_SkaiMixKeepsTheThunderhead()
+        {
+            Simulation sim = Greybox("skai", "water");
+            Spawn(sim, "skai.great_aerie", P0, "7", "7");
+            Spawn(sim, "skai.windspire", P0, "13", "6");
+            SetStock(sim, P0, 0, 400);
+            AiMemory memory = new AiMemory();
+            Believe(memory, "water.grasper", 6, sim.Clock.Tick);
+            AssertAdvantages(sim, S3, "skai", memory, ("skai.thunderhead", "53.731"), ("skai.roc_rider", "34.239"));
+            AssertMix(MixOf(sim, S3, "skai", memory), ("skai.roc_rider", 42), ("skai.stormcaller", 42), ("skai.talon_archer", 85), ("skai.thunderhead", 700), ("skai.windrunner", 128));
+            // Rule P orders it from the Windspire. Common 1000 rather than the spec's 200: the HQ buys a Fledgling first (rule 4b) and would leave less than 200; rare 65 pays one Thunderhead and no more.
+            SetStock(sim, P0, 1000, 65);
+            List<AiIntent> trains = Decide(sim, S3, memory).FindAll(i => i.Kind == AiIntentKind.Train);
+            Assert.That(trains.ConvertAll(i => i.DefinitionId), Does.Contain("skai.thunderhead"));
+        }
+
+        /// <summary>R2-7. Water against 6 Pummelers (aggressive_s3): with rare 400 the Leviathan alone is kept (advantage 1.2208 against the Pummeler's 1.0000) and the Tidecaller is not in the mix; with rare 0 it is not kept (0.100).</summary>
+        [Test]
+        public void R2_7_WaterMixKeepsTheLeviathanOnlyWithRare()
+        {
+            Simulation sim = Greybox("water", "water");
+            Spawn(sim, "water.grand_shell", P0, "7", "7");
+            AiMemory memory = new AiMemory();
+            Believe(memory, "water.grasper", 6, sim.Clock.Tick);
+            SetStock(sim, P0, 0, 400);
+            AssertAdvantages(sim, S3, "water", memory, ("water.leviathan", "1.2208"), ("water.grasper", "1.0000"));
+            SortedDictionary<string, int> rich = MixOf(sim, S3, "water", memory);
+            AssertMix(rich, ("water.grasper", 150), ("water.ink_lobber", 50), ("water.leviathan", 700), ("water.reef_runner", 0), ("water.shellback", 50), ("water.spoutling", 50));
+            Assert.That(rich.ContainsKey("water.tidecaller"), Is.False);
+            SetStock(sim, P0, 0, 0);
+            AssertAdvantages(sim, S3, "water", memory, ("water.leviathan", "0.100"));
+            AssertMix(MixOf(sim, S3, "water", memory), ("water.grasper", 850), ("water.ink_lobber", 50), ("water.leviathan", 0), ("water.reef_runner", 0), ("water.shellback", 50), ("water.spoutling", 50));
         }
     }
 }

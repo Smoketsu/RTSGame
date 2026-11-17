@@ -122,15 +122,15 @@ namespace Rts.Sim.Tests.Data
                     pair.Key + " names unregistered mechanic " + pair.Value.MechanicId);
             }
             Assert.That(_data.Content.Validate(), Is.Null);
-            Assert.That(_data.Content.Factions["skai"].UnitIds, Is.EqualTo(new[] { "skai.fledgling", "skai.windrunner", "skai.talon_archer", "skai.stormcaller", "skai.roc_rider", "skai.great_aerie", "skai.roost", "skai.windspire", "skai.perch_tower", "skai.perch_depot" }));
-            Assert.That(_data.Content.Factions["water"].UnitIds, Is.EqualTo(new[] { "water.tender", "water.reef_runner", "water.spoutling", "water.grasper", "water.shellback", "water.ink_lobber", "water.grand_shell", "water.tidepool", "water.shell_forge", "water.coral_turret", "water.pearl_depot" }));
+            Assert.That(_data.Content.Factions["skai"].UnitIds, Is.EqualTo(new[] { "skai.fledgling", "skai.windrunner", "skai.talon_archer", "skai.stormcaller", "skai.roc_rider", "skai.thunderhead", "skai.great_aerie", "skai.roost", "skai.windspire", "skai.perch_tower", "skai.perch_depot" }));
+            Assert.That(_data.Content.Factions["water"].UnitIds, Is.EqualTo(new[] { "water.tender", "water.reef_runner", "water.spoutling", "water.grasper", "water.shellback", "water.ink_lobber", "water.tidecaller", "water.leviathan", "water.grand_shell", "water.tidepool", "water.shell_forge", "water.coral_turret", "water.pearl_depot" }));
         }
 
         /// <summary>Example unit values and layers.</summary>
         [Test]
         public void Units_Load_WithLayersAndValues()
         {
-            Assert.That(_data.Content.Units.Count, Is.EqualTo(21));
+            Assert.That(_data.Content.Units.Count, Is.EqualTo(24));
             UnitDefinition windrunner = _data.Content.Units["skai.windrunner"];
             Assert.That(windrunner.Layer, Is.EqualTo(MovementLayer.Ground));
             Assert.That(windrunner.SpeedTilesPerSecond, Is.EqualTo(Fix64.Parse("3.5")));
@@ -143,6 +143,13 @@ namespace Rts.Sim.Tests.Data
                 if (unit.Hq != null || unit.Economy.FootprintTiles > 0)
                 {
                     // HQs and buildings have their own placeholder ranges (large health, slow or no movement).
+                    continue;
+                }
+                if (unit.Id == "water.leviathan")
+                {
+                    // The capstone siege unit (specs/missing_roster.md section 3.3) is derived outside the step 9 bounds: health 320, speed 1.5.
+                    Assert.That(unit.MaxHealth, Is.EqualTo(Fix64.FromInt(320)));
+                    Assert.That(unit.SpeedTilesPerSecond, Is.EqualTo(Fix64.Parse("1.5")));
                     continue;
                 }
                 // Roster placeholder bounds (PHASE1_PLAN step 9): health 40 to 220, speed 1.8 to 5 tiles per second.

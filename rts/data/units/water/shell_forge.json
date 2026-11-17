@@ -1,7 +1,7 @@
 // rts/data/units/water/shell_forge.json: Shell Forge, the Water production building for Shellbacks and Brinecasters. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Shell Forge building definition for the water faction (trains Shellbacks and Brinecasters and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
+  "$doc": "Shell Forge building definition for the water faction (trains Shellbacks, Brinecasters and Leviathans and adds supply); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.shell_forge",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Buildings (placeholder).
@@ -26,8 +26,8 @@
   "cost_rare": 0,
   // Time to construct this building. Unit: seconds. Range: 0.05 to 3600. Source: Economy; placeholder.
   "build_seconds": 25,
-  // Units this building can train, in menu order. Unit: list of unit IDs. Range: IDs of existing units, no duplicates. Source: Economy (production buildings); placeholder.
-  "trains": ["water.shellback", "water.ink_lobber"],
+  // Units this building can train, in menu order. Unit: list of unit IDs. Range: IDs of existing units, no duplicates. The Leviathan was added 18 Nov 2026. Source: Economy (production buildings); rts/docs/specs/missing_roster.md section 3.4; placeholder.
+  "trains": ["water.shellback", "water.ink_lobber", "water.leviathan"],
   // Tiles the unit blocks to ground and water movement while it stands. Unit: tiles. Range: 0 or 1 (1 is the only structure size in Phase 1). Source: Economy (building footprints); placeholder.
   "footprint": 1,
   // Supply this building adds to its owner's supply cap while it stands complete. Unit: supply. Range: 0 to 100. Source: Economy / Supply cap; placeholder.

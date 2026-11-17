@@ -163,9 +163,10 @@ namespace Rts.Sim.Tests.Harness
             // Both hashes re-pinned for worker construction (specs/worker_construction.md): new tuning key worker_placement_seconds and workers walk to build sites.
             string folder = TestDataFolder();
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder }, out string output, out _), Is.EqualTo(0));
-            Assert.That(output, Does.Contain("STATE_HASH=03674dfb1efc68b7\n"));
+            // Re-pinned again for the missing roster (specs/missing_roster.md R2-9): old values 03674dfb1efc68b7 and 93762ddc16910b23, outcomes unchanged.
+            Assert.That(output, Does.Contain("STATE_HASH=a65a7eea003009f4\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=93762ddc16910b23\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=aff851b30f63e4f8\n"));
         }
 
         /// <summary>The shipped data set.</summary>
@@ -216,6 +217,8 @@ namespace Rts.Sim.Tests.Harness
                     new DataEdit("units/skai/roc_rider.json", "\"damage\": 14", "\"damage\": 0.01"),
                     new DataEdit("units/skai/stormcaller.json", "\"damage\": 25", "\"damage\": 0.01"),
                     new DataEdit("units/skai/talon_archer.json", "\"damage\": 8", "\"damage\": 0.01"),
+                    // The Thunderhead (specs/missing_roster.md) is a Skai attacker too; it must not be the fastest HQ killer of the arithmetic scenario.
+                    new DataEdit("units/skai/thunderhead.json", "\"damage\": 44", "\"damage\": 0.01"),
                 });
         }
     }
