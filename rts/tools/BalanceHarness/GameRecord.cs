@@ -79,6 +79,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>State hash after the last tick. Range: any ulong, written as 16 hex digits.</summary>
         public ulong StateHash { get; }
 
+        /// <summary>
+        /// Hash of every AI command of the game plus the end tick and result (skirmish_ai_v4.md S.1), independent of the seed: two games that play the same commands
+        /// have the same value. Range: any ulong, written as 16 hex digits.
+        /// </summary>
+        public ulong PlaySignature { get; }
+
         /// <summary>Content digest of the data the game ran on (same for every game of one data set). Range: any ulong, written as 16 hex digits.</summary>
         public ulong ContentDigest { get; }
 
@@ -87,7 +93,7 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Bundles the values.</summary>
         public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string slot0Profile, string slot1Profile, string result,
-            int endTick, ulong stateHash, ulong contentDigest, IReadOnlyList<HqKill> hqKills)
+            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills)
         {
             Map = map;
             Matchup = matchup;
@@ -100,6 +106,7 @@ namespace Rts.Tools.BalanceHarness
             Result = result;
             EndTick = endTick;
             StateHash = stateHash;
+            PlaySignature = playSignature;
             ContentDigest = contentDigest;
             HqKills = hqKills;
         }
@@ -116,6 +123,7 @@ namespace Rts.Tools.BalanceHarness
                 .Append(",\"result\":").Append(Quote(Result))
                 .Append(",\"end_tick\":").Append(EndTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"state_hash\":").Append(Quote(StateHash.ToString("x16", CultureInfo.InvariantCulture)))
+                .Append(",\"play_signature\":").Append(Quote(PlaySignature.ToString("x16", CultureInfo.InvariantCulture)))
                 .Append(",\"content_digest\":").Append(Quote(ContentDigest.ToString("x16", CultureInfo.InvariantCulture)))
                 .Append(",\"hq_kills\":[");
             for (int i = 0; i < HqKills.Count; i++)
@@ -155,6 +163,7 @@ namespace Rts.Tools.BalanceHarness
                     root.RequireNonEmptyString("slot0"), root.RequireNonEmptyString("slot1"),
                     root.RequireNonEmptyString("profile_slot0"), root.RequireNonEmptyString("profile_slot1"), result, root.RequireInt("end_tick", 0, int.MaxValue),
                     ulong.Parse(root.RequireString("state_hash"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
+                    ulong.Parse(root.RequireString("play_signature"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
                     ulong.Parse(root.RequireString("content_digest"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), kills);
             }
             catch (Exception ex) when (ex is DataValidationException || ex is FormatException || ex is OverflowException)

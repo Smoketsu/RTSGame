@@ -20,6 +20,8 @@
   "ladder_non_regression_fraction_min": 0.45,
   // Games re-run in-process after the ladder to compare final hashes (determinism spot check); 0 turns it off. Unit: games. Range: 0 to 16. Source: skirmish_ai_v3.md A.2; placeholder.
   "ladder_verify_games": 2,
+  // Smallest share of distinct games (distinct play signatures) among a cell's decided games; below it the ladder prints a warning and never changes its exit code. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v4.md S.2 and P-005 bar item 3; placeholder.
+  "ladder_min_distinct_fraction": 0.8,
   // Response tests, one per scenario script and AI-under-test faction. script: file in this folder; check: air_answer, armoured_answer, trade, raid or turtle; the other keys are that check's parameters (seconds are game seconds, fractions and ratios as named). Unit: objects. Range: 1 to 64 entries. Source: skirmish_ai_v3.md A.4; placeholder.
   "response_tests": [
     { "script": "response_roc_rush_skai.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },

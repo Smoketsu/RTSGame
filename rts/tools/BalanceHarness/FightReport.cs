@@ -26,6 +26,9 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Stalemates. Unit: fights.</summary>
         public int Stalemates { get; }
 
+        /// <summary>Stalemates whose reason is dome_absorbed (skirmish_ai_v4.md S.4); a subset of <see cref="Stalemates"/>. Unit: fights.</summary>
+        public int DomeAbsorbed { get; }
+
         /// <summary>Fights at the time cap. Unit: fights.</summary>
         public int Unresolved { get; }
 
@@ -47,6 +50,7 @@ namespace Rts.Tools.BalanceHarness
                 Decided += record.WinnerSeat >= 0 ? 1 : 0;
                 Draws += record.Result == FightRecord.Draw ? 1 : 0;
                 Stalemates += record.Result == FightRecord.Stalemate ? 1 : 0;
+                DomeAbsorbed += record.Result == FightRecord.Stalemate && record.Reason == "dome_absorbed" ? 1 : 0;
                 Unresolved += record.Result == FightRecord.Unresolved ? 1 : 0;
                 Mismatched += record.Mismatch ? 1 : 0;
             }
@@ -57,13 +61,14 @@ namespace Rts.Tools.BalanceHarness
             }
         }
 
-        /// <summary>"FIGHTS fights=&lt;n&gt; decided=&lt;n&gt; draws=&lt;n&gt; stalemates=&lt;n&gt; unresolved=&lt;n&gt; mismatched=&lt;n&gt; checks_passed=&lt;n&gt; of=&lt;m&gt;".</summary>
+        /// <summary>"FIGHTS fights=&lt;n&gt; decided=&lt;n&gt; draws=&lt;n&gt; stalemates=&lt;n&gt; unresolved=&lt;n&gt; mismatched=&lt;n&gt; checks_passed=&lt;n&gt; of=&lt;m&gt; dome_absorbed=&lt;n&gt;".</summary>
         public string Line()
         {
             return "FIGHTS fights=" + Fights.ToString(CultureInfo.InvariantCulture) + " decided=" + Decided.ToString(CultureInfo.InvariantCulture)
                 + " draws=" + Draws.ToString(CultureInfo.InvariantCulture) + " stalemates=" + Stalemates.ToString(CultureInfo.InvariantCulture)
                 + " unresolved=" + Unresolved.ToString(CultureInfo.InvariantCulture) + " mismatched=" + Mismatched.ToString(CultureInfo.InvariantCulture)
-                + " checks_passed=" + ChecksPassed.ToString(CultureInfo.InvariantCulture) + " of=" + ChecksTotal.ToString(CultureInfo.InvariantCulture);
+                + " checks_passed=" + ChecksPassed.ToString(CultureInfo.InvariantCulture) + " of=" + ChecksTotal.ToString(CultureInfo.InvariantCulture)
+                + " dome_absorbed=" + DomeAbsorbed.ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -235,7 +240,7 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Stalemates, unresolved fights, seat splits and every fight.</summary>
         private static void AppendLists(StringBuilder sb, IReadOnlyList<FightRecord> records, IReadOnlyDictionary<string, FightRecord> byId)
         {
-            sb.Append("## Stalemates, unresolved fights and seat splits\n\nA seat split means the two seat orders of a pair have different winners. On high_ground and flooded the seats are not symmetric by design, so splits there show terrain at work, not seat bias. A `no_damage` stalemate counts only damage events: hits absorbed by a shield dome do not reset the idle timer.\n\n");
+            sb.Append("## Stalemates, unresolved fights and seat splits\n\nA seat split means the two seat orders of a pair have different winners. On high_ground and flooded the seats are not symmetric by design, so splits there show terrain at work, not seat bias. A `no_damage` stalemate counts only damage events; when shots absorbed by a shield dome fell inside the idle window the stalemate is `dome_absorbed` instead.\n\n");
             sb.Append("| Fight | Finding | Reason |\n| --- | --- | --- |\n");
             foreach (FightRecord record in records)
             {

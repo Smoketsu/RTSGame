@@ -96,6 +96,8 @@ namespace Rts.Tools.BalanceHarness
             int maxTicks = sim.Clock.SecondsToTicks(Fix64.FromInt(maxGameSeconds));
             // HQ units being watched by entity ID, with their faction and the first damage and death ticks (-1 until seen).
             SortedDictionary<EntityId, HqWatch> watches = new SortedDictionary<EntityId, HqWatch>();
+            // Play signature of the game (skirmish_ai_v4.md S.1): FNV-1a over every AI command, fresh per game, never read by the simulation.
+            StateHasher signature = new StateHasher();
             // Last tick stepped. Unit: ticks. Range: -1 before the first step.
             int lastTick = -1;
             // Outcome after the last step.
@@ -103,6 +105,19 @@ namespace Rts.Tools.BalanceHarness
             for (int i = 0; i < maxTicks; i++)
             {
                 AiHost.ThinkAll(sim, controllers);
+                foreach (IPlayerController controller in controllers)
+                {
+                    if (controller is SkirmishAiController ai)
+                    {
+                        foreach (Rts.Sim.Commands.Command command in ai.LastCommands)
+                        {
+                            signature.Write(command.Tick);
+                            signature.Write(command.Issuer);
+                            signature.Write(command.Sequence);
+                            command.WriteHash(signature);
+                        }
+                    }
+                }
                 trace?.AfterThink(sim, controllers);
                 lastTick = sim.Clock.Tick;
                 sim.Step();
@@ -151,8 +166,10 @@ namespace Rts.Tools.BalanceHarness
                     kills.Add(new HqKill(watch.Faction, watch.FirstDamageTick >= 0 ? watch.FirstDamageTick : watch.DeathTick, watch.DeathTick));
                 }
             }
+            signature.Write(Math.Max(lastTick, 0));
+            signature.Write(result);
             return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, game, 0), FactionInSlot(matchupId, game, 1), profileSlot0, profileSlot1, result,
-                Math.Max(lastTick, 0), sim.ComputeStateHash(), sim.ContentDigest, kills);
+                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills);
         }
 
         /// <summary>Damage and death ticks of one HQ unit while a game runs.</summary>

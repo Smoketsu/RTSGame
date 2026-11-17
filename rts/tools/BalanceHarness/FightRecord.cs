@@ -61,7 +61,7 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>One of <see cref="Seat0Won"/>, <see cref="Seat1Won"/>, <see cref="Draw"/>, <see cref="Stalemate"/>, <see cref="Unresolved"/>.</summary>
         public string Result { get; }
 
-        /// <summary>Why the fight ended: both_eliminated, eliminated, cannot_target, no_damage or time_cap.</summary>
+        /// <summary>Why the fight ended: both_eliminated, eliminated, cannot_target, dome_absorbed, no_damage or time_cap.</summary>
         public string Reason { get; }
 
         /// <summary>Ticks from army spawn to the end. Unit: ticks. Range: 0 upward.</summary>
