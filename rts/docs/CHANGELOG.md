@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- P-005 developer decisions 1 to 9 recorded in the proposal (18 Nov 2026): mechanics before numbers (area damage and structure multiplier first, then Downdraft, walls, tech prerequisites; retuning last); water anti-air only while standing on water instead of a flyer armour type; Rooted HQ floor 15 s; a matchups file replaces design rule 7; the equal-cost fight harness mode is built first. Decisions 10 to 13 are unanswered.
+
 - Proposal P-005 (`docs/proposals/P-005-roster-holes-and-ai-for-balance.md`, 18 Nov 2026), asked for by the developer: sixteen roster and counter holes in Skai and water, why the design tends toward rock-paper-scissors, five fix options with a recommendation, proposed design rules for units, and a plan for making the skirmish AI a valid source of balance data. Awaiting the developer's decisions. Missing-roster answers recorded (18 Nov): placeholder stats accepted; Thunderhead from the Windspire, no anti-air; Tidecaller unarmed and releasing flood water around itself; Leviathan can hit air; packages R-1 and R-2 are being built.
 
 - Spec: `docs/specs/missing_roster.md` (18 Nov 2026), from the developer's note that units are missing on both sides: unit files for the Skai Thunderhead and the water Tidecaller and Leviathan (every stat a placeholder derived from existing units, for the developer to confirm), an AI guard that keeps unarmed units out of its unit pool, and a re-measure. No simulation change. Not built until the developer answers its open questions.

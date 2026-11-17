@@ -227,3 +227,21 @@ Stop doing:
 | 11 | No balance batches and no AI-against-AI balance reading until the bar's items 1 to 3 pass? | Yes. Micro benchmarks may be read at any time. |
 | 12 | Human benchmark: who plays and how many games? | The developer, 10 games per faction once the Unity HUD exists; every exploit found becomes a response scenario. |
 | 13 | Exploiter and league work? | Later, after bar items 1 to 3. |
+
+---
+
+# Developer decisions (18 Nov 2026)
+
+Decisions 1 to 9 are answered below. Decisions 10 to 13 are not yet answered; until they are, their recommended defaults are not in force.
+
+| # | Answer | What it changes in this proposal |
+| --- | --- | --- |
+| 1 | Yes for rules 1, 2, 3, 4, 5, 6 and 8. Rule 7 is replaced. | Rule 7 becomes: every new or changed unit updates a matchups file that records its job, the fight it wins and the fight it loses. Nothing is stored in the unit file for this. |
+| 2 | Order is C, then D, then A. "Let's get all the relevant mechanics worked out before we start tuning numbers." | No number retuning (option A) until the mechanics of C and D are built. |
+| 3 | Not the flyer armour type. Instead: some water units can hit flyers, but only while they stand on water. | Option B is replaced by a conditional target rule tied to the flood. Skai keeps its air niche; water gets help against early flying raids. New simulation rule. |
+| 4 | Yes. Rooted HQs should last at least 15 seconds. | The HQ floor in rule 6 and in the harness is 15 s (was 20 s). |
+| 5 | Maybe: a water flyer that can fly only over terrain covered by water. | To be specified as an option, not committed. New movement rule. |
+| 6 | Yes. | Stormcaller Downdraft is built. |
+| 7 | Yes, high priority. "Area damage is a huge balance changer, so useless to adjust numbers till it works." | Area damage and the per-weapon structure multiplier come first among the mechanics. |
+| 8 | Definitely. | Walls and a tech structure with prerequisites are built, not deferred. |
+| 9 | Yes. | The equal-cost fight mode of the harness is built first. |
