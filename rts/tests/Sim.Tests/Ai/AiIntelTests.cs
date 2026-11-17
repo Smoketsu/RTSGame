@@ -553,6 +553,8 @@ namespace Rts.Sim.Tests.Ai
             Simulation sim = Greybox();
             AiProfile profile = S1;
             SkaiBase(sim);
+            // The test is about the scout, so no build site needs a scouting trip by a worker (specs/worker_construction.md): everything counts as explored.
+            ExploreKit.ExploreAll(sim);
             // In the far corner no scout route waypoint comes within sight.
             EntityId roc = Spawn(sim, "skai.roc_rider", P1, "62", "2");
             SkirmishAiController controller = new SkirmishAiController(P0, profile);

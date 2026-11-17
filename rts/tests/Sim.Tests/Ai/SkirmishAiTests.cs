@@ -490,11 +490,20 @@ namespace Rts.Sim.Tests.Ai
             {
                 sim.Submit(command);
             }
-            sim.Step();
-            foreach (SimEvent evt in sim.Events.Current)
+            // True once the structure has appeared (the worker walks to the site and places it, worker_construction.md). Range: true or false.
+            bool placed = false;
+            // Ticks stepped while waiting for the worker. Unit: ticks. Range: 0 to 1200.
+            for (int i = 0; i < 1200 && !placed; i++)
             {
-                Assert.That(evt, Is.Not.InstanceOf<CommandRejectedEvent>(), evt.Describe());
+                sim.Step();
+                foreach (SimEvent evt in sim.Events.Current)
+                {
+                    Assert.That(evt, Is.Not.InstanceOf<CommandRejectedEvent>(), evt.Describe());
+                    Assert.That(evt, Is.Not.InstanceOf<BuildOrderCancelledEvent>(), evt.Describe());
+                    placed |= evt is StructurePlacedEvent;
+                }
             }
+            Assert.That(placed, Is.True, "the worker places the structure");
             Assert.That(sim.Terrain.At(build.TileX, build.TileY).IsBlocked, Is.True, "the new structure's footprint blocks its tile");
         }
 
@@ -821,11 +830,13 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>
-        /// Final state hash of rts/data/scripts/ai_vs_ai.json (aggressive vs defensive, seed 1234, decided at tick 5631) on the data as it stood after the Reef Runner was added
+        /// Final state hash of rts/data/scripts/ai_vs_ai.json (aggressive vs defensive, seed 1234, decided at tick 7613 since worker construction) on the data as it stood after the Reef Runner was added
         /// (skirmish_ai_v3.md A.3) and before any v3 AI code change; the harness prints the same value as its STATE_HASH line. Every later package keeps every new profile switch
         /// off in aggressive.json and defensive.json, so this value must never change unless the shipped data or the simulation changes on purpose. Unit: state hash. Range: any ulong.
+        /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old value 0x9422f0628a36cfca,
+        /// decided at tick 5631; new value decided at tick 7613 (winner 1 as before).
         /// </summary>
-        private const ulong V2ReferenceHash = 0x9422f0628a36cfcaUL;
+        private const ulong V2ReferenceHash = 0x368285be720371c6UL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -835,18 +846,19 @@ namespace Rts.Sim.Tests.Ai
             string folder = TestData.FindDataDirectory();
             Assert.That(Rts.Sim.Tests.Harness.HarnessTestSupport.Run(new[] { "--data", folder, "--script", Path.Combine(folder, "scripts", "ai_vs_ai.json") }, out string output, out string error),
                 Is.EqualTo(0), error);
-            Assert.That(output, Does.Contain("OUTCOME winner=1 tick=5631\n"));
+            Assert.That(output, Does.Contain("OUTCOME winner=1 tick=7613\n"));
             Assert.That(output, Does.Contain("STATE_HASH=" + V2ReferenceHash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture) + "\n"));
         }
 
         /// <summary>
         /// End tick and final state hash of the traced game prototype_1v1, water_vs_water, seed 20261117, game 0, abl_s2_blind against abl_s2_blind, recorded before any
         /// package C2 code change (skirmish_ai_v3.md C2-11). Unit: ticks and state hash. Range: fixed by the shipped data; changes only on purpose.
+        /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old values 18210 and 584d762eb253f6ce (first worker construction pin 11435 and 5c4f6eb8e55be64e, before the WC-2 review fixes).
         /// </summary>
-        private const int BlindTraceEndTick = 18210;
+        private const int BlindTraceEndTick = 11438;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "584d762eb253f6ce";
+        private const string BlindTraceHash = "963068ebe8578f25";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

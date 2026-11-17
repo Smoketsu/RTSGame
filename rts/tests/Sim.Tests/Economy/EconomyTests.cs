@@ -209,8 +209,7 @@ namespace Rts.Sim.Tests.Economy
             // A structure that is still being built trains nothing.
             EntityId workerId = Spawn(poor, TestWorld.WorkerId, P0, 14, 14);
             PlayerOf(poor, P0).AddResource(ResourceKind.Common, 500);
-            List<SimEvent> built = Do(poor, new BuildStructureCommand(poor.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 20, 20));
-            EntityId barracks = Of<UnitSpawnedEvent>(built)[0].Unit;
+            EntityId barracks = PlaceStructure(poor, workerId, TestWorld.BarracksId, 19, 14);
             AssertRejected(poor, new TrainUnitCommand(poor.Clock.Tick, P0, Seq(), barracks, TestWorld.RunnerId), "under_construction");
         }
 
@@ -232,11 +231,22 @@ namespace Rts.Sim.Tests.Economy
             AssertRejected(sim, new TrainUnitCommand(sim.Clock.Tick, P0, Seq(), hqId, TestWorld.WorkerId), "supply_cap");
             Assert.That(owner.Common, Is.EqualTo(200), "a refused order costs nothing");
 
-            // Place a barracks (provides 8 supply once complete): it starts at 10% health.
-            List<SimEvent> events = Do(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 20, 20));
-            Assert.That(Reasons(events), Is.Empty);
+            // Order a barracks (provides 8 supply once complete): the cost is paid at once, the structure appears after the walk and the
+            // placement time, at 10% health.
+            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 19, 14));
             Assert.That(owner.Common, Is.EqualTo(100));
-            EntityId barracksId = Of<UnitSpawnedEvent>(events)[0].Unit;
+            EntityId barracksId = EntityId.None;
+            // Events of the last step. Range: this tick's events.
+            List<SimEvent> events = new List<SimEvent>();
+            for (int i = 0; i < 200 && barracksId == EntityId.None; i++)
+            {
+                sim.Step();
+                events = new List<SimEvent>(sim.Events.Current);
+                foreach (StructurePlacedEvent placed in Of<StructurePlacedEvent>(events))
+                {
+                    barracksId = placed.Structure;
+                }
+            }
             Unit barracks = Get(sim, barracksId);
             Assert.That(barracks.IsUnderConstruction, Is.True);
             Fix64 previousHealth = barracks.Health;
@@ -244,9 +254,10 @@ namespace Rts.Sim.Tests.Economy
             AssertRejected(sim, new TrainUnitCommand(sim.Clock.Tick, P0, Seq(), hqId, TestWorld.WorkerId), "supply_cap");
             Assert.That(owner.SupplyCap, Is.EqualTo(10), "an unfinished building gives no supply");
 
-            // Construction takes build_seconds (5 s = 100 ticks) counted from the placing step; two steps have run (the placing step and the refused order above).
+            // Construction takes build_seconds (5 s = 100 ticks). The structure is spawned inside the economy loop, so its countdown first
+            // runs on the tick after it was placed; the refused order above took one more step, which counted once.
             int remaining = barracks.ConstructionTicksRemaining;
-            Assert.That(remaining, Is.EqualTo(98));
+            Assert.That(remaining, Is.EqualTo(99));
             for (int i = 0; i < remaining; i++)
             {
                 Assert.That(barracks.IsUnderConstruction, Is.True);
@@ -270,16 +281,20 @@ namespace Rts.Sim.Tests.Economy
             Simulation sim = TestWorld.StartedEconomy();
             Spawn(sim, TestWorld.HqId, P0, 12, 12);
             EntityId workerId = Spawn(sim, TestWorld.WorkerId, P0, 14, 14);
+            // A spotter explores the row of sites (sight 8 around (19, 8)); a worker holds one order at a time, so one worker places the towers in turn.
+            Spawn(sim, TestWorld.RunnerId, P0, 19, 8);
             Assert.That(sim.Tuning.Supply.StaticDefencesPerBaseMax, Is.EqualTo(6));
             for (int x = 16; x <= 21; x++)
             {
-                AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.TowerId, x, 10));
+                PlaceStructure(sim, workerId, TestWorld.TowerId, x, 10);
             }
             Player owner = PlayerOf(sim, P0);
             Assert.That(CountOf(sim, P0, TestWorld.TowerId), Is.EqualTo(6));
             Assert.That(owner.Common, Is.EqualTo(140));
-            Assert.That(owner.SupplyUsed, Is.EqualTo(7), "the worker plus six defences at 1 supply each");
+            Assert.That(owner.SupplyUsed, Is.EqualTo(8), "the worker, the spotter and six defences at 1 supply each");
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.TowerId, 22, 10), "static_defence_cap");
+            // A second spotter explores a site far from any base.
+            Spawn(sim, TestWorld.RunnerId, P0, 40, 42);
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.TowerId, 40, 40), "no_base");
             Assert.That(CountOf(sim, P0, TestWorld.TowerId), Is.EqualTo(6));
             Assert.That(owner.Common, Is.EqualTo(140), "refused builds cost nothing");
@@ -295,9 +310,10 @@ namespace Rts.Sim.Tests.Economy
             EntityId workerId = Spawn(sim, TestWorld.WorkerId, P0, 14, 14);
             EntityId runner = Spawn(sim, TestWorld.RunnerId, P0, 30, 30);
             EntityId enemyWorker = Spawn(sim, TestWorld.WorkerId, P1, 40, 40);
-            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 20, 20));
-            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 20, 20), "tile_blocked");
-            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 14, 14), "tile_occupied");
+            PlaceStructure(sim, workerId, TestWorld.BarracksId, 19, 14);
+            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 19, 14), "tile_blocked");
+            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 40, 14), "site_unexplored");
+            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 30, 30), "tile_occupied");
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 64, 3), "out_of_bounds");
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, -1, 3), "out_of_bounds");
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), runner, TestWorld.BarracksId, 25, 25), "cannot_build");
@@ -306,9 +322,10 @@ namespace Rts.Sim.Tests.Economy
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P1, Seq(), workerId, TestWorld.BarracksId, 25, 25), "not_owner");
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P1, Seq(), enemyWorker, TestWorld.BarracksId, 25, 25), "wrong_faction");
             AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), new EntityId(999), TestWorld.BarracksId, 25, 25), "unknown_unit");
-            // 200 start - 100 paid = 100: one more barracks fits, a third does not.
-            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 22, 20));
-            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 24, 20), "insufficient_resources");
+            // 200 start - 100 paid = 100: one more barracks fits, a third does not. The same order twice is site_pending.
+            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 19, 16));
+            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 19, 16), "site_pending");
+            AssertRejected(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 18, 12), "insufficient_resources");
             Assert.That(PlayerOf(sim, P0).Common, Is.EqualTo(0));
         }
 
@@ -318,11 +335,11 @@ namespace Rts.Sim.Tests.Economy
         {
             Simulation sim = TestWorld.StartedEconomy();
             EntityId workerId = Spawn(sim, TestWorld.WorkerId, P0, 14, 14);
-            EntityId runner = Spawn(sim, TestWorld.RunnerId, P0, 24, 20);
-            int tile = sim.Terrain.IndexOf(20, 20);
-            int beside = sim.Terrain.IndexOf(21, 20);
+            EntityId runner = Spawn(sim, TestWorld.RunnerId, P0, 23, 16);
+            int tile = sim.Terrain.IndexOf(19, 16);
+            int beside = sim.Terrain.IndexOf(20, 16);
             Assert.That(sim.Terrain[tile].IsBlocked, Is.False);
-            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 20, 20));
+            EntityId barracksId = PlaceStructure(sim, workerId, TestWorld.BarracksId, 19, 16);
             Assert.That(sim.Terrain[tile].IsBlocked, Is.True);
             Assert.That(sim.Terrain[tile].Blockers & TileBlockers.Footprint, Is.EqualTo(TileBlockers.Footprint));
             // The blocked tile itself is unreachable, but the field leads to its standable neighbours (ADR-007 follow-up),
@@ -335,18 +352,24 @@ namespace Rts.Sim.Tests.Economy
 
             // An enemy mortar (blast 20, x2 against the armoured barracks) one-shots the unfinished building.
             int versionBefore = sim.Terrain.Version;
-            List<SimEvent> events = Do(sim, new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, Seq(), TestWorld.MortarId, P1, At(20, 25)));
+            List<SimEvent> events = Do(sim, new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, Seq(), TestWorld.MortarId, P1, At(19, 22)));
             events.AddRange(StepCollect(sim, 5));
-            Assert.That(Of<UnitKilledEvent>(events).Count, Is.EqualTo(1));
+            // Kills of the barracks itself (the mortar may also fire at a worker in reach).
+            int barracksKills = 0;
+            foreach (UnitKilledEvent killed in Of<UnitKilledEvent>(events))
+            {
+                barracksKills += killed.Victim == barracksId ? 1 : 0;
+            }
+            Assert.That(barracksKills, Is.EqualTo(1));
             Assert.That(sim.Terrain[tile].IsBlocked, Is.False);
             Assert.That(sim.Terrain.Version, Is.GreaterThan(versionBefore));
             Assert.That(sim.Pathing.Get(MovementLayer.Ground, tile).IsReachable(beside), Is.True);
 
             // A second structure, out of the mortar's reach: a ground unit ordered onto its footprint walks up and
             // stops beside it (the blocked goal seeds its standable neighbours), never on it and never "unreachable".
-            int farTile = sim.Terrain.IndexOf(30, 10);
-            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), workerId, TestWorld.BarracksId, 30, 10));
-            events = Do(sim, new MoveUnitCommand(sim.Clock.Tick, P0, Seq(), runner, new FixVec2(Fix64.Parse("30.5"), Fix64.Parse("10.5"))));
+            int farTile = sim.Terrain.IndexOf(24, 12);
+            PlaceStructure(sim, workerId, TestWorld.BarracksId, 24, 12);
+            events = Do(sim, new MoveUnitCommand(sim.Clock.Tick, P0, Seq(), runner, new FixVec2(Fix64.Parse("24.5"), Fix64.Parse("12.5"))));
             events.AddRange(StepCollect(sim, 160));
             Assert.That(Of<MoveUnreachableEvent>(events).Count, Is.EqualTo(0));
             Assert.That(Of<UnitArrivedEvent>(events).Count, Is.EqualTo(1));

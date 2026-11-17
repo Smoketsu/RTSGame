@@ -4,6 +4,7 @@
 // production (Phase 1) will add build and train commands that go through the economy.
 using System;
 using Rts.Sim.Core;
+using Rts.Sim.Economy;
 using Rts.Sim.Units;
 
 namespace Rts.Sim.Commands
@@ -136,6 +137,7 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("out_of_bounds");
             }
+            EconomySystem.CancelBuild(sim, unit, "new_order", false);
             unit.SetMoveTarget(Target);
             // A plain move replaces any attack-move order or attack target (the unit still shoots what is in range) and any gather loop.
             unit.ClearCombatOrders();

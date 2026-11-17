@@ -161,14 +161,9 @@ namespace Rts.Tools.BalanceHarness
                 entry.Result = "ok";
                 if (entry.Command is BuildStructureCommand build && sim.Content.Units.TryGetValue(build.DefinitionId, out UnitDefinition? structure))
                 {
+                    // Worker construction: an accepted order pays at once; the structure appears later (StructurePlacedEvent) or the order is refunded.
                     entry.Owner.Spend(structure);
-                    entry.Owner.TotalPlaced.Add(build.DefinitionId);
-                    entry.Owner.Sites.Add("tick " + entry.Command.Tick.ToString(CultureInfo.InvariantCulture) + " " + build.DefinitionId + " tile ("
-                        + build.TileX.ToString(CultureInfo.InvariantCulture) + "," + build.TileY.ToString(CultureInfo.InvariantCulture) + ")");
-                    if (entry.Owner.FirstStructureTick < 0)
-                    {
-                        entry.Owner.FirstStructureTick = stepped;
-                    }
+                    entry.Owner.TotalOrdered.Add(build.DefinitionId);
                 }
                 else if (entry.Command is TrainUnitCommand train && sim.Content.Units.TryGetValue(train.DefinitionId, out UnitDefinition? trained))
                 {
@@ -221,7 +216,8 @@ namespace Rts.Tools.BalanceHarness
                     + "r  spent=" + trace.SpentCommon.ToString(CultureInfo.InvariantCulture) + "c/" + trace.SpentRare.ToString(CultureInfo.InvariantCulture) + "r\n");
                 _out.Write("  trained=" + trace.TotalTrained.Describe() + "\n");
                 _out.Write("  lost=" + trace.TotalLost.Describe() + "\n");
-                _out.Write("  structures placed=" + trace.TotalPlaced.Describe() + "  completed=" + trace.TotalCompleted.Describe() + "\n");
+                _out.Write("  structures ordered=" + trace.TotalOrdered.Describe() + "  placed=" + trace.TotalPlaced.Describe() + "  completed=" + trace.TotalCompleted.Describe() + "\n");
+                _out.Write("  build orders cancelled, whole game=" + trace.TotalCancelled.Describe() + "\n");
                 _out.Write("  structure sites: " + string.Join("; ", trace.Sites) + "\n");
                 _out.Write("  damage dealt to enemy HQ=" + F1(trace.HqDamage) + "\n");
                 _out.Write("  first: worker trained=" + TickText(trace.FirstWorkerTick) + "  structure placed=" + TickText(trace.FirstStructureTick)
@@ -250,6 +246,22 @@ namespace Rts.Tools.BalanceHarness
             if (simEvent is ResourceDepositedEvent deposit && _players.TryGetValue(deposit.Owner.Value, out PlayerTrace? depositor))
             {
                 depositor.AddIncome(deposit.Resource, deposit.Amount);
+            }
+            else if (simEvent is BuildOrderCancelledEvent cancelled && _players.TryGetValue(cancelled.Owner.Value, out PlayerTrace? canceller))
+            {
+                canceller.Refund(cancelled.RefundCommon, cancelled.RefundRare);
+                canceller.Cancelled.Add(cancelled.Reason);
+                canceller.TotalCancelled.Add(cancelled.Reason);
+            }
+            else if (simEvent is StructurePlacedEvent placed && _known.TryGetValue(placed.Structure, out Known? placedKnown) && _players.TryGetValue(placedKnown.Owner.Value, out PlayerTrace? placer))
+            {
+                placer.TotalPlaced.Add(placed.DefinitionId);
+                placer.Sites.Add("tick " + placed.Tick.ToString(CultureInfo.InvariantCulture) + " " + placed.DefinitionId + " tile ("
+                    + placed.TileX.ToString(CultureInfo.InvariantCulture) + "," + placed.TileY.ToString(CultureInfo.InvariantCulture) + ")");
+                if (placer.FirstStructureTick < 0)
+                {
+                    placer.FirstStructureTick = placed.Tick;
+                }
             }
             else if (simEvent is UnitTrainedEvent trained && _known.TryGetValue(trained.Unit, out Known? newUnit) && _players.TryGetValue(newUnit.Owner.Value, out PlayerTrace? producer))
             {
@@ -391,6 +403,7 @@ namespace Rts.Tools.BalanceHarness
                     + " trained=" + trace.Trained.Describe() + " lost=" + trace.Lost.Describe()
                     + " hq=" + hq
                     + " cmds=" + trace.Intents.Describe() + " rejected=" + trace.Rejected.Describe()
+                    + " cancelled=" + trace.Cancelled.Describe()
                     + " atk=" + attackMoving.ToString(CultureInfo.InvariantCulture) + "/" + armyCount.ToString(CultureInfo.InvariantCulture)
                     + " armyDist=" + armyDist + " atkDist=" + atkDist
                     + " armyAt=" + armyAt + " nearFields=" + (near.Length > 0 ? near.ToString() : "-")
@@ -598,10 +611,10 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Rare resource gathered over the whole game. Unit: resource. Range: 0 upward.</summary>
             public int TotalRare { get; private set; }
 
-            /// <summary>Common resource spent on accepted train and build commands. Unit: resource. Range: 0 upward.</summary>
+            /// <summary>Common resource spent on accepted train and build commands, less refunds of cancelled build orders. Unit: resource. Range: 0 upward.</summary>
             public int SpentCommon { get; private set; }
 
-            /// <summary>Rare resource spent on accepted train and build commands. Unit: resource. Range: 0 upward.</summary>
+            /// <summary>Rare resource spent on accepted train and build commands, less refunds of cancelled build orders. Unit: resource. Range: 0 upward.</summary>
             public int SpentRare { get; private set; }
 
             /// <summary>Units trained since the last line, by definition.</summary>
@@ -616,8 +629,17 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Units lost over the whole game, by definition and removal reason.</summary>
             public CountMap TotalLost { get; } = new CountMap();
 
-            /// <summary>Structures placed over the whole game.</summary>
+            /// <summary>Structures placed over the whole game (the worker arrived and the structure appeared).</summary>
             public CountMap TotalPlaced { get; } = new CountMap();
+
+            /// <summary>Accepted build orders over the whole game, by definition (some may later be cancelled).</summary>
+            public CountMap TotalOrdered { get; } = new CountMap();
+
+            /// <summary>Build orders cancelled since the last line, by reason (new_order, worker_lost, site_blocked, site_occupied, unreachable).</summary>
+            public CountMap Cancelled { get; } = new CountMap();
+
+            /// <summary>Build orders cancelled over the whole game, by reason; site_occupied is counted on its own key.</summary>
+            public CountMap TotalCancelled { get; } = new CountMap();
 
             /// <summary>Structures completed over the whole game.</summary>
             public CountMap TotalCompleted { get; } = new CountMap();
@@ -696,6 +718,15 @@ namespace Rts.Tools.BalanceHarness
                 SpentRare += definition.CostRare;
             }
 
+            /// <summary>Takes a refund back out of the spent totals.</summary>
+            /// <param name="common">Common refunded. Unit: resource units. Range: 0 upward.</param>
+            /// <param name="rare">Rare refunded. Unit: resource units. Range: 0 upward.</param>
+            public void Refund(int common, int rare)
+            {
+                SpentCommon -= common;
+                SpentRare -= rare;
+            }
+
             /// <summary>Clears the since-last-line counters.</summary>
             public void ResetInterval()
             {
@@ -705,6 +736,7 @@ namespace Rts.Tools.BalanceHarness
                 Lost.Clear();
                 Intents.Clear();
                 Rejected.Clear();
+                Cancelled.Clear();
             }
         }
     }

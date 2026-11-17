@@ -1,0 +1,134 @@
+# prototype_1v1 skai_vs_water game 0 seed 18221734882751240008 profile rt_worker_raid (P0) / aggressive_s3 (P1) cap 2400 s; P0 skai, P1 water
+# line format per player: bank=common/rare  +income=common/rare since last line  supply=used/cap  workers=total gather=n idle=n  done=[structures complete]  building=[under construction]  army=[units]  trained=[since last line]  lost=[since last line]  hq=state hp=health/max @(x,y)  cmds=[commands issued since last line, by kind]  rejected=[by reason]  atk=attack-moving/army  armyDist=tiles from army centre to enemy HQ  atkDist=same for the attack-moving part  armyAt=army centre (x,y) in tiles  nearFields=resource left in the fields within 12 tiles of the own HQ (C common, R rare)  stance=the AI army stance (Massing, Attack, Defend, Retreat) after its last think  attacks=attacks started so far  retreats=retreats so far
+t=30s P0 skai bank=5/0 +income=205/0 supply=6/18 workers=6 gather=5 idle=1 done=skai.roost:1 building=- army=- trained=skai.fledgling:2 lost=- hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=build_structure:2,gather:6,train_unit:2 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C2885,C2910 stance=Massing attacks=0 retreats=0
+t=30s P1 water bank=135/0 +income=185/0 supply=6/18 workers=6 gather=6 idle=0 done=water.tidepool:1 building=- army=- trained=water.tender:2 lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=build_structure:1,gather:6,train_unit:2 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C2875,C2935 stance=Massing attacks=0 retreats=0
+t=60s P0 skai bank=75/0 +income=295/0 supply=9/26 workers=6 gather=6 idle=0 done=skai.roost:2 building=- army=skai.windrunner:1 trained=skai.windrunner:1 lost=- hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:1,train_unit:3 rejected=- cancelled=- atk=0/1 armyDist=96.6 atkDist=n/a armyAt=(15.2,15.3) nearFields=C2735,C2765 stance=Massing attacks=0 retreats=0
+t=60s P1 water bank=5/0 +income=245/0 supply=8/26 workers=6 gather=6 idle=0 done=water.tidepool:2 building=water.pearl_depot:1 army=- trained=- lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=build_structure:2,gather:1,move_unit:1,train_unit:2 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C2730,C2830 stance=Massing attacks=0 retreats=0
+t=90s P0 skai bank=65/0 +income=290/0 supply=11/26 workers=6 gather=6 idle=0 done=skai.roost:2 building=skai.windspire:1 army=skai.windrunner:3 trained=skai.windrunner:2 lost=- hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:5,attack_unit:3,build_structure:1,train_unit:2 rejected=- cancelled=- atk=3/3 armyDist=96.8 atkDist=96.8 armyAt=(19.7,10.7) nearFields=C2585,C2620 stance=Defend attacks=0 retreats=0
+t=90s P1 water bank=45/0 +income=290/0 supply=10/26 workers=8 gather=8 idle=0 done=water.pearl_depot:1,water.tidepool:2 building=water.shell_forge:1 army=water.reef_runner:1 trained=water.reef_runner:1,water.tender:2 lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=build_structure:1,gather:3,move_unit:1,train_unit:2 rejected=- cancelled=- atk=0/1 armyDist=11.5 atkDist=n/a armyAt=(24.0,11.4) nearFields=C2595,C2700 stance=Massing attacks=0 retreats=0
+t=120s P0 skai bank=140/0 +income=300/0 supply=14/34 workers=6 gather=6 idle=0 done=skai.roost:2,skai.windspire:1 building=- army=skai.windrunner:7 trained=skai.windrunner:4 lost=- hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:22,train_unit:3 rejected=- cancelled=- atk=5/7 armyDist=51.6 atkDist=33.5 armyAt=(47.0,46.9) nearFields=C2435,C2475 stance=Attack attacks=1 retreats=0
+t=120s P1 water bank=125/0 +income=380/0 supply=14/34 workers=10 gather=10 idle=0 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:2 building=water.coral_turret:1 army=- trained=water.tender:2 lost=water.reef_runner:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=build_structure:1,gather:3,move_unit:1,train_unit:3 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C2450,C2580 stance=Massing attacks=0 retreats=0
+t=150s P0 skai bank=60/0 +income=295/0 supply=17/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:9 trained=skai.windrunner:2 lost=- hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:10,attack_unit:4,build_structure:1,train_unit:3 rejected=- cancelled=- atk=4/9 armyDist=58.7 atkDist=12.6 armyAt=(39.8,44.4) nearFields=C2285,C2325 stance=Attack attacks=1 retreats=0
+t=150s P1 water bank=130/0 +income=405/0 supply=12/42 workers=8 gather=8 idle=0 done=water.coral_turret:1,water.pearl_depot:1,water.shell_forge:1,water.tidepool:3 building=- army=- trained=water.grasper:1,water.tender:3 lost=water.grasper:1,water.tender:5 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:1,attack_unit:1,build_structure:1,gather:3,move_unit:1,train_unit:4 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C2315,C2435 stance=Massing attacks=0 retreats=0
+t=180s P0 skai bank=55/0 +income=295/0 supply=17/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:9 trained=skai.windrunner:4 lost=skai.windrunner:4 hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:9,attack_unit:4,move_unit:1,train_unit:4 rejected=- cancelled=- atk=0/9 armyDist=97.7 atkDist=n/a armyAt=(14.6,14.2) nearFields=C2135,C2175 stance=Massing attacks=1 retreats=1
+t=180s P1 water bank=40/0 +income=360/0 supply=19/42 workers=9 gather=9 idle=0 done=water.coral_turret:1,water.pearl_depot:1,water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:1,water.reef_runner:1 trained=water.grasper:1,water.reef_runner:1,water.tender:2 lost=water.tender:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:3,attack_unit:1,gather:2,move_unit:2,train_unit:5 rejected=- cancelled=- atk=1/2 armyDist=77.2 atkDist=92.9 armyAt=(63.6,70.4) nearFields=C2180,C2295 stance=Massing attacks=0 retreats=0
+t=210s P0 skai bank=55/0 +income=300/0 supply=21/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:13 trained=skai.windrunner:4 lost=- hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:20,attack_unit:16,train_unit:4 rejected=- cancelled=- atk=9/13 armyDist=40.1 atkDist=17.3 armyAt=(50.3,61.0) nearFields=C1985,C2030 stance=Attack attacks=2 retreats=1
+t=210s P1 water bank=80/0 +income=465/0 supply=25/42 workers=11 gather=11 idle=0 done=water.coral_turret:1,water.pearl_depot:1,water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:3,water.shellback:1 trained=water.grasper:2,water.shellback:1,water.tender:3 lost=water.reef_runner:1,water.tender:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:10,attack_unit:4,gather:3,train_unit:5 rejected=- cancelled=- atk=4/4 armyDist=89.7 atkDist=89.7 armyAt=(69.0,82.1) nearFields=C2030,C2155 stance=Massing attacks=0 retreats=0
+t=240s P0 skai bank=55/0 +income=300/0 supply=17/42 workers=6 gather=6 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:9 trained=skai.windrunner:4 lost=skai.windrunner:8 hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:13,attack_unit:12,move_unit:3,train_unit:4 rejected=- cancelled=- atk=8/9 armyDist=73.1 atkDist=70.2 armyAt=(28.4,35.5) nearFields=C1835,C1880 stance=Attack attacks=3 retreats=2
+t=240s P1 water bank=170/0 +income=590/0 supply=33/42 workers=13 gather=13 idle=0 done=water.coral_turret:1,water.pearl_depot:1,water.shell_forge:1,water.tidepool:3 building=- army=water.grasper:4,water.shellback:2 trained=water.grasper:2,water.shellback:1,water.tender:2 lost=water.grasper:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:5,attack_unit:15,gather:2,move_unit:2,train_unit:6 rejected=- cancelled=- atk=2/6 armyDist=90.8 atkDist=77.9 armyAt=(75.8,77.6) nearFields=C1895,C2010 stance=Massing attacks=0 retreats=0
+t=270s P0 skai bank=55/0 +income=275/0 supply=15/42 workers=7 gather=7 idle=0 done=skai.roost:3,skai.windspire:1 building=skai.perch_depot:1 army=skai.windrunner:6 trained=skai.fledgling:1,skai.windrunner:2 lost=skai.windrunner:5 hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:2,attack_unit:8,build_structure:1,gather:1,move_unit:3,train_unit:3 rejected=- cancelled=- atk=0/6 armyDist=62.5 atkDist=n/a armyAt=(37.3,41.4) nearFields=C1685,C1750 stance=Massing attacks=3 retreats=3
+t=270s P1 water bank=185/105 +income=615/105 supply=41/42 workers=14 gather=14 idle=0 done=water.coral_turret:1,water.pearl_depot:1,water.shell_forge:1,water.tidepool:3 building=water.tidepool:1 army=water.grasper:8,water.shellback:3 trained=water.grasper:4,water.shellback:1,water.tender:1 lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:29,attack_unit:12,build_structure:1,gather:1,move_unit:2,train_unit:4 rejected=- cancelled=- atk=2/11 armyDist=93.7 atkDist=80.3 armyAt=(76.0,81.4) nearFields=C1755,C1875 stance=Massing attacks=0 retreats=0
+t=300s P0 skai bank=70/0 +income=415/0 supply=18/42 workers=9 gather=9 idle=0 done=skai.perch_depot:1,skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:6 trained=skai.fledgling:2,skai.windrunner:3 lost=skai.windrunner:3 hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:13,attack_unit:7,gather:2,train_unit:6 rejected=- cancelled=- atk=3/6 armyDist=60.2 atkDist=25.5 armyAt=(36.2,46.3) nearFields=C1535,C1605 stance=Attack attacks=4 retreats=3
+t=300s P1 water bank=115/125 +income=630/135 supply=50/50 workers=14 gather=14 idle=0 done=water.coral_turret:1,water.pearl_depot:1,water.shell_forge:1,water.tidepool:4 building=water.coral_turret:1,water.tidepool:1 army=water.grasper:8,water.reef_runner:1,water.shellback:3 trained=water.reef_runner:1 lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:30,attack_unit:4,build_structure:2,move_unit:14,train_unit:4 rejected=- cancelled=- atk=2/12 armyDist=89.7 atkDist=82.9 armyAt=(74.3,77.6) nearFields=C1625,C1730 stance=Massing attacks=0 retreats=0
+t=330s P0 skai bank=115/0 +income=570/0 supply=23/42 workers=12 gather=12 idle=0 done=skai.perch_depot:1,skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:7 trained=skai.fledgling:3,skai.windrunner:4 lost=skai.windrunner:3 hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:24,attack_unit:6,gather:3,move_unit:7,train_unit:8 rejected=- cancelled=- atk=0/7 armyDist=82.8 atkDist=n/a armyAt=(25.1,24.8) nearFields=C1385,C1455 stance=Massing attacks=5 retreats=5
+t=330s P1 water bank=185/240 +income=620/140 supply=57/58 workers=14 gather=14 idle=0 done=water.coral_turret:2,water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=water.tidepool:1 army=water.grasper:8,water.ink_lobber:1,water.shellback:3,water.spoutling:3 trained=water.ink_lobber:1,water.spoutling:3 lost=water.reef_runner:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:36,attack_unit:8,build_structure:2,train_unit:4 rejected=- cancelled=site_occupied:1 atk=12/15 armyDist=58.3 atkDist=48.7 armyAt=(53.2,54.2) nearFields=C1500,C1590 stance=Attack attacks=1 retreats=0
+t=360s P0 skai bank=280/30 +income=640/30 supply=15/42 workers=11 gather=11 idle=0 done=skai.perch_depot:1,skai.roost:3,skai.windspire:1 building=- army=- trained=skai.fledgling:2,skai.windrunner:5 lost=skai.fledgling:3,skai.windrunner:12 hq=Rooted hp=1500/1500 @(12.5,12.5) cmds=attack_move:20,attack_unit:19,gather:2,move_unit:8,train_unit:7 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C1235,C1305 stance=Defend attacks=6 retreats=6
+t=360s P1 water bank=60/235 +income=675/60 supply=66/66 workers=14 gather=13 idle=1 done=water.coral_turret:3,water.pearl_depot:1,water.shell_forge:1,water.tidepool:6 building=- army=water.grasper:10,water.ink_lobber:1,water.shellback:3,water.spoutling:4 trained=water.grasper:3,water.spoutling:1 lost=water.grasper:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:40,attack_unit:94,build_structure:2,gather:3,move_unit:3,train_unit:5 rejected=- cancelled=- atk=9/18 armyDist=48.0 atkDist=11.9 armyAt=(48.0,44.7) nearFields=C1355,C1455 stance=Attack attacks=1 retreats=0
+t=390s P0 skai bank=155/40 +income=350/10 supply=13/42 workers=7 gather=7 idle=0 done=skai.perch_depot:1,skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:2 trained=skai.fledgling:2,skai.windrunner:5 lost=skai.fledgling:6,skai.windrunner:3 hq=Rooted hp=1410/1500 @(12.5,12.5) cmds=attack_move:3,attack_unit:7,gather:2,train_unit:7 rejected=- cancelled=- atk=2/2 armyDist=96.5 atkDist=96.5 armyAt=(20.5,10.3) nearFields=C1085,C1160 stance=Defend attacks=6 retreats=6
+t=390s P1 water bank=70/195 +income=660/0 supply=72/74 workers=15 gather=15 idle=0 done=water.coral_turret:3,water.pearl_depot:1,water.shell_forge:1,water.tidepool:7 building=water.pearl_depot:1 army=water.grasper:12,water.ink_lobber:2,water.shellback:3,water.spoutling:5 trained=water.grasper:4,water.ink_lobber:1,water.spoutling:1,water.tender:1 lost=water.grasper:2 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:42,attack_unit:14,build_structure:1,gather:4,move_unit:3,train_unit:6 rejected=- cancelled=- atk=6/22 armyDist=70.4 atkDist=13.6 armyAt=(63.8,60.7) nearFields=C1220,C1305 stance=Attack attacks=1 retreats=0
+t=420s P0 skai bank=60/40 +income=330/0 supply=10/42 workers=7 gather=7 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=- trained=skai.fledgling:2,skai.windrunner:5 lost=skai.fledgling:2,skai.perch_depot:1,skai.windrunner:7 hq=Rooted hp=1211/1500 @(12.5,12.5) cmds=attack_move:2,attack_unit:5,gather:2,train_unit:6 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C910,C1010 stance=Defend attacks=6 retreats=6
+t=420s P1 water bank=505/240 +income=685/70 supply=74/74 workers=16 gather=16 idle=0 done=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:7 building=water.tidepool:1 army=water.grasper:14,water.ink_lobber:3,water.shellback:3,water.spoutling:6 trained=water.grasper:2,water.ink_lobber:1,water.spoutling:1,water.tender:1 lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:49,attack_unit:58,build_structure:1,gather:1,move_unit:1,train_unit:1 rejected=- cancelled=- atk=5/26 armyDist=75.0 atkDist=1.6 armyAt=(65.7,65.4) nearFields=C1080,C1170 stance=Attack attacks=1 retreats=0
+t=450s P0 skai bank=30/40 +income=345/0 supply=11/42 workers=7 gather=7 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:1 trained=skai.windrunner:5 lost=skai.windrunner:4 hq=Rooted hp=953/1500 @(12.5,12.5) cmds=attack_unit:5,train_unit:5 rejected=- cancelled=- atk=1/1 armyDist=102.9 atkDist=102.9 armyAt=(12.9,8.7) nearFields=C710,C860 stance=Defend attacks=6 retreats=6
+t=450s P1 water bank=270/250 +income=765/100 supply=90/90 workers=18 gather=18 idle=0 done=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:9 building=- army=water.grasper:16,water.ink_lobber:3,water.shellback:3,water.spoutling:6 trained=water.grasper:2,water.tender:2 lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:33,attack_unit:39,build_structure:1,gather:4,move_unit:6,train_unit:9 rejected=- cancelled=- atk=0/28 armyDist=79.8 atkDist=n/a armyAt=(69.8,68.1) nearFields=C935,C1040 stance=Massing attacks=1 retreats=1
+t=480s P0 skai bank=25/40 +income=320/0 supply=13/42 workers=7 gather=6 idle=1 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:4 trained=skai.windrunner:4 lost=skai.windrunner:1 hq=Rooted hp=953/1500 @(12.5,12.5) cmds=attack_move:12,attack_unit:5,build_structure:1,gather:2,move_unit:5,train_unit:3 rejected=- cancelled=- atk=0/4 armyDist=69.5 atkDist=n/a armyAt=(36.2,32.5) nearFields=C540,C715 stance=Massing attacks=7 retreats=7
+t=480s P1 water bank=265/295 +income=870/70 supply=98/98 workers=18 gather=17 idle=1 done=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:10 building=- army=water.grasper:18,water.ink_lobber:4,water.shellback:2,water.spoutling:8 trained=water.grasper:2,water.ink_lobber:1,water.spoutling:2 lost=water.shellback:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:70,attack_unit:35,build_structure:2,gather:2,move_unit:2,train_unit:5 rejected=- cancelled=- atk=26/32 armyDist=55.2 atkDist=49.2 armyAt=(51.6,51.4) nearFields=C795,C860 stance=Attack attacks=2 retreats=1
+t=510s P0 skai bank=0/40 +income=300/0 supply=10/42 workers=7 gather=7 idle=0 done=skai.roost:3,skai.windspire:1 building=- army=skai.windrunner:1 trained=skai.fledgling:2,skai.windrunner:3 lost=skai.fledgling:2,skai.perch_depot:1,skai.windrunner:6 hq=Rooted hp=687/1500 @(12.5,12.5) cmds=attack_move:11,attack_unit:8,gather:3,train_unit:5 rejected=- cancelled=- atk=1/1 armyDist=103.1 atkDist=103.1 armyAt=(12.5,8.7) nearFields=C390,C575 stance=Defend attacks=8 retreats=7
+t=510s P1 water bank=535/360 +income=895/65 supply=105/106 workers=18 gather=17 idle=1 done=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:11 building=- army=water.grasper:20,water.ink_lobber:4,water.shellback:3,water.spoutling:9 trained=water.grasper:3,water.shellback:1,water.spoutling:1 lost=water.grasper:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:58,attack_unit:161,build_structure:1,move_unit:1,pick_cycle:1,train_unit:4 rejected=- cancelled=- atk=25/36 armyDist=32.0 atkDist=4.0 armyAt=(35.9,34.4) nearFields=C645,C685 stance=Attack attacks=2 retreats=1
+
+== final state at tick 10349 ==
+t=517s P0 skai bank=5/40 +income=80/0 supply=10/42 workers=7 gather=4 idle=3 done=skai.roost:3,skai.windspire:1 building=- army=- trained=- lost=skai.great_aerie:1,skai.windrunner:1 hq=none cmds=train_unit:1 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=- stance=Defend attacks=8 retreats=7 (final)
+t=517s P1 water bank=755/375 +income=220/15 supply=105/106 workers=18 gather=18 idle=0 done=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:11 building=water.tidepool:1 army=water.grasper:20,water.ink_lobber:4,water.shellback:3,water.spoutling:9 trained=- lost=- hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:11,attack_unit:20 rejected=- cancelled=- atk=36/36 armyDist=n/a atkDist=n/a armyAt=(31.4,33.2) nearFields=C615,C655 stance=Attack attacks=2 retreats=1 (final)
+
+== summary ==
+outcome: team 1 wins (player slot 1)
+defeat: P0 Defeated (hq_destroyed) at tick 10349
+game length: 10349 ticks = 517 s
+
+P0 skai totals
+  gathered=5905c/40r  spent=6100c/0r
+  trained=skai.fledgling:16,skai.windrunner:57
+  lost=skai.fledgling(killed):13,skai.great_aerie(killed):1,skai.perch_depot(killed):2,skai.windrunner(killed):57
+  structures ordered=skai.perch_depot:2,skai.roost:3,skai.windspire:1  placed=skai.perch_depot:2,skai.roost:3,skai.windspire:1  completed=skai.perch_depot:2,skai.roost:3,skai.windspire:1
+  build orders cancelled, whole game=-
+  structure sites: tick 50 skai.roost tile (13,9); tick 634 skai.roost tile (15,9); tick 1547 skai.windspire tile (15,11); tick 2470 skai.roost tile (9,13); tick 5043 skai.perch_depot tile (27,13); tick 9602 skai.perch_depot tile (27,13)
+  damage dealt to enemy HQ=0.0
+  first: worker trained=12s (tick 249)  structure placed=2s (tick 50)  army unit=55s (tick 1109)  attack order=55s (tick 1110)  damage to enemy HQ=never  first stance Attack=99s (tick 1980)
+  stance changes (20 in all, first 60 listed):
+    tick 1760 (88s) Massing -> Defend (army threshold 4 supply, attacks started 0, retreats 0)
+    tick 1980 (99s) Defend -> Attack (army threshold 4 supply, attacks started 1, retreats 0)
+    tick 3420 (171s) Attack -> Massing (army threshold 4 supply, attacks started 1, retreats 1)
+    tick 3620 (181s) Massing -> Attack (army threshold 4 supply, attacks started 2, retreats 1)
+    tick 4450 (222s) Attack -> Massing (army threshold 4 supply, attacks started 2, retreats 2)
+    tick 4650 (232s) Massing -> Attack (army threshold 4 supply, attacks started 3, retreats 2)
+    tick 5320 (266s) Attack -> Massing (army threshold 4 supply, attacks started 3, retreats 3)
+    tick 5520 (276s) Massing -> Attack (army threshold 4 supply, attacks started 4, retreats 3)
+    tick 6060 (303s) Attack -> Massing (army threshold 4 supply, attacks started 4, retreats 4)
+    tick 6100 (305s) Massing -> Defend (army threshold 4 supply, attacks started 4, retreats 4)
+    tick 6290 (314s) Defend -> Attack (army threshold 4 supply, attacks started 5, retreats 4)
+    tick 6490 (324s) Attack -> Massing (army threshold 4 supply, attacks started 5, retreats 5)
+    tick 6690 (334s) Massing -> Attack (army threshold 4 supply, attacks started 6, retreats 5)
+    tick 6780 (339s) Attack -> Massing (army threshold 4 supply, attacks started 6, retreats 6)
+    tick 6820 (341s) Massing -> Defend (army threshold 4 supply, attacks started 6, retreats 6)
+    tick 9250 (462s) Defend -> Massing (army threshold 4 supply, attacks started 6, retreats 6)
+    tick 9300 (465s) Massing -> Attack (army threshold 4 supply, attacks started 7, retreats 6)
+    tick 9580 (479s) Attack -> Massing (army threshold 4 supply, attacks started 7, retreats 7)
+    tick 9780 (489s) Massing -> Attack (army threshold 4 supply, attacks started 8, retreats 7)
+    tick 9820 (491s) Attack -> Defend (army threshold 4 supply, attacks started 8, retreats 7)
+  commands rejected, whole game=-
+  last 20 commands:
+    tick 9780 attack_move E163 to (66.5,79.5) -> ok
+    tick 9780 attack_move E165 to (66.5,79.5) -> ok
+    tick 9810 attack_unit E155 target E137 -> ok
+    tick 9820 train_unit E11 skai.windrunner -> ok
+    tick 9820 attack_unit E153 target E137 -> ok
+    tick 9820 attack_unit E156 target E137 -> ok
+    tick 9820 attack_move E161 to (25.8,24.3) -> ok
+    tick 9820 attack_move E163 to (25.8,24.3) -> ok
+    tick 9820 attack_move E165 to (25.8,24.3) -> ok
+    tick 9850 attack_unit E161 target E137 -> ok
+    tick 9850 attack_unit E163 target E137 -> ok
+    tick 9850 attack_unit E165 target E137 -> ok
+    tick 9890 gather E167 field 3 -> ok
+    tick 9910 train_unit E1 skai.fledgling -> ok
+    tick 9920 attack_unit E161 target E136 -> ok
+    tick 10060 train_unit E17 skai.windrunner -> ok
+    tick 10150 gather E172 field 0 -> ok
+    tick 10180 attack_unit E173 target E118 -> ok
+    tick 10190 train_unit E11 skai.windrunner -> ok
+    tick 10330 train_unit E36 skai.windrunner -> ok
+
+P1 water totals
+  gathered=9555c/760r  spent=9000c/385r
+  trained=water.grasper:26,water.ink_lobber:4,water.reef_runner:3,water.shellback:4,water.spoutling:9,water.tender:21
+  lost=water.grasper(killed):6,water.reef_runner(killed):3,water.shellback(killed):1,water.tender(killed):7
+  structures ordered=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:13  placed=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:12  completed=water.coral_turret:3,water.pearl_depot:2,water.shell_forge:1,water.tidepool:11
+  build orders cancelled, whole game=site_occupied:1
+  structure sites: tick 59 water.tidepool tile (82,86); tick 694 water.tidepool tile (80,86); tick 1099 water.pearl_depot tile (68,83); tick 1701 water.shell_forge tile (80,84); tick 2026 water.coral_turret tile (79,79); tick 2459 water.tidepool tile (86,82); tick 5221 water.tidepool tile (86,80); tick 5644 water.coral_turret tile (66,79); tick 5819 water.tidepool tile (84,80); tick 6562 water.tidepool tile (80,82); tick 6750 water.coral_turret tile (64,79); tick 7238 water.tidepool tile (82,80); tick 7684 water.pearl_depot tile (58,75); tick 7937 water.tidepool tile (88,88); tick 8496 water.tidepool tile (82,88); tick 9077 water.tidepool tile (80,88); tick 9676 water.tidepool tile (78,88); tick 10279 water.tidepool tile (78,86)
+  damage dealt to enemy HQ=1502.0
+  first: worker trained=12s (tick 248)  structure placed=2s (tick 59)  army unit=61s (tick 1228)  attack order=125s (tick 2519)  damage to enemy HQ=360s (tick 7202)  first stance Attack=306s (tick 6129)
+  stance changes (3 in all, first 60 listed):
+    tick 6129 (306s) Massing -> Attack (army threshold 10 supply, attacks started 1, retreats 0)
+    tick 8929 (446s) Attack -> Massing (army threshold 10 supply, attacks started 1, retreats 1)
+    tick 9129 (456s) Massing -> Attack (army threshold 10 supply, attacks started 2, retreats 1)
+  commands rejected, whole game=-
+  last 20 commands:
+    tick 10209 attack_unit E117 target E1 -> ok
+    tick 10209 attack_unit E118 target E1 -> ok
+    tick 10209 attack_unit E119 target E1 -> ok
+    tick 10209 attack_unit E121 target E1 -> ok
+    tick 10209 attack_unit E127 target E1 -> ok
+    tick 10209 attack_unit E136 target E1 -> ok
+    tick 10209 attack_unit E141 target E1 -> ok
+    tick 10209 attack_unit E147 target E1 -> ok
+    tick 10209 attack_unit E148 target E1 -> ok
+    tick 10249 attack_move E70 to (12.5,12.5) -> ok
+    tick 10249 attack_move E80 to (12.5,12.5) -> ok
+    tick 10249 attack_move E157 to (12.5,12.5) -> ok
+    tick 10249 attack_move E158 to (12.5,12.5) -> ok
+    tick 10249 attack_move E159 to (12.5,12.5) -> ok
+    tick 10249 attack_move E160 to (12.5,12.5) -> ok
+    tick 10249 attack_move E166 to (12.5,12.5) -> ok
+    tick 10249 attack_move E168 to (12.5,12.5) -> ok
+    tick 10249 attack_move E169 to (12.5,12.5) -> ok
+    tick 10249 attack_move E170 to (12.5,12.5) -> ok
+    tick 10249 attack_move E171 to (12.5,12.5) -> ok

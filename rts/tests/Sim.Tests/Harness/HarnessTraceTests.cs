@@ -37,6 +37,11 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(trace, Does.Contain("t=60s P1 water"));
             Assert.That(trace, Does.Contain("== summary =="));
             Assert.That(trace, Does.Contain("last 20 commands"));
+            // Worker construction: the summary reports ordered, placed and cancelled build orders (WCA-11).
+            Assert.That(trace, Does.Contain("structures ordered="));
+            Assert.That(trace, Does.Contain("placed="));
+            Assert.That(trace, Does.Contain("build orders cancelled, whole game="));
+            Assert.That(trace, Does.Contain(" cancelled="), "the timeline lines carry the interval's cancellations");
         }
 
         /// <summary>A command the simulation refuses is counted by reason in the timeline line and in the summary.</summary>

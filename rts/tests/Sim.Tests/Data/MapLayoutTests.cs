@@ -358,13 +358,17 @@ namespace Rts.Sim.Tests.Data
                 sim.Players.TryGet(owner, out Player? record);
                 record!.SetStock(500, 0);
                 sim.Submit(new BuildStructureCommand(sim.Clock.Tick, owner, sequence++, builder, "skai.perch_depot", 21, 7));
-                sim.Step();
                 depot = EntityId.None;
-                foreach (Unit unit in sim.Units.All)
+                // The builder walks the short way to the site and places the depot after the placement time (at most 200 ticks).
+                for (int placing = 0; placing < 200 && depot == EntityId.None; placing++)
                 {
-                    if (unit.Definition.Id == "skai.perch_depot")
+                    sim.Step();
+                    foreach (Unit unit in sim.Units.All)
                     {
-                        depot = unit.Id;
+                        if (unit.Definition.Id == "skai.perch_depot")
+                        {
+                            depot = unit.Id;
+                        }
                     }
                 }
                 Assert.That(depot, Is.Not.EqualTo(EntityId.None), "the depot was placed");

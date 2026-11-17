@@ -42,7 +42,7 @@ namespace Rts.Net.Tests
         /// <summary>
         /// Exit test: Skai (peer 0, aggressive AI) versus Water (peer 1, defensive AI) on greybox_1v1 through the lockstep
         /// protocol with the shipped input delay, one host tick of loopback latency, to a decided outcome within the script's
-        /// 6000 ticks, with every exchanged hash equal and the two final states identical.
+        /// 12000 ticks (6000 before worker construction), with every exchanged hash equal and the two final states identical.
         /// </summary>
         [Test]
         public void AiVsAi_TwoPeers_PlayToADecidedOutcome_WithMatchingHashes()
@@ -53,12 +53,12 @@ namespace Rts.Net.Tests
             Assert.That(session[N0].Peer.IsReferee, Is.True);
             Assert.That(session[N1].Peer.IsReferee, Is.False);
             Assert.That(session[N0].Peer.Settings.InputDelayTicks, Is.EqualTo(3), "shipped input_delay_ticks");
-            // Iterations used until the match is decided on both peers.
-            int used = session.RunUntil(() => session[N0].Outcome.IsDecided && session[N1].Outcome.IsDecided, 6000 * 2);
+            // Worker construction (specs/worker_construction.md) makes the AI games longer, so the limit is 12000 ticks (it was 6000). Iterations used until the match is decided on both peers.
+            int used = session.RunUntil(() => session[N0].Outcome.IsDecided && session[N1].Outcome.IsDecided, 12000 * 2);
             session.AssertNoDesync();
             Assert.That(session[N0].Outcome.IsDecided, Is.True, "decided after " + used + " iterations, tick " + session[N0].Tick);
             Assert.That(session[N0].Outcome.IsDraw, Is.False);
-            Assert.That(session[N0].Tick, Is.LessThan(6000));
+            Assert.That(session[N0].Tick, Is.LessThan(12000));
             // Let the lagging peer finish the same tick, then compare states.
             session.RunToTick(session[N0].Tick);
             session.AssertSameState();

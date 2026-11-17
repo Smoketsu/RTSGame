@@ -75,6 +75,21 @@ namespace Rts.Ai
         /// <summary>Own producers: queued unit IDs, head first (empty for enemies).</summary>
         public IReadOnlyList<string> Queue { get; }
 
+        /// <summary>Own workers: build order state (ToSite or Placing while a build order is pending). Enemy units: always None (an enemy's order is hidden).</summary>
+        public BuildOrderState BuildState { get; }
+
+        /// <summary>Own workers: definition ID of the pending build order, else "". Enemy units: always "".</summary>
+        public string BuildDefinitionId { get; }
+
+        /// <summary>Own workers: site tile column of the pending build order, else -1. Unit: tiles. Range: -1, or 0 to map width - 1.</summary>
+        public int BuildTileX { get; }
+
+        /// <summary>Own workers: site tile row of the pending build order, else -1. Unit: tiles. Range: -1, or 0 to map height - 1.</summary>
+        public int BuildTileY { get; }
+
+        /// <summary>True while the unit has a pending build order (walking to the site or placing).</summary>
+        public bool HasBuildOrder => BuildState != BuildOrderState.None;
+
         /// <summary>True for a gatherer (can_gather).</summary>
         public bool IsWorker => Definition.Economy.CanGather;
 
@@ -96,8 +111,13 @@ namespace Rts.Ai
         /// <summary>Creates a view entry; hosts and tests normally use <see cref="AiWorldView.Build"/>.</summary>
         public AiUnitView(EntityId id, PlayerId owner, UnitDefinition definition, FixVec2 position, Fix64 health, MovementLayer layer,
             HqState hqState, bool isUnderConstruction, bool hasMoveTarget, bool isAttackMoving, FixVec2 attackMoveGoal,
-            EntityId attackTarget, bool isAttackTargetForced, GatherState gatherState, int gatherFieldIndex, IReadOnlyList<string> queue)
+            EntityId attackTarget, bool isAttackTargetForced, GatherState gatherState, int gatherFieldIndex, IReadOnlyList<string> queue,
+            BuildOrderState buildState = BuildOrderState.None, string buildDefinitionId = "", int buildTileX = -1, int buildTileY = -1)
         {
+            BuildState = buildState;
+            BuildDefinitionId = buildDefinitionId;
+            BuildTileX = buildTileX;
+            BuildTileY = buildTileY;
             AttackTarget = attackTarget;
             IsAttackTargetForced = isAttackTargetForced;
             Id = id;
@@ -123,7 +143,8 @@ namespace Rts.Ai
             return new AiUnitView(unit.Id, unit.Owner, unit.Definition, unit.Position, unit.Health, unit.EffectiveLayer, unit.HqState,
                 unit.IsUnderConstruction, unit.HasMoveTarget, unit.IsAttackMoving, unit.AttackMoveGoal, unit.AttackTarget,
                 unit.IsAttackTargetForced, unit.GatherState,
-                unit.GatherState == GatherState.Idle ? -1 : unit.GatherFieldIndex, new List<string>(unit.ProductionQueue).AsReadOnly());
+                unit.GatherState == GatherState.Idle ? -1 : unit.GatherFieldIndex, new List<string>(unit.ProductionQueue).AsReadOnly(),
+                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY);
         }
 
         /// <summary>Copies a visible enemy unit: only what a player sees (type, position, health, layer, HQ state, construction).</summary>
@@ -320,6 +341,9 @@ namespace Rts.Ai
         /// <summary>True where an own or visible enemy non-air unit stands (a structure placed there would be rejected tile_occupied).</summary>
         private bool[] _occupied = Array.Empty<bool>();
 
+        /// <summary>True where the AI's team has ever seen the tile.</summary>
+        private bool[] _explored = Array.Empty<bool>();
+
         /// <summary>True where the AI's team sees the tile now.</summary>
         private bool[] _visible = Array.Empty<bool>();
 
@@ -433,6 +457,7 @@ namespace Rts.Ai
             view._blocked = new bool[terrain.TileCount];
             view._occupied = new bool[terrain.TileCount];
             view._visible = new bool[terrain.TileCount];
+            view._explored = new bool[terrain.TileCount];
             // Tile index being copied. Range: 0 to TileCount - 1.
             for (int index = 0; index < terrain.TileCount; index++)
             {
@@ -441,6 +466,7 @@ namespace Rts.Ai
                 view._heights[index] = tile.Height;
                 view._ramps[index] = tile.IsRamp;
                 view._visible[index] = sim.Vision.IsTileVisible(self.Team, terrain.XOf(index), terrain.YOf(index));
+                view._explored[index] = sim.Vision.IsTileExplored(self.Team, terrain.XOf(index), terrain.YOf(index));
                 // Walls are terrain; a footprint (a structure, maybe an enemy one) is known only where the team sees the tile.
                 view._blocked[index] = (tile.Blockers & TileBlockers.Wall) != 0 || ((tile.Blockers & TileBlockers.Footprint) != 0 && view._visible[index]);
             }
@@ -552,6 +578,12 @@ namespace Rts.Ai
         public bool IsVisible(int x, int y)
         {
             return Contains(x, y) && _visible[IndexOf(x, y)];
+        }
+
+        /// <summary>True when the AI's team has seen tile (x, y) at least once (the explored-ever grid); false off the map.</summary>
+        public bool IsExplored(int x, int y)
+        {
+            return Contains(x, y) && _explored[IndexOf(x, y)];
         }
 
         /// <summary>Supply a unit of this type costs (static defences cost static_defence_supply_cost). Unit: supply. Range: 0 to 100.</summary>

@@ -74,6 +74,28 @@ namespace Rts.Sim.Tests.Economy
             return all;
         }
 
+        /// <summary>
+        /// Orders a build, then steps until the structure is placed (at most 400 ticks) and returns the new structure's ID. Fails the test
+        /// when the order is rejected or never ends in a placed structure. The site must already be explored by the worker's team.
+        /// </summary>
+        public static EntityId PlaceStructure(Simulation sim, EntityId worker, string definition, int x, int y)
+        {
+            AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), worker, definition, x, y));
+            // Ticks stepped so far while waiting. Unit: ticks. Range: 0 to 400.
+            for (int i = 0; i < 400; i++)
+            {
+                sim.Step();
+                foreach (SimEvent evt in sim.Events.Current)
+                {
+                    if (evt is StructurePlacedEvent placed)
+                    {
+                        return placed.Structure;
+                    }
+                }
+            }
+            throw new AssertionException("The build order produced no StructurePlacedEvent within 400 ticks.");
+        }
+
         /// <summary>The rejection reasons among <paramref name="events"/>, in order.</summary>
         public static List<string> Reasons(List<SimEvent> events)
         {

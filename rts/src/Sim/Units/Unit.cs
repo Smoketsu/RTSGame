@@ -1,7 +1,7 @@
 // rts/src/Sim/Units/Unit.cs
 // The live state of one unit in a match. Part of Rts.Sim.Units.
 // State is position, health, a move target and (Phase 1) the combat state (weapon cooldown, attack target, attack-move order),
-// the HQ state (rooting, Last Stand), the worker gather loop, the production queue and construction progress. Mutation happens only through
+// the HQ state (rooting, Last Stand), the worker gather loop, the worker build order, the production queue and construction progress. Mutation happens only through
 // commands and systems inside Simulation.Step; everything here is hashed except the definition name.
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -140,6 +140,24 @@ namespace Rts.Sim.Units
         /// <summary>True while the unit is still being constructed.</summary>
         public bool IsUnderConstruction => ConstructionTicksRemaining > 0;
 
+        /// <summary>Where this worker's build order is: None (no order), ToSite (walking) or Placing (counting down at the site). Written by <see cref="EconomySystem"/> and the build command. Hashed.</summary>
+        public BuildOrderState BuildState { get; private set; }
+
+        /// <summary>Definition ID of the structure being built. Range: a structure ID of the owner's faction while <see cref="BuildState"/> is not None; "" otherwise. Hashed.</summary>
+        public string BuildDefinitionId { get; private set; }
+
+        /// <summary>Site tile X of the build order. Unit: tiles. Range: 0 to map width - 1 while the state is not None; -1 otherwise. Hashed.</summary>
+        public int BuildTileX { get; private set; }
+
+        /// <summary>Site tile Y of the build order. Unit: tiles. Range: 0 to map height - 1 while the state is not None; -1 otherwise. Hashed.</summary>
+        public int BuildTileY { get; private set; }
+
+        /// <summary>Placement ticks left while Placing. Unit: ticks. Range: 0 to worker_placement_seconds in ticks; 0 when not Placing. Hashed.</summary>
+        public int BuildTicksRemaining { get; private set; }
+
+        /// <summary>Gather field to go back to after the order ends. Unit: field index. Range: -1 (none) or 0 to field count - 1. Hashed.</summary>
+        public int BuildResumeFieldIndex { get; private set; }
+
         /// <summary>Dome shield pool left (P-003 row 6). Unit: health points (fixed-point). Range: 0 to the definition's dome pool; 0 for a unit without a dome. Hashed.</summary>
         public Fix64 ShieldPool { get; private set; }
 
@@ -181,6 +199,12 @@ namespace Rts.Sim.Units
             GatherTicksRemaining = 0;
             ProductionTicksRemaining = 0;
             ConstructionTicksRemaining = 0;
+            BuildState = BuildOrderState.None;
+            BuildDefinitionId = string.Empty;
+            BuildTileX = -1;
+            BuildTileY = -1;
+            BuildTicksRemaining = 0;
+            BuildResumeFieldIndex = -1;
             ShieldPool = definition.ShieldDome != null ? definition.ShieldDome.Pool : Fix64.Zero;
             ShieldDown = false;
             ShieldLastAbsorbTick = -1;
@@ -400,6 +424,49 @@ namespace Rts.Sim.Units
             }
         }
 
+        /// <summary>Starts a build order in state ToSite. Internal: build command only.</summary>
+        /// <param name="definitionId">Structure definition ID. Non-empty.</param>
+        /// <param name="tileX">Site tile X. Unit: tiles.</param>
+        /// <param name="tileY">Site tile Y. Unit: tiles.</param>
+        /// <param name="resumeFieldIndex">Gather field to resume afterwards, or -1. Unit: field index.</param>
+        internal void SetBuildOrder(string definitionId, int tileX, int tileY, int resumeFieldIndex)
+        {
+            BuildState = BuildOrderState.ToSite;
+            BuildDefinitionId = definitionId;
+            BuildTileX = tileX;
+            BuildTileY = tileY;
+            BuildTicksRemaining = 0;
+            BuildResumeFieldIndex = resumeFieldIndex;
+        }
+
+        /// <summary>Moves the order to Placing with a countdown. Internal: economy system only.</summary>
+        /// <param name="ticks">Placement time. Unit: ticks. Range: 1 or more.</param>
+        internal void StartPlacing(int ticks)
+        {
+            BuildState = BuildOrderState.Placing;
+            BuildTicksRemaining = ticks < 0 ? 0 : ticks;
+        }
+
+        /// <summary>Counts the placement countdown down by one tick (not below 0). Internal: economy system only.</summary>
+        internal void TickPlacing()
+        {
+            if (BuildTicksRemaining > 0)
+            {
+                BuildTicksRemaining--;
+            }
+        }
+
+        /// <summary>Resets every build field to its None value. Internal: build command and economy system only.</summary>
+        internal void ClearBuildOrder()
+        {
+            BuildState = BuildOrderState.None;
+            BuildDefinitionId = string.Empty;
+            BuildTileX = -1;
+            BuildTileY = -1;
+            BuildTicksRemaining = 0;
+            BuildResumeFieldIndex = -1;
+        }
+
         /// <summary>Feeds every simulation-relevant field into the state hash, in a fixed order.</summary>
         public void WriteHash(StateHasher hasher)
         {
@@ -437,6 +504,12 @@ namespace Rts.Sim.Units
             }
             hasher.Write(ProductionTicksRemaining);
             hasher.Write(ConstructionTicksRemaining);
+            hasher.Write((byte)BuildState);
+            hasher.Write(BuildDefinitionId);
+            hasher.Write(BuildTileX);
+            hasher.Write(BuildTileY);
+            hasher.Write(BuildTicksRemaining);
+            hasher.Write(BuildResumeFieldIndex);
             hasher.Write(ShieldPool);
             hasher.Write(ShieldDown);
             hasher.Write(ShieldLastAbsorbTick);

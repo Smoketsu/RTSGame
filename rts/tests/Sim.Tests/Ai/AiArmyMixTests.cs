@@ -73,6 +73,8 @@ namespace Rts.Sim.Tests.Ai
             Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players,
                 BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap("greybox_1v1")));
             sim.Start();
+            // These tests are about what the AI builds, not about scouting: every site counts as explored (specs/worker_construction.md).
+            ExploreKit.ExploreAll(sim);
             return sim;
         }
 

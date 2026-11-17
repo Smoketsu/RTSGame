@@ -5,6 +5,7 @@
 // What the orders do each tick is documented in rts/src/Sim/Combat/CombatSystem.cs.
 using Rts.Sim.Combat;
 using Rts.Sim.Core;
+using Rts.Sim.Economy;
 using Rts.Sim.Units;
 
 namespace Rts.Sim.Commands
@@ -48,6 +49,7 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("out_of_bounds");
             }
+            EconomySystem.CancelBuild(sim, unit, "new_order", false);
             unit.ClearCombatOrders();
             unit.ClearGather();
             unit.SetAttackMove(Goal);
@@ -128,12 +130,14 @@ namespace Rts.Sim.Commands
                 {
                     return CommandResult.Reject(HqSystem.ReasonHqRooted);
                 }
+                EconomySystem.CancelBuild(sim, unit, "new_order", false);
                 unit.ClearCombatOrders();
                 unit.ClearGather();
                 // Not forced: the HQ keeps the target only while it stays in reach, then goes back to picking its own.
                 unit.SetAttackTarget(target.Id, false);
                 return CommandResult.Ok;
             }
+            EconomySystem.CancelBuild(sim, unit, "new_order", false);
             unit.ClearCombatOrders();
             unit.ClearGather();
             unit.SetAttackTarget(target.Id, true);
@@ -178,6 +182,7 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("not_owner");
             }
+            EconomySystem.CancelBuild(sim, unit, "new_order", false);
             unit.ClearMoveTarget();
             unit.ClearCombatOrders();
             unit.ClearGather();

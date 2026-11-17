@@ -83,3 +83,9 @@ Phase 2 (from the specs above; each gets a sim-reviewer pass):
 ## Changelog
 
 Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordinator.
+
+## Rule changes (worker construction, 18 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [worker_construction.md](worker_construction.md) | A build order names a worker; it walks to an explored site, spends `worker_placement_seconds` there, then the structure appears and builds alone. Refunds on every cancellation, pending orders count in supply and the static defence cap. WC-1: Sim, scripts, Sim tests, re-pinned hashes. WC-2: AI, harness. WC-3: AI re-baseline (report only) | worker construction | economy, HQ, vision (built); build WC-1, WC-2 on one branch, then WC-3 |
