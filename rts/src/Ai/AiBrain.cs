@@ -101,6 +101,14 @@
 // raid_min_supply (a raid needs strength = supply of visible enemy army units near the drop-off + 1 for a recent hit) and
 // static_defence_max_value_share (step 2 builds only while own defences plus the new one are worth at most that share of the army; step 3
 // is never capped); rule E: use_early_expansion makes the clock gate early_expansion_seconds while no rare field is served.
+// Package D (skirmish_ai_v3.md D, code in AiBrainFight.cs; each part behind its own switch, all off in every profile but aggressive_s3):
+// use_predictor_attack replaces Massing's supply threshold by the fight predictor against the enemy model and the known static defences at the
+// chosen target (the drawn threshold stays the fallback when nothing is known) and replaces the retreat power test by the predicted advantage of
+// the attack group against the visible armed enemies near it; use_target_choice puts undefended enemy depots and producers before the v2 target
+// order and adds rule HR (a small squad of fast units harasses the known enemy drop-off farthest from the enemy army); use_measured_defence
+// replaces "every army unit defends" by the nearest units the predictor needs (own static defences count), recalling the attack group only when
+// it is needed; use_unit_control adds fall back, keep distance and fastest-kill focus fire (replacing the nearest-enemy Focus). The scout, the
+// harass squad, the defend group and fallen-back units get no stance orders. Spatial tests use AiProximity, so no loop runs over every pair.
 // Rule S now also treats a Defend that this think's threat would start as Defend (the scout is not taken on the first think of a Defend), and the
 // unreachable-waypoint skip waits until the move order has taken effect (AiMemory.ScoutOrderEffectiveTick).
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
