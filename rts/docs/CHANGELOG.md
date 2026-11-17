@@ -7,6 +7,13 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Skirmish AI v3, package C (fight predictor, counter-mix, tech on demand, static defence, rare priority), spec `docs/specs/skirmish_ai_v3.md`, 17 Nov 2026, reviewed by the sim-reviewer; no `src/Sim` change:
+  - New `Ai/FightPredictor.cs` and `Ai/AiCounter.cs`; rules T (tech on demand), SD (static defence with a raid log) and RS (rare priority), each behind a profile switch. 28 new `AiProfile` keys and three switches in every `data/ai` profile. `aggressive`, `defensive` and `aggressive_s1` play as before; pinned hashes unchanged.
+  - New profile `data/ai/aggressive_s2.json`; ablation-only profiles `abl_s2_no_rare.json` and `abl_s2_blind.json`.
+  - Package B review carry-overs: the unreachable-waypoint skip waits for the order's effective tick; no scout is taken on the first think of a Defend (tests B-17 to B-19).
+  - **Ladder, read with care:** `aggressive_s2` beat `aggressive` in 285 of 288 games, but the cause is the depot placed at 30 s (rare priority fires at tick 0), not reaction. Ablations: without rare priority it wins 26.7 percent against `aggressive`; against an equal-economy copy that does not react it wins 43.8 percent (water mirrors 0 to 25 percent on three maps). Reacting does not yet win games. Response scenarios: 4 of 10 pass. Reports in `docs/reports/ai_v3_2026-11-17/`.
+  - Found in review, not changed: `BuildStructure` places a building instantly on any free tile with no worker travel or fog limit (a design question for the developer).
+
 - Skirmish AI v3, package B (scouting and enemy model), spec `docs/specs/skirmish_ai_v3.md`, 17 Nov 2026, reviewed twice by the sim-reviewer; no `src/Sim` change:
   - Scouting (rule S) and an enemy model (sightings with decay, seen kills, types implied by known structures) behind `use_scouting` and `use_enemy_model`. New profile `data/ai/aggressive_s1.json`; every shipped profile has the new keys with the switches off, so v2 behaviour and hashes are unchanged.
   - A scout skips an unreachable waypoint, rejoins the army between rounds and is not counted by production while away. Kills in fog do not lower the model.
