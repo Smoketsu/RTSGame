@@ -232,7 +232,7 @@ Stop doing:
 
 # Developer decisions (18 Nov 2026)
 
-Decisions 1 to 9 are answered below. Decisions 10 to 13 are not yet answered; until they are, their recommended defaults are not in force.
+All 13 decisions are answered below.
 
 | # | Answer | What it changes in this proposal |
 | --- | --- | --- |
@@ -245,3 +245,7 @@ Decisions 1 to 9 are answered below. Decisions 10 to 13 are not yet answered; un
 | 7 | Yes, high priority. "Area damage is a huge balance changer, so useless to adjust numbers till it works." | Area damage and the per-weapon structure multiplier come first among the mechanics. |
 | 8 | Definitely. | Walls and a tech structure with prerequisites are built, not deferred. |
 | 9 | Yes. | The equal-cost fight mode of the harness is built first. |
+| 10 | Yes. | The "good enough to trust" bar is adopted, numbers as placeholders. |
+| 11 | Yes. | No balance batches and no reading of AI-against-AI win rates as balance until bar items 1 to 3 pass. Equal-cost fights may be read at any time. |
+| 12 | "We'll do this at the end of these." | The human benchmark (the developer plays against the AI) comes after the other work in this proposal. |
+| 13 | Yes, but later. | Exploiter profiles and a league are built after bar items 1 to 3. |
