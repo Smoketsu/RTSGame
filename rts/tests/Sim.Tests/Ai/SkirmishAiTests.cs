@@ -853,12 +853,12 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>
         /// End tick and final state hash of the traced game prototype_1v1, water_vs_water, seed 20261117, game 0, abl_s2_blind against abl_s2_blind, recorded before any
         /// package C2 code change (skirmish_ai_v3.md C2-11). Unit: ticks and state hash. Range: fixed by the shipped data; changes only on purpose.
-        /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old values 18210 and 584d762eb253f6ce.
+        /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old values 18210 and 584d762eb253f6ce (first worker construction pin 11435 and 5c4f6eb8e55be64e, before the WC-2 review fixes).
         /// </summary>
-        private const int BlindTraceEndTick = 11435;
+        private const int BlindTraceEndTick = 11438;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "5c4f6eb8e55be64e";
+        private const string BlindTraceHash = "963068ebe8578f25";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

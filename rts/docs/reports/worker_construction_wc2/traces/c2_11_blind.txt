@@ -32,31 +32,31 @@ t=450s P0 water bank=20/660 +income=835/130 supply=72/82 workers=17 gather=17 id
 t=450s P1 water bank=50/580 +income=825/130 supply=38/58 workers=17 gather=17 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:5 building=- army=water.grasper:2,water.ink_lobber:1,water.spoutling:3 trained=water.grasper:4,water.ink_lobber:1,water.spoutling:3 lost=water.grasper:9,water.ink_lobber:1,water.shellback:1,water.spoutling:2 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:27,attack_unit:40,train_unit:8 rejected=- cancelled=- atk=6/6 armyDist=87.8 atkDist=87.8 armyAt=(72.7,76.4) nearFields=C940,C1015 stance=Defend attacks=7 retreats=6
 t=480s P0 water bank=30/675 +income=935/15 supply=79/82 workers=17 gather=17 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:8 building=water.tidepool:1 army=water.grasper:13,water.ink_lobber:3,water.reef_runner:1,water.shellback:2,water.spoutling:7 trained=water.grasper:7,water.ink_lobber:1,water.reef_runner:1 lost=water.grasper:4 hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:76,attack_unit:68,build_structure:1,gather:3,move_unit:1,train_unit:7 rejected=- cancelled=- atk=6/26 armyDist=76.1 atkDist=13.2 armyAt=(28.6,30.9) nearFields=C785,C885 stance=Attack attacks=4 retreats=3
 t=480s P1 water bank=40/610 +income=740/55 supply=25/58 workers=12 gather=12 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:5 building=- army=water.grasper:1,water.ink_lobber:1,water.spoutling:1 trained=water.grasper:5,water.ink_lobber:1,water.reef_runner:1,water.spoutling:1,water.tender:1 lost=water.grasper:6,water.ink_lobber:1,water.reef_runner:1,water.spoutling:3,water.tender:6 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:12,attack_unit:17,gather:4,train_unit:8 rejected=- cancelled=- atk=3/3 armyDist=96.4 atkDist=96.4 armyAt=(77.2,84.0) nearFields=C800,C875 stance=Defend attacks=7 retreats=6
-t=510s P0 water bank=45/625 +income=940/0 supply=87/90 workers=17 gather=16 idle=1 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:9 building=- army=water.grasper:16,water.ink_lobber:3,water.reef_runner:1,water.shellback:2,water.spoutling:7 trained=water.grasper:4,water.shellback:1,water.spoutling:1 lost=water.grasper:1,water.shellback:1,water.spoutling:1 hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:176,attack_unit:13,build_structure:1,move_unit:5,train_unit:7 rejected=- cancelled=- atk=28/29 armyDist=88.1 atkDist=89.8 armyAt=(23.8,18.7) nearFields=C650,C720 stance=Attack attacks=5 retreats=4
-t=510s P1 water bank=40/610 +income=475/0 supply=17/58 workers=8 gather=7 idle=1 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=- army=water.grasper:2,water.shellback:1 trained=water.grasper:3,water.reef_runner:1,water.shellback:1,water.tender:2 lost=water.grasper:2,water.ink_lobber:1,water.pearl_depot:1,water.reef_runner:1,water.spoutling:1,water.tender:6 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:9,attack_unit:6,build_structure:3,gather:3,train_unit:5 rejected=- cancelled=worker_lost:2 atk=2/3 armyDist=86.2 atkDist=79.5 armyAt=(69.3,77.4) nearFields=C665,C730 stance=Defend attacks=7 retreats=6
-t=540s P0 water bank=300/560 +income=955/0 supply=97/98 workers=17 gather=17 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:10 building=water.tidepool:1 army=water.grasper:20,water.ink_lobber:3,water.reef_runner:1,water.shellback:3,water.spoutling:8 trained=water.grasper:4,water.shellback:1,water.spoutling:1 lost=- hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:32,attack_unit:27,build_structure:1,move_unit:3,pick_cycle:1,train_unit:5 rejected=- cancelled=- atk=28/35 armyDist=42.9 atkDist=30.8 armyAt=(52.5,53.8) nearFields=C510,C545 stance=Attack attacks=5 retreats=4
-t=540s P1 water bank=85/610 +income=320/0 supply=19/58 workers=10 gather=10 idle=0 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=water.pearl_depot:1 army=water.grasper:2,water.shellback:1 trained=water.grasper:1,water.reef_runner:1,water.tender:2 lost=water.grasper:1,water.reef_runner:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:89,attack_unit:4,gather:3,train_unit:4 rejected=- cancelled=- atk=3/3 armyDist=82.4 atkDist=82.4 armyAt=(67.9,73.6) nearFields=C520,C595 stance=Defend attacks=7 retreats=6
-t=570s P0 water bank=530/535 +income=880/0 supply=105/106 workers=17 gather=17 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:11 building=water.tidepool:1 army=water.grasper:21,water.ink_lobber:4,water.reef_runner:1,water.shellback:3,water.spoutling:9 trained=water.grasper:2,water.ink_lobber:1,water.spoutling:1 lost=water.grasper:1 hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:71,attack_unit:100,build_structure:1,gather:3,move_unit:3,train_unit:5 rejected=- cancelled=- atk=37/38 armyDist=27.3 atkDist=26.6 armyAt=(64.1,64.3) nearFields=C375,C360 stance=Attack attacks=5 retreats=4
-t=570s P1 water bank=20/610 +income=310/0 supply=11/58 workers=8 gather=8 idle=0 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=- army=- trained=water.grasper:1,water.reef_runner:1,water.tender:3 lost=water.grasper:3,water.pearl_depot:1,water.reef_runner:1,water.shellback:1,water.tender:5 hq=Rooted hp=132/1800 @(83.5,83.5) cmds=attack_move:3,attack_unit:3,gather:3,train_unit:5 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C380,C450 stance=Defend attacks=7 retreats=6
+t=510s P0 water bank=45/625 +income=940/0 supply=87/90 workers=17 gather=16 idle=1 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:9 building=- army=water.grasper:16,water.ink_lobber:3,water.reef_runner:1,water.shellback:2,water.spoutling:7 trained=water.grasper:4,water.shellback:1,water.spoutling:1 lost=water.grasper:1,water.shellback:1,water.spoutling:1 hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:176,attack_unit:13,build_structure:1,move_unit:5,train_unit:7 rejected=- cancelled=- atk=28/29 armyDist=88.1 atkDist=89.9 armyAt=(23.8,18.7) nearFields=C650,C720 stance=Attack attacks=5 retreats=4
+t=510s P1 water bank=45/570 +income=480/0 supply=19/58 workers=9 gather=9 idle=0 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=- army=water.grasper:2,water.shellback:1 trained=water.grasper:3,water.reef_runner:1,water.shellback:1,water.tender:2 lost=water.grasper:2,water.ink_lobber:1,water.pearl_depot:1,water.reef_runner:1,water.spoutling:1,water.tender:5 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:10,attack_unit:6,build_structure:1,gather:3,train_unit:5 rejected=- cancelled=worker_lost:1 atk=3/3 armyDist=86.2 atkDist=86.2 armyAt=(69.2,77.4) nearFields=C665,C730 stance=Defend attacks=7 retreats=6
+t=540s P0 water bank=100/535 +income=955/0 supply=97/98 workers=17 gather=16 idle=1 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:10 building=- army=water.grasper:20,water.ink_lobber:1,water.reef_runner:1,water.shellback:3,water.spoutling:8 trained=water.grasper:4,water.shellback:1,water.spoutling:1 lost=water.ink_lobber:2 hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:48,attack_unit:41,build_structure:1,move_unit:3,pick_cycle:1,train_unit:7 rejected=- cancelled=- atk=26/33 armyDist=43.5 atkDist=30.7 armyAt=(53.1,52.4) nearFields=C510,C540 stance=Attack attacks=5 retreats=4
+t=540s P1 water bank=20/545 +income=375/0 supply=22/58 workers=10 gather=10 idle=0 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=water.pearl_depot:1 army=water.grasper:1,water.ink_lobber:1,water.shellback:1 trained=water.ink_lobber:1,water.reef_runner:1,water.tender:1 lost=water.grasper:1,water.reef_runner:1 hq=Rooted hp=1800/1800 @(83.5,83.5) cmds=attack_move:17,attack_unit:11,build_structure:1,gather:1,move_unit:4,train_unit:4 rejected=- cancelled=- atk=3/3 armyDist=83.3 atkDist=83.3 armyAt=(70.2,72.5) nearFields=C520,C595 stance=Defend attacks=8 retreats=7
+t=570s P0 water bank=285/470 +income=885/0 supply=105/106 workers=17 gather=16 idle=1 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:11 building=- army=water.grasper:22,water.ink_lobber:2,water.reef_runner:1,water.shellback:3,water.spoutling:10 trained=water.grasper:3,water.ink_lobber:1,water.spoutling:2 lost=water.grasper:1 hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:81,attack_unit:182,build_structure:1,gather:3,move_unit:2,train_unit:5 rejected=- cancelled=- atk=37/38 armyDist=30.5 atkDist=30.5 armyAt=(62.4,61.5) nearFields=C375,C360 stance=Attack attacks=5 retreats=4
+t=570s P1 water bank=35/505 +income=415/0 supply=14/58 workers=11 gather=11 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:5 building=- army=- trained=water.grasper:2,water.spoutling:1,water.tender:3 lost=water.grasper:3,water.ink_lobber:1,water.shellback:1,water.spoutling:1,water.tender:2 hq=Rooted hp=176/1800 @(83.5,83.5) cmds=attack_move:5,attack_unit:4,gather:4,train_unit:5 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=C380,C450 stance=Defend attacks=8 retreats=7
 
-== final state at tick 11435 ==
-t=571s P0 water bank=580/535 +income=50/0 supply=105/106 workers=17 gather=17 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:11 building=water.tidepool:1 army=water.grasper:21,water.ink_lobber:4,water.reef_runner:1,water.shellback:3,water.spoutling:9 trained=- lost=- hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=attack_move:3,attack_unit:52 rejected=- cancelled=- atk=37/38 armyDist=n/a atkDist=n/a armyAt=(64.6,65.8) nearFields=C370,C360 stance=Attack attacks=5 retreats=4 (final)
-t=571s P1 water bank=30/610 +income=10/0 supply=10/58 workers=8 gather=8 idle=0 done=water.pearl_depot:1,water.shell_forge:1,water.tidepool:5 building=- army=- trained=water.reef_runner:1 lost=water.grand_shell:1,water.reef_runner:1 hq=none cmds=attack_unit:1 rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=- stance=Defend attacks=7 retreats=6 (final)
+== final state at tick 11438 ==
+t=571s P0 water bank=340/470 +income=55/0 supply=105/106 workers=17 gather=17 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:11 building=water.tidepool:1 army=water.grasper:22,water.ink_lobber:2,water.reef_runner:1,water.shellback:3,water.spoutling:10 trained=- lost=- hq=Rooted hp=1800/1800 @(12.5,12.5) cmds=- rejected=- cancelled=- atk=37/38 armyDist=n/a atkDist=n/a armyAt=(62.8,63.6) nearFields=C365,C355 stance=Attack attacks=5 retreats=4 (final)
+t=571s P1 water bank=50/505 +income=15/0 supply=13/58 workers=11 gather=11 idle=0 done=water.pearl_depot:2,water.shell_forge:1,water.tidepool:5 building=- army=- trained=- lost=water.grand_shell:1 hq=none cmds=- rejected=- cancelled=- atk=0/0 armyDist=n/a atkDist=n/a armyAt=n/a nearFields=- stance=Defend attacks=8 retreats=7 (final)
 
 == summary ==
 outcome: team 0 wins (player slot 0)
-defeat: P1 Defeated (hq_destroyed) at tick 11435
-game length: 11435 ticks = 571 s
+defeat: P1 Defeated (hq_destroyed) at tick 11438
+game length: 11438 ticks = 571 s
 
 P0 water totals
-  gathered=12830c/1200r  spent=12450c/665r
-  trained=water.grasper:52,water.ink_lobber:6,water.reef_runner:3,water.shellback:7,water.spoutling:16,water.tender:13
-  lost=water.grasper(killed):31,water.ink_lobber(killed):2,water.reef_runner(killed):2,water.shellback(killed):4,water.spoutling(killed):7
+  gathered=12840c/1200r  spent=12700c/730r
+  trained=water.grasper:53,water.ink_lobber:6,water.reef_runner:3,water.shellback:7,water.spoutling:17,water.tender:13
+  lost=water.grasper(killed):31,water.ink_lobber(killed):4,water.reef_runner(killed):2,water.shellback(killed):4,water.spoutling(killed):7
   structures ordered=water.pearl_depot:2,water.shell_forge:1,water.tidepool:13  placed=water.pearl_depot:2,water.shell_forge:1,water.tidepool:12  completed=water.pearl_depot:2,water.shell_forge:1,water.tidepool:11
   build orders cancelled, whole game=site_occupied:1
-  structure sites: tick 50 water.tidepool tile (13,9); tick 672 water.tidepool tile (15,9); tick 1060 water.pearl_depot tile (27,12); tick 1908 water.shell_forge tile (15,11); tick 2380 water.tidepool tile (9,13); tick 3732 water.tidepool tile (15,13); tick 4543 water.tidepool tile (9,15); tick 5285 water.tidepool tile (11,15); tick 5880 water.pearl_depot tile (37,20); tick 7635 water.tidepool tile (16,15); tick 8469 water.tidepool tile (13,15); tick 9568 water.tidepool tile (7,7); tick 10215 water.tidepool tile (13,7); tick 10798 water.tidepool tile (15,7); tick 11397 water.tidepool tile (17,7)
-  damage dealt to enemy HQ=1865.2
-  first: worker trained=12s (tick 249)  structure placed=2s (tick 50)  army unit=59s (tick 1189)  attack order=93s (tick 1860)  damage to enemy HQ=551s (tick 11035)  first stance Attack=159s (tick 3190)
+  structure sites: tick 50 water.tidepool tile (13,9); tick 672 water.tidepool tile (15,9); tick 1060 water.pearl_depot tile (27,12); tick 1908 water.shell_forge tile (15,11); tick 2380 water.tidepool tile (9,13); tick 3732 water.tidepool tile (15,13); tick 4543 water.tidepool tile (9,15); tick 5285 water.tidepool tile (11,15); tick 5880 water.pearl_depot tile (37,20); tick 7635 water.tidepool tile (16,15); tick 8469 water.tidepool tile (13,15); tick 9568 water.tidepool tile (7,7); tick 10215 water.tidepool tile (13,7); tick 10808 water.tidepool tile (15,7); tick 11408 water.tidepool tile (17,7)
+  damage dealt to enemy HQ=1845.8
+  first: worker trained=12s (tick 249)  structure placed=2s (tick 50)  army unit=59s (tick 1189)  attack order=93s (tick 1860)  damage to enemy HQ=552s (tick 11040)  first stance Attack=159s (tick 3190)
   stance changes (11 in all, first 60 listed):
     tick 1740 (87s) Massing -> Defend (army threshold 8 supply, attacks started 0, retreats 0)
     tick 2000 (100s) Defend -> Massing (army threshold 8 supply, attacks started 0, retreats 0)
@@ -71,37 +71,37 @@ P0 water totals
     tick 10180 (509s) Massing -> Attack (army threshold 8 supply, attacks started 5, retreats 4)
   commands rejected, whole game=-
   last 20 commands:
-    tick 11420 attack_unit E161 target E6 -> ok
-    tick 11420 attack_unit E164 target E6 -> ok
-    tick 11420 attack_move E167 to (83.5,83.5) -> ok
-    tick 11420 attack_unit E168 target E6 -> ok
-    tick 11420 attack_unit E171 target E6 -> ok
-    tick 11420 attack_unit E172 target E6 -> ok
-    tick 11420 attack_unit E178 target E6 -> ok
-    tick 11420 attack_unit E179 target E6 -> ok
-    tick 11420 attack_unit E181 target E6 -> ok
-    tick 11420 attack_unit E183 target E6 -> ok
-    tick 11420 attack_unit E187 target E6 -> ok
-    tick 11420 attack_unit E189 target E6 -> ok
-    tick 11420 attack_unit E191 target E6 -> ok
-    tick 11420 attack_unit E194 target E6 -> ok
-    tick 11420 attack_unit E196 target E6 -> ok
-    tick 11420 attack_unit E199 target E6 -> ok
-    tick 11420 attack_unit E200 target E6 -> ok
-    tick 11420 attack_unit E203 target E6 -> ok
-    tick 11420 attack_unit E205 target E6 -> ok
-    tick 11430 attack_unit E146 target E6 -> ok
+    tick 11370 attack_unit E153 target E6 -> ok
+    tick 11370 attack_unit E155 target E6 -> ok
+    tick 11370 attack_unit E156 target E6 -> ok
+    tick 11370 attack_unit E160 target E6 -> ok
+    tick 11370 attack_unit E161 target E6 -> ok
+    tick 11370 attack_unit E164 target E6 -> ok
+    tick 11370 attack_unit E168 target E6 -> ok
+    tick 11370 attack_unit E171 target E6 -> ok
+    tick 11370 attack_unit E172 target E6 -> ok
+    tick 11370 attack_unit E176 target E6 -> ok
+    tick 11370 attack_unit E178 target E6 -> ok
+    tick 11370 attack_unit E179 target E6 -> ok
+    tick 11370 attack_unit E181 target E6 -> ok
+    tick 11370 attack_unit E187 target E6 -> ok
+    tick 11370 attack_unit E189 target E6 -> ok
+    tick 11370 attack_unit E191 target E6 -> ok
+    tick 11370 attack_unit E196 target E6 -> ok
+    tick 11370 attack_unit E199 target E6 -> ok
+    tick 11370 attack_unit E203 target E6 -> ok
+    tick 11370 attack_unit E205 target E6 -> ok
 
 P1 water totals
-  gathered=10505c/1200r  spent=10675c/590r
-  trained=water.grasper:47,water.ink_lobber:6,water.reef_runner:6,water.shellback:5,water.spoutling:14,water.tender:21
-  lost=water.grand_shell(killed):1,water.grasper(killed):47,water.ink_lobber(killed):6,water.pearl_depot(killed):2,water.reef_runner(killed):6,water.shellback(killed):5,water.spoutling(killed):14,water.tender(killed):17
-  structures ordered=water.pearl_depot:5,water.shell_forge:1,water.tidepool:5  placed=water.pearl_depot:3,water.shell_forge:1,water.tidepool:5  completed=water.pearl_depot:3,water.shell_forge:1,water.tidepool:5
-  build orders cancelled, whole game=worker_lost:2
-  structure sites: tick 59 water.tidepool tile (82,86); tick 694 water.tidepool tile (80,86); tick 1099 water.pearl_depot tile (68,83); tick 1983 water.shell_forge tile (80,84); tick 2485 water.tidepool tile (86,82); tick 4303 water.tidepool tile (86,80); tick 5004 water.tidepool tile (80,82); tick 5987 water.pearl_depot tile (58,75); tick 10721 water.pearl_depot tile (75,32)
+  gathered=10675c/1200r  spent=10825c/695r
+  trained=water.grasper:47,water.ink_lobber:7,water.reef_runner:4,water.shellback:5,water.spoutling:15,water.tender:20
+  lost=water.grand_shell(killed):1,water.grasper(killed):47,water.ink_lobber(killed):7,water.pearl_depot(killed):1,water.reef_runner(killed):4,water.shellback(killed):5,water.spoutling(killed):15,water.tender(killed):13
+  structures ordered=water.pearl_depot:4,water.shell_forge:1,water.tidepool:5  placed=water.pearl_depot:3,water.shell_forge:1,water.tidepool:5  completed=water.pearl_depot:3,water.shell_forge:1,water.tidepool:5
+  build orders cancelled, whole game=worker_lost:1
+  structure sites: tick 59 water.tidepool tile (82,86); tick 694 water.tidepool tile (80,86); tick 1099 water.pearl_depot tile (68,83); tick 1983 water.shell_forge tile (80,84); tick 2485 water.tidepool tile (86,82); tick 4303 water.tidepool tile (86,80); tick 5004 water.tidepool tile (80,82); tick 5987 water.pearl_depot tile (58,75); tick 10799 water.pearl_depot tile (75,32)
   damage dealt to enemy HQ=0.0
   first: worker trained=12s (tick 248)  structure placed=2s (tick 59)  army unit=61s (tick 1228)  attack order=88s (tick 1769)  damage to enemy HQ=never  first stance Attack=166s (tick 3339)
-  stance changes (19 in all, first 60 listed):
+  stance changes (22 in all, first 60 listed):
     tick 1719 (85s) Massing -> Defend (army threshold 10 supply, attacks started 0, retreats 0)
     tick 2029 (101s) Defend -> Massing (army threshold 10 supply, attacks started 0, retreats 0)
     tick 3339 (166s) Massing -> Attack (army threshold 10 supply, attacks started 1, retreats 0)
@@ -121,25 +121,28 @@ P1 water totals
     tick 8339 (416s) Attack -> Massing (army threshold 8 supply, attacks started 6, retreats 6)
     tick 8539 (426s) Massing -> Attack (army threshold 8 supply, attacks started 7, retreats 6)
     tick 8669 (433s) Attack -> Defend (army threshold 8 supply, attacks started 7, retreats 6)
+    tick 10359 (517s) Defend -> Attack (army threshold 8 supply, attacks started 8, retreats 6)
+    tick 10649 (532s) Attack -> Massing (army threshold 10 supply, attacks started 8, retreats 7)
+    tick 10769 (538s) Massing -> Defend (army threshold 10 supply, attacks started 8, retreats 7)
   commands rejected, whole game=-
   last 20 commands:
-    tick 10759 attack_move E202 to (62.1,68.4) -> ok
-    tick 10759 attack_move E206 to (62.1,68.4) -> ok
-    tick 10769 attack_unit E202 target E146 -> ok
-    tick 10769 attack_unit E206 target E146 -> ok
-    tick 10799 attack_move E219 to (62.2,66.8) -> ok
-    tick 10819 train_unit E12 water.grasper -> ok
-    tick 10839 attack_move E219 to (63.2,69.4) -> ok
-    tick 10859 attack_move E219 to (66.0,68.8) -> ok
-    tick 10889 attack_move E219 to (63.2,72.5) -> ok
-    tick 10899 attack_unit E219 target E161 -> ok
-    tick 10909 gather E220 field 15 -> ok
-    tick 10909 train_unit E6 water.tender -> ok
-    tick 10979 attack_unit E221 target E176 -> ok
-    tick 11049 train_unit E18 water.reef_runner -> ok
-    tick 11149 gather E225 field 20 -> ok
-    tick 11149 train_unit E6 water.tender -> ok
-    tick 11179 attack_unit E226 target E176 -> ok
-    tick 11369 train_unit E12 water.grasper -> ok
-    tick 11389 gather E228 field 20 -> ok
-    tick 11409 attack_unit E230 target E205 -> ok
+    tick 10769 attack_unit E206 target E196 -> ok
+    tick 10769 attack_move E216 to (62.4,64.2) -> ok
+    tick 10809 gather E215 field 12 -> ok
+    tick 10829 attack_move E216 to (64.3,65.6) -> ok
+    tick 10859 gather E219 field 20 -> ok
+    tick 10859 train_unit E6 water.tender -> ok
+    tick 10859 attack_move E216 to (67.7,68.4) -> ok
+    tick 10889 attack_move E216 to (69.3,71.0) -> ok
+    tick 10909 attack_unit E216 target E181 -> ok
+    tick 10909 attack_move E220 to (72.7,74.2) -> ok
+    tick 10929 attack_move E220 to (71.6,76.0) -> ok
+    tick 10949 attack_unit E220 target E199 -> ok
+    tick 10989 train_unit E12 water.grasper -> ok
+    tick 11099 gather E225 field 20 -> ok
+    tick 11099 train_unit E6 water.tender -> ok
+    tick 11159 attack_unit E227 target E203 -> ok
+    tick 11289 train_unit E31 water.ink_lobber -> ok
+    tick 11339 gather E229 field 15 -> ok
+    tick 11349 attack_unit E230 target E176 -> ok
+    tick 11359 train_unit E6 water.tender -> ok
