@@ -1,7 +1,7 @@
 <!-- rts/docs/art/models/batch1/README.md: which 3D model file is the approved one for each Skai and water unit, and how the models were made. Read this before importing unit models into Unity. -->
 # Unit models, batch 1 (16 Nov 2026)
 
-All thirteen Skai and water units have a model the developer marked Keep. Use only the files in the table; the other `.glb` files in this folder are rejected attempts kept for reference.
+All fourteen Skai and water units (the thirteen original ones and the Reef Runner, added 17 Nov 2026) have a model the developer marked Keep. Use only the files in the table; the other `.glb` files in this folder are rejected attempts kept for reference.
 
 | Unit (data ID) | Approved model | Built from |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ All thirteen Skai and water units have a model the developer marked Keep. Use on
 | Brinecaster (`ink_lobber`) | `../trial2/water_snail.glb` | `concept/turnarounds1/water_snail_sheet.jpg` |
 | Tidecaller (`tidecaller`) | `water_tidecaller.glb` | `concept/turnarounds3/water_tidecaller_sheet.jpg` |
 | Leviathan (`leviathan`) | `water_leviathan.glb` | `concept/turnarounds3/water_leviathan_sheet.jpg` |
-| Reef Runner, water scout (`reef_runner`, unit data not written yet) | `water_reef_runner.glb` (awaiting the developer's mark) | `concept/turnarounds8/water_scout_sheet.jpg` |
+| Reef Runner, water scout (`reef_runner`, unit data not written yet) | `water_reef_runner.glb` | `concept/turnarounds8/water_scout_sheet.jpg` |
 
 ## How they were made
 
