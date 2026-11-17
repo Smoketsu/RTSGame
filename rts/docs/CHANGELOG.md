@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Spec: `docs/specs/micro_benchmark.md` (18 Nov 2026, P-005 decision 9): the equal-value fight mode of the balance harness, the design-rule checks and the matchups file `data/scripts/fights/matchups.json` (replaces design rule 7). Packages F0 to F4; twelve open questions with defaults.
+
 - Balance harness `--fights` (18 Nov 2026, `docs/specs/micro_benchmark.md` packages F1 to F3): equal-value army fights over units and compositions, four terrain cases, both seats; writes a value-exchange matrix (`fights.md`, `fights.jsonl`, `hq_floor.jsonl`) and eight design-rule checks (P-005 rules 1 to 6 and `matchups_agree`; `--strict` makes a failed check exit 2). Settings in `data/scripts/fights/fights.json`; `matchups.json` ships empty; both are outside the content digest (tested, also for `harness_batch.json`). `HqFloorTrial` takes compositions. No simulation or AI change, no hash moved. First sweep on shipped data: 780 fights in 37 s, 2 of 8 checks pass (Windrunner and Pummeler each beat every other unit of their faction; the Spoutling beats no enemy unit; Rooted HQ floor fails). Spec corrected for the 11-unit roster.
 
 - Missing roster R-3 re-measure (18 Nov 2026, `docs/reports/missing_roster_r3/README.md`): with the three new units, `aggressive_s3` against `aggressive_s2b` is 0.782 (169 of 216); Skai still wins all 72 cross-faction games; response scenarios 5 of the 9 counted, the same five failing. The missing roster was not the cause. Nothing tuned.
