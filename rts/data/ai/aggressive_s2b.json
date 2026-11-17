@@ -178,7 +178,7 @@
   "rare_need_weight_share": 0.25,
   // Predictor mix: C2.2 replaces the counter-mix scoring (C.4 steps 1 to 3) by the fight predictor's advantage of each candidate purchase. Unit: boolean. Range: true or false; needs use_counter_mix. Source: skirmish_ai_v3.md C2.2; placeholder.
   "use_predictor_mix": true,
-  // Predictor mix: common-resource purchase each candidate unit is valued by (and added to the own army before the fight is predicted). Unit: resource units (common). Range: 50 to 100000. Source: skirmish_ai_v3.md C2.2; placeholder.
+  // Predictor mix: common-resource purchase each candidate unit is valued by (and added to the own army before the fight is predicted). Unit: resource units (common). Range: 50 to 100000. Source: skirmish_ai_v3.md C2.2; placeholder. Retuned from the spec's 600 to 1200 (ladder 3 of the C2 report: 0.611 against 0.597).
   "mix_eval_budget_common": 1200,
   // Predictor mix: rare a candidate may plan beyond the rare bank, so rare units are valued before the first rare arrives. Unit: resource units (rare). Range: 0 to 100000. Source: skirmish_ai_v3.md C2.2; placeholder.
   "mix_rare_allowance": 100,

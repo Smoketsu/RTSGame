@@ -369,10 +369,10 @@ namespace Rts.Sim.Tests.Ai
 
         // ------------------------------------------------------------------ Package C2 (skirmish_ai_v3.md C2.8)
 
-        /// <summary>The shipped package C2 candidate profile, as loaded (its counter_weight was retuned after the spec; see the C2 report).</summary>
+        /// <summary>The shipped package C2 candidate profile, as loaded (mix_eval_budget_common was retuned after the spec; see the C2 report).</summary>
         private static AiProfile S2bShipped => AiProfile.FromDataSet(Data, "aggressive_s2b");
 
-        /// <summary>The package C2 candidate with counter_weight 0.7, the value the C2.8 test numbers assume (every other value as shipped; the shipped value may have been retuned).</summary>
+        /// <summary>The package C2 candidate with the spec's counter_weight 0.7 and mix_eval_budget_common 600, the values the C2.8 test numbers assume (every other value as shipped; the shipped file retuned the budget; the confidence weight is only normalised here).</summary>
         private static AiProfile S2b
         {
             get
@@ -380,7 +380,8 @@ namespace Rts.Sim.Tests.Ai
                 // The shipped file text with the spec's confidence weight put back.
                 string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s2b.json")).Replace("\r\n", "\n");
                 Assert.That(System.Text.RegularExpressions.Regex.IsMatch(text, "\"counter_weight\": [0-9.]+,"), Is.True, "aggressive_s2b counter_weight");
-                return AiProfile.Parse(System.Text.RegularExpressions.Regex.Replace(text, "\"counter_weight\": [0-9.]+,", "\"counter_weight\": 0.7,"), "ai/aggressive_s2b.json", Data.Content);
+                text = System.Text.RegularExpressions.Regex.Replace(text, "\"counter_weight\": [0-9.]+,", "\"counter_weight\": 0.7,");
+                return AiProfile.Parse(System.Text.RegularExpressions.Regex.Replace(text, "\"mix_eval_budget_common\": [0-9]+,", "\"mix_eval_budget_common\": 600,"), "ai/aggressive_s2b.json", Data.Content);
             }
         }
 
@@ -676,6 +677,8 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(b.RareBankSoftCap, Is.EqualTo(300));
             Assert.That(b.RaidMinSupply, Is.EqualTo(3));
             Assert.That(b.StaticDefenceMaxValueShare == Fix64.Parse("0.15"), Is.True);
+            Assert.That(b.MixEvalBudgetCommon, Is.EqualTo(1200), "retuned from 600");
+            Assert.That(b.CounterWeight == Fix64.Parse("0.7"), Is.True);
             Assert.That(b.CounterKeepFraction == Fix64.Parse("0.9"), Is.True);
             Assert.That(b.CounterRareCostWeight == Fix64.One, Is.True);
             Assert.That(b.UseEarlyExpansion, Is.True);

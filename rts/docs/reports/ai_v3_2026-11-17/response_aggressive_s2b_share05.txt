@@ -1,0 +1,2 @@
+# Response run of aggressive_s2b with static_defence_max_value_share 0.5 (every other value as shipped; ladder 4 config). Not the shipped value.
+RESPONSE_SUMMARY passed=5 of=10 (air_answer x2 PASS, trade water PASS, raid skai PASS, raid water PASS; armoured_answer x2, trade skai, turtle x2 FAIL)

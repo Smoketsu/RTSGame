@@ -1,0 +1,14 @@
+# Cell probes while tuning aggressive_s2b: twin_chokes skai_vs_skai, 24 games, abl_s2_blind against one variant (all other values as in ladder 1: counter_weight 0.7, budget 600)
+# first batch (counter_weight 0.7 baseline cell = 5 of 24 = 0.208 in ladder 1):
+cap0 rare_bank_soft_cap 0: 5/24 = 0.208
+share0 static_defence_max_value_share 0: 5/24 = 0.208
+cw5 counter_weight 0.5: 10/24 = 0.417
+cw3 counter_weight 0.3: 11/24 = 0.458
+early0 use_early_expansion false: 0/24 = 0.000
+raid1 raid_min_supply 1: 6/24 = 0.250
+# second batch (from the same baseline):
+twin_chokes skai_vs_skai allow300: LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=24 wins=4 fraction=0.167 bar=0.650 FAIL
+twin_chokes skai_vs_skai allow1000: LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=24 wins=4 fraction=0.167 bar=0.650 FAIL
+twin_chokes skai_vs_skai budget1200: LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=24 wins=11 fraction=0.458 bar=0.650 FAIL
+twin_chokes skai_vs_skai keep7: LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=24 wins=10 fraction=0.417 bar=0.650 FAIL
+twin_chokes skai_vs_skai keep5: LADDER candidate=aggressive_s2b baseline=abl_s2_blind decided=24 wins=7 fraction=0.292 bar=0.650 FAIL
