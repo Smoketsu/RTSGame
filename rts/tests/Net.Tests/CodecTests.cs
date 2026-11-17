@@ -56,6 +56,7 @@ namespace Rts.Net.Tests
                 new SetConnectionStateCommand(21, PlayerId.None, 15, P0, ConnectionState.Disconnected),
                 new CastWaveCommand(22, P1, 16, new EntityId(54), Spot),
                 new CastGroundingCommand(23, P0, 17, new EntityId(55), Spot),
+                new BuildWallLineCommand(24, P0, 18, new EntityId(56), "skai.wind_baffle", new List<(int X, int Y)> { (21, 34), (22, 35), (23, -1) }),
             };
         }
 

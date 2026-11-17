@@ -94,11 +94,12 @@ namespace Rts.Sim.Tests
         /// Re-pinned for walls (specs/walls_and_tech.md package W: IsWall appended to UnitEconomyDefinition.WriteHash). Old value 0x7477232bd8c0c173; hash only.
         /// Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: Requires appended to UnitEconomyDefinition.WriteHash). Old value 0x988ea1aa2190c607; hash only.
         /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam written after Blockers in every tile hash, IsGate appended to UnitEconomyDefinition.WriteHash). Old value 0xa417c8d77481bd6e; hash only.
+        /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue written after BuildResumeFieldIndex in every unit hash). Old value 0x6c78b479adef771b; hash only.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x6c78b479adef771bUL;
+        private const ulong GoldenFinalHash = 0x414b070cac0f68aaUL;
 
         [Test]
         public void GoldenHash_IsPinned()

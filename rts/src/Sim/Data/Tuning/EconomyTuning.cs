@@ -46,6 +46,9 @@ namespace Rts.Sim.Data
         /// <summary>Time a worker spends at the site, once it has walked there, before the structure appears; the structure then finishes by its own build_seconds without the worker. Unit: seconds. Range: 0.05 to 30. Source: developer decision 18 Nov 2026 ("Workers should have to go over and spend a couple seconds constructing"); placeholder.</summary>
         public Fix64 WorkerPlacementSeconds { get; }
 
+        /// <summary>Most tiles one build_wall_line order may name; Unity caps a dragged line at this length. Unit: tiles (count). Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md D.4).</summary>
+        public int WallLineMaxTiles { get; }
+
         /// <summary>How many rings of tiles around a producer are searched for a free tile when a trained unit appears. Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.</summary>
         public int SpawnSearchRadiusTiles { get; }
 
@@ -74,7 +77,7 @@ namespace Rts.Sim.Data
         public EconomyTuning(JsonValue root)
         {
             root.RejectUnknownKeys("starting_common", "starting_rare", "base_supply", "gather_amount_per_trip", "gather_seconds_per_trip",
-                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "worker_placement_seconds", "spawn_search_radius_tiles", "starting_worker_count", "starting_worker_search_radius_tiles");
+                "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "worker_placement_seconds", "spawn_search_radius_tiles", "starting_worker_count", "starting_worker_search_radius_tiles", "wall_line_max_tiles");
             StartingCommon = root.RequireInt("starting_common", 0, 100000);
             StartingRare = root.RequireInt("starting_rare", 0, 100000);
             BaseSupply = root.RequireInt("base_supply", 0, 300);
@@ -89,6 +92,7 @@ namespace Rts.Sim.Data
             SpawnSearchRadiusTiles = root.RequireInt("spawn_search_radius_tiles", 1, 8);
             StartingWorkerCount = root.RequireInt("starting_worker_count", 0, 20);
             StartingWorkerSearchRadiusTiles = root.RequireInt("starting_worker_search_radius_tiles", 1, 8);
+            WallLineMaxTiles = root.RequireInt("wall_line_max_tiles", 1, 64);
         }
     }
 }

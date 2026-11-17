@@ -1,7 +1,8 @@
 // rts/src/Sim/Commands/EconomyCommands.cs
-// The economy commands: gather, train a unit, order a worker to build a structure (walk, place, then the structure builds alone). Part of Rts.Sim.Commands. All three use the usual ownership
+// The economy commands: gather, train a unit, order a worker to build a structure (walk, place, then the structure builds alone), and build_wall_line (a dragged line of walls). Part of Rts.Sim.Commands. All three use the usual ownership
 // rule (the unit must belong to the issuer; the script issuer, PlayerId.None, may order any unit) and spend only the owning
 // player's resources. What the orders do each tick is documented in rts/src/Sim/Economy/EconomySystem.cs.
+using System.Collections.Generic;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Economy;
@@ -268,7 +269,7 @@ namespace Rts.Sim.Commands
             }
             foreach (Unit other in sim.Units.All)
             {
-                if (other.Owner == worker.Owner && other.BuildState != BuildOrderState.None && other.BuildTileX == TileX && other.BuildTileY == TileY)
+                if (other.Owner == worker.Owner && ((other.BuildState != BuildOrderState.None && other.BuildTileX == TileX && other.BuildTileY == TileY) || other.QueuesTile(tile)))
                 {
                     return CommandResult.Reject("site_pending");
                 }
@@ -351,6 +352,193 @@ namespace Rts.Sim.Commands
             hasher.Write(DefinitionId);
             hasher.Write(TileX);
             hasher.Write(TileY);
+        }
+    }
+
+    /// <summary>
+    /// Orders a worker to build a dragged line of walls (or gates) one tile after another (walls_and_tech.md D.2). The whole line is paid when
+    /// the order is given; the first tile becomes the worker's order and the others wait on <see cref="Unit.BuildQueue"/>.
+    /// </summary>
+    public sealed class BuildWallLineCommand : Command
+    {
+        /// <summary>The worker. Must exist, belong to the issuer (or the issuer is None) and have can_gather.</summary>
+        public EntityId Worker { get; }
+
+        /// <summary>Definition ID of the wall or gate, for example "skai.wind_baffle". Non-empty; must have is_wall.</summary>
+        public string DefinitionId { get; }
+
+        /// <summary>The tiles in build order. Unit: tile coordinates (x, y). Range: 1 to wall_line_max_tiles entries (0 to 255 on the wire); each coordinate checked against the map when the command applies.</summary>
+        public IReadOnlyList<(int X, int Y)> Tiles { get; }
+
+        /// <summary>Builds the command from its scheduling fields and parameters; the tile list is copied.</summary>
+        public BuildWallLineCommand(int tick, PlayerId issuer, uint sequence, EntityId worker, string definitionId, IEnumerable<(int X, int Y)> tiles)
+            : base(tick, issuer, sequence)
+        {
+            Worker = worker;
+            DefinitionId = definitionId ?? string.Empty;
+            Tiles = new List<(int X, int Y)>(tiles ?? throw new System.ArgumentNullException(nameof(tiles)));
+        }
+
+        /// <summary>Machine-readable kind name: "build_wall_line".</summary>
+        public override string Kind => "build_wall_line";
+
+        /// <summary>
+        /// Applies the command. Rejections, in order: unknown_unit, not_owner, cannot_build, unknown_definition, not_a_wall (the definition lacks
+        /// is_wall), wrong_faction, missing_prerequisite, no_tiles, too_many_tiles (more than wall_line_max_tiles); then, when no tile is kept, the
+        /// reason of the first tile that was filtered (<see cref="EconomyRules.WallLineTileProblem"/> or duplicate_tile) or, when tiles survived
+        /// the filter but none can be paid for, insufficient_resources or supply_cap. A rejection changes nothing. On acceptance the previous
+        /// order and queue of the worker are cancelled (refunded), the cost of every kept tile is paid, supply is reserved and
+        /// BuildOrderAcceptedEvent (cost = the whole amount) is followed by one BuildLineTileSkippedEvent per left-out tile in list order.
+        /// </summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Worker, out Unit? worker))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && worker.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (!sim.Players.TryGet(worker.Owner, out Player? owner) || !worker.Definition.Economy.CanGather)
+            {
+                return CommandResult.Reject("cannot_build");
+            }
+            if (!sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? definition))
+            {
+                return CommandResult.Reject("unknown_definition");
+            }
+            if (!definition.Economy.IsWall)
+            {
+                return CommandResult.Reject("not_a_wall");
+            }
+            if (!string.Equals(definition.FactionId, owner.FactionId, System.StringComparison.Ordinal))
+            {
+                return CommandResult.Reject("wrong_faction");
+            }
+            if (EconomyRules.FirstMissingRequirement(sim, worker.Owner, definition) != null)
+            {
+                return CommandResult.Reject("missing_prerequisite");
+            }
+            if (Tiles.Count == 0)
+            {
+                return CommandResult.Reject("no_tiles");
+            }
+            if (Tiles.Count > sim.Tuning.Economy.WallLineMaxTiles)
+            {
+                return CommandResult.Reject("too_many_tiles");
+            }
+            // Reason each listed tile is left out, or null while it is kept; index = list position.
+            string?[] reasons = new string?[Tiles.Count];
+            // Reason of the first tile that failed the static filter, for the all-tiles-failed rejection. Null until one fails.
+            string? firstReason = null;
+            // Tiles that passed the static filter, as list positions in list order.
+            List<int> passed = new List<int>();
+            // List position being filtered. Unit: index. Range: 0 to Tiles.Count - 1.
+            for (int i = 0; i < Tiles.Count; i++)
+            {
+                // Why this tile is out: the static check, else a repeat of an earlier list entry.
+                string? problem = EconomyRules.WallLineTileProblem(sim, worker, Tiles[i].X, Tiles[i].Y);
+                for (int earlier = 0; problem == null && earlier < i; earlier++)
+                {
+                    if (Tiles[earlier].X == Tiles[i].X && Tiles[earlier].Y == Tiles[i].Y)
+                    {
+                        problem = "duplicate_tile";
+                    }
+                }
+                reasons[i] = problem;
+                if (problem == null)
+                {
+                    passed.Add(i);
+                }
+                else if (firstReason == null)
+                {
+                    firstReason = problem;
+                }
+            }
+            if (passed.Count == 0)
+            {
+                return CommandResult.Reject(firstReason ?? "no_tiles");
+            }
+            // Pay for the line up front, in list order: keep each tile while the running total is affordable and its supply fits; the
+            // first tile that fails and every later one are dropped (walls_and_tech.md D.2 rule 3).
+            EconomySystem.RecomputeSupply(sim);
+            // Supply each tile of this structure reserves. Unit: supply. Range: 0 to 100.
+            int supplyEach = EconomyRules.SupplyOf(sim, definition);
+            // Number of tiles kept so far. Unit: tiles (count). Range: 0 to passed.Count.
+            int kept = 0;
+            // Reason the walk stopped, or null when every passed tile is kept.
+            string? stopReason = null;
+            foreach (int index in passed)
+            {
+                if (stopReason == null)
+                {
+                    if (!owner.CanAfford(definition.CostCommon * (kept + 1), definition.CostRare * (kept + 1)))
+                    {
+                        stopReason = "insufficient_resources";
+                    }
+                    else if (owner.SupplyUsed + supplyEach * (kept + 1) > owner.SupplyCap)
+                    {
+                        stopReason = "supply_cap";
+                    }
+                }
+                if (stopReason == null)
+                {
+                    kept++;
+                }
+                else
+                {
+                    reasons[index] = stopReason;
+                }
+            }
+            if (kept == 0)
+            {
+                return CommandResult.Reject(stopReason ?? "insufficient_resources");
+            }
+            // Gather field to resume afterwards. Unit: field index. Range: -1 or 0 to field count - 1.
+            int resume = worker.GatherState != GatherState.Idle ? worker.GatherFieldIndex : worker.BuildResumeFieldIndex;
+            // A replaced order and its queue are refunded first (their events come before the accepted event).
+            EconomySystem.CancelBuild(sim, worker, "new_order", false);
+            // Tile indices kept, in list order. Unit: tile index. Range: 0 to tile count - 1.
+            List<int> keptTiles = new List<int>();
+            foreach (int index in passed)
+            {
+                if (reasons[index] == null)
+                {
+                    keptTiles.Add(sim.Terrain.IndexOf(Tiles[index].X, Tiles[index].Y));
+                }
+            }
+            owner.Spend(definition.CostCommon * kept, definition.CostRare * kept);
+            worker.ClearCombatOrders();
+            worker.ClearGather();
+            worker.SetBuildOrder(DefinitionId, sim.Terrain.XOf(keptTiles[0]), sim.Terrain.YOf(keptTiles[0]), resume);
+            worker.SetBuildQueue(keptTiles.GetRange(1, keptTiles.Count - 1));
+            worker.SetMoveTarget(sim.Terrain.CentreOf(keptTiles[0]));
+            EconomySystem.RecomputeSupply(sim);
+            sim.Events.Add(new BuildOrderAcceptedEvent(sim.Clock.Tick, worker.Id, worker.Owner, DefinitionId, sim.Terrain.XOf(keptTiles[0]), sim.Terrain.YOf(keptTiles[0]),
+                definition.CostCommon * kept, definition.CostRare * kept));
+            for (int i = 0; i < Tiles.Count; i++)
+            {
+                if (reasons[i] != null)
+                {
+                    sim.Events.Add(new BuildLineTileSkippedEvent(sim.Clock.Tick, worker.Id, worker.Owner, DefinitionId, Tiles[i].X, Tiles[i].Y, reasons[i]!, 0, 0));
+                }
+            }
+            return CommandResult.Ok;
+        }
+
+        /// <summary>Feeds the kind, worker, definition, tile count and every tile into a hash in a fixed order.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Worker);
+            hasher.Write(DefinitionId);
+            hasher.Write(Tiles.Count);
+            foreach ((int x, int y) in Tiles)
+            {
+                hasher.Write(x);
+                hasher.Write(y);
+            }
         }
     }
 }

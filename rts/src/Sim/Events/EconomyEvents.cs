@@ -239,6 +239,53 @@ namespace Rts.Sim.Events
         public override string Describe() => Worker + "'s order for " + DefinitionId + " at (" + TileX + ", " + TileY + ") was cancelled (" + Reason + "), refund " + RefundCommon + "/" + RefundRare + ".";
     }
 
+    /// <summary>A tile of a wall line was left out, at the order or later (walls_and_tech.md D.2): the cost of the tile is refunded unless it was never paid.</summary>
+    public sealed class BuildLineTileSkippedEvent : SimEvent
+    {
+        /// <summary>The worker (it may no longer exist when the reason is worker_lost).</summary>
+        public EntityId Worker { get; }
+
+        /// <summary>The worker's owner.</summary>
+        public PlayerId Owner { get; }
+
+        /// <summary>Definition ID of the wall or gate.</summary>
+        public string DefinitionId { get; }
+
+        /// <summary>Tile X. Unit: tiles. Range: any value for a tile named out of bounds; otherwise 0 to map width - 1.</summary>
+        public int TileX { get; }
+
+        /// <summary>Tile Y. Unit: tiles. Range: any value for a tile named out of bounds; otherwise 0 to map height - 1.</summary>
+        public int TileY { get; }
+
+        /// <summary>Why: out_of_bounds, site_unexplored, tile_blocked, site_pending, duplicate_tile, insufficient_resources, supply_cap, site_blocked, new_order or worker_lost.</summary>
+        public string Reason { get; }
+
+        /// <summary>Common resource refunded. Unit: resource units. Range: 0 upward (0 for a tile that was never paid).</summary>
+        public int RefundCommon { get; }
+
+        /// <summary>Rare resource refunded. Unit: resource units. Range: 0 upward.</summary>
+        public int RefundRare { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public BuildLineTileSkippedEvent(int tick, EntityId worker, PlayerId owner, string definitionId, int tileX, int tileY, string reason, int refundCommon, int refundRare) : base(tick)
+        {
+            Worker = worker;
+            Owner = owner;
+            DefinitionId = definitionId;
+            TileX = tileX;
+            TileY = tileY;
+            Reason = reason;
+            RefundCommon = refundCommon;
+            RefundRare = refundRare;
+        }
+
+        /// <summary>Machine-readable kind name: "build_line_tile_skipped".</summary>
+        public override string Kind => "build_line_tile_skipped";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Worker + "'s line tile " + DefinitionId + " at (" + TileX + ", " + TileY + ") was skipped (" + Reason + "), refund " + RefundCommon + "/" + RefundRare + ".";
+    }
+
     /// <summary>The placement countdown ended and the structure appeared, under construction.</summary>
     public sealed class StructurePlacedEvent : SimEvent
     {

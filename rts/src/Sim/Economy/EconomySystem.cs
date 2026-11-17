@@ -33,6 +33,12 @@
 //     step's snapshot, so it completes on A + P + build_ticks, one tick later than the old rule (a structure placed by command
 //     on tick T completed on T + build_ticks - 1). While under construction it is no drop-off, producer or supply source and
 //     its weapon is off. StructureCompletedEvent is emitted at the end.
+//   * Wall lines (BuildWallLineCommand, walls_and_tech.md D): the command pays for every kept tile at once, makes the first tile the
+//     order and keeps the rest on the worker as BuildQueue (tile indices). When a structure is placed, or the active tile is cancelled
+//     with resume (site_blocked, site_occupied, unreachable), AdvanceBuildQueue takes the next tile (a tile that is blocked by then is
+//     dropped with a refund, BuildLineTileSkippedEvent site_blocked) and the order is accepted again with cost 0; with the queue empty
+//     the worker resumes its gather field as for a single order. CancelBuild without resume (new orders, worker removal) refunds the
+//     active tile and then one tile's cost per queued tile and clears the queue. Each queued tile reserves its supply in RecomputeSupply.
 //   * CancelBuild refunds the definition's cost and emits BuildOrderCancelledEvent. Accepted move, attack, stop, gather and build
 //     orders cancel with new_order; a removed worker cancels with worker_lost (OnUnitRemoved, so deaths in step 6d).
 // Footprint: a unit whose definition has footprint 1 adds a Footprint blocker to its tile at spawn and removes it when it
@@ -178,7 +184,8 @@ namespace Rts.Sim.Economy
                 // Definition of the structure a pending build order will place; the out value is unused when the unit has no order.
                 if (unit.BuildState != BuildOrderState.None && sim.Content.Units.TryGetValue(unit.BuildDefinitionId, out UnitDefinition? pendingDefinition))
                 {
-                    used[unit.Owner] += EconomyRules.SupplyOf(sim, pendingDefinition);
+                    // The active order plus every queued wall-line tile reserves the structure's supply once each.
+                    used[unit.Owner] += EconomyRules.SupplyOf(sim, pendingDefinition) * (1 + unit.BuildQueue.Count);
                 }
                 foreach (string queued in unit.ProductionQueue)
                 {
@@ -314,8 +321,68 @@ namespace Rts.Sim.Economy
             sim.Events.Add(new BuildOrderCancelledEvent(sim.Clock.Tick, worker.Id, worker.Owner, worker.BuildDefinitionId, worker.BuildTileX, worker.BuildTileY, reason, refundCommon, refundRare));
             // Gather field to go back to. Unit: field index. Range: -1 or more.
             int resumeField = worker.BuildResumeFieldIndex;
+            if (resume)
+            {
+                // Takes the next queued wall tile, or clears the order and resumes the gather field when none is left.
+                AdvanceBuildQueue(sim, worker, resumeField);
+                return;
+            }
+            // Queued wall-line tiles are refunded one tile's cost each, in queue order (walls_and_tech.md D.2 rule 7).
+            // Queued tile index being refunded. Unit: tile index. Range: 0 to tile count - 1.
+            foreach (int queued in worker.BuildQueue)
+            {
+                if (sim.Players.TryGet(worker.Owner, out Player? queuedOwner))
+                {
+                    queuedOwner.AddResource(ResourceKind.Common, refundCommon);
+                    queuedOwner.AddResource(ResourceKind.Rare, refundRare);
+                }
+                sim.Events.Add(new BuildLineTileSkippedEvent(sim.Clock.Tick, worker.Id, worker.Owner, worker.BuildDefinitionId, sim.Terrain.XOf(queued), sim.Terrain.YOf(queued), reason, refundCommon, refundRare));
+            }
+            worker.ClearBuildQueue();
             worker.ClearBuildOrder();
-            if (resume && resumeField >= 0)
+        }
+
+        /// <summary>
+        /// Moves a worker on after its active build order ended (placed, or cancelled with resume): drops queued wall-line tiles that are
+        /// now blocked (BuildLineTileSkippedEvent site_blocked, one tile's cost refunded), makes the first other tile the order (cost 0, it
+        /// was paid with the line) and sends the worker to it; with none left it clears the order and resumes the gather field
+        /// (walls_and_tech.md D.2 rule 5). Internal: this class only. The worker's BuildDefinitionId must still be set.
+        /// </summary>
+        /// <param name="sim">The stepping simulation.</param>
+        /// <param name="worker">The worker.</param>
+        /// <param name="resumeField">Gather field to resume when the queue runs out. Unit: field index. Range: -1 (none) or 0 to field count - 1.</param>
+        private static void AdvanceBuildQueue(Simulation sim, Unit worker, int resumeField)
+        {
+            // Definition of the queued structures, or null when its ID is unknown (nothing to refund).
+            sim.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? definition);
+            // Definition ID kept before SetBuildOrder or ClearBuildOrder overwrite it.
+            string definitionId = worker.BuildDefinitionId;
+            while (worker.BuildQueue.Count > 0)
+            {
+                // Next queued tile and its coordinates. Unit: tile index; tiles.
+                int tile = worker.PopBuildQueueHead();
+                int x = sim.Terrain.XOf(tile);
+                int y = sim.Terrain.YOf(tile);
+                if (sim.Terrain[tile].IsBlocked)
+                {
+                    // Refund of one tile's cost. Unit: resource units. Range: 0 upward.
+                    int refundCommon = definition?.CostCommon ?? 0;
+                    int refundRare = definition?.CostRare ?? 0;
+                    if (sim.Players.TryGet(worker.Owner, out Player? owner))
+                    {
+                        owner.AddResource(ResourceKind.Common, refundCommon);
+                        owner.AddResource(ResourceKind.Rare, refundRare);
+                    }
+                    sim.Events.Add(new BuildLineTileSkippedEvent(sim.Clock.Tick, worker.Id, worker.Owner, definitionId, x, y, "site_blocked", refundCommon, refundRare));
+                    continue;
+                }
+                worker.SetBuildOrder(definitionId, x, y, resumeField);
+                worker.SetMoveTarget(sim.Terrain.CentreOf(tile));
+                sim.Events.Add(new BuildOrderAcceptedEvent(sim.Clock.Tick, worker.Id, worker.Owner, definitionId, x, y, 0, 0));
+                return;
+            }
+            worker.ClearBuildOrder();
+            if (resumeField >= 0)
             {
                 StartGatherLoop(sim, worker, resumeField);
             }
@@ -347,6 +414,7 @@ namespace Rts.Sim.Economy
             // Definition of the structure being built; a missing one drops the order.
             if (!sim.Content.Units.TryGetValue(worker.BuildDefinitionId, out UnitDefinition? definition))
             {
+                worker.ClearBuildQueue();
                 worker.ClearBuildOrder();
                 return;
             }
@@ -399,13 +467,8 @@ namespace Rts.Sim.Economy
             structure.SetHealth(definition.MaxHealth * sim.Tuning.Economy.ConstructionStartHealthFraction);
             structure.SetConstructionTicks(EconomyRules.BuildTicks(sim, definition));
             sim.Events.Add(new StructurePlacedEvent(sim.Clock.Tick, worker.Id, structure.Id, definition.Id, worker.BuildTileX, worker.BuildTileY));
-            // Gather field to go back to. Unit: field index. Range: -1 or more.
-            int resume = worker.BuildResumeFieldIndex;
-            worker.ClearBuildOrder();
-            if (resume >= 0)
-            {
-                StartGatherLoop(sim, worker, resume);
-            }
+            // Next queued wall tile, or the gather field the worker left (walls_and_tech.md D.2 rule 5).
+            AdvanceBuildQueue(sim, worker, worker.BuildResumeFieldIndex);
         }
 
         /// <summary>Counts a structure's construction down, adds its health share, and completes it at 0.</summary>

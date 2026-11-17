@@ -1149,5 +1149,45 @@ namespace Rts.Sim.Tests.Factions
             Assert.That(passedPosition, Is.EqualTo(openPosition));
             Assert.That(passedPushes, Is.EqualTo(1));
         }
+
+        // ------------------------------------------------------------------ walls_and_tech.md D-12
+
+        /// <summary>
+        /// D-12. A diagonal line of built walls on the 8 x 8 map, tiles (i, i) for i = 0 to 7 (an 8-connected line from corner to corner, which is what
+        /// WallLine.Rasterise(0, 0, 7, 7, ...) gives), holds water: 1000 drops of team 0 placed at (7, 0) below the line spread, but after 8 flood
+        /// updates every tile strictly above the line (y greater than x) holds 0 drops, with the tide not turning.
+        /// </summary>
+        [Test]
+        public void DiagonalWallLine_HoldsWater()
+        {
+            Simulation sim = Build(FlatMap(8, 8), tuning: NoRetreatTuning());
+            StatusTestWorld.Run(sim, 0, 1, s =>
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    s.SpawnUnit(s.Content.Units[WallDefId], P0, StatusTestWorld.Centre(i, i));
+                }
+                s.Terrain.SetWater(s, s.Terrain.IndexOf(7, 0), FloodMath.ToDepth(1000), new TeamId(0));
+            });
+            StatusTestWorld.StepThrough(sim, 8 * Mechanic(sim).UpdateTicks);
+            // Drops that reached tiles below the line (y less than x), proving the water did flow there.
+            long below = 0;
+            for (int y = 0; y < 8; y++)
+            {
+                for (int x = 0; x < 8; x++)
+                {
+                    if (y > x)
+                    {
+                        Assert.That(DropsAt(sim, x, y), Is.EqualTo(0), "tile " + x + "," + y);
+                    }
+                    else if (y < x)
+                    {
+                        below += DropsAt(sim, x, y);
+                    }
+                }
+            }
+            Assert.That(DropsAt(sim, 6, 0), Is.GreaterThan(0), "water spread to a neighbour below the line");
+            Assert.That(below, Is.EqualTo(1000));
+        }
     }
 }

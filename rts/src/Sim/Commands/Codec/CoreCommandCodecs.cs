@@ -4,6 +4,7 @@
 // set_connection_state. Part of Rts.Sim.Commands.Codec (ADR-008, ADR-009). Each codec writes exactly the command's parameters, in
 // the order its constructor takes them, with CommandWriter's explicit primitives; nothing here names a faction. A new core command
 // gets a codec here and a line in RegisterAll (the Sim.Tests codec fixture fails for any Command subclass without one).
+using System.Collections.Generic;
 using Rts.Sim.Core;
 using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
@@ -30,6 +31,7 @@ namespace Rts.Sim.Commands.Codec
             registry.Register(new GatherCodec());
             registry.Register(new TrainUnitCodec());
             registry.Register(new BuildStructureCodec());
+            registry.Register(new BuildWallLineCodec());
             registry.Register(new ApplyStatusCodec());
             registry.Register(new CastGroundingCodec());
             registry.Register(new SurrenderCodec());
@@ -314,6 +316,49 @@ namespace Rts.Sim.Commands.Codec
             int x = reader.ReadInt32();
             int y = reader.ReadInt32();
             return new BuildStructureCommand(tick, issuer, sequence, worker, definition, x, y);
+        }
+    }
+
+    /// <summary>Codec for <see cref="BuildWallLineCommand"/>: worker, definition id, tile count (one byte, 0 to 255), then x and y (int32 each) per tile.</summary>
+    public sealed class BuildWallLineCodec : CommandCodec<BuildWallLineCommand>
+    {
+        /// <summary>"build_wall_line".</summary>
+        public override string Kind => "build_wall_line";
+
+        /// <summary>Writes worker, definition id, the count and the tiles; a list over 255 tiles is refused.</summary>
+        protected override void Write(BuildWallLineCommand command, CommandWriter writer)
+        {
+            if (command.Tiles.Count > 255)
+            {
+                throw new CommandCodecException("build_wall_line holds " + command.Tiles.Count + " tiles; the wire format allows at most 255.");
+            }
+            writer.WriteEntityId(command.Worker);
+            writer.WriteString(command.DefinitionId);
+            writer.WriteByte((byte)command.Tiles.Count);
+            // Tile being written. Unit: list position. Range: 0 to 254.
+            foreach ((int x, int y) in command.Tiles)
+            {
+                writer.WriteInt32(x);
+                writer.WriteInt32(y);
+            }
+        }
+
+        /// <summary>Reads worker, definition id, the count and the tiles.</summary>
+        protected override BuildWallLineCommand Read(CommandReader reader, int tick, PlayerId issuer, uint sequence)
+        {
+            // Fields in wire order.
+            EntityId worker = reader.ReadEntityId();
+            string definition = reader.ReadString();
+            // Number of tiles that follow. Unit: tiles (count). Range: 0 to 255.
+            int count = reader.ReadByte();
+            List<(int X, int Y)> tiles = new List<(int X, int Y)>(count);
+            for (int i = 0; i < count; i++)
+            {
+                int x = reader.ReadInt32();
+                int y = reader.ReadInt32();
+                tiles.Add((x, y));
+            }
+            return new BuildWallLineCommand(tick, issuer, sequence, worker, definition, tiles);
         }
     }
 

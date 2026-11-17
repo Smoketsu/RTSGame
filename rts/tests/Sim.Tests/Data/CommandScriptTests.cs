@@ -119,6 +119,32 @@ namespace Rts.Sim.Tests.Data
             Assert.That(move.Target, Is.EqualTo(new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("12"))));
         }
 
+        /// <summary>build_wall_line (walls_and_tech.md D-13): a tiles array of [x, y] pairs parses in order; 256 pairs, a coordinate of 1024 and a malformed pair fail naming the tiles field.</summary>
+        [Test]
+        public void BuildWallLine_ParsesTiles_AndRejectsBadOnes()
+        {
+            CommandScript script = CommandScript.Parse(ScriptWith(
+                "{ \"tick\": 1, \"issuer\": 0, \"sequence\": 0, \"type\": \"build_wall_line\", \"unit\": 3, \"definition\": \"skai.wind_baffle\", \"tiles\": [[1, 2], [3, 4], [1023, 0]] }"), Source);
+            BuildWallLineCommand line = (BuildWallLineCommand)script.Commands[0];
+            Assert.That(line.Worker, Is.EqualTo(new EntityId(3)));
+            Assert.That(line.DefinitionId, Is.EqualTo("skai.wind_baffle"));
+            Assert.That(line.Tiles, Is.EqualTo(new List<(int, int)> { (1, 2), (3, 4), (1023, 0) }));
+            // 255 pairs are accepted, 256 are not.
+            string pairs255 = string.Join(", ", System.Linq.Enumerable.Repeat("[1, 1]", 255));
+            Assert.That(((BuildWallLineCommand)CommandScript.Parse(ScriptWith(
+                "{ \"tick\": 1, \"issuer\": 0, \"sequence\": 0, \"type\": \"build_wall_line\", \"unit\": 3, \"definition\": \"d\", \"tiles\": [" + pairs255 + "] }"), Source).Commands[0]).Tiles.Count, Is.EqualTo(255));
+            DataValidationException tooMany = Expect.Throws<DataValidationException>(() => CommandScript.Parse(ScriptWith(
+                "{ \"tick\": 1, \"issuer\": 0, \"sequence\": 0, \"type\": \"build_wall_line\", \"unit\": 3, \"definition\": \"d\", \"tiles\": [" + pairs255 + ", [1, 1]] }"), Source));
+            Assert.That(tooMany.Message, Does.StartWith(Source + ": "));
+            Assert.That(tooMany.Message, Does.Contain("tiles"));
+            DataValidationException tooBig = Expect.Throws<DataValidationException>(() => CommandScript.Parse(ScriptWith(
+                "{ \"tick\": 1, \"issuer\": 0, \"sequence\": 0, \"type\": \"build_wall_line\", \"unit\": 3, \"definition\": \"d\", \"tiles\": [[1024, 1]] }"), Source));
+            Assert.That(tooBig.Message, Does.Contain("tiles"));
+            DataValidationException notPair = Expect.Throws<DataValidationException>(() => CommandScript.Parse(ScriptWith(
+                "{ \"tick\": 1, \"issuer\": 0, \"sequence\": 0, \"type\": \"build_wall_line\", \"unit\": 3, \"definition\": \"d\", \"tiles\": [[1, 2, 3]] }"), Source));
+            Assert.That(notPair.Message, Does.Contain("tiles"));
+        }
+
         /// <summary>The loader ignores the scripts/ folder (the real data folder loads with the script present) and still rejects other unknown folders.</summary>
         [Test]
         public void DataLoader_IgnoresScriptsFolder_ButRejectsOthers()
