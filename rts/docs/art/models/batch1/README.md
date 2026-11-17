@@ -18,6 +18,7 @@ All thirteen Skai and water units have a model the developer marked Keep. Use on
 | Brinecaster (`ink_lobber`) | `../trial2/water_snail.glb` | `concept/turnarounds1/water_snail_sheet.jpg` |
 | Tidecaller (`tidecaller`) | `water_tidecaller.glb` | `concept/turnarounds3/water_tidecaller_sheet.jpg` |
 | Leviathan (`leviathan`) | `water_leviathan.glb` | `concept/turnarounds3/water_leviathan_sheet.jpg` |
+| Reef Runner, water scout (`reef_runner`, unit data not written yet) | `water_reef_runner.glb` (awaiting the developer's mark) | `concept/turnarounds8/water_scout_sheet.jpg` |
 
 ## How they were made
 

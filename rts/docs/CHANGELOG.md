@@ -46,6 +46,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- The water scout is named the Reef Runner (developer, 17 Nov 2026); its data ID will be `water.reef_runner`. Model `docs/art/models/batch1/water_reef_runner.glb` generated from the turnarounds8 sheet, awaiting the developer's mark (1,680 Tripo credits left).
+
 - `docs/art/concept/turnarounds8/`: model sheet for the water scout. The developer picked the seahorse from round 23 on 17 Nov 2026 and asked for a wheel in place of the hover pad: its tail coils around the axle of a single wheel. Awaiting the developer's mark before 3D generation.
 
 - `docs/art/concept/round23/`: three concept options for the water faction's new scout unit (flying fish, seahorse, squid), awaiting the developer's pick. P-004 approved by the developer on 17 Nov 2026 for stages 1 to 3 (one strong AI, water gets its own scout, acceptance bar 65 percent of 200 games against the previous version).
