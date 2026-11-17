@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Spec: `docs/specs/worker_construction.md` (18 Nov 2026), from the developer's decision "Workers should have to go over and spend a couple seconds constructing": a build order names a worker, who walks to within reach of the site and places the structure after `worker_placement_seconds` (2 s, placeholder); the structure then finishes alone; the cost is paid on acceptance and refunded on any cancellation before placement; sites must be explored. Packages WC-1 (Sim), WC-2 (AI and harness), WC-3 (re-baseline). When built, every state hash changes and older replays are refused by the data digest.
+
 - Skirmish AI v3, package C2 (counter-mix revision), spec `docs/specs/skirmish_ai_v3.md`, 18 Nov 2026, reviewed by the sim-reviewer; no `src/Sim` change:
   - New profile `data/ai/aggressive_s2b.json`: predictor-scored counter-mix with confidence from sightings only, a rare-worker cap, a raid strength threshold, a value cap on static defence, and the early rare depot as its own switch (`use_early_expansion`). Eight new keys on every profile; off values reproduce package C. `abl_s2_blind` is pinned by a hash test (`584d762eb253f6ce`, tick 18210); `aggressive` and `aggressive_s1` unchanged.
   - `aggressive_s2` changes slightly: its early depot gate opens whenever no rare field is served, so it no longer reproduces the 43.8 percent ablation ladder.
