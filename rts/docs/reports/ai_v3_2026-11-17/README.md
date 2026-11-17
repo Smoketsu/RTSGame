@@ -33,3 +33,11 @@ dotnet run -c Release --project rts/tools/BalanceHarness -- --data rts/data --la
 | turtle_water | FAIL | 83 supply lost before the first structure kill (498.4 s; limit 16); p2 passes (won at 498.4 s) |
 
 Notes: the air_answer part 1 reads the enemy model, which arrives with package B; until then `ResponseSeries.ModelAirKnownTick` stays -1 and the part fails by construction. The runs are deterministic: running the command twice gave identical lines.
+
+## Package C: `aggressive_s2` (counter-mix, tech on demand, static defence, rare priority)
+
+- Ladder against the v2 `aggressive` (full 288 games, Release, 4 workers, 11 min): `ladder_aggressive_vs_aggressive_s2/` (`ladder.md`, `ladder.jsonl`, `stdout.txt`).
+  `LADDER candidate=aggressive_s2 baseline=aggressive decided=288 wins=285 fraction=0.990 bar=0.650 PASS`. Cells below 100 percent: long_lowland water mirror 23 of 24, twin_chokes Skai versus water 22 of 24.
+- Response tests, `response_aggressive_s2.txt`: 4 of 10 pass (both `air_answer`, `armoured_answer` Skai, `trade` water). Failing and why: see the builder report; short version: `armoured_answer` water (the Lanchester score prefers Graspers over Ink Lobbers, the check wants the highest damage multiplier), `trade` Skai 0.847, `raid` part 1 (the check measures the depot nearest the wave spawn, a later depot the defences near the HQ do not cover), `turtle` (package D).
+- `traces/s2_vs_aggressive_greybox_skai_game0.txt`: one traced ladder game (aggressive in slot 0, `aggressive_s2` in slot 1, won at 312 s).
+- The profile was tuned once from the spec's placeholders: `static_defence_after_raids` 2 to 1 (see the builder report). `counter_weight` 0.9 was tried on the response scenarios and reverted.

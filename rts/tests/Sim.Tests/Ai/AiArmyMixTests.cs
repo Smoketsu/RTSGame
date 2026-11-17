@@ -277,19 +277,21 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void C12_RaidedTwice()
         {
+            // The spec's value of static_defence_after_raids (the shipped aggressive_s2 uses 1, see the changelog).
+            AiProfile twice = S2Edited("\"static_defence_after_raids\": 1", "\"static_defence_after_raids\": 2");
             Simulation sim = Greybox();
             Base(sim, "skai.great_aerie", "skai.fledgling", "skai.roost");
             AiMemory memory = new AiMemory();
             StepTo(sim, 2000);
             EntityId raider = Spawn(sim, "skai.windrunner", P1, "11", "11");
-            Assert.That(BuildsOf(Decide(sim, S2, memory), "skai.perch_tower").Count, Is.EqualTo(0));
+            Assert.That(BuildsOf(Decide(sim, twice, memory), "skai.perch_tower").Count, Is.EqualTo(0));
             Assert.That(memory.RaidLog[Single(memory.RaidLog.Keys)].Count, Is.EqualTo(1));
             Remove(sim, raider);
             StepTo(sim, 2300);
-            Assert.That(BuildsOf(Decide(sim, S2, memory), "skai.perch_tower").Count, Is.EqualTo(0));
+            Assert.That(BuildsOf(Decide(sim, twice, memory), "skai.perch_tower").Count, Is.EqualTo(0));
             StepTo(sim, 2600);
             raider = Spawn(sim, "skai.windrunner", P1, "11", "11");
-            List<AiIntent> second = BuildsOf(Decide(sim, S2, memory), "skai.perch_tower");
+            List<AiIntent> second = BuildsOf(Decide(sim, twice, memory), "skai.perch_tower");
             Assert.That(second.Count, Is.EqualTo(1));
             // Chebyshev distance of the site from the HQ tile (7, 7): 2 to 4, and on the raiders' side (not behind the HQ).
             int ring = Math.Max(Math.Abs(second[0].TileX - 7), Math.Abs(second[0].TileY - 7));
@@ -301,7 +303,7 @@ namespace Rts.Sim.Tests.Ai
             Spawn(sim, "skai.perch_tower", P0, "9.5", "10.5");
             StepTo(sim, 3300);
             Spawn(sim, "skai.windrunner", P1, "11", "11");
-            Assert.That(BuildsOf(Decide(sim, S2, memory), "skai.perch_tower").Count, Is.EqualTo(0));
+            Assert.That(BuildsOf(Decide(sim, twice, memory), "skai.perch_tower").Count, Is.EqualTo(0));
             Assert.That(memory.RaidLog[Single(memory.RaidLog.Keys)].Count, Is.GreaterThanOrEqualTo(2));
         }
 
