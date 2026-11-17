@@ -26,9 +26,9 @@ namespace Rts.Sim.Tests.Harness
             DataSet data = HarnessTestSupport.Load(TestData.FindDataDirectory());
             // Game length used. Unit: seconds. Range: 1 to 7200.
             const int seconds = 90;
-            GameRecord plain = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, 12345UL, "aggressive", seconds);
+            GameRecord plain = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, 12345UL, "aggressive", "aggressive", seconds);
             StringWriter text = new StringWriter();
-            GameRecord traced = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, 12345UL, "aggressive", seconds, new GameTrace(text, 30));
+            GameRecord traced = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, 12345UL, "aggressive", "aggressive", seconds, new GameTrace(text, 30));
             Assert.That(traced.StateHash, Is.EqualTo(plain.StateHash));
             Assert.That(traced.EndTick, Is.EqualTo(plain.EndTick));
             // Trace text of the traced game.

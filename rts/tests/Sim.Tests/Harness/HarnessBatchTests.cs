@@ -27,8 +27,8 @@ namespace Rts.Sim.Tests.Harness
             string folder = Rts.Sim.Tests.Data.TestData.FindDataDirectory();
             DataSet data = Rts.Sim.Tests.Data.TestData.LoadAll();
             ulong seed = SeedDerivation.GameSeed((ulong)data.Tuning.HarnessBatch.BaseSeed, "greybox_1v1", "skai_vs_water", 0);
-            string first = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, seed, "aggressive", 300).ToJsonLine();
-            string second = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, seed, "aggressive", 300).ToJsonLine();
+            string first = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, seed, "aggressive", "aggressive", 300).ToJsonLine();
+            string second = GameRunner.Play(data, "greybox_1v1", "skai_vs_water", 0, seed, "aggressive", "aggressive", 300).ToJsonLine();
             Assert.That(second, Is.EqualTo(first));
             WorkerResult worker = WorkerPool.RunOne(new[] { "--data", folder, "--map", "greybox_1v1", "--matchup", "skai_vs_water", "--first", "0", "--count", "1", "--max-game-seconds", "300" });
             Assert.That(worker.ExitCode, Is.EqualTo(0), worker.Error);

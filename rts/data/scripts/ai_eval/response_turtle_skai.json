@@ -1,0 +1,33 @@
+// rts/data/scripts/ai_eval/response_turtle_skai.json: response scenario 'turtle' with the AI under test playing Skai (slot 0) against the scripted opponent profile rt_turtle (Water, slot 1) on greybox_1v1. Part of rts/data/scripts/ai_eval; read by the harness response mode (rts/tools/BalanceHarness, --response) and parsed by Rts.Sim.Data.CommandScript; spec rts/docs/specs/skirmish_ai_v3.md A.4. A turtle: the opponent never attacks and has 4 Coral Turrets from tick 0 at (53, 57), (57, 53), (53, 53) and (60, 52).
+{
+  "$schema_version": 1,
+  "$doc": "Response scenario turtle, AI under test as skai. Setup copies ai_vs_ai.json: slot 0 HQ at (7, 7), slot 1 HQ at (57, 57), four workers each. Slot 0 plays profile aggressive in this file; the harness replaces it with --profile. Entity IDs: 1 HQ and 2 to 5 workers of slot 0, 6 HQ and 7 to 10 workers of slot 1, later IDs go to units built or spawned.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: skirmish_ai_v3.md A.4; placeholder.
+  "seed": 1234,
+  // Most ticks to simulate (the harness stops earlier once one team is left standing): the entry's longest *_seconds in ai_eval.json times 20 (2400 s). Unit: ticks (20 per second). Range: 0 to 1000000. Source: skirmish_ai_v3.md A.4; placeholder.
+  "ticks": 48000,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: skirmish_ai_v3.md A.4.
+  "map": "greybox_1v1",
+  // Player slots. Slot 0 is the AI under test (profile aggressive here, replaced by --profile); slot 1 is the scripted opponent (rt_turtle). Unit: see ai_vs_ai.json. Source: skirmish_ai_v3.md A.4.
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai AI", "ai": "aggressive" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water responder", "ai": "rt_turtle" }
+  ],
+  // Commands. Tick 0 setup as in ai_vs_ai.json (sequences 0 to 9), then timed spawn_unit commands for slot 1 (sequences 10 upward, issuer 255). Spawn tiles checked against greybox_1v1: none is a ramp, the Coral Turret tiles are at HQ height (2), and the simulation accepted every spawn. Unit: tiles (x, y), ticks (20 per second). Source: skirmish_ai_v3.md A.4.
+  "commands": [
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "9", "y": "6" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "5", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "8", "y": "5" },
+    { "tick": 0, "issuer": 255, "sequence": 5, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "57", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 6, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "58", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 7, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "55", "y": "58" },
+    { "tick": 0, "issuer": 255, "sequence": 8, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "59", "y": "56" },
+    { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "56", "y": "59" },
+    { "tick": 0, "issuer": 255, "sequence": 10, "type": "spawn_unit", "definition": "water.coral_turret", "owner": 1, "x": "53", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 11, "type": "spawn_unit", "definition": "water.coral_turret", "owner": 1, "x": "57", "y": "53" },
+    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "water.coral_turret", "owner": 1, "x": "53", "y": "53" },
+    { "tick": 0, "issuer": 255, "sequence": 13, "type": "spawn_unit", "definition": "water.coral_turret", "owner": 1, "x": "60", "y": "52" }
+  ]
+}

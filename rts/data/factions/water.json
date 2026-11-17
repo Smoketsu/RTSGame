@@ -13,6 +13,7 @@
   // Units the faction can field, in menu order. Unit: list of unit IDs. Range: IDs of files under rts/data/units/water, no duplicates. Source: Factions / Water faction / Unit concepts (Phase 1: worker, units, HQ, production building and static defence).
   "units": [
     "water.tender",
+    "water.reef_runner",
     "water.spoutling",
     "water.grasper",
     "water.shellback",

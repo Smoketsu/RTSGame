@@ -1,0 +1,36 @@
+// rts/data/scripts/ai_eval/ai_eval.json: settings of the AI evaluation modes of the balance harness (--ladder and --response); spec rts/docs/specs/skirmish_ai_v3.md A.2 and A.4. Read by rts/tools/BalanceHarness/AiEvalSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every number is a placeholder.
+{
+  "$schema_version": 1,
+  "$doc": "Ladder and response-test settings for the skirmish AI v3 work (P-004 stages 1 to 3).",
+  // Base seed of the ladder's per-game seed derivation. Unit: seed. Range: 0 to 2147483647. Source: skirmish_ai_v3.md A.2; placeholder.
+  "ladder_base_seed": 20261117,
+  // Games per (map, matchup) cell; the seat rule needs blocks of four games. Unit: games. Range: 4 to 1000, a multiple of 4. Source: skirmish_ai_v3.md A.2; placeholder (4 maps x 3 matchups x 24 = 288 games).
+  "ladder_games_per_cell": 24,
+  // Maps the ladder plays; empty means every map with exactly 2 spawns, in ordinal order. Unit: list of map IDs. Range: 0 to 32 entries. Source: skirmish_ai_v3.md A.2.
+  "ladder_maps": [],
+  // Matchups the ladder plays (mirror and cross). Unit: list of matchup IDs, factions in ordinal order. Range: 1 to 16 entries. Source: skirmish_ai_v3.md A.2.
+  "ladder_matchups": ["skai_vs_skai", "skai_vs_water", "water_vs_water"],
+  // Game length limit of a ladder game. Unit: seconds. Range: 60 to 7200. Source: skirmish_ai_v3.md A.2; placeholder.
+  "ladder_max_game_seconds": 2400,
+  // Decided games the ladder needs before it can pass (200 stays reachable with 30 percent of 288 games undecided). Unit: games. Range: 1 to 100000. Source: skirmish_ai_v3.md A.2; placeholder.
+  "ladder_min_decided": 200,
+  // Candidate wins divided by decided games needed to pass a ladder. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md A.2 (developer decision, 17 Nov 2026).
+  "ladder_candidate_win_fraction_min": 0.65,
+  // The same fraction with --non-regression (package B gate, open question Q1). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md A.2 and Q1; placeholder.
+  "ladder_non_regression_fraction_min": 0.45,
+  // Games re-run in-process after the ladder to compare final hashes (determinism spot check); 0 turns it off. Unit: games. Range: 0 to 16. Source: skirmish_ai_v3.md A.2; placeholder.
+  "ladder_verify_games": 2,
+  // Response tests, one per scenario script and AI-under-test faction. script: file in this folder; check: air_answer, armoured_answer, trade, raid or turtle; the other keys are that check's parameters (seconds are game seconds, fractions and ratios as named). Unit: objects. Range: 1 to 64 entries. Source: skirmish_ai_v3.md A.4; placeholder.
+  "response_tests": [
+    { "script": "response_roc_rush_skai.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },
+    { "script": "response_roc_rush_water.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },
+    { "script": "response_mass_pummeler_skai.json", "check": "armoured_answer", "delay_seconds": 30, "until_seconds": 600, "min_share_gain": 0.15, "survive_seconds": 600 },
+    { "script": "response_mass_pummeler_water.json", "check": "armoured_answer", "delay_seconds": 30, "until_seconds": 600, "min_share_gain": 0.15, "survive_seconds": 600 },
+    { "script": "response_mass_windrunner_skai.json", "check": "trade", "until_seconds": 600, "min_trade_ratio": 1.0 },
+    { "script": "response_mass_windrunner_water.json", "check": "trade", "until_seconds": 600, "min_trade_ratio": 1.0 },
+    { "script": "response_worker_raid_skai.json", "check": "raid", "wave_seconds": [120, 240], "window_seconds": 60, "max_workers_lost": 3, "defence_by_seconds": 330, "defence_radius_tiles": 10 },
+    { "script": "response_worker_raid_water.json", "check": "raid", "wave_seconds": [120, 240], "window_seconds": 60, "max_workers_lost": 3, "defence_by_seconds": 330, "defence_radius_tiles": 10 },
+    { "script": "response_turtle_skai.json", "check": "turtle", "until_seconds": 2400, "max_supply_lost_before_first_kill": 16 },
+    { "script": "response_turtle_water.json", "check": "turtle", "until_seconds": 2400, "max_supply_lost_before_first_kill": 16 }
+  ]
+}

@@ -42,16 +42,30 @@ namespace Rts.Tools.BalanceHarness
             return pair[(game + slot) % 2];
         }
 
+        /// <summary>
+        /// AI profile slot <paramref name="slot"/> plays in ladder game <paramref name="game"/>: profile A when (game / 2) % 2 == slot, else B, so games
+        /// g to g+3 (g a multiple of 4) cover every seat and, with <see cref="FactionInSlot"/>, every faction combination.
+        /// </summary>
+        /// <param name="game">Game index. Unit: games. Range: 0 upward.</param>
+        /// <param name="slot">Player slot. Range: 0 or 1.</param>
+        /// <param name="profileA">Baseline profile ID.</param>
+        /// <param name="profileB">Candidate profile ID.</param>
+        public static string LadderProfileInSlot(int game, int slot, string profileA, string profileB)
+        {
+            return (game / 2) % 2 == slot ? profileA : profileB;
+        }
+
         /// <summary>Plays one game and returns its record.</summary>
         /// <param name="data">The loaded data set.</param>
         /// <param name="mapId">Map ID; the map must have two spawns.</param>
         /// <param name="matchupId">Matchup ID "a_vs_b".</param>
         /// <param name="game">Game index in the cell. Unit: games. Range: 0 upward.</param>
         /// <param name="seed">Simulation seed (see <see cref="SeedDerivation"/>). Range: any ulong.</param>
-        /// <param name="aiProfile">AI profile ID both slots play.</param>
+        /// <param name="profileSlot0">AI profile ID slot 0 plays.</param>
+        /// <param name="profileSlot1">AI profile ID slot 1 plays.</param>
         /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
         /// <param name="trace">Optional read-only observer (--trace mode); null in batch games. It never changes the game.</param>
-        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string aiProfile, int maxGameSeconds, GameTrace? trace = null)
+        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string profileSlot0, string profileSlot1, int maxGameSeconds, GameTrace? trace = null)
         {
             MapDefinition map = data.RequireMap(mapId);
             // Players of the game: slot 0 team 0, slot 1 team 1, named after their factions.
@@ -72,10 +86,10 @@ namespace Rts.Tools.BalanceHarness
             List<IPlayerController> controllers = new List<IPlayerController>();
             foreach (PlayerSetup player in players)
             {
-                controllers.Add(new SkirmishAiController(player.Id, AiProfile.FromDataSet(data, aiProfile)));
+                controllers.Add(new SkirmishAiController(player.Id, AiProfile.FromDataSet(data, player.Id.Value == 0 ? profileSlot0 : profileSlot1)));
             }
             AiHost.StartAll(sim, controllers);
-            trace?.Begin(sim, mapId + " " + matchupId + " game " + game + " seed " + seed + " profile " + aiProfile + " cap " + maxGameSeconds + " s; P0 "
+            trace?.Begin(sim, mapId + " " + matchupId + " game " + game + " seed " + seed + " profile " + profileSlot0 + " (P0) / " + profileSlot1 + " (P1) cap " + maxGameSeconds + " s; P0 "
                 + players[0].FactionId + ", P1 " + players[1].FactionId);
 
             // Tick limit. Unit: ticks. Range: 1 upward.
@@ -137,7 +151,7 @@ namespace Rts.Tools.BalanceHarness
                     kills.Add(new HqKill(watch.Faction, watch.FirstDamageTick >= 0 ? watch.FirstDamageTick : watch.DeathTick, watch.DeathTick));
                 }
             }
-            return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, game, 0), FactionInSlot(matchupId, game, 1), result,
+            return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, game, 0), FactionInSlot(matchupId, game, 1), profileSlot0, profileSlot1, result,
                 Math.Max(lastTick, 0), sim.ComputeStateHash(), sim.ContentDigest, kills);
         }
 

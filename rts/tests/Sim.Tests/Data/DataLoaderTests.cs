@@ -123,14 +123,14 @@ namespace Rts.Sim.Tests.Data
             }
             Assert.That(_data.Content.Validate(), Is.Null);
             Assert.That(_data.Content.Factions["skai"].UnitIds, Is.EqualTo(new[] { "skai.fledgling", "skai.windrunner", "skai.talon_archer", "skai.stormcaller", "skai.roc_rider", "skai.great_aerie", "skai.roost", "skai.windspire", "skai.perch_tower", "skai.perch_depot" }));
-            Assert.That(_data.Content.Factions["water"].UnitIds, Is.EqualTo(new[] { "water.tender", "water.spoutling", "water.grasper", "water.shellback", "water.ink_lobber", "water.grand_shell", "water.tidepool", "water.shell_forge", "water.coral_turret", "water.pearl_depot" }));
+            Assert.That(_data.Content.Factions["water"].UnitIds, Is.EqualTo(new[] { "water.tender", "water.reef_runner", "water.spoutling", "water.grasper", "water.shellback", "water.ink_lobber", "water.grand_shell", "water.tidepool", "water.shell_forge", "water.coral_turret", "water.pearl_depot" }));
         }
 
         /// <summary>Example unit values and layers.</summary>
         [Test]
         public void Units_Load_WithLayersAndValues()
         {
-            Assert.That(_data.Content.Units.Count, Is.EqualTo(20));
+            Assert.That(_data.Content.Units.Count, Is.EqualTo(21));
             UnitDefinition windrunner = _data.Content.Units["skai.windrunner"];
             Assert.That(windrunner.Layer, Is.EqualTo(MovementLayer.Ground));
             Assert.That(windrunner.SpeedTilesPerSecond, Is.EqualTo(Fix64.Parse("3.5")));

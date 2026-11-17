@@ -24,6 +24,14 @@ namespace Rts.Tools.BalanceHarness
         public static int Run(BatchOptions options, TextWriter output, TextWriter error)
         {
             DataSet data = DataLoader.Load(Program.ReadDataFolder(options.DataDirectory));
+            if (options.Ladder && !options.IsWorker)
+            {
+                return LadderRunner.Run(options, data, output, error);
+            }
+            if (options.Response)
+            {
+                return ResponseRunner.RunCli(options, data, output, error);
+            }
             if (options.Trace)
             {
                 return RunTrace(options, data, output);
@@ -50,7 +58,7 @@ namespace Rts.Tools.BalanceHarness
             using (TextWriter text = toFile ? new StreamWriter(options.OutDirectory) : TextWriter.Null)
             {
                 GameTrace trace = new GameTrace(toFile ? text : output, GameTrace.DefaultIntervalSeconds);
-                GameRecord record = GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, batch.AiProfile, maxSeconds, trace);
+                GameRecord record = GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, batch.AiProfile, batch.AiProfile, maxSeconds, trace);
                 output.Write(record.ToJsonLine() + "\n");
             }
             output.Flush();
@@ -85,7 +93,11 @@ namespace Rts.Tools.BalanceHarness
                     // Test switch: the re-run plays a different seed, so the spot check must report a mismatch.
                     seed ^= 1UL;
                 }
-                output.Write(GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, game, seed, batch.AiProfile, maxSeconds).ToJsonLine() + "\n");
+                // Profiles of the two slots: the batch profile twice, or in a ladder worker the seat rule of GameRunner.LadderProfileInSlot.
+                bool ladder = options.ProfileA.Length > 0;
+                string profile0 = ladder ? GameRunner.LadderProfileInSlot(game, 0, options.ProfileA, options.ProfileB) : batch.AiProfile;
+                string profile1 = ladder ? GameRunner.LadderProfileInSlot(game, 1, options.ProfileA, options.ProfileB) : batch.AiProfile;
+                output.Write(GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, game, seed, profile0, profile1, maxSeconds).ToJsonLine() + "\n");
                 output.Flush();
             }
             return 0;
@@ -94,7 +106,7 @@ namespace Rts.Tools.BalanceHarness
         // ------------------------------------------------------------------ coordinator
 
         /// <summary>One chunk of games of one cell.</summary>
-        private sealed class Chunk
+        internal sealed class Chunk
         {
             /// <summary>Map ID.</summary>
             public string Map { get; }
@@ -274,7 +286,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Checks the worker's exit code; throws <see cref="HarnessException"/> carrying its stderr when it failed.</summary>
-        private static void CheckWorker(WorkerResult result, string what)
+        internal static void CheckWorker(WorkerResult result, string what)
         {
             if (result.ExitCode != 0)
             {
@@ -283,7 +295,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Reads and checks the game records of one worker call: exit code 0, the expected count and the expected cell and game indices.</summary>
-        private static List<GameRecord> ReadGames(WorkerResult result, string map, string matchup, int first, int count)
+        internal static List<GameRecord> ReadGames(WorkerResult result, string map, string matchup, int first, int count)
         {
             // What the worker was asked for, for messages.
             string what = "games " + first.ToString(CultureInfo.InvariantCulture) + "+" + count.ToString(CultureInfo.InvariantCulture) + " of " + map + " " + matchup;
@@ -307,7 +319,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Orders game records by map, matchup, game (ordinal).</summary>
-        private static int CompareGames(GameRecord a, GameRecord b)
+        internal static int CompareGames(GameRecord a, GameRecord b)
         {
             int c = string.CompareOrdinal(a.Map, b.Map);
             if (c == 0)

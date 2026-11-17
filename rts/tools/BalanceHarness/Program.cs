@@ -13,6 +13,7 @@
 // Batch mode (Phase 2 step 5, spec rts/docs/specs/balance_harness.md): --batch runs N AI-versus-AI games per matchup per map in worker processes
 // (--worker) and writes a balance report; see BatchRunner. Everything above is the single-run mode and is unchanged.
 // Trace mode: --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>] plays one batch game and writes its timeline (GameTrace, BatchRunner.RunTrace).
+// Ladder and response modes (skirmish AI v3 package A, spec rts/docs/specs/skirmish_ai_v3.md): --ladder --profile-a <id> --profile-b <id> (LadderRunner) and --response --profile <id> (ResponseRunner); see README.md.
 // Replays (ADR-009): --record <file> routes every command (script and AI) and every step through a ReplayRecorder and, after the
 // final STATE_HASH line, writes the binary replay and prints "REPLAY_RECORDED file=<path> ticks=<n> commands=<n> checkpoints=<n>";
 // tools/ReplayCheck re-simulates that file. Without --record the run is exactly as before.
