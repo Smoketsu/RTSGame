@@ -298,14 +298,80 @@ namespace Rts.Sim.Tests.Ai
             Spawn(sim, "skai.windrunner", P0, "10", "10");
             StepTo(sim, 800);
             AiProfile profile = S1Edited("\"attack_army_supply\": 8", "\"attack_army_supply\": 2", "\"attack_supply_jitter\": 2", "\"attack_supply_jitter\": 0");
-            // A scout between rounds: the route is finished and the next round is not due.
+            // A scout away on its route (waypoint 0 of 1 is far away and unseen).
             AiMemory memory = new AiMemory { ScoutId = scout, ScoutRoundStartTick = sim.Clock.Tick };
+            memory.ScoutRoute.Add(FixVec2.FromInts(56, 56));
             List<AiIntent> intents = Decide(sim, P0, profile, memory);
             Assert.That(memory.Stance, Is.EqualTo(AiStance.Attack));
             Assert.That(memory.AttackGroup.Contains(scout), Is.False);
             Assert.That(memory.AttackGroup.Contains(second), Is.True);
             Assert.That(Of(intents, AiIntentKind.AttackMove).Exists(i => i.Unit == scout), Is.False);
             Assert.That(Of(intents, AiIntentKind.AttackMove).Exists(i => i.Unit == second), Is.True);
+        }
+
+        /// <summary>B-14 (review fix 2): an own scout resting between rounds is an army unit again (it joins the attack group); while it is away rule P does not count it.</summary>
+        [Test]
+        public void B14_RestingScoutRejoinsArmyAndActiveScoutIsNotCounted()
+        {
+            Simulation sim = Greybox();
+            SkaiBase(sim);
+            EntityId scout = Spawn(sim, "skai.windrunner", P0, "10", "10");
+            Spawn(sim, "skai.windrunner", P0, "10", "10");
+            StepTo(sim, 800);
+            AiProfile attack = S1Edited("\"attack_army_supply\": 8", "\"attack_army_supply\": 2", "\"attack_supply_jitter\": 2", "\"attack_supply_jitter\": 0");
+            AiMemory resting = new AiMemory { ScoutId = scout, ScoutRoundStartTick = sim.Clock.Tick };
+            Decide(sim, P0, attack, resting);
+            Assert.That(resting.AttackGroup.Contains(scout), Is.True, "a resting scout is part of the army");
+            // Rule P: with the scout away the Windrunner count is 0 (not 1), so the Windrunner has the larger deficit and is bought first.
+            Simulation second = Greybox();
+            SkaiBase(second);
+            Spawn(second, "skai.windspire", P0, "6.5", "14.5");
+            EntityId away = Spawn(second, "skai.windrunner", P0, "10", "10");
+            Spawn(second, "skai.talon_archer", P0, "10", "11");
+            StepTo(second, 800);
+            AiProfile mix = S1Edited("{ \"skai.windrunner\": 3, \"skai.talon_archer\": 1, \"skai.roc_rider\": 1 }", "{ \"skai.talon_archer\": 1, \"skai.windrunner\": 1 }");
+            AiMemory active = new AiMemory { ScoutId = away, ScoutRoundStartTick = second.Clock.Tick };
+            active.ScoutRoute.Add(FixVec2.FromInts(56, 56));
+            List<AiIntent> trains = Of(Decide(second, P0, mix, active), AiIntentKind.Train).FindAll(i => i.DefinitionId == "skai.windrunner" || i.DefinitionId == "skai.talon_archer");
+            Assert.That(trains.Count, Is.GreaterThan(0));
+            Assert.That(trains[0].DefinitionId, Is.EqualTo("skai.windrunner"));
+        }
+
+        /// <summary>B-15 (review fix 1): a scout with no move target that has not moved since its last order skips the unreachable waypoint.</summary>
+        [Test]
+        public void B15_UnreachableWaypointIsSkipped()
+        {
+            Simulation sim = Greybox();
+            SkaiBase(sim);
+            EntityId scout = Spawn(sim, "skai.windrunner", P0, "20", "20");
+            StepTo(sim, 800);
+            Assert.That(sim.Units.TryGet(scout, out Unit? unit), Is.True);
+            AiMemory memory = new AiMemory { ScoutId = scout, ScoutRoundStartTick = sim.Clock.Tick, ScoutHasOrder = true, ScoutOrderPosition = unit!.Position };
+            memory.ScoutRoute.Add(FixVec2.FromInts(40, 40));
+            memory.ScoutRoute.Add(FixVec2.FromInts(56, 56));
+            List<AiIntent> intents = Decide(sim, P0, ScoutOnly(), memory);
+            Assert.That(memory.ScoutWaypoint, Is.EqualTo(1));
+            Assert.That(Of(intents, AiIntentKind.Move).Exists(i => i.Unit == scout && i.Point.X == Fix64.FromInt(56)), Is.True);
+        }
+
+        /// <summary>B-16 (review fix 5): a kill whose victim's last tile is not visible now does not lower the count.</summary>
+        [Test]
+        public void B16_KillInFogIsNotCounted()
+        {
+            Simulation sim = Greybox();
+            AiProfile profile = S1;
+            (EntityId a, EntityId b, EntityId c, EntityId watchA, EntityId watchBc) = RocsInSight(sim);
+            AiMemory memory = Primed(sim, profile);
+            Remove(sim, b);
+            Remove(sim, c);
+            Remove(sim, watchBc);
+            AiWorldView blind = AiWorldView.Build(sim, P0);
+            Assert.That(blind.IsVisible(60, 10), Is.False);
+            memory.PendingEnemyKills.Add(b);
+            memory.PendingEnemyKills.Add(c);
+            AiIntel.UpdateModel(blind, profile, memory);
+            Assert.That(memory.EnemyTypes["skai.roc_rider"].Count == Fix64.FromInt(3), Is.True);
+            Assert.That(a.IsValid && watchA.IsValid, Is.True);
         }
 
         /// <summary>Spawns three enemy Roc Riders (one at (30, 30), two at (60, 10)) each watched by an own Windrunner 7 tiles away.</summary>

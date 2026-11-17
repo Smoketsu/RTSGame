@@ -183,13 +183,13 @@ namespace Rts.Ai
         /// <summary>Relocations completed so far (statistic). Unit: count. Range: 0 upward.</summary>
         public int Relocations { get; set; }
 
-        /// <summary>Entity ID of the scout (rule S), or None when there is none.</summary>
+        /// <summary>Entity ID of the scout (rule S), or None when there is none. Range: None, or the ID of an own unit alive at the last think.</summary>
         public EntityId ScoutId { get; set; } = EntityId.None;
 
         /// <summary>True when the scout is a borrowed army flyer (released after its route), false for an own scout unit.</summary>
         public bool ScoutBorrowed { get; set; }
 
-        /// <summary>Waypoints of the current scouting round; at most scout_route_max_waypoints. Unit: tiles.</summary>
+        /// <summary>Waypoints of the current scouting round; at most scout_route_max_waypoints. Unit: tiles. Range: 0 to 32 entries, each inside the map; empty before the first round.</summary>
         public List<FixVec2> ScoutRoute { get; } = new List<FixVec2>();
 
         /// <summary>Index into <see cref="ScoutRoute"/> of the waypoint being scouted; equal to the route length when the route is finished. Range: 0 to route length.</summary>
@@ -200,6 +200,15 @@ namespace Rts.Ai
 
         /// <summary>No scout may be wanted before this tick (set when a scout dies). Unit: ticks. Range: 0 upward.</summary>
         public int NextScoutTick { get; set; }
+
+        /// <summary>True when the scout has been given a move order this round (so <see cref="ScoutOrderPosition"/> is valid).</summary>
+        public bool ScoutHasOrder { get; set; }
+
+        /// <summary>Where the scout stood when the latest move order was given; a scout with no move target still standing here has an unreachable waypoint. Unit: tiles. Range: inside the map.</summary>
+        public FixVec2 ScoutOrderPosition { get; set; }
+
+        /// <summary>Positions of the units in <see cref="LastVisibleEnemyTypes"/> at the last think; a kill counts only while its victim's last tile is visible. Unit: tiles. Range: inside the map; same keys as <see cref="LastVisibleEnemyTypes"/>.</summary>
+        public SortedDictionary<EntityId, FixVec2> LastVisibleEnemyPositions { get; } = new SortedDictionary<EntityId, FixVec2>();
 
         /// <summary>Scouts lost so far. Unit: count. Range: 0 upward.</summary>
         public int ScoutLosses { get; set; }

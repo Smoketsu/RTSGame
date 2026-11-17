@@ -79,7 +79,8 @@ namespace Rts.Ai
             SortedSet<EntityId> kills = new SortedSet<EntityId>(memory.PendingEnemyKills);
             foreach (EntityId id in kills)
             {
-                if (memory.LastVisibleEnemyTypes.TryGetValue(id, out string? type) && memory.EnemyTypes.TryGetValue(type, out EnemyTypeEstimate? estimate))
+                if (memory.LastVisibleEnemyTypes.TryGetValue(id, out string? type) && memory.LastVisibleEnemyPositions.TryGetValue(id, out FixVec2 lastAt)
+                    && view.IsVisible(lastAt.X.FloorToInt(), lastAt.Y.FloorToInt()) && memory.EnemyTypes.TryGetValue(type, out EnemyTypeEstimate? estimate))
                 {
                     estimate.Count = Fix64.Max(Fix64.Zero, estimate.Count - Fix64.One);
                 }
@@ -106,11 +107,13 @@ namespace Rts.Ai
                 }
             }
             memory.LastVisibleEnemyTypes.Clear();
+            memory.LastVisibleEnemyPositions.Clear();
             foreach (AiUnitView enemy in view.VisibleEnemies)
             {
                 if (enemy.IsArmy)
                 {
                     memory.LastVisibleEnemyTypes[enemy.Id] = enemy.Definition.Id;
+                    memory.LastVisibleEnemyPositions[enemy.Id] = enemy.Position;
                 }
             }
             memory.PendingEnemyKills.Clear();
@@ -200,6 +203,10 @@ namespace Rts.Ai
         }
 
         /// <summary>Sums M(t) x supply(t), over air types only when <paramref name="airOnly"/>.</summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The memory (read only).</param>
+        /// <param name="airOnly">True to count only types whose layer is Air.</param>
         private static Fix64 SupplyWhere(AiWorldView view, AiProfile profile, AiMemory memory, bool airOnly)
         {
             // Supply total so far. Unit: supply.

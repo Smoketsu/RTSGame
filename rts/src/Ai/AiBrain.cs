@@ -86,7 +86,8 @@
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
 // that holds for enemy_model_hold_seconds and then fades to enemy_model_floor_fraction, reduced by seen kills, plus the types a known
 // enemy structure trains (AiIntel). Nothing reads the model yet except the harness response check (package C reads it); with both
-// switches off the AI plays exactly as v2 (test A-11). Army membership: the scout (rule 4c) is not an army unit.
+// switches off the AI plays exactly as v2 (test A-11). Army membership: the scout (rule 4c) is not an army unit (and not counted by rule P)
+// while it is away on its route; an own scout resting between rounds is an army unit again and is re-taken when the next round is due.
 // Deleted or replaced by skirmish_ai_v2.md package C: the Massing rally at the Core (rally_at_core now moves the staging point),
 // attack reinforcement by idle army units, the per-producer production loop, and the threshold redraw on every Massing entry.
 // Deleted or replaced by package B: the Rooted-HQ-only gather gate and the HQ-only "fields in range" list (now served fields),
@@ -1594,9 +1595,10 @@ namespace Rts.Ai
                 bool changed = false;
                 if (scout != null)
                 {
-                    if (!_memory.ScoutBorrowed && _memory.ScoutWaypoint >= _memory.ScoutRoute.Count && roundDue)
+                    if (!_memory.ScoutBorrowed && _memory.ScoutWaypoint >= _memory.ScoutRoute.Count && roundDue
+                        && _memory.Stance != AiStance.Defend && !_memory.AttackGroup.Contains(scout.Id))
                     {
-                        // An own scout resting at home starts the next round.
+                        // An own scout resting with the army (not defending, not in the attack group) is taken again for the next round.
                         StartRound();
                         changed = true;
                     }
@@ -1604,14 +1606,14 @@ namespace Rts.Ai
                 else if (_view.Tick >= _view.SecondsToTicks(_profile.ScoutFirstSeconds) && _view.Tick >= _memory.NextScoutTick && roundDue)
                 {
                     // Steps 2 to 4: a scout is wanted.
-                    scout = PickScout();
+                    scout = PickScout(out bool borrowed);
                     if (scout == null)
                     {
                         TrainScout();
                         return;
                     }
                     _memory.ScoutId = scout.Id;
-                    _memory.ScoutBorrowed = !string.Equals(scout.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal);
+                    _memory.ScoutBorrowed = borrowed;
                     StartRound();
                     changed = true;
                 }
@@ -1626,11 +1628,27 @@ namespace Rts.Ai
                     _memory.ScoutWaypoint++;
                     changed = true;
                 }
+                if (!changed && _memory.ScoutWaypoint < _memory.ScoutRoute.Count && !scout.HasMoveTarget && _memory.ScoutHasOrder
+                    && scout.Position == _memory.ScoutOrderPosition)
+                {
+                    // The last order moved nothing (the waypoint cannot be reached): skip it, then go on to the next one.
+                    _memory.ScoutWaypoint++;
+                    changed = true;
+                    while (_memory.ScoutWaypoint < _memory.ScoutRoute.Count
+                        && _view.IsVisible(_memory.ScoutRoute[_memory.ScoutWaypoint].X.FloorToInt(), _memory.ScoutRoute[_memory.ScoutWaypoint].Y.FloorToInt()))
+                    {
+                        _memory.ScoutWaypoint++;
+                    }
+                }
                 if (_memory.ScoutWaypoint < _memory.ScoutRoute.Count)
                 {
                     if (changed || !scout.HasMoveTarget)
                     {
-                        Emit(AiIntent.Move(scout.Id, Standable(_memory.ScoutRoute[_memory.ScoutWaypoint])));
+                        if (Emit(AiIntent.Move(scout.Id, Standable(_memory.ScoutRoute[_memory.ScoutWaypoint]))))
+                        {
+                            _memory.ScoutHasOrder = true;
+                            _memory.ScoutOrderPosition = scout.Position;
+                        }
                     }
                 }
                 else if (_memory.ScoutBorrowed)
@@ -1651,14 +1669,17 @@ namespace Rts.Ai
                 _memory.ScoutRoute.Clear();
                 _memory.ScoutRoute.AddRange(AiIntel.BuildRoute(_view, _profile, _memory, _hq.Position));
                 _memory.ScoutWaypoint = 0;
+                _memory.ScoutHasOrder = false;
                 _memory.ScoutRoundStartTick = _view.Tick;
             }
 
             /// <summary>
             /// Step 3: the unit to send scouting, or null: (a) while the army masses, an own air army unit costing at most scout_air_max_cost
-            /// (lowest supply, then lowest ID) that is not in the attack group; (b) the lowest-ID own unit of the plan's scout_unit outside the group.
+            /// (lowest supply, then lowest ID) that is not in the attack group; (b) unless the army defends, the lowest-ID own unit of the plan's
+            /// scout_unit outside the group.
             /// </summary>
-            private AiUnitView? PickScout()
+            /// <param name="borrowed">True when branch (a) picked the unit (a borrowed flyer), false for branch (b).</param>
+            private AiUnitView? PickScout(out bool borrowed)
             {
                 // Best borrowed flyer so far, or null.
                 AiUnitView? flyer = null;
@@ -1670,7 +1691,7 @@ namespace Rts.Ai
                     {
                         continue;
                     }
-                    if (own == null && _plan.ScoutUnitId.Length > 0 && string.Equals(unit.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal))
+                    if (own == null && _memory.Stance != AiStance.Defend && _plan.ScoutUnitId.Length > 0 && string.Equals(unit.Definition.Id, _plan.ScoutUnitId, StringComparison.Ordinal))
                     {
                         own = unit;
                     }
@@ -1681,7 +1702,14 @@ namespace Rts.Ai
                         flyer = unit;
                     }
                 }
+                borrowed = flyer != null;
                 return flyer ?? own;
+            }
+
+            /// <summary>True while the scout is away on its route: a scout is set and it is borrowed or its route is not finished. Such a unit is not an army unit.</summary>
+            private bool IsActiveScout(EntityId id)
+            {
+                return id == _memory.ScoutId && id != EntityId.None && (_memory.ScoutBorrowed || _memory.ScoutWaypoint < _memory.ScoutRoute.Count);
             }
 
             /// <summary>Step 4: trains the plan's scout unit at the lowest-ID free producer; reserves its cost (rule R) when it cannot be paid.</summary>
@@ -1733,7 +1761,7 @@ namespace Rts.Ai
                 }
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (_counts.ContainsKey(unit.Definition.Id))
+                    if (_counts.ContainsKey(unit.Definition.Id) && !IsActiveScout(unit.Id))
                     {
                         _counts[unit.Definition.Id]++;
                     }
@@ -1911,7 +1939,7 @@ namespace Rts.Ai
                 int armySupply = 0;
                 foreach (AiUnitView unit in _view.OwnUnits)
                 {
-                    if (unit.IsArmy && unit.Id != _memory.ScoutId)
+                    if (unit.IsArmy && !IsActiveScout(unit.Id))
                     {
                         army.Add(unit);
                         armySupply += _view.SupplyOf(unit.Definition);
