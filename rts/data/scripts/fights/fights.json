@@ -1,0 +1,75 @@
+// rts/data/scripts/fights/fights.json: settings of the equal-value fight mode of the balance harness (--fights); spec rts/docs/specs/micro_benchmark.md section 3.1. Read by rts/tools/BalanceHarness/FightSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every value is a placeholder unless its Source says otherwise. Every value stays on one line so tests can edit it by key.
+{
+  "$schema_version": 1,
+  "$doc": "Fight sweep settings: which units and compositions fight, at which army values and terrain cases, the arena geometry, the stalemate and cap rules and the thresholds of the design-rule checks.",
+  // Seed each fight seed is derived from. Unit: seed. Range: 0 to 2147483647. Source: micro_benchmark.md 3.1; placeholder.
+  "base_seed": 20261118,
+  // Units in the sweep; empty means every combat unit. Unit: list of unit IDs. Range: 0 to 64 entries, each a combat unit. Source: micro_benchmark.md 4.1.
+  "units": [],
+  // Mixed armies scaled to the army value as a whole: id (no dot), units (unit ID to count). Unit: list of objects. Range: 0 to 16 entries; 1 to 8 units of one faction, counts 1 to 50. Source: plan compositions in ai/aggressive_s3.json.
+  "compositions": [ { "id": "water_ai_mix", "units": { "water.grasper": 3, "water.shellback": 1, "water.ink_lobber": 1, "water.spoutling": 1 } }, { "id": "skai_ai_mix", "units": { "skai.windrunner": 3, "skai.talon_archer": 2, "skai.roc_rider": 1, "skai.stormcaller": 1 } } ],
+  // Terrain cases and the army values each is played at; kind is flat, high_ground, flooded or choke. Unit: list of objects (army values in resource units). Range: 1 to 16 cases, 1 to 8 army values of 50 to 20000 each. Source: micro_benchmark.md 4.3; placeholder.
+  "cases": [ { "id": "flat", "kind": "flat", "army_values": [750, 1500] }, { "id": "high_ground", "kind": "high_ground", "army_values": [1500] }, { "id": "flooded", "kind": "flooded", "army_values": [1500] }, { "id": "choke", "kind": "choke", "army_values": [1500] } ],
+  // Arena size along the line of approach. Unit: tiles. Range: 16 to 128. Source: micro_benchmark.md 3.1; placeholder.
+  "arena_width_tiles": 48,
+  // Arena size across the line of approach. Unit: tiles. Range: 16 to 128. Source: micro_benchmark.md 3.1; placeholder.
+  "arena_height_tiles": 32,
+  // Gap between the two front ranks at spawn. Unit: tiles. Range: 2 to 64. Source: the 16-tile C2.1 fights (c2_equal_cost_fights.txt).
+  "start_distance_tiles": 16,
+  // Units per rank. Unit: units. Range: 1 to 50. Source: micro_benchmark.md 3.1; placeholder.
+  "formation_width_units": 10,
+  // Distance between neighbouring spawn positions, within and between ranks. Unit: tiles. Range: 0.5 to 4. Source: micro_benchmark.md 3.1; placeholder.
+  "formation_spacing_tiles": 1,
+  // Width of the one ramp onto the plateau (high_ground). Unit: tiles. Range: 1 to 16. Source: micro_benchmark.md 3.1; placeholder.
+  "ramp_width_tiles": 4,
+  // Width of the gap in the wall (choke). Unit: tiles. Range: 1 to 16. Source: micro_benchmark.md 3.1; placeholder.
+  "choke_width_tiles": 3,
+  // Thickness of the wall (choke). Unit: tiles. Range: 1 to 8. Source: micro_benchmark.md 3.1; placeholder.
+  "choke_wall_thickness_tiles": 2,
+  // Structure spawned to flood the arena (flooded). Unit: unit ID. Range: a unit with flood_source_output_per_second above 0. Source: micro_benchmark.md 4.3.
+  "flood_source_unit": "water.tidepool",
+  // Flood source tiles relative to the arena centre tile. Unit: list of [dx, dy] in whole tiles. Range: 1 to 8 entries, inside the arena. Source: micro_benchmark.md 3.1; placeholder.
+  "flood_source_offsets": [[0, -8], [0, 8], [-4, -8], [-4, 8]],
+  // Time the flood spreads before the armies spawn. Unit: seconds. Range: 0 to 600. Source: micro_benchmark.md 3.1; placeholder.
+  "flood_warmup_seconds": 40,
+  // Share of lane tiles that must be flooded at army spawn, else the run is a settings error. Unit: fraction. Range: 0 to 1. Source: micro_benchmark.md 3.1; placeholder.
+  "flood_min_lane_fraction": 0.5,
+  // Interval of the idle re-targeting rule. Unit: seconds. Range: 0.25 to 30. Source: micro_benchmark.md 4.4; placeholder.
+  "reissue_seconds": 2,
+  // How long "neither side can target the other" must hold to end the fight as a stalemate. Unit: seconds. Range: 0.05 to 60. Source: micro_benchmark.md 4.5; placeholder.
+  "stalemate_confirm_seconds": 5,
+  // Time with no damage to any army unit that ends the fight as a stalemate. Unit: seconds. Range: 0.05 to 600. Source: micro_benchmark.md 4.5; placeholder.
+  "stalemate_idle_seconds": 30,
+  // Cap on fight length; a fight still running at the cap is unresolved. Unit: seconds. Range: 1 to 1800. Source: micro_benchmark.md 4.5; placeholder.
+  "max_fight_seconds": 180,
+  // Fights whose two army values differ by more than this share of the larger are played and reported but marked mismatch and left out of the checks. Unit: fraction. Range: 0 to 1. Source: micro_benchmark.md 4.2; placeholder.
+  "max_value_mismatch_fraction": 0.15,
+  // Fights re-run in-process for the determinism spot check. Unit: fights. Range: 0 to 16. Source: micro_benchmark.md 4.6; placeholder.
+  "verify_fights": 2,
+  // Fights per worker process call. Unit: fights. Range: 1 to 1000. Source: micro_benchmark.md 4.6; placeholder.
+  "chunk_fights": 25,
+  // Case the rule checks and the matchups file read. Unit: case ID. Range: a case of kind flat. Source: P-005 1.6 rule 3 (open-ground fight).
+  "rule_case": "flat",
+  // Army value the checks and the matchups file read. Unit: resource units. Range: one of the army_values of rule_case. Source: micro_benchmark.md 3.1; placeholder.
+  "rule_army_value": 1500,
+  // Threat armies for rule 5: id, side (a unit or composition ID in the sweep). Unit: list of objects. Range: 0 to 16 entries. Source: P-005 1.2 threat table (unit-army rows).
+  "threats": [ { "id": "air", "side": "skai.roc_rider" }, { "id": "massed_armour", "side": "water.grasper" }, { "id": "massed_light", "side": "skai.windrunner" } ],
+  // Rule 1: mobile unit types a faction needs that can attack each enemy unit or HQ layer. Unit: unit types. Range: 0 to 20. Source: P-005 1.6 rule 1.
+  "rule1_min_mobile_answers": 2,
+  // Rule 1: static defence types a faction needs that can attack each enemy unit or HQ layer. Unit: unit types. Range: 0 to 20. Source: P-005 1.6 rule 1.
+  "rule1_min_static_answers": 1,
+  // Rule 2: lowest allowed damage multiplier. Unit: fraction of base damage. Range: 0 to 3. Source: P-005 1.6 rule 2.
+  "rule2_min_multiplier": 0.5,
+  // Rule 2: highest allowed damage multiplier. Unit: fraction of base damage. Range: 0 to 3. Source: P-005 1.6 rule 2.
+  "rule2_max_multiplier": 1.5,
+  // Rule 2: highest multiplier over lowest within one damage type. Unit: ratio. Range: 1 to 100. Source: P-005 1.6 rule 2.
+  "rule2_max_ratio_within_type": 2,
+  // Rule 3: least value a counter keeps against the unit it counters. Unit: fraction of its start value. Range: 0 to 1. Source: P-005 1.6 rule 3.
+  "rule3_min_value_left": 0.2,
+  // Rule 3: most value a counter may lose per unit of value it destroys. Unit: ratio (enemy start value over own value lost). Range: 1 to 100. Source: P-005 1.6 rule 3.
+  "rule3_max_exchange_ratio": 3,
+  // Rule 5: unit types that beat each threat (purchase answers). Unit: unit types. Range: 0 to 20. Source: P-005 1.6 rule 5.
+  "rule5_min_unit_answers": 1,
+  // Rule 5: terrain cases that give an answer to each threat (non-purchase answers, terrain only for now). Unit: cases. Range: 0 to 20. Source: P-005 1.6 rule 5.
+  "rule5_min_terrain_answers": 1
+}

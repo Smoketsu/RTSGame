@@ -327,10 +327,10 @@ namespace Rts.Tools.BalanceHarness
             }
         }
 
-        /// <summary>True for an army unit: mobile (footprint 0), not a worker, not an HQ.</summary>
+        /// <summary>True for an army unit: mobile (footprint 0), not a worker, not an HQ (the rule shared with the fight mode).</summary>
         private static bool IsArmy(UnitDefinition definition)
         {
-            return definition.Economy.FootprintTiles == 0 && !definition.Economy.CanGather && definition.Hq == null;
+            return FightSettings.IsArmy(definition);
         }
 
         /// <summary>Samples the AI's air-capable units, static defences and drop-offs.</summary>

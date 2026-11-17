@@ -24,6 +24,10 @@ namespace Rts.Tools.BalanceHarness
         public static int Run(BatchOptions options, TextWriter output, TextWriter error)
         {
             DataSet data = DataLoader.Load(Program.ReadDataFolder(options.DataDirectory));
+            if (options.Fights)
+            {
+                return FightCoordinator.Run(options, data, output, error);
+            }
             if (options.Ladder && !options.IsWorker)
             {
                 return LadderRunner.Run(options, data, output, error);
@@ -334,7 +338,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Orders floor records by attacker, unit, defender HQ, state (Rooted first).</summary>
-        private static int CompareFloors(HqFloorRecord a, HqFloorRecord b)
+        internal static int CompareFloors(HqFloorRecord a, HqFloorRecord b)
         {
             int c = string.CompareOrdinal(a.AttackerFaction, b.AttackerFaction);
             if (c == 0)
