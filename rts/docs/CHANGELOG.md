@@ -46,6 +46,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/proposals/P-004-smarter-skirmish-ai.md`: proposal for an AI that reacts to its opponent (scouting and an enemy model, a computed counter table and fight prediction, fight choices, several plans, faction play, tuning by self-play), with a ladder, response tests and a variety measure as acceptance. Awaiting the developer's decision.
+
 - `docs/reports/ai_v2_2026-11-16/batch_prototype_1v1.md`: 20 AI-versus-AI games per matchup on `prototype_1v1` (17 Nov 2026): all 60 decided before the 1500 s cap; mirror matches 55 percent (Skai) and 45 percent (water) for the first slot, so no spawn-side bias; Skai beats water in 75 percent; median length 572 to 1028 s. The HQ survivability floor still fails (6.6 s against 20 s), a balance item on hold.
 
 - `data/maps/prototype_1v1.json`: a 96 x 96 1v1 map authored from the approved map concept (round 20): three walkable layers plus impassable rock (layer 4), a raised Core hub with four ramps, eight causeways and grass basins, two start plateaus with two ramps each, 14 fields (main, natural, flank, and rare with a common field beside it). 180-degree symmetric; passes the map checklist tests; awaiting the developer's approval. `docs/art/maps/prototype_1v1_layout.png` is its review picture. Spec `docs/specs/skirmish_ai_v2.md` added earlier the same day.
