@@ -46,6 +46,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/art/concept/turnarounds9/`: front, side and back model sheets for the Great Aerie (landed), the Grand Shell (rooted) and the eight buildings in the game data (Roost, Windspire, Perch Tower, Perch Depot, Tidepool, Shell Forge, Coral Turret, Pearl Depot), drawn from the approved round 13, 16 and 17 art; awaiting the developer's marks before 3D generation.
+
 - The Reef Runner model (`docs/art/models/batch1/water_reef_runner.glb`) was kept by the developer on 17 Nov 2026 with no changes.
 
 - Spec `docs/specs/skirmish_ai_v3.md` (stages 1 to 3 of P-004) in four packages: A harness `--ladder` and `--response` modes, `scripts/ai_eval/ai_eval.json`, responder profiles and the Reef Runner (`water.reef_runner`, placeholder numbers mirroring the Windrunner's); B scouting and the enemy model; C fight predictor, counter-mix computed from unit data, tech on demand, static defence; D attacks and retreats by the predictor, target choice, measured defence, unit control. Old and new behaviour coexist by profile switches; no `src/Sim` change.
