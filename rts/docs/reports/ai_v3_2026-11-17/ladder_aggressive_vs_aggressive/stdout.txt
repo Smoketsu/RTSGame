@@ -1,0 +1,19 @@
+# rts/docs/reports/ai_v3_2026-11-17/ladder_aggressive_vs_aggressive/stdout.txt: stdout, stderr and timing of the full 288-game ladder aggressive vs aggressive; see ../README.md.
+cell greybox_1v1 skai_vs_skai 24/24
+cell greybox_1v1 skai_vs_water 24/24
+cell greybox_1v1 water_vs_water 24/24
+cell long_lowland skai_vs_skai 24/24
+cell long_lowland skai_vs_water 24/24
+cell long_lowland water_vs_water 24/24
+cell prototype_1v1 skai_vs_skai 24/24
+cell prototype_1v1 skai_vs_water 24/24
+cell prototype_1v1 water_vs_water 24/24
+cell twin_chokes skai_vs_skai 24/24
+cell twin_chokes skai_vs_water 24/24
+cell twin_chokes water_vs_water 24/24
+LADDER candidate=aggressive baseline=aggressive decided=288 wins=135 fraction=0.469 bar=0.650 FAIL
+elapsed 1627.1 s
+
+real	27m7.624s
+user	62m15.918s
+sys	0m2.939s

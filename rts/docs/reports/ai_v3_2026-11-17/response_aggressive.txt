@@ -1,0 +1,12 @@
+# rts/docs/reports/ai_v3_2026-11-17/response_aggressive.txt: stdout of --response --profile aggressive on the v2 AI (package A baseline); see README.md.
+RESPONSE response_roc_rush_skai.json air_answer FAIL p1=FAIL air_first_seen_s=150.0 model_air_known_s=none p2=PASS aa_units=8 p3=PASS hq_alive=true
+RESPONSE response_roc_rush_water.json air_answer FAIL p1=FAIL air_first_seen_s=153.3 model_air_known_s=none p2=FAIL aa_units=0 p3=PASS hq_alive=true
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.375 share=0.000 base_share=0.375 armour=armoured p2=FAIL hq_alive=false
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.182 share=0.000 base_share=0.182 armour=armoured p2=FAIL hq_alive=false
+RESPONSE response_mass_windrunner_skai.json trade FAIL p1=FAIL trade_ratio=0.660 killed=31 lost=47 hq_alive=false
+RESPONSE response_mass_windrunner_water.json trade FAIL p1=FAIL trade_ratio=0.870 killed=80 lost=92 hq_alive=true
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=1
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=3
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=97 first_structure_kill_s=none p2=FAIL won_by_s=no
+RESPONSE response_turtle_water.json turtle FAIL p1=FAIL supply_lost_before_first_kill=83 first_structure_kill_s=498.4 p2=PASS won_by_s=498.4
+RESPONSE_SUMMARY passed=0 of=10
