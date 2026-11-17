@@ -46,7 +46,10 @@ namespace Rts.Sim.Tests.Ai
         private static AiProfile S3Spec => S3Edited("\"attack_min_supply\": 14,", "\"attack_min_supply\": 6,");
 
         /// <summary>Whether the shipped aggressive_s3 has use_focus_fire on (decided by the package D review check; see the report).</summary>
-        private const bool S3FocusFire = true;
+        private const bool S3FocusFire = false;
+
+        /// <summary>The package D profile with use_focus_fire on (the shipped file has it off after the package D review check), for the D.6.3 tests.</summary>
+        private static AiProfile S3Focus => S3Edited("\"use_focus_fire\": false,", "\"use_focus_fire\": true,");
 
         /// <summary>The package C2 profile (every package D switch off).</summary>
         private static AiProfile S2b => AiProfile.FromDataSet(Data, "aggressive_s2b");
@@ -678,7 +681,7 @@ namespace Rts.Sim.Tests.Ai
                 memory.AttackGroup.Add(id);
             }
             // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
-            List<AiIntent> first = Decide(sim, S3, memory);
+            List<AiIntent> first = Decide(sim, S3Focus, memory);
             List<AiIntent> attacks = Of(first, AiIntentKind.AttackUnit);
             Assert.That(attacks.Count, Is.EqualTo(3));
             foreach (AiIntent attack in attacks)
@@ -694,7 +697,7 @@ namespace Rts.Sim.Tests.Ai
             sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, runner));
             sim.Step();
             // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
-            List<AiIntent> second = Of(Decide(sim, S3, memory), AiIntentKind.AttackUnit);
+            List<AiIntent> second = Of(Decide(sim, S3Focus, memory), AiIntentKind.AttackUnit);
             Assert.That(second.Count, Is.EqualTo(3));
             foreach (AiIntent attack in second)
             {
@@ -719,7 +722,7 @@ namespace Rts.Sim.Tests.Ai
                 memory.AttackGroup.Add(id);
             }
             // Intents decided by the think, in rule order. Unit: intents. Range: 0 to max_commands_per_think.
-            List<AiIntent> intents = Decide(sim, S3, memory);
+            List<AiIntent> intents = Decide(sim, S3Focus, memory);
             Assert.That(Of(intents, AiIntentKind.AttackUnit).Count, Is.EqualTo(S3.FocusMaxCommandsPerThink));
             Assert.That(intents.Count, Is.LessThanOrEqualTo(S3.MaxCommandsPerThink));
         }
@@ -747,7 +750,7 @@ namespace Rts.Sim.Tests.Ai
                 }
                 // The think's own generator (seeded; its draw count is compared).
                 DeterministicRandom rng = new DeterministicRandom(7);
-                List<AiIntent> intents = Decide(sim, S3, memory, rng);
+                List<AiIntent> intents = Decide(sim, S3Focus, memory, rng);
                 return (intents.ConvertAll(i => i.Kind + " " + i.Unit + " " + i.Target + " " + i.Point), (int)memory.Stance, rng.DrawCount, memory.HarassGroup.Count);
             }
             (List<string> Lines, int Stance, ulong Draws, int Harass) a = Run();
@@ -967,7 +970,7 @@ namespace Rts.Sim.Tests.Ai
             }
             // Intents decided by the think.
             List<AiIntent> intents = null!;
-            Assert.DoesNotThrow(() => intents = Decide(sim, S3, memory));
+            Assert.DoesNotThrow(() => intents = Decide(sim, S3Focus, memory));
             Assert.That(Of(intents, AiIntentKind.AttackUnit).Count, Is.EqualTo(0));
         }
 
@@ -1024,7 +1027,7 @@ namespace Rts.Sim.Tests.Ai
                 }
                 // Lines describing each intent.
                 List<string> lines = new List<string>();
-                foreach (AiIntent intent in Decide(sim, S3, memory))
+                foreach (AiIntent intent in Decide(sim, S3Focus, memory))
                 {
                     // Position of the intent's unit and of its target. Unit: tiles.
                     string own = string.Empty;

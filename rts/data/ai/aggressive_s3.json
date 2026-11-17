@@ -251,7 +251,7 @@
   // D.6.3: most focus-fire orders in one think; units beyond it get their stance order. Unit: commands. Range: 0 to 200. Source: skirmish_ai_v3.md D.6; placeholder.
   "focus_max_commands_per_think": 12,
   // Package D on: units focus the enemy that dies fastest (D.6.3) instead of the nearest enemy; split from use_unit_control after the package D review showed it is not what carries the result. Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md D.6.3; placeholder.
-  "use_focus_fire": true,
+  "use_focus_fire": false,
   // D.6.1: a fallen-back unit rejoins the army this long after it fell back even when it has not reached home (its move is re-issued while it idles away from home). Unit: seconds. Range: 1 to 600. Source: skirmish_ai_v3.md D.6.1 (review fix); placeholder.
   "fallback_release_seconds": 30,
   // D.2: the predicted retreat test does not apply this long after an attack starts, unless the group has already lost supply (so an attack started on the model is not recalled by the first visible enemies). Unit: seconds. Range: 0 to 60. Source: skirmish_ai_v3.md D.2 (review fix); placeholder.

@@ -1,0 +1,11 @@
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=155.3 model_air_known_s=77.0 p2=PASS aa_units=23 p3=PASS hq_alive=true
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=155.3 model_air_known_s=78.0 p2=PASS aa_units=6 p3=PASS hq_alive=true
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=0.038 share=0.500 base_share=0.462 armour=armoured p2=PASS hq_alive=true
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.037 share=0.271 base_share=0.308 armour=armoured p2=PASS hq_alive=true
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.267 killed=34 lost=15 hq_alive=true
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=1.238 killed=52 lost=42 hq_alive=true
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=0
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=0
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=48 first_structure_kill_s=431.8 p2=PASS won_by_s=488.9
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=14 first_structure_kill_s=340.4 p2=PASS won_by_s=372.9
+RESPONSE_SUMMARY passed=5 of=10

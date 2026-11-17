@@ -1,0 +1,11 @@
+cell prototype_1v1 skai_vs_skai 25/72
+cell prototype_1v1 skai_vs_skai 50/72
+cell prototype_1v1 skai_vs_skai 72/72
+cell prototype_1v1 skai_vs_water 25/72
+cell prototype_1v1 skai_vs_water 50/72
+cell prototype_1v1 skai_vs_water 72/72
+cell prototype_1v1 water_vs_water 25/72
+cell prototype_1v1 water_vs_water 50/72
+cell prototype_1v1 water_vs_water 72/72
+LADDER candidate=aggressive_s3 baseline=aggressive_s2b decided=216 wins=180 fraction=0.833 bar=0.650 PASS
+elapsed 1500.4 s
