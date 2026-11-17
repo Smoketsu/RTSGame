@@ -1,6 +1,6 @@
 <!-- rts/docs/specs/walls_and_tech.md -->
-<!-- Build spec for P-005 developer decisions 5 and 8 (18 Nov 2026): worker-built walls (package W), a data-driven prerequisite list with one tech building per faction (package T), and, as an option that is NOT approved for build, a flyer bound to flood water (package F). Mechanics and data shape only; every number is a placeholder. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by the sim-reviewer after each package. -->
-# Spec: walls, tech prerequisites, and a flood-bound flyer (option)
+<!-- Build spec for P-005 developer decisions 5 and 8 (18 Nov 2026): worker-built walls (package W), a data-driven prerequisite list with one tech building per faction (package T), gates (package G) and drag to place for walls (package D), both added 18 Nov 2026 at the developer's request, and, as an option that is NOT approved for build, a flyer bound to flood water (package F). Mechanics and data shape only; every number is a placeholder. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by the sim-reviewer after each package. -->
+# Spec: walls, tech prerequisites, gates, drag to place, and a flood-bound flyer (option)
 
 Written 18 Nov 2026 by the designer, against `review/combat-mechanics-2` at `b6d20dc` (combat mechanics packages 1 to 4 built). Sources: `proposals/P-005-roster-holes-and-ai-for-balance.md` (developer decisions 5 and 8), `specs/worker_construction.md`, `specs/combat_mechanics.md`, `specs/flooding.md` (walls in water), `specs/planetary_cycles.md` (Quake: "Walls and defences take damage"; review item 10, the shared `Wall` flag), `specs/statuses.md` (Grounded: "walls block it"), `art/CONCEPT_BRIEF.md` (building jobs: Wall = Wind Baffle / Coral Wall, Tech = Storm Spire / Reef Workshop), `rts/src/Sim/Terrain/TerrainTile.cs` (the `TileBlockers` enum lives here; there is no `TileBlockers.cs`), `Economy/EconomySystem.cs`, `Commands/EconomyCommands.cs`, `Ai/AiWorldView.cs`, `Ai/AiBrain.cs`.
 
@@ -8,7 +8,7 @@ Written 18 Nov 2026 by the designer, against `review/combat-mechanics-2` at `b6d
 
 - **Mechanics first, numbers last** (developer, 18 Nov). Every number below is a **placeholder** worked out by the rule stated next to it. Data comments say `Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md <section>).` No existing number changes.
 - **Game names as data names.** New IDs use the concept brief's names as they stand: `skai.wind_baffle`, `water.coral_wall`, `skai.storm_spire`, `water.reef_workshop`. The developer renames at the end.
-- **No new step, no new command, no new codec.** W runs in the existing spawn and removal hooks (step 2 scripts, step 6d deaths, step 7 placement) and in step 9 (quake damage). T runs in step 2 only. The step numbers in the `Simulation.cs` header do not change; each package adds one clause to it.
+- **No new step, no new command, no new codec** in W and T (G adds no command either; D adds one command, one codec and one event, section D.4). W runs in the existing spawn and removal hooks (step 2 scripts, step 6d deaths, step 7 placement) and in step 9 (quake damage). T runs in step 2 only. The step numbers in the `Simulation.cs` header do not change; each package adds one clause to it.
 - **Packages are independent.** W and T touch different code except one line each in `UnitEconomyDefinition` (constructor argument and `WriteHash`). Each appends its field **at the end** of `UnitEconomyDefinition.WriteHash` when it is built; expected order is W then T (`... ProvidesSupply, IsWall, Requires`). Either order is valid because the digest moves anyway.
 - **Pins.** Both W and T add unit files, so the content digest and every pinned hash move (smoke, economy_smoke, `GoldenFinalHash`, `V2ReferenceHash`, `BlindTraceHash`). Re-pin as `combat_mechanics.md` section 5 describes, with comments that name this spec and the package. W is **hash only** everywhere (the AI never builds walls; if an AI outcome moves, stop and report). T may move the AI outcomes (the AI must now build a tech building before Thunderheads and Leviathans): write the old and new `OUTCOME` lines in the report and the re-pin comment. Older replays are refused by the content digest (ADR-009), no format or protocol bump.
 - **Test setups.** "Economy setup" = `TestWorld.StartedEconomy()` as in `worker_construction.md` 11.1: worker speed 4 tiles/s (0.2 tiles/tick), `worker_placement_seconds` 2.0 (P = 40 ticks), reach = 1.5 + structure radius 0.5 = 2.0, P0 starts with 200 common, 20 ticks/s. "Combat setup" = `combat_mechanics.md` section 0: 24 x 24 flat open map, no cycles, two players on different teams, mechanics `none`, separation off, shipped damage table (kinetic 1.0 / 0.75 / 0.5, blast 0.75 / 1.0 / 1.25 against light / armoured / structure), hand-built definitions. New test definitions go in test-local catalogs (a copy of `TestWorld.Catalog()` plus additions), **not** into `TestWorld.Catalog()`. `GoldenFinalHash` reads TestWorld, not shipped data; it still moves (hash only) because each package appends a field to `UnitEconomyDefinition.WriteHash`, but not because of the test definitions.
@@ -35,7 +35,7 @@ A **wall** is a structure whose definition has `is_wall: true`. It is built, pai
 10. **Quake (one condition in `CycleSystem.QuakeDamage`).** The design says "Walls and defences take damage" and `planetary_cycles.md` says wall structures join the set when they exist. The skip test becomes `!(IsStaticDefence || IsWall) || ...`; amount, floor and event are unchanged. Quake path closing already skips any blocked tile (`CycleSystem` line 622, `IsBlocked`), so a player wall on a path tile keeps the path open on that tile, and a closed path tile rejects a wall order with `tile_blocked`.
 11. **Rooted HQ floor.** Unchanged. The harness floor trials (`balance_harness.md`, `micro_benchmark.md` F0: 15 s) spawn the HQ and the attackers with no walls, so the floor still measures the bare HQ. Walls add protection the floor does not count. Walls do not change HQ armour or `IsStructureTarget` of the HQ.
 12. **Supply.** Shipped walls have `supply` 0 and `provides_supply` 0.
-13. **Gates.** None (the design does not need them; Q-W2 covers getting own units out).
+13. **Gates.** None in W; added by package G (18 Nov 2026, developer request).
 14. **The two factions.** The brief gives an art reason only (Skai: conifer-style, feathers pointing up; water: reef coral). Both walls have identical rules and numbers. Water's floods and wave interact with walls through rule 6, which gives water its own uses (channelling its flood) without a rule difference. Q-W6.
 
 ### W.2 Data
@@ -80,7 +80,7 @@ Add each ID to its faction's `units` list (`factions/skai.json`, `factions/water
 ### W.5 Unity (PC session)
 
 - One model per wall (Wind Baffle, Coral Wall) on its tile, with a health bar; connecting segments between orthogonally adjacent walls of the same owner are chosen in Unity from unit positions (presentation only). The terrain view already darkens `IsBlocked` tiles (`TerrainView.cs` line 335), which covers the new flag.
-- Build UI: a wall button in the worker build menu; a dragged line becomes one `build_structure` per tile, spread over the selected workers (nearest worker per tile, each worker one order at a time). Unity may keep a client-side list and issue a worker's next tile when `structure_placed` or `build_order_cancelled` arrives for it; that is player input, not simulation state.
+- Build UI: a wall button in the worker build menu. Dragging a line is specified in package D (superseding the client-side list this bullet described before 18 Nov 2026).
 - Show the reason of a cancelled wall order (`site_occupied` is common when units stand in a line).
 
 ### W.6 Acceptance tests (`rts/tests/Sim.Tests/Economy/WallTests.cs`)
@@ -197,6 +197,188 @@ AI tests (`rts/tests/Sim.Tests/Ai/AiPrerequisiteTests.cs`):
 
 ---
 
+## Package G: gates
+
+Added 18 Nov 2026 against `main` at `87e4a6a` (W and T built), after the developer's request "Sounds like we need to add gates and drag to place for the walls". Every claim about current behaviour names the file and method it was read from.
+
+### G.0 What the code does today (the constraint)
+
+- Passability is one bit per tile shared by every player: `TerrainTile.IsBlocked` is `Blockers != None`; `TerrainGrid.EdgePassable` refuses a step when either tile `IsBlocked`; `TerrainGrid.IsStepPassable` adds the no-corner-cutting rule (a diagonal step needs both orthogonal tiles passable); `TerrainGrid.IsStandable` is `!IsBlocked` for ground and water, always true for air.
+- Flow fields are keyed by (layer, goal tile) only (`FlowFieldCache.Get`, key `layer << 32 | goal`), built by `FlowField.Build` from `IsStandable`/`IsStepPassable`, reused while `TerrainGrid.Version` matches, not hashed. Their costs already ignore teams on purpose (`TerrainGrid.SpeedMultiplier(int, MovementLayer)`: "shared by all teams").
+- Two systems ask the cache: `MovementSystem.Step` and `CombatSystem.CanReach`. Four other places test passability directly: `UnitSeparation.TerrainChecked`/`Allowed`, `FloodingMechanic.PushEnemies`, `CycleSystem.FindDestination` (quake relocation), and `EconomyRules.StandablePointNear`/`TryFindSpawnPosition` and `StatusSystem.Land` (standable tiles).
+- Movement does not test the position it moves to: `MovementSystem.Step` adds the flow direction vector to the position. Only the flow field (and the corner rule inside it) keeps a ground unit off blocked tiles. So a tile one team may cross and another may not **needs a flow field per team**. There is no smaller correct mechanism: a shared field either leads enemies into the gate (where they would then walk through, because nothing else stops them) or keeps owners out.
+
+### G.1 Rules
+
+1. **A gate is its own structure type**, not a converted wall. A definition with `is_gate: true` (which needs `is_wall: true`) is built, paid, cancelled, refunded, placed in lines (package D) and damaged exactly like a wall. Why not conversion: converting needs a new command, a codec, a conversion timer on the unit, and rules for the wall's health and refund during conversion; a separate type needs one data flag and two unit files and reuses `build_structure`. A gate tile is chosen by leaving a gap in a wall and building the gate there (a gate cannot be placed on a wall tile: `tile_blocked`).
+2. **New blocker flag** `TileBlockers.Gate = 8` in `Terrain/TerrainTile.cs`, and a new tile field **`GateTeam`** (`TeamId`): the team whose ground and water units may cross the tile; `TeamId.None` whenever the `Gate` flag is absent (the constructor normalises it, as it does `WaterTeam`). `EconomySystem.BlockerOf` returns `Gate` for a gate, `BuiltWall` for another wall, `Footprint` otherwise. `EconomySystem.OnUnitSpawned` adds the flag through a new `TerrainGrid.AddGate(sim, index, team)` with the owner's team (`sim.Players.TeamOf(owner)`); when the tile already has `Gate` (only a script can stack two gates), the flag and the existing `GateTeam` stay. `EconomySystem.OnUnitRemoved` keeps a flag when another unit **with the same `BlockerOf` value** stands on the tile (this replaces today's `IsWall ==` comparison and gives the same answer for walls and footprints); for a gate it then sets `GateTeam` to the team of the lowest-ID remaining gate on the tile; with none left it removes `Gate` and `GateTeam` becomes None. Teams never change during a match (`PlayerRegistry.TeamOf` reads a fixed `Player.Team`; no command changes it), so the stored team cannot go stale.
+3. **Who passes: the gate owner's team** (so allies pass; one team is the alliance unit already used for water, `TerrainTile.WaterTeam`). New `TerrainTile.IsBlockedFor(TeamId team)`: `(Blockers & ~Gate) != 0 || ((Blockers & Gate) != 0 && (!team.IsValid || GateTeam != team))`. `IsBlocked` keeps its meaning (any blocker; equal to `IsBlockedFor(TeamId.None)`), so every caller not listed in rule 5 treats a gate as a wall. Q-G1.
+4. **Automatic, no open or closed state.** A gate is always passable to its team and never to anyone else. No command, no timer, no state on the unit. Unity animates it open when a unit of its team is on or next to its tile (presentation only). Q-G2.
+5. **Per-team passability, exactly what changes:**
+   - `TerrainGrid`: new overloads `IsStandable(int index, MovementLayer layer, TeamId team)` and `IsStepPassable(int from, int to, MovementLayer layer, TeamId team)`; `EdgePassable(a, b, team)` uses `IsBlockedFor(team)`; the existing two-argument and three-argument forms call the new ones with `TeamId.None`. New derived property `GateTileCount` (tiles whose `Blockers` has `Gate`; kept by `Replace`; range 0 to tile count; not hashed, it is a function of the hashed tiles). `Replace` also bumps `Version` when `GateTeam` changes.
+   - `FlowField`: constructor takes `TeamId passTeam` (new property `PassTeam`); `TileCost`, the goal seeding and both passes of `Build` use the team overloads.
+   - `FlowFieldCache.Get(MovementLayer layer, int goalIndex, TeamId team)`: first `if (_grid.GateTileCount == 0) team = TeamId.None;`, then key `((long)(byte)layer << 40) | ((long)team.Value << 32) | (uint)goalIndex`. The old `Get(layer, goal)` calls it with None.
+   - Callers passing the moving unit's team (`sim.Players.TeamOf(unit.Owner)`; None for a neutral unit, so gates block it): `MovementSystem.Step`, `CombatSystem.CanReach`, `UnitSeparation.TerrainChecked`/`Allowed` (the pushed unit's team), `FloodingMechanic.PushEnemies` (the pushed unit's team).
+   - Callers left on the team-less forms (a gate blocks them for everyone): `EconomyRules.StandablePointNear`, `EconomyRules.TryFindSpawnPosition` (trained units never appear in a gate), `StatusSystem.Land` (a Grounded flyer never lands in a gate, own or not), `CycleSystem.FindDestination` and `CycleSystem.SetPath` (a closed quake path tile skips a gate tile like any blocked tile, `IsBlocked`), every placement check (`BuildStructureCommand.Apply`, `EconomySystem.SiteProblem`), and flood reading (rule 7).
+6. **Cost and caching.** With no gate on the map every key uses team None, so fields, build counts and eviction are exactly today's. With a gate anywhere, a goal used by units of k teams is built up to k times (one Dijkstra over the grid each) and the k fields share the `max_cached_flow_fields` capacity (64), so eviction comes sooner. Fields stay a pure function of (terrain, layer, goal, team) and are still not hashed; eviction still follows creation order (`FlowFieldCache.EvictOldest`), so the cost is time only, never a desync. Placing or losing a gate bumps `Version` like any blocker, so every field rebuilds on its next `Get` (unchanged rule, W.1 rule 3).
+7. **Flood water and waves.** `FloodingMechanic.ReadField`: `field.Wall[i]` also tests `TileBlockers.Gate`. A gate is a wall to every team's water, its own team's included (as Q-W8 for walls): water never flows into it, water already on it stays, waves wash over without filling it. A wave pushes a unit through a gate only when the gate belongs to the pushed unit's team (rule 5); an enemy of the gate is stopped before it. Q-G3.
+8. **An enemy standing in a gate.** No game rule can put one there: placement needs a free tile (`tile_occupied`, and the second site check in `EconomySystem.StepBuild`), and movement, separation, wave pushes and landing all refuse the tile to an enemy (rule 5). Only a script (`spawn_unit` of a gate on an occupied tile) can. Then the unit behaves as a unit inside a wall does today: its tile is not standable for it, so `FlowField.IsReachable` is false on its tile, every move order ends with `MoveUnreachableEvent`, and separation cannot push it out (`Allowed` refuses a step from a blocked tile). It stays until the gate dies. Own-team units may stand in their gate (their goal tile may be the gate tile).
+9. **Targeting a gate.** An enemy ordered to the gate's centre gets a field seeded on the standable neighbours (`FlowField.Build`, blocked goal), so it stops beside the gate as beside any structure. A gate is a structure target (footprint 1, `CombatSystem.IsStructureTarget`), takes splash, armour and `structure_damage_multiplier` exactly like a wall (W.1 rule 7); a blast on a gate also hits enemies of the attacker standing in it (unchanged splash rule).
+10. **Flyers** pass over gates (air ignores blockers). A Grounded flyer is landed off a gate tile (rule 5) and then crosses gates by its team like any ground unit.
+11. **Vision**: no change (no line of sight). **Quake**: a gate has `is_wall`, so `CycleSystem.QuakeDamage` already damages it. **Rooted HQ floor**: unchanged (the floor trials have no walls or gates). **Supply**: shipped gates have 0.
+12. **AI (minimum).** `AiWorldView` line 471 adds `TileBlockers.Gate` to the flags known only where the tile is visible (with `Footprint` and `BuiltWall`). The AI never builds a gate for the same reasons it never builds a wall (W.4). An AI attack move into a base sealed by enemy walls and gates stops with `MoveUnreachableEvent` (W.4 known limit, unchanged).
+
+### G.2 Data
+
+Unit file key (`UnitSchema.ReadEconomy`; add `"is_gate"` to the root `RejectUnknownKeys` list in `DataLoader` line 329; `UnitEconomyDefinition.IsGate`, optional constructor argument `bool isGate = false` after `requires`; appended to `UnitEconomyDefinition.WriteHash` after `Requires`):
+```
+// Marks a gate: a wall piece that units of its owner's team (allies included) cross and every other unit treats as a wall; flood water treats it as a wall for every team. Unit: boolean. Range: true or false (false when absent; true needs is_wall true). Source: developer request 18 Nov 2026 ("add gates"); rts/docs/specs/walls_and_tech.md G.2.
+"is_gate": true,
+```
+Loader and constructor: `is_gate: true` without `is_wall: true` fails `"is_gate needs is_wall"` naming the file and `is_gate`.
+
+New files (copy `wind_baffle.json` / `coral_wall.json` and their comment style; every number and name a **placeholder**):
+
+| Key | `skai/wind_gate.json` | `water/coral_gate.json` | Placeholder rule |
+| --- | --- | --- | --- |
+| `id`, `display_name` | `skai.wind_gate`, "Wind Gate" | `water.coral_gate`, "Coral Gate" | the brief names no gate; wall name + "Gate" |
+| `max_health` | 200 | 200 | same as a wall |
+| `cost_common`, `cost_rare` | 50, 0 | 50, 0 | two wall tiles |
+| `build_seconds` | 10 | 10 | two wall tiles |
+| `is_wall`, `is_gate`, `footprint` | true, true, 1 | true, true, 1 | |
+| everything else | as the faction's wall | as the faction's wall | |
+
+Add each ID to its faction's `units` list.
+
+### G.3 State, hash, commands, events
+
+- **Hashed state:** `TerrainTile.WriteHash` appends `GateTeam` (a `TeamId`, one byte) **after** `(byte)Blockers`, for every tile. No per-unit or per-player state. `IsGate` goes into the content digest.
+- **Not hashed:** `TerrainGrid.GateTileCount` (derived from tiles) and the flow fields (pure function of terrain, as before).
+- `new TerrainTile(...)` takes `TeamId gateTeam` as a new **required** seventh argument: `default(TeamId)` is team 0, not None (`Ids.cs`: `None = new TeamId(255)`), so a default value would be a bug. Every call site (8 today in `rts/src` and `rts/tests`) passes `tile.GateTeam` or `TeamId.None`.
+- No new command, codec or event: `build_structure` builds a gate; `TerrainChangedEvent` already carries the whole tile, now with `GateTeam`.
+- **Documentation edits:** `TerrainTile.cs` (the `Gate` value, `GateTeam`, `IsBlockedFor`), `TerrainGrid.cs` (header, overloads, `GateTileCount`), `FlowField.cs` and `FlowFieldCache.cs` headers (team in the key and why), `Simulation.cs` header (step 5: "ground and water flow fields are per team while any gate stands"; spawn hooks: "a structure's footprint, wall or gate blocker"), `EconomySystem.cs` "Footprint" paragraph, `Pathing/README.md`, `Terrain/README.md`, `rts/data/README.md`, and a dated note on ADR-007 ("18 Nov 2026: cache key gains the passing team while any gate stands, walls_and_tech.md G.1 rule 6") and on ADR-006's `Blockers` bullet (`Gate`, `GateTeam`).
+
+### G.4 What moves hashes
+
+Every pinned hash moves: the digest (new key and files) and the tile hash (one byte more per tile, so `GoldenFinalHash` moves too although TestWorld has no gate). **Hash only**: no AI game contains a gate, so `GateTileCount` is 0 and every flow field is today's. If an AI outcome moves, stop and report. Re-pin as section 0 says.
+
+### G.5 Unity (PC session)
+
+Gate models (Wind Gate, Coral Gate; no concept art exists), team colour, open animation while a unit of the gate's team is within one tile (read from unit positions), a gate button in the worker build menu, and the gate in the drag tool (package D accepts any `is_wall` definition).
+
+### G.6 Acceptance tests (`rts/tests/Sim.Tests/Economy/GateTests.cs`)
+
+Test gate `test.gate` = `test.wall` (W.6) with cost 50, build 10 s (200 ticks), `is_gate` true. Combat setup with P1 (team 1) and P2 (team 2); for G-4 a test-local three-player list adds P3 on team 1 (build the simulation directly, as `WallTests.EconomySim` does, if `CombatRig` cannot take a player list). "Gated column" = `test.wall` of P1 on (10, 0) to (10, 23) except (10, 10), and a `test.gate` of P1 on (10, 10), all spawned by script on tick 0 before the move orders. Mover speed 4 (0.2 tiles/tick), so after tick k a straight mover from x = 5.5 is at x = 5.5 + 0.2 (k + 1) (W-2).
+
+| # | Test | Setup and expected values |
+| --- | --- | --- |
+| G-1 | **Placed by a worker** | Economy setup, W-1 layout with `test.gate`: `BuildOrderStartedEvent` **t0 + 22**, `StructurePlacedEvent` **t0 + 62** with health **20**; on that tick tile (20, 14) has `Blockers == Gate` and `GateTeam` = P0's team; `StructureCompletedEvent` **t0 + 262**. Common 200 - 50 = **150**. |
+| G-2 | **Own team passes** | Gated column. P1 mover at (5.5, 10.5) to (15.5, 10.5) on tick 0: on tile (10, 10) after tick **22** (x = 10.1); x = 10.5 after tick 24; `UnitArrivedEvent` on tick **48** (x = 15.3, within the 0.25 arrival radius). Its tile is never a `BuiltWall` tile. |
+| G-3 | **Enemy blocked** | Same with a P2 mover: `MoveUnreachableEvent` on tick **0**, x stays **5.5**. |
+| G-4 | **Ally passes** | Same with a P3 mover (team 1): as G-2. |
+| G-5 | **Gate as a goal** | P1 mover ordered to (10.5, 10.5): `UnitArrivedEvent` on tick **23** at x = 10.3, standing on the gate tile. P2 mover ordered there: it stops beside the gate, `UnitArrivedEvent` on tick **18** at x = 9.1 (tile (9, 10), a seeded neighbour). |
+| G-6 | **Cache cost** | No gate on the map: a P1 and a P2 mover ordered to the same goal on tick 0 raise `Pathing.BuildCount` by **1**. With a P1 gate spawned at (20, 20) on tick 0: by **2**. |
+| G-7 | **Gate dies** | G-3, then `remove_unit` of the gate on tick 20: tile (10, 10) has no blocker and `GateTeam` None; a new P2 order on tick 21 passes (arrives before tick 80). |
+| G-8 | **Stacked gates** | Script: a P1 gate then a P2 gate on tile (30, 30) (economy setup): `GateTeam` = team of P1. Remove the P1 gate: P2's team. Remove the P2 gate: no blocker, None. A wall and a gate on one tile: `BuiltWall | Gate`; removing the gate leaves `BuiltWall`. |
+| G-9 | **Corner rule by team** | Gate of P1 at (10, 10), no walls: `IsStepPassable((9,10) -> (10,11), Ground, team 1)` true; with team 2 false; with `TeamId.None` false. `IsStandable((10,10), Ground, team 1)` true, team 2 false, Air true for both. |
+| G-10 | **Flood** | W-5 with `test.gate` on B instead of the wall: (a) A **1000**, B and C **0** after 4 updates; (b) B keeps **500**. Same result when the water's team is the gate's team. |
+| G-11 | **Wave push** | Copy the existing wave-push test in `FloodingTests` (the one asserting `UnitPushedEvent`) and put a gate on the first tile of the push path: a gate of the caster's team stops the push before it (no `UnitPushedEvent`, position unchanged); a gate of the pushed unit's team lets it through (same end position as without the gate). |
+| G-12 | **Grounded flyer** | W-8 with the gated column and the flyer of P1 grounded over the gate tile (10, 10): it lands at **(9.5, 9.5)** as in W-8, never in its own gate. |
+| G-13 | **Quake and splash** | W-12 and W-7 with `test.gate` in place of the walls: the same numbers. |
+| G-14 | **AI view** | W-14 with an enemy gate: not blocked in fog, blocked when visible. Over `ai_vs_ai.json` no `build_structure` names a gate. |
+| G-15 | **Loader** | `is_gate: true` with `is_wall` absent is rejected naming the file and `is_gate`. Shipped Wind Gate and Coral Gate load with the G.2 values; no other shipped unit has `is_gate`. |
+| G-16 | **Hash** | `TerrainTile.WriteHash` writes `GateTeam` after `Blockers`; two runs differing only in the owner (P1 or P2) of one gate differ at the first hash tick after the spawn; two identical runs of G-2 match at every hash tick. `HashCoverageTests` covers `GateTeam`. |
+
+### G.7 Rejected extras
+
+Open and close or lock commands; owner-only gates; gates that let own flood water through; multi-tile gates; converting a wall into a gate; AI gate building.
+
+---
+
+## Package D: drag to place
+
+### D.0 What the code does today
+
+- One worker holds one build order: `Unit.SetBuildOrder` stores one definition and one tile; `BuildStructureCommand.Apply` first calls `EconomySystem.CancelBuild(sim, worker, "new_order", false)`, which refunds the previous order. So N `build_structure` commands for one worker on one tick leave only the last; the others are paid and refunded (one `BuildOrderCancelledEvent` each).
+- W.5 told Unity to keep a client-side list and issue a worker's next tile when `structure_placed` arrives. That costs one input delay per segment (`online.json` `input_delay_ticks` 3, applied by `LockstepPeer.NextInputTick`), puts sequencing logic and its state in Unity where replays, reconnects and the harness cannot see it, and reserves no money. **D replaces that W.5 bullet.**
+
+### D.1 Decision: one new command plus a per-worker tile queue in the simulation
+
+Unity rasterises the drag (with a public Sim function, so it draws exactly what the simulation will accept), splits the tiles among the selected workers and sends **one `build_wall_line` per worker** with that worker's tiles. The simulation stores the tiles on the worker and works through them. A tile list rather than two end points, because a contiguous slice of a rasterised line is not in general the rasterisation of its own end points, so per-worker end points would not reproduce the drawn line.
+
+### D.2 Rules
+
+1. **Command `build_wall_line`** (`Commands/EconomyCommands.cs`, `BuildWallLineCommand`): `Worker` (EntityId), `DefinitionId` (string), `Tiles` (list of (x, y) tile coordinates in build order, 0 to 255 entries in the codec). Checks, in order, each a rejection with no state change: `unknown_unit`, `not_owner`, `cannot_build` (as `build_structure`); `unknown_definition`; **`not_a_wall`** (the definition lacks `is_wall`; gates have it); `wrong_faction`; `missing_prerequisite`; **`no_tiles`** (empty list); **`too_many_tiles`** (more than `wall_line_max_tiles`).
+2. **Static tile filter**, each tile in list order, by the new public `EconomyRules.WallLineTileProblem(Simulation sim, Unit worker, int tileX, int tileY)` (returns a reason or null; Unity calls the same function for the preview): `out_of_bounds`; `site_unexplored` (worker's team); `tile_blocked` (`IsBlocked`); `site_pending` (another own unit, **not this worker**, has its active order or a queued tile there; this worker is excluded because its orders are about to be replaced). The command adds `duplicate_tile` for a tile already earlier in the list. A tile with a unit standing on it is **not** filtered: units move, and the existing arrival and placement checks handle it (rule 6). If every tile fails, the command is rejected with **the first tile's reason**.
+3. **Paying for the line up front** (as a production queue pays when queued, `EconomySystem` header). Walk the remaining tiles in list order and keep each while the owner can still afford the running total (`CanAfford`) and supply fits (`SupplyUsed + SupplyOf(def) x kept <= SupplyCap`, after `RecomputeSupply`); the first tile that fails ends the walk, and it and every later tile are dropped with reason `insufficient_resources` or `supply_cap`. If no tile is kept, reject with that reason. Q-D2.
+4. **Accepting:** `resume` as in `BuildStructureCommand`; `CancelBuild(sim, worker, "new_order", false)` (refunds and drops any previous order and queue, rule 7); spend cost x kept; `ClearCombatOrders`; `ClearGather`; `SetBuildOrder` for the first kept tile; `SetBuildQueue` with the other kept tiles (tile indices, list order); `SetMoveTarget` to the first tile's centre; `RecomputeSupply`. Events, in this order: `BuildOrderAcceptedEvent` for the first tile with **cost = the whole amount spent** (cost x kept), then one `BuildLineTileSkippedEvent` per filtered or dropped tile in list order (refund 0).
+5. **Advancing** (new `EconomySystem.AdvanceBuildQueue(sim, worker, resumeField)`): pop tiles from the head; a tile now `IsBlocked` is dropped (`BuildLineTileSkippedEvent`, reason `site_blocked`, refund one tile's cost); the first other tile becomes the order (`SetBuildOrder` with the same definition and `resumeField`, `SetMoveTarget`, `BuildOrderAcceptedEvent` with **cost 0**: already paid). The reach check for it first runs on the next tick (the worker moves on the next tick's step 5). If the queue empties without an order, the worker resumes its gather field as today. Called (a) in `StepBuild` right after `StructurePlacedEvent`, in place of today's resume, and (b) from `CancelBuild` when `resume` is true (the `site_blocked`, `site_occupied` and `unreachable` cancels of the active tile).
+6. **A unit in the way** (the developer's "rejected tiles in the middle of a line"): the active tile is cancelled by the existing rule (`site_occupied` on arrival or at the second check, refund one tile's cost), and the worker goes straight on to the next queued tile on the same tick. The line gets a hole. Dragging the same line again fills only the holes, because built tiles are `tile_blocked` and skipped. Q-D1.
+7. **Dropping the queue:** `CancelBuild` with `resume` false (reasons `new_order` and `worker_lost`: any accepted move, attack, stop, gather, build or line order, and the worker's removal in `OnUnitRemoved`, so death in step 6d) refunds the active tile as today, then refunds one tile's cost per queued tile and emits `BuildLineTileSkippedEvent` with the same reason for each, in queue order, and clears the queue. **A worker dying mid-line** therefore refunds everything not yet placed; its tiles are not handed to other workers.
+8. **Several workers selected:** one command each, disjoint tiles (Unity, D.5). Commands apply in (issuer, sequence) order; a tile already in another own worker's order or queue is skipped `site_pending`. `BuildStructureCommand.Apply`'s `site_pending` loop also checks every own unit's `BuildQueue` (the worker itself included, as today for its active tile).
+9. **Supply:** `EconomySystem.RecomputeSupply` adds `SupplyOf(def)` once per queued tile (shipped walls and gates have 0).
+10. **Invariant:** a non-empty `BuildQueue` implies `BuildState != None`. `ClearBuildOrder` does not touch the queue; only `CancelBuild`, `AdvanceBuildQueue` and `SetBuildQueue` do.
+11. **AI:** no change. The AI emits only its own intents and no `build_wall_line`; its workers never have a queue.
+
+### D.3 Line rasterisation (public, pure, integer)
+
+`public static int WallLine.Rasterise(int x0, int y0, int x1, int y1, int maxTiles, List<(int X, int Y)> output)` in `rts/src/Sim/Economy/WallLine.cs`: clears `output`, appends tiles from (x0, y0) toward (x1, y1) and returns the count. Algorithm (all-octant Bresenham, integers only): `dx = |x1 - x0|`, `sx = sign`, `dy = -|y1 - y0|`, `sy = sign`, `err = dx + dy`; loop: append (x, y); stop when (x, y) = (x1, y1) or the count reaches `maxTiles`; `e2 = 2 err`; if `e2 >= dy` then `err += dy, x += sx`; if `e2 <= dx` then `err += dx, y += sy`. The tile count is `min(max(|x1 - x0|, |y1 - y0|) + 1, maxTiles)`; a longer drag keeps the tiles nearest the start. It ignores map bounds (the command checks them).
+
+**No gaps:** the line is 8-connected (consecutive tiles share an edge or a corner). That is enough for every rule that crosses it: ground and water movement need both orthogonal tiles of a diagonal step passable (`TerrainGrid.IsStepPassable`), and so do separation (`UnitSeparation.Allowed`) and wave pushes (`FloodingMechanic.PushEnemies`); flood water flows only to the 4 edge neighbours (`FloodRules`, `direction < 4`), which an 8-connected line cuts. No thicker (4-connected) line is needed. Tests D-11 and D-12 prove it.
+
+### D.4 Data, codec, events, state, hash
+
+- **Tuning** (`rts/data/tuning/economy.json`, `EconomyTuning.WallLineMaxTiles`, loader range check):
+  ```
+  // Most tiles one build_wall_line order may name; Unity caps a dragged line at this length. Unit: tiles (count). Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md D.4).
+  "wall_line_max_tiles": 16,
+  ```
+- **Codec** `BuildWallLineCodec` in `Commands/Codec/CoreCommandCodecs.cs`, registered in `RegisterAll`: worker (EntityId), definition (string), count (byte), then count x (x int32, y int32). No `ProtocolVersion` (3) or replay format (2) bump: no existing layout changes (the `cast_grounding` precedent, `combat_mechanics.md` 4); a byte-pin test for the payload.
+- **Script** (`Data/CommandScript.cs`): kind `build_wall_line` added to the known list (line 31) and the switch: keys `type`, `tick`, `issuer`, `sequence`, `unit`, `definition`, `tiles` (array of `[x, y]` pairs, x and y 0 to 1023 like `build_structure`, at most 255 pairs).
+- **Command hash** (`BuildWallLineCommand.WriteHash`): Kind, Worker, DefinitionId, count, then each x, y.
+- **New event** `BuildLineTileSkippedEvent` (`Events/EconomyEvents.cs`): tick, worker, owner, definition ID, tile x, tile y, reason (`out_of_bounds`, `site_unexplored`, `tile_blocked`, `site_pending`, `duplicate_tile`, `insufficient_resources`, `supply_cap`, `site_blocked`, `new_order`, `worker_lost`), refund common, refund rare. Events are not hashed.
+- **Hashed state:** `Unit.BuildQueue` (tile indices, list order, 0 to `wall_line_max_tiles` - 1 entries), written in `Unit.WriteHash` **right after `BuildResumeFieldIndex`**: count, then each index. `HashCoverageTests` gains it.
+- **Documentation edits:** `Simulation.cs` header (step 2: "`build_wall_line` pays for a whole line and queues its tiles on the worker"; step 7: "a worker with queued tiles takes the next one when a structure is placed or its tile fails"), `EconomySystem.cs` header (Build orders: queue, advance, drop), `Economy/README.md`, `rts/data/README.md` (script kind), `Unit.cs` summaries. `worker_construction.md` listed a per-worker queue as out of scope; D now provides one for walls only.
+
+### D.5 Sim versus Unity
+
+| Cloud session (`rts/src/Sim`, tests, data) | PC session (`rts/src/Game`) |
+| --- | --- |
+| G: tile flag and team, per-team passability and cache key, hooks, flood mask, loader, data files, `AiWorldView` line, tests. D: command, codec, script kind, queue on `Unit`, advance and drop, supply, `WallLine.Rasterise`, `EconomyRules.WallLineTileProblem`, tuning key, event, tests, re-pins. | Drag input with a wall or gate button armed: on mouse down and every move, call `WallLine.Rasterise` with `wall_line_max_tiles` and draw one ghost per tile: valid (green), invalid (red, tooltip from `WallLineTileProblem`), occupied by a unit (amber: accepted, may become a hole). Label "N x cost = total" and turn it red when the owner cannot pay for all valid tiles, marking the tiles past the affordable count red ("insufficient resources"). On release, split the valid tiles into k contiguous chunks (k = min(selected workers, tiles), sizes differing by at most one, earlier chunks larger); give chunk i, in drag order, to the unassigned worker nearest its first tile (ties: lowest ID), reversing a chunk when the worker is nearer its last tile; send one `build_wall_line` each. Draw own workers' queued tiles as faint ghosts (read `Unit.BuildQueue`), and show `BuildLineTileSkippedEvent` and cancel reasons. Gate models and animation (G.5). Repeat the Unity-versus-headless hash check. |
+
+### D.6 What moves hashes
+
+Every pinned hash moves: the tuning digest (new key) and `Unit.WriteHash` (one count per unit, so `GoldenFinalHash` too). **Hash only**: nothing in AI games or the smoke scripts issues the new command. If an outcome moves, stop and report.
+
+### D.7 Acceptance tests (`rts/tests/Sim.Tests/Economy/WallLineTests.cs`)
+
+Economy setup with `test.wall` (W.6, cost 25, build 100 ticks). Worker spawned at (14, 14) by `EconomyTestKit.Spawn` (so before t0, and its sight 8 has explored the tiles used; each test asserts the tiles are explored as a precondition). `line(a, b)` = `WallLine.Rasterise(a, b, 16)`. Times come from W-1 and from the walk below; reach to a wall centre is 2.0.
+
+Walk used by D-1: after placing (20, 14) on t0 + 62 the worker stands at (18.6, 14.0), tile (18, 14). To (20, 15), the field steps NE (both (19, 14) and (18, 15) free; NE neighbour integration 1024 beats 2048), 0.2 x 0.70711 = 0.14142 per axis per tick: after 2 steps (18.883, 14.283), distance² 4.097 > 4; after 3 steps (19.024, 14.424), distance² 3.336: **started t0 + 65**, placed t0 + 105. To (20, 16) with walls on (20, 14) and (20, 15): from tile (19, 14) the field steps N ((19, 15) at 2048 is the cheapest passable neighbour; NE is cut by the corner rule), and on in (19, 15) N again (NE cut by (20, 15)); after 3 steps y = 15.024, distance² 4.355; after 4 steps y = 15.224, distance² 3.805: **started t0 + 109**, placed t0 + 149.
+
+| # | Test | Setup and expected values |
+| --- | --- | --- |
+| D-1 | **Three walls in a row, one worker** | `build_wall_line(worker, test.wall, [(20,14), (20,15), (20,16)])` on t0. `BuildOrderAcceptedEvent`: t0 (tile (20, 14), cost **75**), **t0 + 62** ((20, 15), cost 0), **t0 + 105** ((20, 16), cost 0). `BuildOrderStartedEvent`: t0 + 22, t0 + 65, t0 + 109. `StructurePlacedEvent`: t0 + 62, t0 + 105, t0 + 149. `StructureCompletedEvent`: t0 + 162, t0 + 205, t0 + 249. Common **125** from t0 to the end. After t0 + 149: `BuildState` None, queue empty. The worker is never on a line tile. |
+| D-2 | **Money runs out** | `line((17,10), (17,19))` (10 tiles), 200 common: accepted; tiles (17, 10) to (17, 17) kept, common **0**; two `BuildLineTileSkippedEvent` on t0 for (17, 18), (17, 19), reason `insufficient_resources`, refund 0; queue holds 7. With 20 common: rejected `insufficient_resources`, nothing changes. |
+| D-3 | **Bad tiles in the middle** | Enemy `test.wall` spawned at (17, 14) before t0. `line((17,12), (17,16))`: skip (17, 14) `tile_blocked`; paid 4 x 25 = 100, common **100**; queue (17, 13), (17, 15), (17, 16). List [(17,12), (17,13), (17,12)]: third skipped `duplicate_tile`, paid **50**. List of three out-of-map tiles: rejected `out_of_bounds`, common unchanged. |
+| D-4 | **Unit in the way leaves a hole** | P1 `TankId` at (20, 15) before t0 (it never moves), D-1's line: accepted with all 3 tiles, common 125. On **t0 + 65** `BuildOrderCancelledEvent` (20, 15) `site_occupied` refund 25, and on the same tick `BuildOrderAcceptedEvent` (20, 16) cost 0; `StructurePlacedEvent` (20, 16) on **t0 + 109** (path through (19, 15) then NE, now open because (20, 15) is free: started t0 + 69). Common **150**. Then remove the tank and send the same line: (20, 14), (20, 16) skipped `tile_blocked`, only (20, 15) queued, common **125**. |
+| D-5 | **Worker dies mid-line** | D-1, `remove_unit` of the worker on t0 + 70: `BuildOrderCancelledEvent` (20, 15) `worker_lost` refund 25, `BuildLineTileSkippedEvent` (20, 16) `worker_lost` refund 25. Common 125 + 50 = **175**. Only (20, 14) has a wall. |
+| D-6 | **New order mid-line** | D-1, `move_unit` of the worker on t0 + 70: as D-5 with reason `new_order`; the worker's queue is empty and it moves. A second `build_wall_line` instead: same refunds, then the new line is paid. |
+| D-7 | **Two workers** | Workers A at (14, 14) and B at (14, 16). A: [(20,14)]; B: [(20,15), (20,16)], same tick: both accepted, common 125. Then A: [(20,16), (20,17)]: (20, 16) skipped `site_pending` (B's queue), (20, 17) accepted, A's old order refunded `new_order`. `build_structure(A, test.wall, 20, 16)`: rejected `site_pending`. |
+| D-8 | **Limits** | Empty list: `no_tiles`. 17 tiles: `too_many_tiles`. `test.tower`: `not_a_wall`. A worker of P1 named by P0: `not_owner`. Each leaves stock and orders unchanged. |
+| D-9 | **Supply** | Test-local `test.wall_s1` (supply 1): a 3-tile line raises `SupplyUsed` by **3** on t0; after D-5's removal on t0 + 70 the increase is **1** (the placed wall). |
+| D-10 | **Rasteriser** | (0,0)-(3,1): (0,0), (1,0), (2,1), (3,1). (3,1)-(0,0): (3,1), (2,1), (1,0), (0,0). (0,0)-(2,2): (0,0), (1,1), (2,2). (5,5)-(5,5): (5,5). (0,0)-(4,0): 5 tiles. (0,0)-(20,0) with max 16: (0,0) to (15,0). Return value equals the list count. |
+| D-11 | **Diagonal lines have no walkable gap** | Combat setup (24 x 24, separation off), P2 walls spawned by script on every tile of `Rasterise(0,0,23,11,24)` (24 tiles). P1 mover at (20.5, 2.5) ordered to (2.5, 20.5) on tick 0: `MoveUnreachableEvent` on tick **0**. Same for `Rasterise(0,0,23,23,24)` with the mover at (15.5, 5.5) to (5.5, 15.5). Control: the first line without its tile in column 12: `UnitArrivedEvent` before tick 300. |
+| D-12 | **Diagonal lines hold water** | `FloodingTests` setup, walls on an 8-connected diagonal line from one map edge to another, water placed on one side only, tide not turning: after 8 updates every tile strictly on the other side holds **0**. (The builder picks tiles on that map and writes them in the test.) |
+| D-13 | **Codec and script** | Round trip of a 3-tile command; byte pin of its payload; a 255-tile command round-trips; a script `build_wall_line` with 256 pairs or an x of 1024 fails to parse with the field named. |
+| D-14 | **Invariant and determinism** | At the end of every tick of D-1 to D-7, a unit with a non-empty `BuildQueue` has `BuildState != None`. Two runs of D-1 give equal hashes at every hash tick; a run with the second tile changed differs at the first hash tick after t0. Over `ai_vs_ai.json` no `build_wall_line` is issued. |
+
+### D.8 Rejected extras
+
+A line command with end points; lines of non-wall structures; appending to an existing queue (shift-queue); workers waiting for money; retrying occupied tiles later; handing a dead worker's tiles to others; the simulation splitting a line among workers; rectangles or free-form paths (the tile list already allows them later, Unity sends lines only); AI use.
+
+---
+
 ## Package F: flood-bound water flyer (OPTION ONLY, NOT APPROVED FOR BUILD)
 
 The developer said "Maybe" (decision 5). This section exists so the developer can decide; **no builder implements it** until the developer approves it. P-005 recommended against a water flyer.
@@ -214,16 +396,18 @@ The developer said "Maybe" (decision 5). This section exists so the developer ca
 - W: blocker changes go through the existing `TerrainGrid` mutators in fixed order (spawn and removal hooks in their existing order); flow fields are a pure function of terrain. `OnUnitRemoved`'s same-tile scan is `sim.Units.All` (ascending ID). Flood reads one more flag bit. Quake damage keeps its ascending ID loop. No RNG, no new collection, Fix64 and integers only.
 - T: `FirstMissingRequirement` scans `sim.Units.All` once per entry; the result is an existence test, so order cannot change it. The cycle search is ordinal and file-ordered, at load time only. No runtime state.
 - Both: every value that affects later ticks is hashed (tile blockers per tile; definitions in the digest).
+- G: per-team passability reads `GateTeam`, a hashed tile field written only by the spawn and removal hooks (fixed order; stacked gates resolve to the lowest unit ID). Flow fields gain the team in their key only while `GateTileCount > 0`; they stay unhashed, a pure function of (terrain, layer, goal, team), evicted in creation order. Check that every passability caller listed in G.1 rule 5 passes the unit's team and that no other caller does.
+- D: the queue is a hashed list on `Unit` in list order; the command walks tiles in list order with ordinal tie-free checks; payment, refunds and events follow list and queue order; `AdvanceBuildQueue` runs inside the ascending-ID economy loop. Integer rasterisation, no Fix64 needed. A rejected `build_wall_line` changes nothing.
 
 ## Build order and tiers
 
 W and T are independent; build W first, then T (so the `WriteHash` order is `IsWall, Requires` and pins move serially). Each: Sonnet `builder` (code, data, tests, re-pins, full suite green, no warnings), then the Opus `sim-reviewer` (T includes the `rts/src/Ai` diff). F is not built.
 
+G and D (18 Nov 2026) are independent of each other (G touches terrain, pathing and the blocker hooks; D touches `Unit`, the build order code and commands; both touch `EconomySystem` in different methods). Build G first, then D, each with its own re-pin. Same tiers: Sonnet `builder`, then the Opus `sim-reviewer` (G includes the one-line `rts/src/Ai` diff), then the Fable final review for simulation code. The PC session's work (G.5, D.5) can start once D's command and `WallLine.Rasterise` are on `main`.
+
 ## Rejected extras (one line each)
 
-- Gates: the design does not ask for them; walls die to attack.
-- Multi-tile wall segments or a line-build command: one tile per order already works; the UI splits a drag.
-- A per-worker build queue: out of scope in `worker_construction.md`; Unity can hold the list.
+- Multi-tile wall segments. (Gates and drag to place, rejected here earlier, are now packages G and D at the developer's request; their own rejected extras are in G.7 and D.8.)
 - Wall adjacency bonuses, wall upgrades, repair: not in the design.
 - A demolish command or attacking own walls: see Q-W3.
 - Line-of-sight blocking by walls: no line of sight exists in the game.
@@ -251,3 +435,15 @@ Each has the default the builder uses until you reply.
 - **Q-T4. Does an ally's tech building count?** *Default: no, only your own.*
 - **Q-T5. Does the tech building itself need anything** (for example the producer)? *Default: no requirement.*
 - **Q-F1. Build the flood-bound flyer at all?** *Default: no (not approved).* If yes: **Q-F2.** what happens when the water under it recedes? *Default: it is stranded as Grounded while its tile is dry (option a).*
+
+### Gates and drag to place (packages G and D, 18 Nov 2026)
+
+Most play-changing first. The builder uses each default until you reply.
+
+- **Q-W1 revisited: gates make it more pressing, not moot.** Without gates a fully closed base also shut its owner in, which was its own cost. With gates the owner walks out freely while every enemy order into the base stops at once with "unreachable" (G.1 rule 9; `MovementSystem.Step`), so a full wall-in becomes the obvious default. *Default unchanged: units stop; players (and later the AI) attack walls or gates directly.* If you want walls to be a delay rather than a lock, the alternative is that a unit with an unreachable goal walks to the nearest reachable point and attacks what blocks it.
+- **Q-G1. Who may pass a gate?** *Default: the owner's whole team, so allies pass (the same team rule as flood water).* Alternative: the owner only (a per-player key instead of per-team; same mechanism).
+- **Q-D1. A unit standing on a line tile.** *Default: when the worker reaches that tile it skips it and goes on, leaving a hole that a second drag fills (D.2 rule 6).* Alternatives: the worker waits until the tile is free, or retries the tile at the end of its queue (both need more state).
+- **Q-G2. Do gates open by themselves?** *Default: yes, always open to the team and shut to everyone else; no lock order.* Alternative: a lock order that shuts a gate to its own team too (new command and hashed state).
+- **Q-D2. Paying for a dragged line.** *Default: the whole line is paid when the order is given, tiles that cannot be paid are left out, and every tile not built is refunded (like a production queue).* Alternative: pay each tile when the worker starts it, and stop the line when money runs out.
+- **Q-G3. Does a gate let its own team's flood water through?** *Default: no; to water a gate is a wall for every team (as Q-W8).*
+- **Q-W3 revisited: gates make it mostly moot.** The planned way out of your own walls is now a gate. What is left is mistakes: units already sealed in by walls only cannot get out, because a gate cannot be built on a wall tile and own walls cannot be attacked. *Default unchanged: no demolish order.* If mistakes matter, a demolish command (no refund) is the smallest fix and would also let a wall be swapped for a gate.
