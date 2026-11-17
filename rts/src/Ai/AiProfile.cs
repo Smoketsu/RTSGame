@@ -25,6 +25,11 @@
 //     and max_producers; rally_at_core now moves the attack group's staging point to the Core (the massing army rallies at home).
 //     field_max_distance_tiles now means the distance from an own drop-off (not the HQ) and all_in_when_mined_out means "no field on the map
 //     has known resources" (package B).
+//   * skirmish_ai_v3.md package B (know the enemy): the switches use_scouting and use_enemy_model (and use_counter_mix, parsed now so its
+//     dependency on use_enemy_model is validated; package C reads it), the scouting keys scout_first_seconds, scout_interval_seconds,
+//     scout_retry_seconds, scout_max_losses, scout_route_max_waypoints, scout_merge_tiles and scout_air_max_cost, the enemy model keys
+//     enemy_model_hold_seconds, enemy_model_decay_seconds, enemy_model_floor_fraction and enemy_model_implied_count, and the per-faction
+//     optional scout_unit.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -98,11 +103,18 @@ namespace Rts.Ai
         /// </summary>
         public string DropOffBuildingId { get; }
 
+        /// <summary>
+        /// Unit the AI trains as its scout (skirmish_ai_v3.md B.1), for example "skai.windrunner". Range: empty (no scout is trained; flyers
+        /// may still be borrowed), or a mobile unit of the faction that is not a worker or HQ and is in some structure's trains list.
+        /// </summary>
+        public string ScoutUnitId { get; }
+
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
             IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
-            IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null)
+            IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null, string? scoutUnitId = null)
         {
+            ScoutUnitId = scoutUnitId ?? string.Empty;
             DropOffBuildingId = dropOffBuildingId ?? string.Empty;
             CyclePreference = cyclePreference ?? Array.Empty<string>();
             FactionId = factionId;
@@ -276,6 +288,48 @@ namespace Rts.Ai
         /// <summary>No new relocation this soon after rooting. Unit: seconds. Range: 0 to 600.</summary>
         public Fix64 RelocateCooldownSeconds { get; }
 
+        /// <summary>Rule S (scouting) is on. Unit: boolean. Range: true or false.</summary>
+        public bool UseScouting { get; }
+
+        /// <summary>The enemy model is updated and read. Unit: boolean. Range: true or false.</summary>
+        public bool UseEnemyModel { get; }
+
+        /// <summary>Counter-mix switch (read from package C on). Unit: boolean. Range: true or false; true needs <see cref="UseEnemyModel"/>.</summary>
+        public bool UseCounterMix { get; }
+
+        /// <summary>First scout is wanted from this time. Unit: seconds. Range: 0 to 600.</summary>
+        public Fix64 ScoutFirstSeconds { get; }
+
+        /// <summary>A new scouting round starts this long after the last one started. Unit: seconds. Range: 10 to 900.</summary>
+        public Fix64 ScoutIntervalSeconds { get; }
+
+        /// <summary>Wait after a scout dies. Unit: seconds. Range: 0 to 600.</summary>
+        public Fix64 ScoutRetrySeconds { get; }
+
+        /// <summary>After this many dead scouts none is trained. Unit: units. Range: 0 to 20.</summary>
+        public int ScoutMaxLosses { get; }
+
+        /// <summary>Route length cap. Unit: waypoints. Range: 1 to 32.</summary>
+        public int ScoutRouteMaxWaypoints { get; }
+
+        /// <summary>A field this close to an earlier waypoint adds no waypoint. Unit: tiles. Range: 0 to 64.</summary>
+        public Fix64 ScoutMergeTiles { get; }
+
+        /// <summary>An own air army unit costing at most this (common + rare) may be borrowed as scout; 0 never borrows. Unit: resource units. Range: 0 to 100000.</summary>
+        public int ScoutAirMaxCost { get; }
+
+        /// <summary>A sighting counts fully for this long. Unit: seconds. Range: 0 to 600.</summary>
+        public Fix64 EnemyModelHoldSeconds { get; }
+
+        /// <summary>After the hold time a sighting fades linearly to the floor over this long. Unit: seconds. Range: 1 to 3600.</summary>
+        public Fix64 EnemyModelDecaySeconds { get; }
+
+        /// <summary>Old sightings never count for less than this share. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 EnemyModelFloorFraction { get; }
+
+        /// <summary>Count implied for each unit type a known enemy structure trains. Unit: units. Range: 0 to 20.</summary>
+        public int EnemyModelImpliedCount { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -333,6 +387,24 @@ namespace Rts.Ai
             RelocateStandOffTiles = root.RequireFix64("relocate_stand_off_tiles", "0.5", "32");
             RelocateTimeoutSeconds = root.RequireFix64("relocate_timeout_seconds", "10", "600");
             RelocateCooldownSeconds = root.RequireFix64("relocate_cooldown_seconds", "0", "600");
+            UseScouting = root.RequireBool("use_scouting");
+            UseEnemyModel = root.RequireBool("use_enemy_model");
+            UseCounterMix = root.RequireBool("use_counter_mix");
+            if (UseCounterMix && !UseEnemyModel)
+            {
+                throw root.Require("use_counter_mix").Fail("requires use_enemy_model to be true as well");
+            }
+            ScoutFirstSeconds = root.RequireFix64("scout_first_seconds", "0", "600");
+            ScoutIntervalSeconds = root.RequireFix64("scout_interval_seconds", "10", "900");
+            ScoutRetrySeconds = root.RequireFix64("scout_retry_seconds", "0", "600");
+            ScoutMaxLosses = root.RequireInt("scout_max_losses", 0, 20);
+            ScoutRouteMaxWaypoints = root.RequireInt("scout_route_max_waypoints", 1, 32);
+            ScoutMergeTiles = root.RequireFix64("scout_merge_tiles", "0", "64");
+            ScoutAirMaxCost = root.RequireInt("scout_air_max_cost", 0, 100000);
+            EnemyModelHoldSeconds = root.RequireFix64("enemy_model_hold_seconds", "0", "600");
+            EnemyModelDecaySeconds = root.RequireFix64("enemy_model_decay_seconds", "1", "3600");
+            EnemyModelFloorFraction = root.RequireFix64("enemy_model_floor_fraction", "0", "1");
+            EnemyModelImpliedCount = root.RequireInt("enemy_model_implied_count", 0, 20);
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -402,7 +474,10 @@ namespace Rts.Ai
                 "expand_at_seconds", "expand_interval_seconds", "expand_when_served_remaining_fraction", "max_live_depots",
                 "expand_min_field_remaining", "expand_safe_radius_tiles", "enemy_army_memory_seconds", "depot_ring_min_tiles",
                 "depot_ring_max_tiles", "rebalance_workers_per_think", "relocate_when_home_remaining_fraction", "relocate_stand_off_tiles",
-                "relocate_timeout_seconds", "relocate_cooldown_seconds", "factions");
+                "relocate_timeout_seconds", "relocate_cooldown_seconds", "use_scouting", "use_enemy_model", "use_counter_mix",
+                "scout_first_seconds", "scout_interval_seconds", "scout_retry_seconds", "scout_max_losses", "scout_route_max_waypoints",
+                "scout_merge_tiles", "scout_air_max_cost", "enemy_model_hold_seconds", "enemy_model_decay_seconds",
+                "enemy_model_floor_fraction", "enemy_model_implied_count", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
@@ -472,7 +547,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply", "cycle_preference", "drop_off_building");
+                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -580,8 +655,28 @@ namespace Rts.Ai
                     throw dropOffNode.Fail("must be a structure with footprint 1 and is_drop_off true (found '" + dropOff + "')");
                 }
             }
+            // Optional scout unit ID ("" when the key is absent: no scout is trained).
+            string scoutId = string.Empty;
+            if (node.TryGetMember("scout_unit", out JsonValue? scoutNode))
+            {
+                scoutId = scoutNode.AsString();
+                // Definition of the scout unit.
+                UnitDefinition scoutDefinition = RequireUnit(scoutNode, scoutId, faction.Id, content);
+                if (scoutDefinition.Economy.CanGather)
+                {
+                    throw scoutNode.Fail("must not be a worker (found '" + scoutId + "')");
+                }
+                if (scoutDefinition.Economy.FootprintTiles > 0 || scoutDefinition.Hq != null)
+                {
+                    throw scoutNode.Fail("must be a mobile unit, not a structure or an HQ (found '" + scoutId + "')");
+                }
+                if (!IsTrainedByFaction(scoutId, faction.Id, content))
+                {
+                    throw scoutNode.Fail("is not in the trains list of any " + faction.Id + " structure");
+                }
+            }
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff);
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId);
         }
 
         /// <summary>True when <paramref name="ids"/> holds <paramref name="id"/> (ordinal comparison).</summary>

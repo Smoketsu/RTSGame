@@ -100,11 +100,41 @@
   "relocate_timeout_seconds": 120,
   // No new relocation this soon after the HQ rooted. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v2.md B.1; placeholder.
   "relocate_cooldown_seconds": 60,
+  // Rule S on: the AI scouts the enemy base and the map's fields (a scout unit, or a borrowed flyer). Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md B.1; placeholder.
+  "use_scouting": false,
+  // Enemy model on: the AI remembers which enemy army unit types it has seen (with decay) and which it implies from enemy structures. Unit: boolean. Range: true or false. Source: skirmish_ai_v3.md B.1; placeholder.
+  "use_enemy_model": false,
+  // Counter-mix on (reserved for package C: the switch is parsed and its dependency on use_enemy_model is validated, nothing reads it yet). Unit: boolean. Range: true or false; needs use_enemy_model. Source: skirmish_ai_v3.md B.1; placeholder.
+  "use_counter_mix": false,
+  // First scout is wanted from this time. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_first_seconds": 40,
+  // A new scouting round starts this long after the last one started. Unit: seconds. Range: 10 to 900. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_interval_seconds": 90,
+  // Wait after a scout dies before the next is trained or borrowed. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_retry_seconds": 30,
+  // After this many dead scouts no scout is trained (borrowed flyers still scout). Unit: units. Range: 0 to 20. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_max_losses": 3,
+  // Longest scouting route. Unit: waypoints. Range: 1 to 32. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_route_max_waypoints": 8,
+  // A field this close to an earlier waypoint adds no waypoint. Unit: tiles. Range: 0 to 64. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_merge_tiles": 8,
+  // An own air army unit costing (common + rare) at most this may be borrowed as scout; 0 never borrows. Unit: resource units. Range: 0 to 100000. Source: skirmish_ai_v3.md B.1; placeholder.
+  "scout_air_max_cost": 250,
+  // A sighting of an enemy unit type counts fully for this long. Unit: seconds. Range: 0 to 600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_hold_seconds": 30,
+  // After the hold time a sighting fades linearly to the floor over this long. Unit: seconds. Range: 1 to 3600. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_decay_seconds": 120,
+  // Old sightings never count for less than this share. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_floor_fraction": 0.25,
+  // Count implied for each unit type a known enemy structure trains. Unit: units. Range: 0 to 20. Source: skirmish_ai_v3.md B.1; placeholder.
+  "enemy_model_implied_count": 1,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {
       // Worker the Grand Shell trains. Unit: unit ID. Range: a water unit with can_gather. Source: Factions / Water faction.
       "worker_unit": "water.tender",
+      // Scout unit trained for rule S: mobile, not a worker, not an HQ, trained by some structure of the faction. Optional. Unit: unit ID. Range: a unit of the faction, or absent for no trained scout. Source: skirmish_ai_v3.md B.1; placeholder.
+      "scout_unit": "water.reef_runner",
       // Structure built when free supply runs low. Unit: unit ID. Range: a water structure with provides_supply above 0. Source: Core gameplay loop (Opening: supply).
       "supply_building": "water.tidepool",
       // Drop-off structure built at a new base (rule E). Optional. Unit: unit ID. Range: a water structure with footprint 1 and is_drop_off, or absent for no depots. Source: skirmish_ai_v2.md B.1; placeholder.

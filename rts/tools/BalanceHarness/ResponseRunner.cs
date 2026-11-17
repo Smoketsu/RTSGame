@@ -184,6 +184,14 @@ namespace Rts.Tools.BalanceHarness
                 return new ResponseResult(test, new List<CheckPart>(), null, hash, profile, slot1);
             }
             ResponseSeries series = observer.Finish(sim);
+            foreach (IPlayerController controller in controllers)
+            {
+                if (controller is SkirmishAiController ai && ai.Player.Value == UnderTestSlot)
+                {
+                    // First tick the AI under test's enemy model reported air supply (skirmish_ai_v3.md A.4 / B.3); -1 while it has no model.
+                    series.ModelAirKnownTick = ai.Memory.ModelAirKnownTick;
+                }
+            }
             List<CheckPart> parts = ResponseChecks.Evaluate(test, series, data, AiProfile.FromDataSet(data, profile), self!.FactionId);
             return new ResponseResult(test, parts, series, hash, profile, slot1);
         }
