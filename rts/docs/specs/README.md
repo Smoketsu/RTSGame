@@ -44,6 +44,12 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | --- | --- | --- | --- |
 | [skirmish_ai_v3.md](skirmish_ai_v3.md) | A: harness `--ladder` (profile A vs B, both seats, 65 percent of at least 200 decided games) and `--response` scenarios, Reef Runner water scout. B: scouting and the enemy model. C: fight predictor, counter-mix from unit data, tech on demand, static defence, rare priority. D: predictor-driven attacks and retreats, target choice and worker harass, measured defence, unit control. Versions coexist by profile switches (`aggressive_s1` to `_s3`); no `rts/src/Sim` change | P-004 | skirmish AI v2 packages A to C (built); build A, B, C, D in order |
 
+## Skirmish AI v4 (P-005 part 2, the AI as a balance tool)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [skirmish_ai_v4.md](skirmish_ai_v4.md) | F: raid response (workers leave dangerous fields, defence holds at home when outmatched with the HQ counted, worker losses earn a raid tower), forgetting depleted fields and unreachable sites. S: play signature per game, distinct-game counts and intervals over distinct games, mirror and cross-faction rows, `dome_absorbed` stalemates in `--fights`. A1 to A5: `requires` hygiene and chains, waves, Downdraft, Tidecaller support, standing on water against flyers, blast aim, structure multiplier in the predictor, wall breach and the `wall_in` scenario, `--fights` cast control and ablation ladders. R+L outline only. Profiles `aggressive_s4f`, `aggressive_s4`; no `rts/src/Sim` change | P-005 decisions 10, 11 | skirmish AI v3, combat mechanics, walls and tech (built); build F and S (either order), then A1 to A5 |
+
 ## Missing roster (18 Nov 2026)
 
 | Spec | System | Plan step | Depends on |
