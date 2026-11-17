@@ -6,8 +6,8 @@
   "root_seconds": 10,
   // Time the HQ takes to uproot and become mobile. Unit: seconds. Range: 1 to 60. Source: The mobile HQ unit.
   "uproot_seconds": 5,
-  // Minimum time the HQ must survive against the strongest HQ-killing army. Checked by the balance harness. Unit: seconds. Range: 5 to 120. Source: Survivability floor.
-  "survivability_floor_seconds": 20,
+  // Minimum time the HQ must survive against the strongest HQ-killing army. Checked by the balance harness. Unit: seconds. Range: 5 to 120. Source: Survivability floor, 15 s by P-005 developer decision 4 (18 Nov 2026).
+  "survivability_floor_seconds": 15,
   // Supply value of the strongest HQ-killing army used in the survivability floor check. Checked by the balance harness. Unit: supply. Range: 1 to 200. Source: Survivability floor.
   "survivability_floor_supply": 30,
   // Switch that enables Last Stand for the prototype test. Unit: boolean (true or false). Range: true or false. Source: Last Stand.

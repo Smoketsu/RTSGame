@@ -6,8 +6,8 @@
   "games_per_matchup_per_map": 500,
   // Maximum allowed median match length for water versus earth. Unit: seconds. Range: 600 to 1800. Source: Balance philosophy.
   "water_vs_earth_median_max_seconds": 1500,
-  // Minimum HQ survival time the harness checks. Same check as hq.json. Unit: seconds. Range: 5 to 120. Source: Balance philosophy.
-  "hq_floor_seconds": 20,
+  // Minimum HQ survival time the harness checks. Same check as hq.json (15 s by P-005 developer decision 4, 18 Nov 2026). Unit: seconds. Range: 5 to 120. Source: Balance philosophy; P-005 developer decision 4 (18 Nov 2026).
+  "hq_floor_seconds": 15,
   // Supply value of the army the harness uses for the HQ floor check. Same check as hq.json. Unit: supply. Range: 1 to 200. Source: Balance philosophy.
   "hq_floor_supply": 30
 }
