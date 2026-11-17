@@ -95,8 +95,8 @@ namespace Rts.Tools.BalanceHarness
         public int FirstEnemyAirVisibleTick { get; set; } = -1;
 
         /// <summary>
-        /// First tick the AI's enemy model reported air supply above 0, or -1. The enemy model arrives with package B (AiMemory.EnemyTypes, spec B.3); until then the runner
-        /// leaves this -1 and the air_answer check part 1 fails with "no enemy model".
+        /// First tick the AI's enemy model reported air supply above 0 (AiMemory.ModelAirKnownTick, spec B.3), or -1. The runner copies it from the AI under test; it stays -1
+        /// for a profile with use_enemy_model off, and the air_answer check part 1 then fails with "model_air_known_s=none".
         /// </summary>
         public int ModelAirKnownTick { get; set; } = -1;
 

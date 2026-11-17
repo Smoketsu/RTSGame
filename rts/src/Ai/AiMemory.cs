@@ -2,7 +2,7 @@
 // The per-controller memory of the skirmish AI (spec section 3): stance, attack threshold, regroup timer, build attempts,
 // the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, the
 // known amount left in every resource field, the depots placed, the fields with no depot site and the HQ relocation state (skirmish_ai_v2.md
-// package B), and the command sequence counter. Part of
+// package B), the scout (route, losses, timers) and the enemy model of skirmish_ai_v3.md package B, and the command sequence counter. Part of
 // Rts.Ai. This is NOT simulation state and is never hashed: it lives in the controller instance (no static fields), and it is
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
@@ -40,8 +40,21 @@ namespace Rts.Ai
         /// <summary>Tick it was last seen. Unit: ticks. Range: 0 upward.</summary>
         public int LastSeenTick { get; set; }
 
+        /// <summary>Definition ID of the structure (for example "skai.roost"), read by the enemy model to imply what it trains. Range: a unit ID of the data set.</summary>
+        public string DefinitionId { get; set; } = string.Empty;
+
         /// <summary>Health divided by maximum health when last seen. Unit: fraction. Range: 0 to 1. Set by the intel rule every time the structure is seen; used by the kill rule (skirmish_ai_v2.md C.2 rule K).</summary>
         public Fix64 HealthFraction { get; set; } = Fix64.One;
+    }
+
+    /// <summary>What the AI believes about one enemy army unit type (skirmish_ai_v3.md B.3).</summary>
+    public sealed class EnemyTypeEstimate
+    {
+        /// <summary>Units of the type believed alive when last seen, reduced by kills seen. Unit: units. Range: 0 to the most ever seen at once.</summary>
+        public Fix64 Count { get; set; }
+
+        /// <summary>Tick the count was last confirmed by a sighting. Unit: ticks. Range: 0 upward.</summary>
+        public int LastSeenTick { get; set; }
     }
 
     /// <summary>A hit on an own unit, read from UnitDamagedEvent (own units only; the attacker is not used).</summary>
@@ -169,5 +182,50 @@ namespace Rts.Ai
 
         /// <summary>Relocations completed so far (statistic). Unit: count. Range: 0 upward.</summary>
         public int Relocations { get; set; }
+
+        /// <summary>Entity ID of the scout (rule S), or None when there is none. Range: None, or the ID of an own unit alive at the last think.</summary>
+        public EntityId ScoutId { get; set; } = EntityId.None;
+
+        /// <summary>True when the scout is a borrowed army flyer (released after its route), false for an own scout unit.</summary>
+        public bool ScoutBorrowed { get; set; }
+
+        /// <summary>Waypoints of the current scouting round; at most scout_route_max_waypoints. Unit: tiles. Range: 0 to 32 entries, each inside the map; empty before the first round.</summary>
+        public List<FixVec2> ScoutRoute { get; } = new List<FixVec2>();
+
+        /// <summary>Index into <see cref="ScoutRoute"/> of the waypoint being scouted; equal to the route length when the route is finished. Range: 0 to route length.</summary>
+        public int ScoutWaypoint { get; set; }
+
+        /// <summary>Tick the current (or last) scouting round started, or -1 before the first. Unit: ticks. Range: -1, or 0 upward.</summary>
+        public int ScoutRoundStartTick { get; set; } = -1;
+
+        /// <summary>No scout may be wanted before this tick (set when a scout dies). Unit: ticks. Range: 0 upward.</summary>
+        public int NextScoutTick { get; set; }
+
+        /// <summary>True when the scout has been given a move order this round (so <see cref="ScoutOrderPosition"/> is valid).</summary>
+        public bool ScoutHasOrder { get; set; }
+
+        /// <summary>Where the scout stood when the latest move order was given; a scout with no move target still standing here has an unreachable waypoint. Unit: tiles. Range: inside the map.</summary>
+        public FixVec2 ScoutOrderPosition { get; set; }
+
+        /// <summary>Positions of the units in <see cref="LastVisibleEnemyTypes"/> at the last think; a kill counts only while its victim's last tile is visible. Unit: tiles. Range: inside the map; same keys as <see cref="LastVisibleEnemyTypes"/>.</summary>
+        public SortedDictionary<EntityId, FixVec2> LastVisibleEnemyPositions { get; } = new SortedDictionary<EntityId, FixVec2>();
+
+        /// <summary>Scouts lost so far. Unit: count. Range: 0 upward.</summary>
+        public int ScoutLosses { get; set; }
+
+        /// <summary>Enemy army unit types seen, by definition ID (ordinal). Bounded by the number of unit definitions.</summary>
+        public SortedDictionary<string, EnemyTypeEstimate> EnemyTypes { get; } = new SortedDictionary<string, EnemyTypeEstimate>(System.StringComparer.Ordinal);
+
+        /// <summary>The visible enemy army units of the previous think and their definition IDs; replaced every think. Bounded by the visible count.</summary>
+        public SortedDictionary<EntityId, string> LastVisibleEnemyTypes { get; } = new SortedDictionary<EntityId, string>();
+
+        /// <summary>
+        /// Enemy units reported killed since the last think (read from UnitKilledEvent by the controller), oldest first; cleared by each
+        /// think. Bounded: at most max_commands_per_think x 8 entries are kept (the oldest are dropped).
+        /// </summary>
+        public List<EntityId> PendingEnemyKills { get; } = new List<EntityId>();
+
+        /// <summary>First tick at which the enemy model reported air supply above 0, or -1 (read by the harness response check). Unit: ticks. Range: -1, or 0 upward.</summary>
+        public int ModelAirKnownTick { get; set; } = -1;
     }
 }

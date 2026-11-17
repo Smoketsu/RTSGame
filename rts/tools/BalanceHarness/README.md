@@ -102,7 +102,7 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --tr
     [--game N] [--max-game-seconds T] [--out <file>]
 ```
 
-Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
+With `--profile-a <id> --profile-b <id>` the two slots play the ladder seat rule for the game index (use the ladder's `--seed` and `--max-game-seconds` to replay a ladder game). Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
 `rts/docs/reports/ai_trace_2026-11-16/`.
 
 ## Ladder mode and response mode (skirmish AI v3, package A)
@@ -121,4 +121,4 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --re
   Every record line carries `profile_slot0` and `profile_slot1`.
 - `--response` plays each scenario of `ai_eval.json` `response_tests` (a script in `rts/data/scripts/ai_eval` whose slot 1 is a responder profile `rt_*`, slot 0 the profile under test) with a read-only observer and prints
   `RESPONSE <script> <check> PASS|FAIL p<n>=PASS|FAIL <metric>=<value> ...` per scenario and `RESPONSE_SUMMARY passed=<n> of=<m>`; exit 0 all passed, 1 error, 2 any failed.
-  Before package B the AI has no enemy model, so part 1 of `air_answer` always fails (`model_air_known_s=none`).
+  Part 1 of `air_answer` reads the enemy model of the AI under test (`AiMemory.ModelAirKnownTick`, skirmish AI v3 package B); a profile with `use_enemy_model` false (such as `aggressive`) has no model, so it always fails there (`model_air_known_s=none`).

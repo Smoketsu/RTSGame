@@ -139,6 +139,19 @@ namespace Rts.Ai
         {
             foreach (SimEvent simEvent in sim.Events.Current)
             {
+                if (Profile.UseEnemyModel && simEvent.Tick > Memory.LastEventTickRead && simEvent is UnitKilledEvent killed
+                    && killed.VictimOwner.IsValid && sim.Players.AreEnemies(Player, killed.VictimOwner))
+                {
+                    // An enemy unit died: the enemy model subtracts it if it was visible at the last think (skirmish_ai_v3.md B.3).
+                    Memory.PendingEnemyKills.Add(killed.Victim);
+                    // Most kills kept: max_commands_per_think x 8; the oldest are dropped. Unit: entries. Range: 8 to 1600.
+                    int keep = Profile.MaxCommandsPerThink * 8;
+                    if (Memory.PendingEnemyKills.Count > keep)
+                    {
+                        Memory.PendingEnemyKills.RemoveRange(0, Memory.PendingEnemyKills.Count - keep);
+                    }
+                    continue;
+                }
                 if (simEvent.Tick > Memory.LastEventTickRead && simEvent is CommandRejectedEvent rejected && rejected.Reason == "tile_blocked"
                     && rejected.Command is BuildStructureCommand build && build.Issuer == Player && sim.Terrain.Contains(build.TileX, build.TileY))
                 {
