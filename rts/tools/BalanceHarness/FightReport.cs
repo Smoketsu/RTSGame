@@ -225,7 +225,7 @@ namespace Rts.Tools.BalanceHarness
                 sb.Append(line).Append('\n');
             }
             sb.Append("\n## Suggested matchups entries\n\n| Unit | Wins against | Loses to |\n| --- | --- | --- |\n");
-            foreach (string line in FightChecks.SuggestedRows(records, settings))
+            foreach (string line in FightChecks.SuggestedRows(records, settings, data))
             {
                 sb.Append(line).Append('\n');
             }
@@ -235,7 +235,8 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Stalemates, unresolved fights, seat splits and every fight.</summary>
         private static void AppendLists(StringBuilder sb, IReadOnlyList<FightRecord> records, IReadOnlyDictionary<string, FightRecord> byId)
         {
-            sb.Append("## Stalemates, unresolved fights and seat splits\n\n| Fight | Finding | Reason |\n| --- | --- | --- |\n");
+            sb.Append("## Stalemates, unresolved fights and seat splits\n\nA seat split means the two seat orders of a pair have different winners. On high_ground and flooded the seats are not symmetric by design, so splits there show terrain at work, not seat bias. A `no_damage` stalemate counts only damage events: hits absorbed by a shield dome do not reset the idle timer.\n\n");
+            sb.Append("| Fight | Finding | Reason |\n| --- | --- | --- |\n");
             foreach (FightRecord record in records)
             {
                 if (record.Result == FightRecord.Stalemate || record.Result == FightRecord.Unresolved)
