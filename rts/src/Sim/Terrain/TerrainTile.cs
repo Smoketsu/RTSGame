@@ -35,6 +35,9 @@ namespace Rts.Sim.Terrain
 
         /// <summary>A player-built wall structure stands on the tile; blocks movement and flood flow, keeps water already there; hidden in fog for AI views (walls_and_tech.md W.1).</summary>
         BuiltWall = 4,
+
+        /// <summary>A player-built gate stands on the tile: blocks everyone except units of <see cref="TerrainTile.GateTeam"/>; a wall to flood water of every team (walls_and_tech.md G.1).</summary>
+        Gate = 8,
     }
 
     /// <summary>Immutable snapshot of one tile. Range notes are per field.</summary>
@@ -55,14 +58,17 @@ namespace Rts.Sim.Terrain
         /// <summary>Dry, raised or scorched.</summary>
         public readonly SurfaceState Surface;
 
-        /// <summary>Map walls, building footprints and built walls on the tile.</summary>
+        /// <summary>Map walls, building footprints, built walls and gates on the tile.</summary>
         public readonly TileBlockers Blockers;
+
+        /// <summary>Team whose ground and water units may cross the tile while <see cref="TileBlockers.Gate"/> is set; <see cref="TeamId.None"/> otherwise (the constructor normalises it).</summary>
+        public readonly TeamId GateTeam;
 
         /// <summary>Highest elevation layer a map may use (eight layers, 0 to 7).</summary>
         public const byte MaxHeight = 7;
 
         /// <summary>Builds a tile; callers validate ranges (the loader and the grid mutators do).</summary>
-        public TerrainTile(byte height, bool isRamp, Fix64 waterDepth, TeamId waterTeam, SurfaceState surface, TileBlockers blockers)
+        public TerrainTile(byte height, bool isRamp, Fix64 waterDepth, TeamId waterTeam, SurfaceState surface, TileBlockers blockers, TeamId gateTeam)
         {
             Height = height;
             IsRamp = isRamp;
@@ -70,13 +76,21 @@ namespace Rts.Sim.Terrain
             WaterTeam = waterDepth > Fix64.Zero ? waterTeam : TeamId.None;
             Surface = surface;
             Blockers = blockers;
+            GateTeam = (blockers & TileBlockers.Gate) != 0 ? gateTeam : TeamId.None;
         }
 
         /// <summary>True when any water stands on the tile.</summary>
         public bool IsFlooded => WaterDepth > Fix64.Zero;
 
-        /// <summary>True when a wall, footprint or built wall blocks ground and water movement.</summary>
+        /// <summary>True when any blocker (wall, footprint, built wall or gate) blocks ground and water movement; same as <c>IsBlockedFor(TeamId.None)</c>.</summary>
         public bool IsBlocked => Blockers != TileBlockers.None;
+
+        /// <summary>True when the tile blocks ground and water units of <paramref name="team"/>: any blocker but a gate always does; a gate does unless <paramref name="team"/> is its <see cref="GateTeam"/>.</summary>
+        /// <param name="team">Team of the moving unit; <see cref="TeamId.None"/> for a neutral unit, which every gate blocks.</param>
+        public bool IsBlockedFor(TeamId team)
+        {
+            return (Blockers & ~TileBlockers.Gate) != 0 || ((Blockers & TileBlockers.Gate) != 0 && (!team.IsValid || GateTeam != team));
+        }
 
         /// <summary>Feeds every field into the state hash in a fixed order.</summary>
         public void WriteHash(StateHasher hasher)
@@ -87,6 +101,7 @@ namespace Rts.Sim.Terrain
             hasher.Write(WaterTeam);
             hasher.Write((byte)Surface);
             hasher.Write((byte)Blockers);
+            hasher.Write(GateTeam);
         }
     }
 }

@@ -414,7 +414,7 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(ex.Message, Does.Contain("wind_baffle.json"));
             Assert.That(ex.Message, Does.Contain("is_wall"));
             DataSet data = TestData.LoadAll();
-            List<string> walls = data.Content.Units.Values.Where(u => u.Economy.IsWall).Select(u => u.Id).ToList();
+            List<string> walls = data.Content.Units.Values.Where(u => u.Economy.IsWall && !u.Economy.IsGate).Select(u => u.Id).ToList();
             Assert.That(walls, Is.EqualTo(new List<string> { "skai.wind_baffle", "water.coral_wall" }));
             foreach (string id in walls)
             {
@@ -449,9 +449,9 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(b[0], Is.Not.EqualTo(a[0]));
             // Hash of a tile with no blockers, and of the same tile with BuiltWall; they must differ.
             StateHasher one = new StateHasher();
-            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None).WriteHash(one);
+            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None, TeamId.None).WriteHash(one);
             StateHasher two = new StateHasher();
-            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.BuiltWall).WriteHash(two);
+            new TerrainTile(0, false, Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.BuiltWall, TeamId.None).WriteHash(two);
             Assert.That(one.Hash, Is.Not.EqualTo(two.Hash));
             Assert.That((byte)TileBlockers.BuiltWall, Is.EqualTo(4));
         }

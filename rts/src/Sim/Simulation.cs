@@ -10,7 +10,7 @@
 //      worker's pending build order and refunds it)
 //   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 //   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
-//   5. movement, then separation (UnitSeparation: touching units pushed apart from a position snapshot, keep-right sidestep, crowd arrival)
+//   5. movement (ground and water flow fields are per team while any gate stands: a gate tile is passable only for its team, walls_and_tech.md G.1), then separation (UnitSeparation: touching units pushed apart from a position snapshot, keep-right sidestep, crowd arrival)
 //   6. combat (CombatSystem), in this order: 6a dome regen (units with a shield_dome, ascending ID; also collects the active domes);
 //      6b land due hits (PendingHits.TakeDue, in (land tick, sequence) order; a hit whose target is gone is dropped); 6c the unit loop
 //      (cooldown, target with armed-first acquisition, fire: damage fixed at fire time with the uphill multiplier, dome absorption,
@@ -30,7 +30,7 @@
 // previous tick's end (a one-tick delay) plus the sight of units spawned this tick (SpawnUnit stamps them at once, so a new unit
 // can fight on its spawn tick); the hash reads the end of this tick.
 // Spawn and removal hooks (SpawnUnit, RemoveUnit) also run the HQ and economy bookkeeping: a new HQ picks Rooted or Uprooted, a
-// structure's footprint or wall blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
+// structure's footprint, wall or gate blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Combat;

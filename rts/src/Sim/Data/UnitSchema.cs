@@ -206,7 +206,7 @@ namespace Rts.Sim.Data
 
         /// <summary>
         /// Reads the optional economy keys of a unit file: build_seconds (0.05 to 3600, default <see cref="UnitEconomyDefinition.DefaultBuildSeconds"/>),
-        /// can_gather, is_drop_off, is_static_defence, is_wall (booleans, default false; is_wall needs footprint 1), trains and requires (arrays of unit IDs, default empty; requires at most 8, no duplicates),
+        /// can_gather, is_drop_off, is_static_defence, is_wall, is_gate (booleans, default false; is_wall needs footprint 1, is_gate needs is_wall), trains and requires (arrays of unit IDs, default empty; requires at most 8, no duplicates),
         /// footprint (0 or 1, default 0) and provides_supply (0 to 100, default 0). References in trains are checked once every unit is loaded.
         /// </summary>
         /// <param name="root">The unit file's root object.</param>
@@ -222,6 +222,8 @@ namespace Rts.Sim.Data
             bool isStaticDefence = root.TryGetMember("is_static_defence", out JsonValue? defenceNode) && defenceNode.AsBool();
             // Wall flag. Range: true or false; false when absent; true needs footprint 1.
             bool isWall = root.TryGetMember("is_wall", out JsonValue? wallNode) && wallNode.AsBool();
+            // Gate flag. Range: true or false; false when absent; true needs is_wall.
+            bool isGate = root.TryGetMember("is_gate", out JsonValue? gateNode) && gateNode.AsBool();
             // Units this unit can train, in file order; duplicates are an error.
             List<string> trains = new List<string>();
             if (root.TryGetMember("trains", out JsonValue? trainsNode))
@@ -264,7 +266,11 @@ namespace Rts.Sim.Data
             {
                 throw root.Require("is_wall").Fail("is_wall needs footprint 1");
             }
-            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply, isWall, requires);
+            if (isGate && !isWall)
+            {
+                throw root.Require("is_gate").Fail("is_gate needs is_wall");
+            }
+            return new UnitEconomyDefinition(buildSeconds, canGather, isDropOff, trains, isStaticDefence, footprint, providesSupply, isWall, requires, isGate);
         }
 
         /// <summary>

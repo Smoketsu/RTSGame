@@ -5,6 +5,7 @@
 // test maps, P0 = a water-faction player on team 0 and P1 = an ordinary player on team 1, 20 ticks per second. Where a test needs
 // no sources to disturb the water it uses tuning with min_retreat_per_second 0. Tiny corridors are made with wall blockers.
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Rts.Sim;
 using Rts.Sim.Commands;
@@ -43,6 +44,9 @@ namespace Rts.Sim.Tests.Factions
         /// <summary>ID of the test wall (walls_and_tech.md W-5): ground, speed 0, footprint 1, is_wall.</summary>
         private const string WallDefId = "flood.wall";
 
+        /// <summary>ID of the test gate (is_wall and is_gate, footprint 1), used by walls_and_tech.md G-10 and G-11.</summary>
+        private const string GateDefId = "flood.gate";
+
         /// <summary>ID of the test mobile HQ that is a flood source while Rooted.</summary>
         private const string FloodHqId = "flood.hq";
 
@@ -72,6 +76,8 @@ namespace Rts.Sim.Tests.Factions
                 "light", Fix64.FromInt(8), null, null, new UnitEconomyDefinition(Fix64.FromInt(5), false, true, new List<string>(), false, 1, 0)));
             catalog.AddUnit(new UnitDefinition(WallDefId, "Wall", TestWorld.TestFactionId, MovementLayer.Ground, Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0,
                 "light", Fix64.FromInt(8), null, null, new UnitEconomyDefinition(Fix64.FromInt(5), false, false, new List<string>(), false, 1, 0, true)));
+            catalog.AddUnit(new UnitDefinition(GateDefId, "Gate", TestWorld.TestFactionId, MovementLayer.Ground, Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0,
+                "light", Fix64.FromInt(8), null, null, new UnitEconomyDefinition(Fix64.FromInt(5), false, false, new List<string>(), false, 1, 0, true, null, true)));
             catalog.AddUnit(new UnitDefinition(FloodHqId, "Flood HQ", "water", MovementLayer.Water, Fix64.FromInt(200), Fix64.One, 0, Fix64.Half, 0, 0,
                 "armoured", Fix64.FromInt(8), null, new HqDefinition("armoured", "light", TestWorld.WorkerId), null, null,
                 new UnitFloodDefinition(Fix64.One, Fix64.FromInt(10), false)));
@@ -1080,6 +1086,68 @@ namespace Rts.Sim.Tests.Factions
             });
             StatusTestWorld.StepThrough(sim, 60 * 20);
             Assert.That(DropsAt(sim, 0, 0), Is.EqualTo(0));
+        }
+
+        // ------------------------------------------------------------------ walls_and_tech.md G-10, G-11
+
+        /// <summary>G-10a. A gate on B stops 1000 drops of team 0 on A (the gate's own team, and again for the enemy's gate): A keeps 1000, B and C hold 0.</summary>
+        [Test]
+        public void Gate_BlocksFlow_ForEveryTeam()
+        {
+            foreach (PlayerId owner in new[] { P0, P1 })
+            {
+                Simulation sim = WallCorridor(s =>
+                {
+                    s.SpawnUnit(s.Content.Units[GateDefId], owner, StatusTestWorld.Centre(1, 0));
+                    s.Terrain.SetWater(s, s.Terrain.IndexOf(0, 0), FloodMath.ToDepth(1000), new TeamId(0));
+                }, NoRetreatTuning());
+                Assert.That(DropsAt(sim, 0, 0), Is.EqualTo(1000));
+                Assert.That(DropsAt(sim, 1, 0), Is.EqualTo(0));
+                Assert.That(DropsAt(sim, 2, 0), Is.EqualTo(0));
+            }
+        }
+
+        /// <summary>G-10b. 500 drops already on B when a gate appears there stay, and A and C hold 0.</summary>
+        [Test]
+        public void Gate_KeepsWaterAlreadyThere()
+        {
+            Simulation sim = WallCorridor(s =>
+            {
+                s.Terrain.SetWater(s, s.Terrain.IndexOf(1, 0), FloodMath.ToDepth(500), new TeamId(0));
+                s.SpawnUnit(s.Content.Units[GateDefId], P0, StatusTestWorld.Centre(1, 0));
+            }, NoRetreatTuning());
+            Assert.That(DropsAt(sim, 1, 0), Is.EqualTo(500));
+            Assert.That(DropsAt(sim, 0, 0), Is.EqualTo(0));
+            Assert.That(DropsAt(sim, 2, 0), Is.EqualTo(0));
+        }
+
+        /// <summary>The enemy walker's end position after a wave with a gate of <paramref name="gateOwner"/> on tile (6, 5), or none when null; and its push count.</summary>
+        private static (FixVec2 Position, int Pushes) WaveWithGate(PlayerId? gateOwner)
+        {
+            Simulation sim = WaveMatch();
+            if (gateOwner.HasValue)
+            {
+                StatusTestWorld.Spawn(sim, 0, 2, GateDefId, gateOwner.Value, StatusTestWorld.Centre(6, 5));
+            }
+            sim.Submit(new CastWaveCommand(5, P0, 0, new EntityId(1), StatusTestWorld.Centre(10, 5)));
+            StatusTestWorld.StepThrough(sim, 5);
+            // Only the walker's pushes count: an enemy gate in the strip is a unit too and is shoved as well (existing PushEnemies behaviour for any enemy structure).
+            return (StatusTestWorld.UnitOf(sim, 2).Position, StatusTestWorld.EventsOf<UnitPushedEvent>(sim).Count(e => e.Unit == new EntityId(2)));
+        }
+
+        /// <summary>G-11. A gate of the caster's team on the first push tile stops the push (no UnitPushedEvent, position unchanged); a gate of the pushed unit's team lets it through to the same end as with no gate.</summary>
+        [Test]
+        public void Gate_WavePush_StoppedByTheCastersGate_PassedByTheVictimsGate()
+        {
+            (FixVec2 openPosition, int openPushes) = WaveWithGate(null);
+            Assert.That(openPosition, Is.EqualTo(StatusTestWorld.Centre(7, 5)));
+            Assert.That(openPushes, Is.EqualTo(1));
+            (FixVec2 blockedPosition, int blockedPushes) = WaveWithGate(P0);
+            Assert.That(blockedPosition, Is.EqualTo(StatusTestWorld.Centre(5, 5)));
+            Assert.That(blockedPushes, Is.EqualTo(0));
+            (FixVec2 passedPosition, int passedPushes) = WaveWithGate(P1);
+            Assert.That(passedPosition, Is.EqualTo(openPosition));
+            Assert.That(passedPushes, Is.EqualTo(1));
         }
     }
 }

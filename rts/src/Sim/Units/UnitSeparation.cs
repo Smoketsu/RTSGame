@@ -177,7 +177,7 @@ namespace Rts.Sim.Units
                 FixVec2 to = terrain.ClampToMap(from + p);
                 if (layer != MovementLayer.Air)
                 {
-                    to = TerrainChecked(terrain, from, to, layer);
+                    to = TerrainChecked(terrain, from, to, layer, sim.Players.TeamOf(u.Owner));
                 }
                 if (to != from)
                 {
@@ -195,31 +195,31 @@ namespace Rts.Sim.Units
             }
         }
 
-        /// <summary>The wanted position if the step is allowed, else the same move on one axis, else the old position (B.3 step 4).</summary>
-        private static FixVec2 TerrainChecked(TerrainGrid terrain, FixVec2 from, FixVec2 to, MovementLayer layer)
+        /// <summary>The wanted position if the step is allowed for the pushed unit's team, else the same move on one axis, else the old position (B.3 step 4).</summary>
+        private static FixVec2 TerrainChecked(TerrainGrid terrain, FixVec2 from, FixVec2 to, MovementLayer layer, TeamId team)
         {
             // Tile before the push.
             // Tile index of the start position, from TileOf. Unit: index. Range: 0 to Width * Height - 1.
             int a = terrain.TileOf(from);
-            if (Allowed(terrain, a, terrain.TileOf(to), layer))
+            if (Allowed(terrain, a, terrain.TileOf(to), layer, team))
             {
                 return to;
             }
             // X-only and Y-only alternatives.
             FixVec2 xOnly = new FixVec2(to.X, from.Y);
-            if (Allowed(terrain, a, terrain.TileOf(xOnly), layer))
+            if (Allowed(terrain, a, terrain.TileOf(xOnly), layer, team))
             {
                 return xOnly;
             }
             // Position with only the Y move applied (X stays at the start). Unit: tiles. Range: inside the map.
             FixVec2 yOnly = new FixVec2(from.X, to.Y);
-            return Allowed(terrain, a, terrain.TileOf(yOnly), layer) ? yOnly : from;
+            return Allowed(terrain, a, terrain.TileOf(yOnly), layer, team) ? yOnly : from;
         }
 
         /// <summary>True when a unit may be on tile <paramref name="b"/> after standing on <paramref name="a"/>.</summary>
-        private static bool Allowed(TerrainGrid terrain, int a, int b, MovementLayer layer)
+        private static bool Allowed(TerrainGrid terrain, int a, int b, MovementLayer layer, TeamId team)
         {
-            return a == b || terrain.IsStepPassable(a, b, layer);
+            return a == b || terrain.IsStepPassable(a, b, layer, team);
         }
 
         // Keys are unique while cell coordinates stay within 0 to 2^20, which holds because positions are clamped to the map.

@@ -51,6 +51,9 @@ namespace Rts.Sim.Units
         /// </summary>
         public IReadOnlyList<string> Requires { get; }
 
+        /// <summary>True for a gate: a wall piece whose tile units of the owner's team (allies included) cross; everyone else treats it as a wall (walls_and_tech.md G.1). Needs <see cref="IsWall"/>.</summary>
+        public bool IsGate { get; }
+
         /// <summary>Builds the economy rules, validating every range. The loader turns a failure into an error naming the file and field.</summary>
         /// <param name="buildSeconds">Train or construction time in seconds, 0.05 to 3600.</param>
         /// <param name="canGather">True for workers.</param>
@@ -61,8 +64,9 @@ namespace Rts.Sim.Units
         /// <param name="providesSupply">Supply provided, 0 or more.</param>
         /// <param name="isWall">True for walls; needs footprintTiles 1. Default false.</param>
         /// <param name="requires">Prerequisite building IDs; null means none. Range: 0 to 8 entries.</param>
+        /// <param name="isGate">True for gates; needs isWall. Default false.</param>
         public UnitEconomyDefinition(Fix64 buildSeconds, bool canGather, bool isDropOff, IReadOnlyList<string> trains,
-            bool isStaticDefence, int footprintTiles, int providesSupply, bool isWall = false, IReadOnlyList<string>? requires = null)
+            bool isStaticDefence, int footprintTiles, int providesSupply, bool isWall = false, IReadOnlyList<string>? requires = null, bool isGate = false)
         {
             if (buildSeconds < Fix64.Parse("0.05"))
             {
@@ -84,6 +88,10 @@ namespace Rts.Sim.Units
             {
                 throw new ArgumentOutOfRangeException(nameof(isWall), "is_wall needs footprint 1.");
             }
+            if (isGate && !isWall)
+            {
+                throw new ArgumentOutOfRangeException(nameof(isGate), "is_gate needs is_wall.");
+            }
             BuildSeconds = buildSeconds;
             CanGather = canGather;
             IsDropOff = isDropOff;
@@ -93,6 +101,7 @@ namespace Rts.Sim.Units
             ProvidesSupply = providesSupply;
             IsWall = isWall;
             Requires = requires ?? new List<string>();
+            IsGate = isGate;
         }
 
         /// <summary>Feeds every field into a hash in a fixed order (used by the content digest).</summary>
@@ -115,6 +124,7 @@ namespace Rts.Sim.Units
             {
                 hasher.Write(id);
             }
+            hasher.Write(IsGate);
         }
     }
 }

@@ -468,7 +468,7 @@ namespace Rts.Ai
                 view._visible[index] = sim.Vision.IsTileVisible(self.Team, terrain.XOf(index), terrain.YOf(index));
                 view._explored[index] = sim.Vision.IsTileExplored(self.Team, terrain.XOf(index), terrain.YOf(index));
                 // Walls are terrain; a footprint (a structure, maybe an enemy one) is known only where the team sees the tile.
-                view._blocked[index] = (tile.Blockers & TileBlockers.Wall) != 0 || ((tile.Blockers & (TileBlockers.Footprint | TileBlockers.BuiltWall)) != 0 && view._visible[index]);
+                view._blocked[index] = (tile.Blockers & TileBlockers.Wall) != 0 || ((tile.Blockers & (TileBlockers.Footprint | TileBlockers.BuiltWall | TileBlockers.Gate)) != 0 && view._visible[index]);
             }
 
             // Own units in ascending ID order.

@@ -37,7 +37,9 @@
 //     orders cancel with new_order; a removed worker cancels with worker_lost (OnUnitRemoved, so deaths in step 6d).
 // Footprint: a unit whose definition has footprint 1 adds a Footprint blocker to its tile at spawn and removes it when it
 //   is removed (OnUnitRemoved), unless another footprint unit shares the tile. A wall (is_wall) writes BuiltWall instead of Footprint
-//   (flood water stays on it) and only another wall on the same tile keeps that flag (walls_and_tech.md W.1).
+//   (flood water stays on it) and only another unit writing the same flag on the tile keeps it (walls_and_tech.md W.1). A gate
+//   (is_gate) writes Gate and sets the tile's GateTeam to its owner's team; stacked gates keep the first team, and removal hands
+//   the tile to the lowest-ID remaining gate's team (walls_and_tech.md G.1 rule 2).
 // Supply: RecomputeSupply sums, per player, the supply of every living unit plus every queued unit plus every pending build
 //   order (replaced by the structure itself when it appears), and the supply cap. It
 //   scans all units, O(n) per call; it runs at the end of every economy step and before each train or build command (so two
@@ -89,15 +91,30 @@ namespace Rts.Sim.Economy
         /// <summary>Adds the footprint blocker of a new structure. Internal: <see cref="Simulation.SpawnUnit"/> only.</summary>
         internal static void OnUnitSpawned(Simulation sim, Unit unit)
         {
-            if (unit.Definition.Economy.FootprintTiles > 0)
+            if (unit.Definition.Economy.FootprintTiles <= 0)
             {
-                sim.Terrain.AddBlockers(sim, sim.Terrain.TileOf(unit.Position), BlockerOf(unit.Definition));
+                return;
+            }
+            // Tile the structure covers. Unit: tile index. Range: 0 to tile count - 1.
+            int tile = sim.Terrain.TileOf(unit.Position);
+            if (BlockerOf(unit.Definition) != TileBlockers.Gate)
+            {
+                sim.Terrain.AddBlockers(sim, tile, BlockerOf(unit.Definition));
+            }
+            else if ((sim.Terrain[tile].Blockers & TileBlockers.Gate) == 0)
+            {
+                // A second gate on a gate tile (script only) leaves the flag and the first gate's team alone.
+                sim.Terrain.SetGate(sim, tile, sim.Players.TeamOf(unit.Owner));
             }
         }
 
-        /// <summary>The blocker flag a structure writes on its tile: BuiltWall for a wall, Footprint otherwise.</summary>
+        /// <summary>The blocker flag a structure writes on its tile: Gate for a gate, BuiltWall for another wall, Footprint otherwise.</summary>
         private static TileBlockers BlockerOf(UnitDefinition definition)
         {
+            if (definition.Economy.IsGate)
+            {
+                return TileBlockers.Gate;
+            }
             return definition.Economy.IsWall ? TileBlockers.BuiltWall : TileBlockers.Footprint;
         }
 
@@ -112,15 +129,25 @@ namespace Rts.Sim.Economy
             }
             // Tile the structure covered.
             int tile = sim.Terrain.TileOf(removed.Position);
+            // The flag this structure wrote on the tile.
+            TileBlockers flag = BlockerOf(removed.Definition);
             foreach (Unit other in sim.Units.All)
             {
-                if (other.Definition.Economy.FootprintTiles > 0 && other.Definition.Economy.IsWall == removed.Definition.Economy.IsWall
-                    && sim.Terrain.TileOf(other.Position) == tile)
+                if (other.Definition.Economy.FootprintTiles > 0 && BlockerOf(other.Definition) == flag && sim.Terrain.TileOf(other.Position) == tile)
                 {
+                    if (flag == TileBlockers.Gate)
+                    {
+                        // The lowest-ID remaining gate (first in ascending order) decides who may cross; the grid ignores a no-change write.
+                        TeamId remaining = sim.Players.TeamOf(other.Owner);
+                        if (sim.Terrain[tile].GateTeam != remaining)
+                        {
+                            sim.Terrain.SetGate(sim, tile, remaining);
+                        }
+                    }
                     return;
                 }
             }
-            sim.Terrain.RemoveBlockers(sim, tile, BlockerOf(removed.Definition));
+            sim.Terrain.RemoveBlockers(sim, tile, flag);
         }
 
         /// <summary>
