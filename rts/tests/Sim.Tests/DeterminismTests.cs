@@ -91,11 +91,13 @@ namespace Rts.Sim.Tests
         /// Re-pinned for F0 (specs/micro_benchmark.md 3.3, developer decision 4 of 18 Nov 2026: Rooted HQ floor 20 s to 15 s in hq.json and harness.json, both in the content digest). Old value 0xc15f1f545726486b; hash only (TestWorld loads the shipped tuning).
         /// Re-pinned for combat mechanics package 3 (specs/combat_mechanics.md: can_target_air_on_water is in the weapon digest, Reef Runner and Shellback carry it). Old value 0xaf43113163592096; hash only.
         /// Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability). Old value 0xba66686db1dce26d; hash only.
+        /// Re-pinned for walls (specs/walls_and_tech.md package W: IsWall appended to UnitEconomyDefinition.WriteHash). Old value 0x7477232bd8c0c173; hash only.
+        /// Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: Requires appended to UnitEconomyDefinition.WriteHash). Old value 0x988ea1aa2190c607; hash only.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x7477232bd8c0c173UL;
+        private const ulong GoldenFinalHash = 0xa417c8d77481bd6eUL;
 
         [Test]
         public void GoldenHash_IsPinned()

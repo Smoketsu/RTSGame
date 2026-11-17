@@ -1,6 +1,6 @@
 // rts/src/Sim/Units/UnitEconomyDefinition.cs
 // Immutable economy part of a unit definition: build time, worker and drop-off flags, what the unit can train, the
-// static-defence flag, footprint size and supply provided. Part of Rts.Sim.Units. Parsed from the optional economy
+// static-defence flag, footprint size, supply provided, the wall flag and the prerequisite buildings. Part of Rts.Sim.Units. Parsed from the optional economy
 // keys of a unit file (can_gather, is_drop_off, trains, build_seconds, is_static_defence, footprint, provides_supply);
 // read by the economy system (Rts.Sim.Economy) and the train and build commands. Every value comes from data (rule 3).
 using System;
@@ -42,6 +42,15 @@ namespace Rts.Sim.Units
         /// <summary>Supply added to the owner's cap while the unit stands complete. Unit: supply. Range: 0 to 100.</summary>
         public int ProvidesSupply { get; }
 
+        /// <summary>True for a player-built wall: its tile gets the BuiltWall blocker instead of Footprint, and Quake damages it like a static defence (walls_and_tech.md W.1).</summary>
+        public bool IsWall { get; }
+
+        /// <summary>
+        /// IDs of the buildings (footprint 1, same faction) the owner must have standing and complete to train or build this, in file order. Checked
+        /// only when the order is given (walls_and_tech.md T.1). Range: 0 to 8 distinct unit IDs, checked by the loader.
+        /// </summary>
+        public IReadOnlyList<string> Requires { get; }
+
         /// <summary>Builds the economy rules, validating every range. The loader turns a failure into an error naming the file and field.</summary>
         /// <param name="buildSeconds">Train or construction time in seconds, 0.05 to 3600.</param>
         /// <param name="canGather">True for workers.</param>
@@ -50,8 +59,10 @@ namespace Rts.Sim.Units
         /// <param name="isStaticDefence">True for static defences.</param>
         /// <param name="footprintTiles">0 or 1.</param>
         /// <param name="providesSupply">Supply provided, 0 or more.</param>
+        /// <param name="isWall">True for walls; needs footprintTiles 1. Default false.</param>
+        /// <param name="requires">Prerequisite building IDs; null means none. Range: 0 to 8 entries.</param>
         public UnitEconomyDefinition(Fix64 buildSeconds, bool canGather, bool isDropOff, IReadOnlyList<string> trains,
-            bool isStaticDefence, int footprintTiles, int providesSupply)
+            bool isStaticDefence, int footprintTiles, int providesSupply, bool isWall = false, IReadOnlyList<string>? requires = null)
         {
             if (buildSeconds < Fix64.Parse("0.05"))
             {
@@ -69,6 +80,10 @@ namespace Rts.Sim.Units
             {
                 throw new ArgumentOutOfRangeException(nameof(providesSupply), "provides_supply must be 0 or more.");
             }
+            if (isWall && footprintTiles != 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(isWall), "is_wall needs footprint 1.");
+            }
             BuildSeconds = buildSeconds;
             CanGather = canGather;
             IsDropOff = isDropOff;
@@ -76,6 +91,8 @@ namespace Rts.Sim.Units
             IsStaticDefence = isStaticDefence;
             FootprintTiles = footprintTiles;
             ProvidesSupply = providesSupply;
+            IsWall = isWall;
+            Requires = requires ?? new List<string>();
         }
 
         /// <summary>Feeds every field into a hash in a fixed order (used by the content digest).</summary>
@@ -92,6 +109,12 @@ namespace Rts.Sim.Units
             hasher.Write(IsStaticDefence);
             hasher.Write(FootprintTiles);
             hasher.Write(ProvidesSupply);
+            hasher.Write(IsWall);
+            hasher.Write(Requires.Count);
+            foreach (string id in Requires)
+            {
+                hasher.Write(id);
+            }
         }
     }
 }

@@ -781,6 +781,8 @@ namespace Rts.Sim.Tests.Ai
             AssertAdvantages(sim, S3, "skai", memory, ("skai.thunderhead", "53.731"), ("skai.roc_rider", "34.239"));
             AssertMix(MixOf(sim, S3, "skai", memory), ("skai.roc_rider", 42), ("skai.stormcaller", 42), ("skai.talon_archer", 85), ("skai.thunderhead", 700), ("skai.windrunner", 128));
             // Rule P orders it from the Windspire. Common 1000 rather than the spec's 200: the HQ buys a Fledgling first (rule 4b) and would leave less than 200; rare 65 pays one Thunderhead and no more.
+            // A complete Storm Spire stands (walls_and_tech.md T.4: the Thunderhead requires it).
+            Spawn(sim, "skai.storm_spire", P0, "16", "6");
             SetStock(sim, P0, 1000, 65);
             List<AiIntent> trains = Decide(sim, S3, memory).FindAll(i => i.Kind == AiIntentKind.Train);
             Assert.That(trains.ConvertAll(i => i.DefinitionId), Does.Contain("skai.thunderhead"));

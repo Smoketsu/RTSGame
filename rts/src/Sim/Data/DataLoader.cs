@@ -190,6 +190,7 @@ namespace Rts.Sim.Data
             tuning.SetSourceDigest(tuningHasher.Hash);
             CheckQuakePathsClearOfSpawns(maps, tuning.Economy.StartingWorkerSearchRadiusTiles);
             CheckReferences(content, unitFiles, factionRoots);
+            CheckRequirementCycles(content, unitFiles);
             content.SetCombatRules(tuning.Combat.CreateRules());
             return new DataSet(content, tuning, maps, cycles, aiProfiles);
         }
@@ -325,7 +326,7 @@ namespace Rts.Sim.Data
             CheckDepth(path, parts, 3, "units/<faction>/<name>.json");
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
                 "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "airborne_sight_range_tiles", "weapon",
-                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "is_static_defence", "footprint", "provides_supply",
+                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "requires", "is_static_defence", "is_wall", "footprint", "provides_supply",
                 "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave", "shield_dome", "grounding_ability");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
@@ -440,6 +441,59 @@ namespace Rts.Sim.Data
             return new FactionDefinition(id, displayName, mechanicId, unitIds, hqUnit);
         }
 
+        /// <summary>
+        /// Rejects a cycle in the <c>requires</c> graph (walls_and_tech.md T.2): depth-first search with three colours, start nodes in ordinal ID
+        /// order and neighbours in file order. The first back edge throws naming the file of the ordinally lowest unit ID on the cycle, with
+        /// the path written from that unit ("requirement cycle: a -> b -> a").
+        /// </summary>
+        /// <param name="content">The loaded content; every requires reference already checked.</param>
+        /// <param name="unitFiles">File path per unit ID.</param>
+        private static void CheckRequirementCycles(ContentCatalog content, SortedDictionary<string, string> unitFiles)
+        {
+            // Colour per unit ID: absent = white (unvisited), false = grey (on the current path), true = black (done).
+            SortedDictionary<string, bool> done = new SortedDictionary<string, bool>(StringComparer.Ordinal);
+            // The current path from the start node. Range: 0 to the number of units.
+            List<string> path = new List<string>();
+            foreach (string start in content.Units.Keys)
+            {
+                VisitRequirement(content, unitFiles, start, done, path);
+            }
+        }
+
+        /// <summary>One step of <see cref="CheckRequirementCycles"/>: visits <paramref name="id"/> and everything it requires.</summary>
+        private static void VisitRequirement(ContentCatalog content, SortedDictionary<string, string> unitFiles, string id, SortedDictionary<string, bool> done, List<string> path)
+        {
+            if (done.TryGetValue(id, out bool finished))
+            {
+                if (finished)
+                {
+                    return;
+                }
+                // Cycle: the path from the first occurrence of id to the end, rotated to start at its ordinally lowest ID.
+                List<string> cycle = path.GetRange(path.IndexOf(id), path.Count - path.IndexOf(id));
+                string lowest = cycle[0];
+                foreach (string member in cycle)
+                {
+                    lowest = string.CompareOrdinal(member, lowest) < 0 ? member : lowest;
+                }
+                int at = cycle.IndexOf(lowest);
+                List<string> rotated = new List<string>();
+                for (int i = 0; i <= cycle.Count; i++)
+                {
+                    rotated.Add(cycle[(at + i) % cycle.Count]);
+                }
+                throw new DataValidationException(unitFiles[lowest], "requires", "requirement cycle: " + string.Join(" -> ", rotated));
+            }
+            done[id] = false;
+            path.Add(id);
+            foreach (string required in content.Units[id].Economy.Requires)
+            {
+                VisitRequirement(content, unitFiles, required, done, path);
+            }
+            path.RemoveAt(path.Count - 1);
+            done[id] = true;
+        }
+
         /// <summary>Checks unit-to-faction and faction-to-unit references, naming the file and field of the dangling one.</summary>
         private static void CheckReferences(ContentCatalog content, SortedDictionary<string, string> unitFiles, SortedDictionary<string, JsonValue> factionRoots)
         {
@@ -459,6 +513,29 @@ namespace Rts.Sim.Data
                     if (!content.Units.ContainsKey(trained))
                     {
                         throw new DataValidationException(unitFiles[pair.Key], "trains", "names the unit '" + trained + "', which has no file in units/");
+                    }
+                }
+                // Prerequisites: each must be a different, known building of the same faction.
+                for (int i = 0; i < pair.Value.Economy.Requires.Count; i++)
+                {
+                    // The required building ID and its field name for messages.
+                    string required = pair.Value.Economy.Requires[i];
+                    string field = "requires[" + i + "]";
+                    if (string.Equals(required, pair.Key, StringComparison.Ordinal))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], field, "requires itself");
+                    }
+                    if (!content.Units.TryGetValue(required, out UnitDefinition? requiredDefinition))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], field, "names the unit '" + required + "', which has no file in units/");
+                    }
+                    if (!string.Equals(requiredDefinition.FactionId, pair.Value.FactionId, StringComparison.Ordinal))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], field, "names '" + required + "' of faction '" + requiredDefinition.FactionId + "'; requirements must be of the same faction");
+                    }
+                    if (requiredDefinition.Economy.FootprintTiles <= 0)
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], field, "names '" + required + "', which is not a building (footprint 1)");
                     }
                 }
                 if (pair.Value.Hq != null)

@@ -32,6 +32,9 @@ namespace Rts.Sim.Terrain
 
         /// <summary>A building footprint covers the tile; stays dry under floods.</summary>
         Footprint = 2,
+
+        /// <summary>A player-built wall structure stands on the tile; blocks movement and flood flow, keeps water already there; hidden in fog for AI views (walls_and_tech.md W.1).</summary>
+        BuiltWall = 4,
     }
 
     /// <summary>Immutable snapshot of one tile. Range notes are per field.</summary>
@@ -52,7 +55,7 @@ namespace Rts.Sim.Terrain
         /// <summary>Dry, raised or scorched.</summary>
         public readonly SurfaceState Surface;
 
-        /// <summary>Walls and footprints on the tile.</summary>
+        /// <summary>Map walls, building footprints and built walls on the tile.</summary>
         public readonly TileBlockers Blockers;
 
         /// <summary>Highest elevation layer a map may use (eight layers, 0 to 7).</summary>
@@ -72,7 +75,7 @@ namespace Rts.Sim.Terrain
         /// <summary>True when any water stands on the tile.</summary>
         public bool IsFlooded => WaterDepth > Fix64.Zero;
 
-        /// <summary>True when a wall or footprint blocks ground and water movement.</summary>
+        /// <summary>True when a wall, footprint or built wall blocks ground and water movement.</summary>
         public bool IsBlocked => Blockers != TileBlockers.None;
 
         /// <summary>Feeds every field into the state hash in a fixed order.</summary>

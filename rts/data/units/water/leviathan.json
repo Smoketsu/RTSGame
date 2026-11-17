@@ -1,7 +1,7 @@
 // rts/data/units/water/leviathan.json: Leviathan, the Water capstone siege unit (colossal king crab with two hydro-cannons). Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for the developer to confirm (rts/docs/specs/missing_roster.md section 3.3), not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Leviathan unit definition for the water faction (capstone siege unit: long-range blast cannons, slow, armoured, trained at the Shell Forge); every number is derived by the rules in rts/docs/specs/missing_roster.md section 2 and is a placeholder. Developer decision of 18 Nov 2026: it can target air (the spec default was ground and water only).",
+  "$doc": "Leviathan unit definition for the water faction (capstone siege unit: long-range blast cannons, slow, armoured, trained at the Shell Forge); every number is derived by the rules in rts/docs/specs/missing_roster.md section 2 and is a placeholder. Developer decision of 18 Nov 2026: it can target air (the spec default was ground and water only). Needs a Reef Workshop.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.leviathan",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Leviathan, capstone siege unit).
@@ -26,6 +26,8 @@
   "cost_rare": 80,
   // Time to train this unit at a producer. Unit: seconds. Range: 0.05 to 3600. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
   "build_seconds": 60,
+  // Buildings the owner must have standing and complete to train or build this; checked only when the order is given. Unit: list of unit IDs. Range: 0 to 8 distinct IDs of buildings (footprint 1) of this unit's faction, never this unit, no cycles (empty when absent). Source: P-005 developer decision 8 (18 Nov 2026); choice of gated units is a placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
+  "requires": ["water.reef_workshop"],
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
   "armour_type": "armoured",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).

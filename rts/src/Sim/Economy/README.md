@@ -13,3 +13,5 @@ Per-player stock (`Common`, `Rare`) and supply (`SupplyUsed`, `SupplyCap`) are o
 Commands live in `Commands/EconomyCommands.cs` (`gather`, `train_unit`, `build_structure`; their rejection reasons are listed in each class), events in `Events/EconomyEvents.cs` (`resource_deposited`, `field_depleted`, `unit_trained`, `structure_completed`, `build_order_accepted`, `build_order_started`, `build_order_cancelled`, `structure_placed`). The HQ rules (Rooted drop-off and worker training, Last Stand, defeat) are in `Units/HqSystem.cs`.
 
 Placeholders and limits in Phase 1: any number of workers may share a field; nothing is refunded when a producer dies; structures are one tile; an HQ that roots does not re-check that its field still has resources. Supply limits are data in `rts/data/tuning/supply.json`.
+
+Prerequisites (walls_and_tech.md T.1): a unit file may list `requires` (IDs of own buildings of the same faction). `train_unit` and `build_structure` check them when the order is given (`EconomyRules.FirstMissingRequirement`; rejection `missing_prerequisite`); losing a building later undoes nothing. Direct spawns ignore `requires`.

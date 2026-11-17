@@ -255,7 +255,7 @@ namespace Rts.Sim.Factions.Water
                 // The tile being copied. Unit: one tile.
                 TerrainTile tile = terrain[i];
                 field.LayerHeight[i] = tile.Height;
-                field.Wall[i] = (tile.Blockers & TileBlockers.Wall) != 0;
+                field.Wall[i] = (tile.Blockers & (TileBlockers.Wall | TileBlockers.BuiltWall)) != 0;
                 field.Footprint[i] = (tile.Blockers & TileBlockers.Footprint) != 0;
                 field.Drops[i] = FloodMath.ToDrops(tile.WaterDepth);
                 // Owner of the water. Water another system left unowned stays unowned (never given away) until a team's flow claims the tile.

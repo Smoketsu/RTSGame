@@ -135,6 +135,11 @@ namespace Rts.Sim.Tests.Units
         {
             Simulation sim = Start("greybox_1v1", faction, faction == "skai" ? "water" : "skai");
             EntityId producer = Spawn(sim, producerId, P0, 13, 6);
+            // Complete buildings the unit requires (walls_and_tech.md T.1: the Thunderhead needs a Storm Spire, the Leviathan a Reef Workshop).
+            foreach (string required in sim.Content.Units[unitId].Economy.Requires)
+            {
+                Spawn(sim, required, P0, 16, 6);
+            }
             Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
             player!.SetStock(common + 50, rare + 50);
             // Tick on which the command is applied. Unit: ticks.

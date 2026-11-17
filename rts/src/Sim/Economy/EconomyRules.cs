@@ -25,6 +25,36 @@ namespace Rts.Sim.Economy
         }
 
         /// <summary>
+        /// The first entry of <c>definition.Economy.Requires</c>, in file order, that <paramref name="owner"/> does not meet, or null when all are
+        /// met or the list is empty (walls_and_tech.md T.1). A requirement is met when the owner has a registered, complete (not under
+        /// construction), living unit of that definition; allies' and enemies' buildings never count. One scan of the units per entry.
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="owner">The player who wants to train or build.</param>
+        /// <param name="definition">The unit type to train or build.</param>
+        public static string? FirstMissingRequirement(Simulation sim, PlayerId owner, UnitDefinition definition)
+        {
+            foreach (string required in definition.Economy.Requires)
+            {
+                // True once a complete, living building of the owner with this definition is found.
+                bool met = false;
+                foreach (Unit unit in sim.Units.All)
+                {
+                    if (unit.Owner == owner && !unit.IsUnderConstruction && unit.Health > Fix64.Zero && string.Equals(unit.Definition.Id, required, StringComparison.Ordinal))
+                    {
+                        met = true;
+                        break;
+                    }
+                }
+                if (!met)
+                {
+                    return required;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Time to train or construct a unit type in whole ticks: build_seconds converted with the match clock, at least 1.
         /// Unit: ticks. Range: 1 upward.
         /// </summary>

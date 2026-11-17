@@ -732,7 +732,7 @@ namespace Rts.Sim.Tests.Economy
             // Re-pinned for F0 (specs/micro_benchmark.md 3.3, developer decision 4 of 18 Nov 2026: Rooted HQ floor 20 s to 15 s in hq.json and harness.json, both in the content digest): old value e4127bf62b50cbc1, outcome unchanged (undecided, tick 1499).
             // Re-pinned for combat mechanics package 3 (specs/combat_mechanics.md: can_target_air_on_water is in the weapon digest, Reef Runner and Shellback carry it): old value 9cffda66d3cb0548, outcome unchanged (undecided, tick 1499).
             // Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability): old value d951951064e0b735, outcome unchanged (undecided, tick 1499).
-            Assert.That(first, Does.Contain("STATE_HASH=06d921a35888ec95\n"));
+            Assert.That(first, Does.Contain("STATE_HASH=57e92601f6755ea6\n"));
         }
     }
 }
