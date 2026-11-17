@@ -140,6 +140,13 @@ namespace Rts.Ai
         public SortedSet<int> UnbuildableFields { get; } = new SortedSet<int>();
 
         /// <summary>
+        /// Tile indices (y * width + x) where the simulation rejected one of the AI's own build_structure commands as tile_blocked, which
+        /// happens when an enemy structure stands there in the fog. Site search skips them while the tile is not visible (a visible tile
+        /// is judged by what is seen, so a destroyed structure frees its tile). Ascending. Range: each 0 to tile count - 1; empty at the start.
+        /// </summary>
+        public SortedSet<int> RejectedSites { get; } = new SortedSet<int>();
+
+        /// <summary>
         /// Fields a relocation timed out on; skipped when choosing a relocation target until the HQ roots again, when the set is
         /// cleared (rule H step 4). Ascending. Range: each 0 to field count - 1; empty at the start.
         /// </summary>

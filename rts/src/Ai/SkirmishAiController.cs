@@ -139,6 +139,13 @@ namespace Rts.Ai
         {
             foreach (SimEvent simEvent in sim.Events.Current)
             {
+                if (simEvent.Tick > Memory.LastEventTickRead && simEvent is CommandRejectedEvent rejected && rejected.Reason == "tile_blocked"
+                    && rejected.Command is BuildStructureCommand build && build.Issuer == Player && sim.Terrain.Contains(build.TileX, build.TileY))
+                {
+                    // Own placement refused because something blocks the tile: remember it (see AiMemory.RejectedSites).
+                    Memory.RejectedSites.Add(sim.Terrain.IndexOf(build.TileX, build.TileY));
+                    continue;
+                }
                 if (simEvent.Tick <= Memory.LastEventTickRead || !(simEvent is UnitDamagedEvent hit))
                 {
                     continue;

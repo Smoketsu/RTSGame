@@ -404,6 +404,112 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(water[0].TileY, Is.EqualTo(82));
         }
 
+        /// <summary>
+        /// B-4b: a depot site that the AI cannot see is blocked (an enemy structure in the fog) is rejected tile_blocked by the simulation;
+        /// the AI must learn from that and not place on the same tile again while it still cannot see it (the player at the north-east
+        /// spawn of prototype_1v1 kept re-sending one rejected depot for hundreds of seconds). Water's depot site beside its first
+        /// natural field is (68, 82); an enemy depot is put there out of Water's sight.
+        /// </summary>
+        [Test]
+        public void B4b_RejectedDepotSiteIsNotRetried()
+        {
+            Simulation sim = Game("prototype_1v1");
+            StepTo(sim, Ticks(240));
+            Gather(sim, P1, Workers(sim, P1)[1], 8);
+            SpawnAtTile(sim, "skai.perch_depot", P0, 68, 82);
+            SetStock(sim, P1, 400, 0);
+            // The controller of the Water player (starts from a fresh memory).
+            SkirmishAiController controller = new SkirmishAiController(P1, Aggressive);
+            controller.OnMatchStart(sim);
+            // Tiles of the Water depot placements submitted over the next 40 seconds, one entry per placement.
+            List<(int X, int Y)> placed = new List<(int X, int Y)>();
+            // Tick at which the loop stops. Unit: ticks.
+            int end = sim.Clock.Tick + Ticks(40);
+            // Sink that submits the controller's commands to the simulation.
+            SimulationCommandSink sink = new SimulationCommandSink(sim);
+            while (sim.Clock.Tick < end)
+            {
+                controller.Think(sim, sink);
+                foreach (Command command in controller.LastCommands)
+                {
+                    if (command is BuildStructureCommand build && build.DefinitionId == "water.pearl_depot")
+                    {
+                        placed.Add((build.TileX, build.TileY));
+                    }
+                }
+                sim.Step();
+                SetStock(sim, P1, 400, 0);
+            }
+            Assert.That(placed.Count, Is.GreaterThan(0), "Water tries a depot at all");
+            Assert.That(placed.Contains((68, 82)), Is.True, "the hidden enemy depot is on Water's first choice");
+            Assert.That(placed.FindAll(t => t.X == 68 && t.Y == 82).Count, Is.EqualTo(1), "the rejected tile is tried once");
+        }
+
+        /// <summary>
+        /// B-4c: two Water AIs on prototype_1v1 (exactly 180-degree symmetric) place their first structures (supply, production, depot)
+        /// on exact mirror tiles (95 - x, 95 - y), in the same order. Checked over the first <c>checkedPlacements</c> placements, played
+        /// before the armies decide anything about the sites (the lines up to there are identical for both sides).
+        /// </summary>
+        [Test]
+        public void B4c_FirstPlacementsAreMirrorImages()
+        {
+            List<PlayerSetup> players = new List<PlayerSetup>
+            {
+                new PlayerSetup(P0, new TeamId(0), "water", "Water A"),
+                new PlayerSetup(P1, new TeamId(1), "water", "Water B"),
+            };
+            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players,
+                BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap("prototype_1v1")));
+            sim.Start();
+            Spawn(sim, "water.grand_shell", P0, sim.Map.Spawns[0]);
+            Spawn(sim, "water.grand_shell", P1, sim.Map.Spawns[1]);
+            // Worker index. Range: 0 to 5.
+            for (int i = 0; i < 6; i++)
+            {
+                // Offset of this worker from its HQ. Unit: tiles.
+                FixVec2 offset = new FixVec2(Fix64.FromInt(-2 + i % 3), Fix64.FromInt(1 + i / 3));
+                Spawn(sim, "water.tender", P0, sim.Map.Spawns[0] + offset);
+                Spawn(sim, "water.tender", P1, sim.Map.Spawns[1] - offset);
+            }
+            // Placements to compare per player. Unit: placements. Range: 1 to 12.
+            const int checkedPlacements = 4;
+            List<IPlayerController> controllers = new List<IPlayerController>
+            {
+                new SkirmishAiController(P0, Aggressive),
+                new SkirmishAiController(P1, Aggressive),
+            };
+            AiHost.StartAll(sim, controllers);
+            // Placements as "definition x,y" per player slot, in submission order.
+            List<string>[] placed = { new List<string>(), new List<string>() };
+            // Tile of each placement per slot, parallel to <c>placed</c>.
+            List<(int X, int Y)>[] tiles = { new List<(int X, int Y)>(), new List<(int X, int Y)>() };
+            while (sim.Clock.Tick < Ticks(200) && (placed[0].Count < checkedPlacements || placed[1].Count < checkedPlacements))
+            {
+                AiHost.ThinkAll(sim, controllers);
+                // Controller index. Range: 0 to 1.
+                for (int c = 0; c < 2; c++)
+                {
+                    foreach (Command command in ((SkirmishAiController)controllers[c]).LastCommands)
+                    {
+                        if (command is BuildStructureCommand build)
+                        {
+                            placed[c].Add(build.DefinitionId);
+                            tiles[c].Add((build.TileX, build.TileY));
+                        }
+                    }
+                }
+                sim.Step();
+            }
+            Assert.That(placed[0].Count, Is.GreaterThanOrEqualTo(checkedPlacements));
+            Assert.That(placed[1].Count, Is.GreaterThanOrEqualTo(checkedPlacements));
+            // Placement index. Range: 0 to checkedPlacements - 1.
+            for (int k = 0; k < checkedPlacements; k++)
+            {
+                Assert.That(placed[1][k], Is.EqualTo(placed[0][k]), "placement " + k + " is the same structure");
+                Assert.That(tiles[1][k], Is.EqualTo((95 - tiles[0][k].X, 95 - tiles[0][k].Y)), "placement " + k + " is the mirror tile");
+            }
+        }
+
         /// <summary>B-5: at 100 s a depot is built early when the served fields hold 40 percent, and not at 60 percent.</summary>
         [Test]
         public void B5_ExpandByRemainingShare()

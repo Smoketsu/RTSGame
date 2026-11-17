@@ -1263,6 +1263,11 @@ namespace Rts.Ai
                         {
                             return false;
                         }
+                        // A tile the simulation refused as blocked and that the team cannot see now (an enemy structure in the fog).
+                        if (!_view.IsVisible(x + nx, y + ny) && _memory.RejectedSites.Contains(_view.IndexOf(x + nx, y + ny)))
+                        {
+                            return false;
+                        }
                     }
                 }
                 if (_view.IsOccupied(x, y) || _reservedSites.Contains(_view.IndexOf(x, y)))
