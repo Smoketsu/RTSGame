@@ -80,7 +80,7 @@ Update the Stormcaller `$doc`: delete "The area splash ... are design notes only
 | `SplashLayers` | byte | bit mask | bit 0 ground, bit 1 water, bit 2 air; 0 without a blast. Set at fire time from the weapon (package 3 adds the air bit conditionally) |
 | `BlastFallback` | FixVec2 | tiles | primary target position at fire time; zero vector without a blast |
 
-`Enqueue`, the in-place `PendingHit` built for 0-delay hits, and the `Rewrite` test hook carry the new fields. `WeaponDefinition.WriteHash` appends `SplashRadiusTiles` after `HitDelayTicks` (content digest). Nothing else is stored: victims, the centre and domes touched are per-landing scratch. `HashCoverageTests` gets the four fields.
+`Enqueue`, the in-place `PendingHit` built for 0-delay hits, and the `Rewrite` test hook carry the new fields. `WeaponDefinition.WriteHash` appends `SplashRadiusTiles` after `HitDelayTicks` (content digest). Nothing else is stored: victims, the centre and domes touched are per-landing scratch. `HashCoverageTests` gets the four fields (as built, the coverage lives in `SplashTests.Hash_CoversTheFourBlastFields`; `HashCoverageTests` does not repeat it).
 
 ### 1.6 Events
 

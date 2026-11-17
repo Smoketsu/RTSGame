@@ -835,8 +835,8 @@ namespace Rts.Sim.Tests.Ai
         /// off in aggressive.json and defensive.json, so this value must never change unless the shipped data or the simulation changes on purpose. Unit: state hash. Range: any ulong.
         /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key `worker_placement_seconds` and workers walk to build sites. Old value 0x9422f0628a36cfca,
         /// decided at tick 5631; new value decided at tick 7613 (winner 1 as before).
-        /// Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): the content digest includes splash_damage_fraction and SplashRadiusTiles. Old value 0x8b437ebc2b943b25; outcome unchanged (winner 1, tick 7613).
         /// Re-pinned for the missing roster (specs/missing_roster.md R2-9): the content digest includes the three new unit files. Old value 0x368285be720371c6; outcome unchanged (winner 1, tick 7613).
+        /// Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): the content digest includes splash_damage_fraction and SplashRadiusTiles. Old value 0x8b437ebc2b943b25; outcome unchanged (winner 1, tick 7613).
         /// Re-pinned for combat mechanics package 2 (specs/combat_mechanics.md): the weapon field structure_damage_multiplier is in the content digest and the Leviathan carries 1.5. Old value 0xdc02e08d8f5ea150; outcome unchanged (winner 1, tick 7613).
         /// </summary>
         private const ulong V2ReferenceHash = 0xe63298d8a0fd6954UL;

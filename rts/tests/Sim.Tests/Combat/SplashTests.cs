@@ -269,6 +269,46 @@ namespace Rts.Sim.Tests.Combat
             Assert.That(partly.Of<BlastEvent>().Count, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Pins the current boundary rule of AbsorbByDomes: a victim exactly on a dome's edge (distance 3.0 from its centre, compared squared with
+        /// "greater than" to leave) counts as inside, so the dome absorbs its blast share. Not in the spec's A1 to A13.
+        /// </summary>
+        [Test]
+        public void A8b_VictimExactlyOnDomeEdge_IsAbsorbed()
+        {
+            CombatRig rig = new CombatRig(Catalog());
+            EntityId a = rig.Add(Att, P1, "2.5", "10.5");
+            EntityId t = rig.Add(Light, P2, "8.5", "10.5");
+            EntityId d = rig.Add(DomeBig, P2, "8.5", "14.0");
+            // Victim 0.5 from the primary and exactly 3.0 from the dome centre (radius 3).
+            EntityId v = rig.Add(Light, P2, "8.5", "11.0");
+            rig.Attack(a, t);
+            rig.Step();
+            Assert.That(rig.Health(v), Is.EqualTo(F("100")), "on the edge counts as inside the dome");
+            Assert.That(rig.Get(d).ShieldPool, Is.EqualTo(F("45.5")), "50 - 6 x 0.75");
+        }
+
+        /// <summary>
+        /// Pins the current boundary rule for the blast centre: a centre exactly on a dome's edge (3.0 from its centre) counts as inside, so the
+        /// dome does not absorb the blast share of a victim inside it. The attacker stands inside the dome so the primary is not absorbed at fire time.
+        /// </summary>
+        [Test]
+        public void A8c_BlastCentreExactlyOnDomeEdge_IsNotAbsorbed()
+        {
+            CombatRig rig = new CombatRig(Catalog());
+            EntityId a = rig.Add(Att, P1, "8.5", "15.5");
+            EntityId t = rig.Add(Light, P2, "8.5", "11.0");
+            EntityId d = rig.Add(DomeBig, P2, "8.5", "14.0");
+            // Victim 1.0 from the blast centre and 2.0 from the dome centre.
+            EntityId v = rig.Add(Light, P2, "8.5", "12.0");
+            rig.Attack(a, t);
+            rig.Step();
+            Assert.That(rig.Health(t), Is.EqualTo(F("91")), "primary not absorbed: the shot starts inside the dome");
+            Assert.That(rig.Health(v), Is.EqualTo(F("95.5")), "blast centre on the edge counts as inside: no absorption");
+            Assert.That(rig.Get(d).ShieldPool, Is.EqualTo(F("50")));
+            Assert.That(rig.Of<ShieldDomeHitEvent>(), Is.Empty);
+        }
+
         /// <summary>A9: drench applies to the primary only.</summary>
         [Test]
         public void A9_DrenchIsPrimaryOnly()

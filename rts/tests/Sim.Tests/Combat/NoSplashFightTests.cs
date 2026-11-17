@@ -1,8 +1,9 @@
 // rts/tests/Sim.Tests/Combat/NoSplashFightTests.cs
-// Regression pin for the area-damage refactor (rts/docs/specs/combat_mechanics.md 1.1 step 7 and section 5): a fight with no splash weapons (a
-// delayed lobber, direct shooters, a mortar, a dome, kills) over 300 ticks must keep its per-tick events and state hashes. The refactor itself was
-// proved byte-identical by running this same scene before and after it with the content digest and the four new pending-hit fields left out of
-// the hash (every one of the 300 tick hashes and all events matched); this test pins the result with the current digest. Part of Rts.Sim.Tests.
+// Regression pin for a fight with no splash weapons (a delayed lobber, direct shooters, a mortar, a dome, kills; rts/docs/specs/combat_mechanics.md
+// 1.1 step 7 and section 5): over 300 ticks the per-tick events and state hashes must keep today's values. The test pins those values only; it cannot
+// repeat the before/after comparison. That comparison (the area-damage refactor against the code before it, with the content digest and the four new
+// pending-hit fields left out of the hash) was a one-off check: every one of the 300 tick hashes and all events matched, confirmed by the
+// reviewer on 18 Nov 2026. Part of Rts.Sim.Tests.
 using System.Text;
 using NUnit.Framework;
 using Rts.Sim;
