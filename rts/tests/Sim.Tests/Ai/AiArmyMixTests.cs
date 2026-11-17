@@ -369,8 +369,20 @@ namespace Rts.Sim.Tests.Ai
 
         // ------------------------------------------------------------------ Package C2 (skirmish_ai_v3.md C2.8)
 
-        /// <summary>The shipped package C2 candidate profile.</summary>
-        private static AiProfile S2b => AiProfile.FromDataSet(Data, "aggressive_s2b");
+        /// <summary>The shipped package C2 candidate profile, as loaded (its counter_weight was retuned after the spec; see the C2 report).</summary>
+        private static AiProfile S2bShipped => AiProfile.FromDataSet(Data, "aggressive_s2b");
+
+        /// <summary>The package C2 candidate with counter_weight 0.7, the value the C2.8 test numbers assume (every other value as shipped; the shipped value may have been retuned).</summary>
+        private static AiProfile S2b
+        {
+            get
+            {
+                // The shipped file text with the spec's confidence weight put back.
+                string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s2b.json")).Replace("\r\n", "\n");
+                Assert.That(System.Text.RegularExpressions.Regex.IsMatch(text, "\"counter_weight\": [0-9.]+,"), Is.True, "aggressive_s2b counter_weight");
+                return AiProfile.Parse(System.Text.RegularExpressions.Regex.Replace(text, "\"counter_weight\": [0-9.]+,", "\"counter_weight\": 0.7,"), "ai/aggressive_s2b.json", Data.Content);
+            }
+        }
 
         /// <summary>The ID of P0's HQ.</summary>
         private static EntityId HqId(Simulation sim)
@@ -659,7 +671,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(both.Message, Does.Contain("use_predictor_mix").And.Contain("use_counter_mix").And.Contain("aggressive_s2.json"));
             DataValidationException missing = Expect.Throws<DataValidationException>(() => S2Edited("\"raid_min_supply\": 1,", string.Empty));
             Assert.That(missing.Message, Does.Contain("raid_min_supply"));
-            AiProfile b = S2b;
+            AiProfile b = S2bShipped;
             Assert.That(b.UsePredictorMix, Is.True);
             Assert.That(b.RareBankSoftCap, Is.EqualTo(300));
             Assert.That(b.RaidMinSupply, Is.EqualTo(3));
