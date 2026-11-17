@@ -7,6 +7,13 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Skirmish AI v3, package B (scouting and enemy model), spec `docs/specs/skirmish_ai_v3.md`, 17 Nov 2026, reviewed twice by the sim-reviewer; no `src/Sim` change:
+  - Scouting (rule S) and an enemy model (sightings with decay, seen kills, types implied by known structures) behind `use_scouting` and `use_enemy_model`. New profile `data/ai/aggressive_s1.json`; every shipped profile has the new keys with the switches off, so v2 behaviour and hashes are unchanged.
+  - A scout skips an unreachable waypoint, rejoins the army between rounds and is not counted by production while away. Kills in fog do not lower the model.
+  - Harness: `--response` reads the AI's enemy model for `air_answer` part 1; `--trace` accepts `--profile-a` and `--profile-b`.
+  - **Gate missed:** `aggressive_s1` against `aggressive` wins 119 of 288 (41.3 percent; bar 45). Skai mirror 30.2, Skai versus water 43.8, water mirror 50.0. Traced cause: the scout costs an early army unit and nothing reads the model until package C. Merged switched off by the orchestrator's decision; package C's 65 percent gate is the test. Response scenarios: 1 of 10 pass. Reports in `docs/reports/ai_v3_2026-11-17/`.
+  - Open review notes carried into package C: the waypoint skip assumes zero command delay; tests missing for the borrowed-flyer flag and no-scout-during-Defend; one-think lag on the Defend check.
+
 - Skirmish AI v3, package A (measuring tools), spec `docs/specs/skirmish_ai_v3.md`, 17 Nov 2026; no `src/Sim` or `src/Ai` change:
   - New unit: the Reef Runner (`water.reef_runner`), the water scout, trained at the Tidepool. It cannot hit air.
   - Balance harness: `--ladder` (profile A against B, both seats, pass bar from `scripts/ai_eval/ai_eval.json`) and `--response` (ten scripted-opponent scenarios, five responder profiles `ai/rt_*.json`). `GameRecord` and batch result lines carry `profile_slot0` and `profile_slot1`.
