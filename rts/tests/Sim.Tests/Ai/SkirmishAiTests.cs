@@ -759,7 +759,7 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void Loader_RoutesAiFolder_AndShippedProfilesValidate()
         {
-            Assert.That(Data.AiProfiles.Keys, Is.SupersetOf(new[] { "aggressive", "defensive", "rt_roc_rush", "rt_mass_pummeler", "rt_mass_windrunner", "rt_worker_raid", "rt_turtle" }));
+            Assert.That(Data.AiProfiles.Keys, Is.SupersetOf(new[] { "aggressive", "defensive", "rt_roc_rush", "rt_mass_pummeler", "rt_mass_windrunner", "rt_worker_raid", "rt_turtle", "aggressive_s2", "aggressive_s2b", "abl_s2_blind" }));
             foreach (string id in Data.AiProfiles.Keys)
             {
                 // The profile being checked or used.
@@ -837,6 +837,36 @@ namespace Rts.Sim.Tests.Ai
                 Is.EqualTo(0), error);
             Assert.That(output, Does.Contain("OUTCOME winner=1 tick=5631\n"));
             Assert.That(output, Does.Contain("STATE_HASH=" + V2ReferenceHash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture) + "\n"));
+        }
+
+        /// <summary>
+        /// End tick and final state hash of the traced game prototype_1v1, water_vs_water, seed 20261117, game 0, abl_s2_blind against abl_s2_blind, recorded before any
+        /// package C2 code change (skirmish_ai_v3.md C2-11). Unit: ticks and state hash. Range: fixed by the shipped data; changes only on purpose.
+        /// </summary>
+        private const int BlindTraceEndTick = 18210;
+
+        /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
+        private const string BlindTraceHash = "584d762eb253f6ce";
+
+        /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
+        [Test]
+        public void AblationBlind_TracedGame_IsUnchangedByPackageC2()
+        {
+            // Temporary trace file the harness writes.
+            string file = Path.Combine(Path.GetTempPath(), "c2_11_" + Guid.NewGuid().ToString("N") + ".txt");
+            try
+            {
+                Assert.That(Rts.Sim.Tests.Harness.HarnessTestSupport.Run(new[] { "--data", TestData.FindDataDirectory(), "--trace", "--map", "prototype_1v1", "--matchup", "water_vs_water",
+                    "--seed", "20261117", "--profile-a", "abl_s2_blind", "--profile-b", "abl_s2_blind", "--game", "0", "--out", file }, out string output, out string error), Is.EqualTo(0), error);
+                // The harness prints one JSON record line holding the end tick and the final hash (the timeline goes to the file).
+                string text = output;
+                Assert.That(text, Does.Contain("\"end_tick\":" + BlindTraceEndTick.ToString(System.Globalization.CultureInfo.InvariantCulture) + ","));
+                Assert.That(text, Does.Contain("\"state_hash\":\"" + BlindTraceHash + "\""));
+            }
+            finally
+            {
+                File.Delete(file);
+            }
         }
 
         /// <summary>
