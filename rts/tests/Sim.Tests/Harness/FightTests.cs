@@ -150,19 +150,22 @@ namespace Rts.Sim.Tests.Harness
             }
         }
 
-        /// <summary>Test 4: 15 Pummelers beat 8 Brinecasters from either seat, by elimination, with value left.</summary>
+        /// <summary>
+        /// Test 4: the known equal-value case, 15 Pummelers against 8 Brinecasters, is decided by elimination with value left, the same side winning from either seat.
+        /// Before area damage (combat_mechanics.md package 1, 18 Nov 2026) the Pummelers won; with the Brinecaster's blast (radius 1 tile, placeholder) the Brinecasters win.
+        /// </summary>
         [Test]
-        public void KnownCase_PummelersBeatBrinecasters()
+        public void KnownCase_BrinecastersBeatPummelers()
         {
             string folder = HarnessTestSupport.CopyData();
             FightRecord a = FightTestSupport.Play(folder, "flat/1500/water.grasper/water.ink_lobber").Record;
-            Assert.That(a.Result, Is.EqualTo(FightRecord.Seat0Won));
+            Assert.That(a.Result, Is.EqualTo(FightRecord.Seat1Won));
             Assert.That(a.Reason, Is.EqualTo("eliminated"));
-            Assert.That(a.Left0, Is.GreaterThan(0.0));
+            Assert.That(a.Left1, Is.GreaterThan(0.0));
             FightRecord b = FightTestSupport.Play(folder, "flat/1500/water.ink_lobber/water.grasper").Record;
-            Assert.That(b.Result, Is.EqualTo(FightRecord.Seat1Won));
+            Assert.That(b.Result, Is.EqualTo(FightRecord.Seat0Won));
             Assert.That(b.Reason, Is.EqualTo("eliminated"));
-            Assert.That(b.Left1, Is.GreaterThan(0.0));
+            Assert.That(b.Left0, Is.GreaterThan(0.0));
             // A record parsed from its own line is the same line again.
             Assert.That(FightRecord.Parse(a.ToJsonLine()).ToJsonLine(), Is.EqualTo(a.ToJsonLine()));
         }
