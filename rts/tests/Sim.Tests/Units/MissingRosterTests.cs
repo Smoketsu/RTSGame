@@ -281,7 +281,7 @@ namespace Rts.Sim.Tests.Units
             Assert.That(Hits(control, rider2, bomber2, 200).Hits, Is.GreaterThan(0), "control: the Roc Rider does shoot air");
         }
 
-        /// <summary>R2-5b. A Leviathan attacking an enemy Roost lands 80 x 1.25 = 100 per hit.</summary>
+        /// <summary>R2-5b. A Leviathan attacking an enemy Roost lands 80 x 1.25 x 1.5 = 150 per hit (blast against structure 1.25, structure_damage_multiplier 1.5; combat mechanics package 2).</summary>
         [Test]
         public void R2_5_LeviathanSiegesStructures()
         {
@@ -290,7 +290,7 @@ namespace Rts.Sim.Tests.Units
             EntityId roost = Spawn(sim, "skai.roost", P1, 27, 20);
             (int hits, Fix64 first) = Hits(sim, siege, roost, 200);
             Assert.That(hits, Is.GreaterThan(0));
-            Assert.That(first, Is.EqualTo(Fix64.FromInt(100)));
+            Assert.That(first, Is.EqualTo(Fix64.FromInt(150)));
         }
 
         /// <summary>Developer decision 18 Nov 2026: the Leviathan can target air. It hits an enemy Roc Rider.</summary>

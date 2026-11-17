@@ -27,6 +27,9 @@
 //     weapon damage x combat.json splash_damage_fraction x the damage modifiers (fixed at fire time), then each victim's own armour row; no uphill
 //     multiplier, no drench, no friendly fire. Victims are collected in ascending ID order before any is damaged. Domes absorb a victim's share when
 //     the blast centre is outside the dome (AbsorbByDomes, shared with fire time). A shell fully absorbed at fire time makes no blast.
+//   * Structure multiplier (combat_mechanics.md package 2): a weapon's structure_damage_multiplier (default 1) multiplies damage against a structure
+//     target (a unit with a footprint, or an HQ that is Rooted) after the damage table and before the uphill multiplier and the modifiers. At fire
+//     time the target's state decides for the primary; at landing the victim's state decides for blast damage.
 //   * Reach: a target is in range when centre distance minus both radii is at most the range, i.e. the centre
 //     distance is at most range + attackerRadius + targetRadius (compared squared). The range is the weapon's, changed by
 //     the active Planetary Cycle for surface ranged units (CycleSystem.EffectiveRangeTiles, Windstorm), for both fire and acquire reach.
@@ -373,6 +376,15 @@ namespace Rts.Sim.Combat
             return delta.LengthSquared() <= reach * reach;
         }
 
+        /// <summary>
+        /// True when <paramref name="u"/> counts as a structure for the weapon's structure_damage_multiplier (combat_mechanics.md section 0): a unit with a
+        /// footprint (the rule AiWorldView.IsStructure uses) or an HQ in state Rooted.
+        /// </summary>
+        internal static bool IsStructureTarget(Unit u)
+        {
+            return u.Definition.Economy.FootprintTiles > 0 || (u.Definition.Hq != null && u.HqState == HqState.Rooted);
+        }
+
         /// <summary>True when a ranged hit from <paramref name="attacker"/> on <paramref name="target"/> is uphill (A.4.1): neither is airborne and the target's tile is higher than the attacker's eye.</summary>
         private static bool IsUphill(Simulation sim, Unit attacker, Unit target, WeaponDefinition weapon)
         {
@@ -394,6 +406,10 @@ namespace Rts.Sim.Combat
             int tick = sim.Clock.Tick;
             // Damage after the table multiplier. Unit: health points. Range: 0 or more.
             Fix64 damage = weapon.Damage * rules.GetMultiplier(weapon.DamageType, target.ArmourType);
+            if (IsStructureTarget(target))
+            {
+                damage = damage * weapon.StructureDamageMultiplier;
+            }
             if (IsUphill(sim, attacker, target, weapon))
             {
                 damage = damage * rules.UphillRangedDamageMultiplier;
@@ -584,6 +600,11 @@ namespace Rts.Sim.Combat
             {
                 // Damage after the victim's own armour row. Unit: health points. Range: 0 or more.
                 Fix64 damage = hit.SplashDamage * rules.GetMultiplier(weapon.DamageType, v.ArmourType);
+                if (IsStructureTarget(v))
+                {
+                    // The victim's state now decides (an HQ that Uprooted while the shell flew is no structure).
+                    damage = damage * weapon.StructureDamageMultiplier;
+                }
                 if (damage > Fix64.Zero)
                 {
                     // Damage left after domes covering the victim, fired from the blast centre.

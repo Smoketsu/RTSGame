@@ -89,8 +89,8 @@ namespace Rts.Sim.Tests.Combat
             Assert.That(domeHits, Is.GreaterThan(0));
             Assert.That(kills, Is.GreaterThan(0));
             Assert.That(RunScene(out int _, out int _, out int _), Is.EqualTo(first), "two runs agree");
-            // Pinned 18 Nov 2026 for combat_mechanics.md package 1 (digest includes splash_damage_fraction and SplashRadiusTiles).
-            Assert.That(first, Is.EqualTo(3521365824097976314UL), "pin");
+            // Pinned 18 Nov 2026 for combat_mechanics.md package 1 (digest includes splash_damage_fraction and SplashRadiusTiles); re-pinned for package 2 (digest includes StructureDamageMultiplier), old value 3521365824097976314.
+            Assert.That(first, Is.EqualTo(18165753124669140004UL), "pin");
         }
     }
 }
