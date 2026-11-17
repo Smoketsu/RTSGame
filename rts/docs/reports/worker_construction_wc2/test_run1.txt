@@ -1,0 +1,629 @@
+  Rts.Sim -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Sim/Debug/netstandard2.1/Rts.Sim.dll
+  Rts.Replay -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Replay/Debug/netstandard2.1/Rts.Replay.dll
+  Rts.Ai -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Ai/Debug/netstandard2.1/Rts.Ai.dll
+  Rts.Tools.ReplayCheck -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Tools.ReplayCheck/Debug/net8.0/Rts.Tools.ReplayCheck.dll
+  Rts.Tools.BalanceHarness -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Tools.BalanceHarness/Debug/net8.0/Rts.Tools.BalanceHarness.dll
+  Rts.Net -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Net/Debug/netstandard2.1/Rts.Net.dll
+  Rts.Replay.Tests -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Replay.Tests/Debug/net8.0/Rts.Replay.Tests.dll
+Test run for /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Replay.Tests/Debug/net8.0/Rts.Replay.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Rts.Net.Tests -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Net.Tests/Debug/net8.0/Rts.Net.Tests.dll
+Test run for /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Net.Tests/Debug/net8.0/Rts.Net.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Rts.Sim.Tests -> /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Sim.Tests/Debug/net8.0/Rts.Sim.Tests.dll
+Test run for /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/build/bin/Rts.Sim.Tests/Debug/net8.0/Rts.Sim.Tests.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+  Failed C2_10_EarlyExpansion [67 ms]
+  Error Message:
+     Assert.That(depots.Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiArmyMixTests.C2_10_EarlyExpansion() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiArmyMixTests.cs:line 664
+
+1)    at Rts.Sim.Tests.Ai.AiArmyMixTests.C2_10_EarlyExpansion() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiArmyMixTests.cs:line 664
+
+
+  Failed B14_DepotBeforeRelocation [33 ms]
+  Error Message:
+     Assert.That(Builds(intents, "skai.perch_depot").Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B14_DepotBeforeRelocation() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 925
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B14_DepotBeforeRelocation() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 925
+
+
+  Failed B2_ServedFields [10 ms]
+  Error Message:
+     a depot under construction already serves
+Assert.That(Probe(sim).Served, Does.Contain(6))
+  Expected: some item equal to 6
+  But was:  < 0, 1 >
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B2_ServedFields() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 304
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B2_ServedFields() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 304
+
+
+  Failed B20_Determinism [1 s]
+  Error Message:
+     Assert.That(signatures[0], Does.Contain("Build:"))
+  Expected: String containing "Build:"
+  But was:  "Gather:3:0::0:0:(0, 0);Move:5:-1::0:0:(21.5, 7.5);Train:1:-1:skai.fledgling:0:0:(0, 0);Train:7:-1:skai.windrunner:0:0:(0, 0);Gather:3:0::0:0:(0, 0);Train:1:-1:skai.fledgling:0:0:(0, 0);Train:7:-1:skai.windrunner:0:0:(0, 0);"
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B20_Determinism() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 1300
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B20_Determinism() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 1300
+
+
+  Failed B4_ExpandByTime_Greybox [675 ms]
+  Error Message:
+     Assert.That(builds.Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B4_ExpandByTime_Greybox() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 366
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B4_ExpandByTime_Greybox() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 366
+
+
+  Failed B4_ExpandByTime_Prototype [1 s]
+  Error Message:
+     Assert.That(skai.Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B4_ExpandByTime_Prototype() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 398
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B4_ExpandByTime_Prototype() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 398
+
+
+  Failed B4b_RejectedDepotSiteIsNotRetried [2 s]
+  Error Message:
+     the hidden enemy depot is on Water's first choice
+Assert.That(placed.Contains((68, 82)), Is.True)
+  Expected: True
+  But was:  False
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B4b_RejectedDepotSiteIsNotRetried() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 444
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B4b_RejectedDepotSiteIsNotRetried() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 444
+
+
+  Failed B5_ExpandByRemainingShare [261 ms]
+  Error Message:
+     left 1200
+Assert.That(Builds(DecideP0(sim), "skai.perch_depot").Count, Is.EqualTo(expected ? 1 : 0))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B5_ExpandByRemainingShare() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 526
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B5_ExpandByRemainingShare() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 526
+
+
+  Failed B6_ExpandLimits [3 s]
+  Error Message:
+     so a new depot is allowed
+Assert.That(Builds(Decide(sim, P0, one), "skai.perch_depot").Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B6_ExpandLimits() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 563
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B6_ExpandLimits() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 563
+
+
+  Failed B7_Safety [652 ms]
+  Error Message:
+     Assert.That(builds.Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.B7_Safety() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 587
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.B7_Safety() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 587
+
+
+  Failed R5_SiteSearchesMirrorBetweenThePlayers [1 s]
+  Error Message:
+     prototype_1v1
+Assert.That(skai.Count, Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiEconomyTests.R5_SiteSearchesMirrorBetweenThePlayers() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 1214
+
+1)    at Rts.Sim.Tests.Ai.AiEconomyTests.R5_SiteSearchesMirrorBetweenThePlayers() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiEconomyTests.cs:line 1214
+
+
+  Failed B10_Fog_B11_Bounds [7 s]
+  Error Message:
+     no worker is ordered as scout
+Assert.That(sim.Units.TryGet(move.Unit, out Unit? mover) && mover.Definition.Economy.CanGather, Is.False)
+  Expected: False
+  But was:  True
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.AiIntelTests.B10_Fog_B11_Bounds() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiIntelTests.cs:line 574
+
+1)    at Rts.Sim.Tests.Ai.AiIntelTests.B10_Fog_B11_Bounds() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/AiIntelTests.cs:line 574
+
+
+
+Passed!  - Failed:     0, Passed:    27, Skipped:     0, Total:    27, Duration: 1 m 43 s - Rts.Replay.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
+  Failed AiVsAi_TwoPeers_PlayToADecidedOutcome_WithMatchingHashes [1 m 56 s]
+  Error Message:
+     Assert.That(session[N0].Tick, Is.LessThan(6000))
+  Expected: less than 6000
+  But was:  9968
+
+  Stack Trace:
+     at Rts.Net.Tests.LockstepTests.AiVsAi_TwoPeers_PlayToADecidedOutcome_WithMatchingHashes() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Net.Tests/LockstepTests.cs:line 61
+
+1)    at Rts.Net.Tests.LockstepTests.AiVsAi_TwoPeers_PlayToADecidedOutcome_WithMatchingHashes() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Net.Tests/LockstepTests.cs:line 61
+
+
+  Failed AblationBlind_TracedGame_IsUnchangedByPackageC2 [2 m 56 s]
+  Error Message:
+     Assert.That(text, Does.Contain("\"end_tick\":" + BlindTraceEndTick.ToString(System.Globalization.CultureInfo.InvariantCulture) + ","))
+  Expected: String containing ""end_tick":18210,"
+  But was:  "{"map":"prototype_1v1","matchup":"water_vs_water","game":0,"seed":"1684662979465335226","slot0":"water","slot1":"water","profile_slot0":"abl_s2_blind","profile_slot1":"abl_s2_blind","result":"slot0","end_tick":11435,"state_hash":"5c4f6eb8e55be64e","content_digest":"cfcb1743c4dd3699","hq_kills":[{"faction":"water","first_damage_tick":11035,"death_tick":11435}]}
+"
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.SkirmishAiTests.AblationBlind_TracedGame_IsUnchangedByPackageC2() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs:line 863
+
+1)    at Rts.Sim.Tests.Ai.SkirmishAiTests.AblationBlind_TracedGame_IsUnchangedByPackageC2() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs:line 863
+
+
+  Failed ThreePeers_FullMatch_AllHashesMatch [2 m 53 s]
+  Error Message:
+     Assert.That(session[N0].Tick, Is.LessThan(6000))
+  Expected: less than 6000
+  But was:  9968
+
+  Stack Trace:
+     at Rts.Net.Tests.MultiPeerLockstepTests.ThreePeers_FullMatch_AllHashesMatch() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Net.Tests/MultiPeerLockstepTests.cs:line 79
+
+1)    at Rts.Net.Tests.MultiPeerLockstepTests.ThreePeers_FullMatch_AllHashesMatch() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Net.Tests/MultiPeerLockstepTests.cs:line 79
+
+
+
+Failed!  - Failed:     2, Passed:    31, Skipped:     0, Total:    33, Duration: 5 m 17 s - Rts.Net.Tests.dll (net8.0)
+VSTEST_ARTIFACTS_DIRECTORY environment variable was not found, falling back to a user-private temporary directory. This is most likely caused by an outdated Microsoft.NET.Test.Sdk package reference in the test project.
+  Failed AiVsAi_FinalHash_MatchesTheV2Reference [31 s]
+  Error Message:
+     Assert.That(output, Does.Contain("OUTCOME winner=1 tick=5631\n"))
+  Expected: String containing "OUTCOME winner=1 tick=5631
+"
+  But was:  "tick=0 hash=6907a7dbffb7e4b4
+tick=20 hash=32799aba957a35d9
+tick=40 hash=2e6532a175f29036
+tick=60 hash=fced37272534ba0c
+tick=80 hash=2fac0bfded50f778
+tick=100 hash=ae3a7f3847e4e58a
+tick=120 hash=e42c4a843de68655
+tick=140 hash=ebca3f3525da26f0
+tick=160 hash=01ca06263452c4f4
+tick=180 hash=b38294f929237865
+tick=200 hash=faf2e28623918de2
+tick=220 hash=9c8687f1f1eb1d0e
+tick=240 hash=9895361e65544baa
+tick=260 hash=2a0f91f4431a3ba8
+tick=280 hash=c3c38be9d3379e87
+tick=300 hash=5ca374b2a0c6cdfb
+tick=320 hash=ec0172856430592c
+tick=340 hash=fba726966fa58001
+tick=360 hash=6dbeedb04653a5ce
+tick=380 hash=41475d7f1399db95
+tick=400 hash=78eb010087140d2e
+tick=420 hash=4d8365f8ba6b6019
+tick=440 hash=f55879b52ca29894
+tick=460 hash=ca0582fb561f8182
+tick=480 hash=6fa9005a8ae73fea
+tick=500 hash=82df4f16cbba9bce
+tick=520 hash=9b941fe5cc532f54
+tick=540 hash=09ed2ee422ee3f72
+tick=560 hash=6f4c09d5d8055e90
+tick=580 hash=a849ab9e575b8ef8
+tick=600 hash=2ccb38d3d63f0d88
+tick=620 hash=e9899fc074ade392
+tick=640 hash=1991fa279293ba3a
+tick=660 hash=78eb2c0bc8338002
+tick=680 hash=805e4e5330ef8f4e
+tick=700 hash=b540ad50b26678d2
+tick=720 hash=386426655d365806
+tick=740 hash=e354c63caae9bb7d
+tick=760 hash=ab985f411111dd80
+tick=780 hash=d5401ea7923adeaa
+tick=800 hash=c02a88f466352c17
+tick=820 hash=d1a47adc39d6b76d
+tick=840 hash=a93fcf8ad246f4d0
+tick=860 hash=32c66972a18f4636
+tick=880 hash=ba46b87e995b97f1
+tick=900 hash=3af59f36582dad83
+tick=920 hash=0d65b59fe5df8532
+tick=940 hash=975c72feb429024f
+tick=960 hash=c5e7ef7eaaf891fd
+tick=980 hash=daf2466f74519798
+tick=1000 hash=58114acd779193ec
+tick=1020 hash=3cee6b77001351dc
+tick=1040 hash=4ce538d5d24ff7bc
+tick=1060 hash=87e63408e0f74dc0
+tick=1080 hash=5cbc8acb25597471
+tick=1100 hash=8cb6501fde3bf373
+tick=1120 hash=ce956b60fde89104
+tick=1140 hash=e37bf16252f1414a
+tick=1160 hash=ec77ce17ac886e4e
+tick=1180 hash=7efeb4ae4301bcf5
+tick=1200 hash=db6139af261d018d
+tick=1220 hash=6da0ffa9c23cf362
+tick=1240 hash=ce07c76d0ace5ae5
+tick=1260 hash=1a713199afcf3be0
+tick=1280 hash=cecb5b983f9fda1e
+tick=1300 hash=8b489121f24b9d4d
+tick=1320 hash=0a0e10dfc6250912
+tick=1340 hash=12d531665bc26247
+tick=1360 hash=71c8c86c6ea69867
+tick=1380 hash=0621461eb50f946e
+tick=1400 hash=172e6c24be530119
+tick=1420 hash=7279420967dfe714
+tick=1440 hash=0995e658c2c09c07
+tick=1460 hash=8600de6b78c28b7b
+tick=1480 hash=9c8e29e6cb68f04d
+tick=1500 hash=39bc67b5b43bc26f
+tick=1520 hash=6e66c09f60a610ae
+tick=1540 hash=bb03e9f0ccd8dd9c
+tick=1560 hash=4f23ea099da62686
+tick=1580 hash=1a073b36f7cc729e
+tick=1600 hash=94646e006efa7b3f
+tick=1620 hash=cb573da32a0b86e6
+tick=1640 hash=5ecd39190e88b5f8
+tick=1660 hash=db4ade48f512d1c7
+tick=1680 hash=878e083044f15b61
+tick=1700 hash=f02732dedd73a333
+tick=1720 hash=433aed172e947877
+tick=1740 hash=bd62a4bf463299a1
+tick=1760 hash=2b209683a65905be
+tick=1780 hash=cb0a4bcf540254ab
+tick=1800 hash=d97df5dc4298e9ac
+tick=1820 hash=841e981302c85ab3
+tick=1840 hash=920ddace972feb90
+tick=1860 hash=5c1317242b47daf6
+tick=1880 hash=5405150b76dcf15d
+tick=1900 hash=80fc9731ff59dbc6
+tick=1920 hash=d0e0130cf1d66c88
+tick=1940 hash=c76ba9f60b3fbcf5
+tick=1960 hash=c3850b1b2a33e050
+tick=1980 hash=ebdad5ca2479405a
+tick=2000 hash=2ebb74f882f7f743
+tick=2020 hash=94eba2dc225b34b3
+tick=2040 hash=1a7183b10f7980ef
+tick=2060 hash=04da2a29a69359a6
+tick=2080 hash=5acf20148fb93b6f
+tick=2100 hash=dbee38c1e3f18746
+tick=2120 hash=6dc43015f43a2a1b
+tick=2140 hash=ea900bbf2872f64c
+tick=2160 hash=6eaafc5306c45e61
+tick=2180 hash=d2e29de7e3b8efa3
+tick=2200 hash=9f6b96de234fe260
+tick=2220 hash=2a309f95785c37c2
+tick=2240 hash=96c8ae2f7c03dc57
+tick=2260 hash=5245ef177acff415
+tick=2280 hash=d1c606fd0ca2b5e6
+tick=2300 hash=fa5153857a461f8b
+tick=2320 hash=d464da909ec0b8cf
+tick=2340 hash=293b864fb60cd610
+tick=2360 hash=4f92f9b24c3d2e16
+tick=2380 hash=36b15ee2b7bdd02b
+tick=2400 hash=0e82f4c6c238d922
+tick=2420 hash=f753fc1041efbc63
+tick=2440 hash=b886a54a0ed909d7
+tick=2460 hash=f144c037f9cb2adb
+tick=2480 hash=7fabc7686fd93651
+tick=2500 hash=a46c1222f419369a
+tick=2520 hash=8187bb22046cdd93
+tick=2540 hash=1e6badbe0d862644
+tick=2560 hash=5334289648259670
+tick=2580 hash=af7bced092b07cc8
+tick=2600 hash=b3ec3f62e72eb0b2
+tick=2620 hash=75f2e73d2fae72db
+tick=2640 hash=f0fded309b81ef7e
+tick=2660 hash=d691740ecaeaf9b2
+tick=2680 hash=3a3c072a88a18f2a
+tick=2700 hash=d3f5a66909f3963a
+tick=2720 hash=0bcd3feefab671ec
+tick=2740 hash=6a9fb80b24ca3bf6
+tick=2760 hash=801f38e5a04c14f9
+tick=2780 hash=3c694df2b62ed25d
+tick=2800 hash=5579501d21e731f9
+tick=2820 hash=2fdf98b28f5960d7
+tick=2840 hash=62a18f36c9b7c968
+tick=2860 hash=f720891fff957ac9
+tick=2880 hash=c53d6e85cf4895d7
+tick=2900 hash=9a94f34b2efdbc6d
+tick=2920 hash=d536a899b1928873
+tick=2940 hash=f227a551b4875ca0
+tick=2960 hash=c59735350be63b01
+tick=2980 hash=a9f891d48888a4c5
+tick=3000 hash=5dfcc2331be883a0
+tick=3020 hash=b8be9ceb67f9c712
+tick=3040 hash=6a9cadda75bb45d3
+tick=3060 hash=cf90e32e60d45a7b
+tick=3080 hash=53e08c8bd38cfc49
+tick=3100 hash=8b99f454b5dfff8a
+tick=3120 hash=359b500e080ed849
+tick=3140 hash=141c5a8db4c37775
+tick=3160 hash=9a231791807903ea
+tick=3180 hash=f5f932926231fb0c
+tick=3200 hash=3bbab0262176a187
+tick=3220 hash=51a990ae184052a8
+tick=3240 hash=c278fffad46a0d35
+tick=3260 hash=0511f41803b5f1e5
+tick=3280 hash=d94f717946081c3d
+tick=3300 hash=b7f2e1c29f933f9f
+tick=3320 hash=0b467a5d48add269
+tick=3340 hash=69b2788096aa2439
+tick=3360 hash=8e26e6b16db38d8f
+tick=3380 hash=68013668363e7c1f
+tick=3400 hash=8e8e9f19fb6b9bf7
+tick=3420 hash=ec8859e0c4fe0b5d
+tick=3440 hash=0a553308f7f2308e
+tick=3460 hash=6c9dd1d8d6302eb1
+tick=3480 hash=0f7d44c1a79e573c
+tick=3500 hash=4dd959fa83b3f38d
+tick=3520 hash=9cf2218fa35b8f3d
+tick=3540 hash=a3aa8ee14cef628e
+tick=3560 hash=3f38a7efd1808767
+tick=3580 hash=af2f946aa2096b01
+tick=3600 hash=1bd040450bed896d
+tick=3620 hash=668ed01b5da14ff1
+tick=3640 hash=67b62b56ff2bcc6a
+tick=3660 hash=37a6f5c168c475d0
+tick=3680 hash=e3400f538e46f765
+tick=3700 hash=f4ee875c8fddd81a
+tick=3720 hash=c3652f7c72ebb860
+tick=3740 hash=49a4860edfc6a4e6
+tick=3760 hash=26f3f61163fe88cc
+tick=3780 hash=969df240f01f82a6
+tick=3800 hash=f1651eeddac22357
+tick=3820 hash=52836f78f1648a0b
+tick=3840 hash=bb6e2fe4359e90ef
+tick=3860 hash=3903cf8a33defdda
+tick=3880 hash=c3e8c75e308ff1fc
+tick=3900 hash=a2335d550d4fe3fb
+tick=3920 hash=b1787c55b9216b17
+tick=3940 hash=62b875038755ab24
+tick=3960 hash=32e86ecf9e3114d4
+tick=3980 hash=2e716ec9bfe1a3a1
+tick=4000 hash=e9ab6c4803ae071b
+tick=4020 hash=ad63d64d758d8c99
+tick=4040 hash=a53d0060f83aca1b
+tick=4060 hash=8de04d4cdabb9f89
+tick=4080 hash=be1bb4aab537dbd9
+tick=4100 hash=07e39ef61edc8432
+tick=4120 hash=af326aa824990dd4
+tick=4140 hash=21ed4bb27810b462
+tick=4160 hash=42dbe0b39aa7ac61
+tick=4180 hash=ae548a30e28322b3
+tick=4200 hash=8c2f5f39f29a318b
+tick=4220 hash=1ef5fb05f1e4f985
+tick=4240 hash=136fcae4a0b41cc6
+tick=4260 hash=a841fdefe4f256be
+tick=4280 hash=40127b642f0f61ff
+tick=4300 hash=2e0fbce5bcb51443
+tick=4320 hash=35c7e5b9b0c6d61c
+tick=4340 hash=f9b87daa10faeafa
+tick=4360 hash=dc9b96c3db41318f
+tick=4380 hash=42ecca1142f85f98
+tick=4400 hash=f02dbed7218e92fe
+tick=4420 hash=daa719e3fccbcede
+tick=4440 hash=feac7e4a71d735b4
+tick=4460 hash=874d40650c13f70a
+tick=4480 hash=de4f236b666d647d
+tick=4500 hash=31b5e2bb45be5bb4
+tick=4520 hash=c4904baaa9b987a3
+tick=4540 hash=22fce5664caf7170
+tick=4560 hash=1b7af1350f50fe37
+tick=4580 hash=c15badd88d9f260a
+tick=4600 hash=8dfb916b12e17bea
+tick=4620 hash=751ae4159fcb3fc8
+tick=4640 hash=3575d54f379b2d54
+tick=4660 hash=96c1f5e485a61858
+tick=4680 hash=4a3409052d34fdb5
+tick=4700 hash=f76c2250add4b5dd
+tick=4720 hash=60c3634f61dc2500
+tick=4740 hash=77192180e62e4e84
+tick=4760 hash=46bbde673304433b
+tick=4780 hash=262b5e053fc7acc1
+tick=4800 hash=0e87aa500b20653f
+tick=4820 hash=8252b451f076b7b9
+tick=4840 hash=ecf1ab6cc2f3358b
+tick=4860 hash=1dec3243ad77e816
+tick=4880 hash=8b484c144379cef1
+tick=4900 hash=15aed1dae2f3f9d1
+tick=4920 hash=8a6f71d565cb17e8
+tick=4940 hash=18550a9372dcc7cd
+tick=4960 hash=d577e2fe91e98b1e
+tick=4980 hash=9e5b6960b319de48
+tick=5000 hash=7658c4ee016db729
+tick=5020 hash=22982f8e5cb11a1b
+tick=5040 hash=e3a909efc7c4432d
+tick=5060 hash=123fa583aca7f43a
+tick=5080 hash=64152da8cf24cf6f
+tick=5100 hash=dd994e2679cec0e1
+tick=5120 hash=52af27173d5b6353
+tick=5140 hash=74806203293daaae
+tick=5160 hash=6331cbadb93df53d
+tick=5180 hash=03946ea79ab9c151
+tick=5200 hash=fbd4c700d64e04ec
+tick=5220 hash=b16878aba9cd3c21
+tick=5240 hash=58c7c26fe9b34822
+tick=5260 hash=3efbe61f8a449499
+tick=5280 hash=e9ed6ccffa2b9cd3
+tick=5300 hash=506e0208767d178f
+tick=5320 hash=27b67b40746fc4b6
+tick=5340 hash=595ce51fe4d4ba63
+tick=5360 hash=93b4425cff915ea3
+tick=5380 hash=6ecd85aff35b75c3
+tick=5400 hash=651d9a80159a0a99
+tick=5420 hash=22308c8c215eea44
+tick=5440 hash=7eb306a2707cf76d
+tick=5460 hash=f02ea048a843e4fe
+tick=5480 hash=aa452aa5097b417c
+tick=5500 hash=2a1fb2f7f307ed05
+tick=5520 hash=b730a38d0d5d68dd
+tick=5540 hash=7e537459b350ebdc
+tick=5560 hash=7ececd2cb0736da5
+tick=5580 hash=a30359e8a0e31b03
+tick=5600 hash=c681b2a409864007
+tick=5620 hash=7b7f05d95ff94b1f
+tick=5640 hash=dd00141cc463372f
+tick=5660 hash=89d0273755b68afb
+tick=5680 hash=ed42eb2f3d5c3834
+tick=5700 hash=a6513f9fe944e68c
+tick=5720 hash=7e96410606e7e2cc
+tick=5740 hash=6c8c226c258e1868
+tick=5760 hash=0319cae3c8c0cb87
+tick=5780 hash=56f823430ea89d4a
+tick=5800 hash=412153c4407b945f
+tick=5820 hash=fb296a72c810088f
+tick=5840 hash=6e9117646c71e752
+tick=5860 hash=2c448b322a7fe153
+tick=5880 hash=b88d3fea5d91c00d
+tick=5900 hash=e51745b38a6f7839
+tick=5920 hash=2787c1745cdf7e6e
+tick=5940 hash=ee49c38f33aa6be1
+tick=5960 hash=49855b05114e5875
+tick=5980 hash=46fff44a1c656612
+tick=6000 hash=24a01e57326f7e46
+tick=6020 hash=c1370aa4796b809e
+tick=6040 hash=883cba71bd14455e
+tick=6060 hash=21ec8568043d928a
+tick=6080 hash=4a19bda748ea4d0b
+tick=6100 hash=985924ffdf586522
+tick=6120 hash=377a3452ee54607c
+tick=6140 hash=d8357f128e6315c0
+tick=6160 hash=a183d67e55c402df
+tick=6180 hash=20a29493f2213510
+tick=6200 hash=f9f153fe35c4f648
+tick=6220 hash=7826def46d20e583
+tick=6240 hash=082ae3b455ff3cc1
+tick=6260 hash=5e125d49a1275027
+tick=6280 hash=96daa832764b03af
+tick=6300 hash=55ee5723270363ed
+tick=6320 hash=253c346595bb859c
+tick=6340 hash=46220190472c9b0f
+tick=6360 hash=b35ca437abed28ea
+tick=6380 hash=de94e20df55bc48d
+tick=6400 hash=6258e20acef87fb7
+tick=6420 hash=8147416aa72380b0
+tick=6440 hash=bcf10337dd6209c4
+tick=6460 hash=4c1af7075f2aa16c
+tick=6480 hash=c8758791da6f72d9
+tick=6500 hash=a4651162886fcfb2
+tick=6520 hash=b5207bb046598509
+tick=6540 hash=e0372d90362daaef
+tick=6560 hash=a308428ad6fcbd87
+tick=6580 hash=9aa98b0b3ff8e437
+tick=6600 hash=2cf02cefabe42a47
+tick=6620 hash=f85c7a1741bac7b0
+tick=6640 hash=b060a8fabbe083f8
+tick=6660 hash=07740922690f67ab
+tick=6680 hash=42fd514b488ad33d
+tick=6700 hash=c8a60d7e250fe337
+tick=6720 hash=7c27f18514dd83fc
+tick=6740 hash=3501cb58f940bdfe
+tick=6760 hash=23eb733734946abf
+tick=6780 hash=2692993642c6cbd9
+tick=6800 hash=410184815abd4bf0
+tick=6820 hash=0be81fe753b47124
+tick=6840 hash=6c92549695899ca2
+tick=6860 hash=2faa2dd789fec1d4
+tick=6880 hash=a3f09d0fb34e9704
+tick=6900 hash=dc30a5be259729fa
+tick=6920 hash=bffecd68a27ab096
+tick=6940 hash=17bfa3fa94c1cbea
+tick=6960 hash=ef50369383374362
+tick=6980 hash=1460563202c3225a
+tick=7000 hash=44983fb25088d23f
+tick=7020 hash=018574d7bdc93fff
+tick=7040 hash=39fb9d784758e003
+tick=7060 hash=8ae6b25551b7b024
+tick=7080 hash=7a1bc9033f8fdae0
+tick=7100 hash=e90b988438a120c2
+tick=7120 hash=0995ff0928763bdf
+tick=7140 hash=ac569fbd7ca6ea20
+tick=7160 hash=7ee189d8a99b4f64
+tick=7180 hash=3a3f75f04f0a1826
+tick=7200 hash=65bfed96bfc73024
+tick=7220 hash=52c6b8cab03c06ec
+tick=7240 hash=98aef9d3cabd3abc
+tick=7260 hash=57077fd858bbc9f4
+tick=7280 hash=051352ec0fb0bf78
+tick=7300 hash=53f27226feecace6
+tick=7320 hash=daf36bb880236e1b
+tick=7340 hash=62c94b6ac4abf12f
+tick=7360 hash=076aaa4da818d005
+tick=7380 hash=4dc5afec896e0b9e
+tick=7400 hash=dbddcff98da274ef
+tick=7420 hash=ad797fc69410c8ea
+tick=7440 hash=dc01f54b6ab386c5
+tick=7460 hash=73ddc3bfd7a73616
+tick=7480 hash=d609922e76e57194
+tick=7500 hash=b4da07b2bf8f197c
+tick=7520 hash=e9dfda9f7cdb60fe
+tick=7540 hash=9d57f900aa287d50
+tick=7560 hash=de8d28b595b8a1c8
+tick=7580 hash=94aa8e400e74eab9
+tick=7600 hash=54b8f81e1135dc1c
+OUTCOME winner=1 tick=7613
+STATE_HASH=368285be720371c6
+"
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.SkirmishAiTests.AiVsAi_FinalHash_MatchesTheV2Reference() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs:line 838
+
+1)    at Rts.Sim.Tests.Ai.SkirmishAiTests.AiVsAi_FinalHash_MatchesTheV2Reference() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs:line 838
+
+
+  Failed FirstStructure_IsPlacedOnAValidSiteNearTheHq [12 ms]
+  Error Message:
+     the new structure's footprint blocks its tile
+Assert.That(sim.Terrain.At(build.TileX, build.TileY).IsBlocked, Is.True)
+  Expected: True
+  But was:  False
+
+  Stack Trace:
+     at Rts.Sim.Tests.Ai.SkirmishAiTests.FirstStructure_IsPlacedOnAValidSiteNearTheHq() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs:line 498
+
+1)    at Rts.Sim.Tests.Ai.SkirmishAiTests.FirstStructure_IsPlacedOnAValidSiteNearTheHq() in /home/user/RTSGame/.claude/worktrees/agent-ab4ddadfb4e0f2dce/rts/tests/Sim.Tests/Ai/SkirmishAiTests.cs:line 498
+
+

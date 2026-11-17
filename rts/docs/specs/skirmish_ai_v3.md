@@ -383,7 +383,7 @@ Threat set: the visible enemy army units inside the base (as `ScanThreat`). Own 
 - Candidates that are not in the attack group come first (nearest first), attack-group units last (review of 17 Nov 2026). The attack group is recalled (stance Defend as in v2, every army unit defends) only when the supply the predictor asks for from attack-group units reaches `defend_recall_supply`; below that the group's units are dropped from the chosen set, the stance is unchanged and they keep attacking. Otherwise the other units keep their orders.
 - No threat: `DefendGroup` holds (no orders) until `LastThreatTick + defend_hold_seconds`, then is cleared (rule D unchanged).
 
-Keys: `defend_min_advantage` 1.5 (ratio, 0 to 100), `defend_blind_supply` 4 (supply, 1 to 200), `defend_max_candidates` 40 (units, 1 to 200).
+Keys (`defend_recall_supply` is the threat supply in v2 and, under measured defence, the supply asked of the attack group before it is recalled): `defend_min_advantage` 1.5 (ratio, 0 to 100), `defend_blind_supply` 4 (supply, 1 to 200), `defend_max_candidates` 40 (units, 1 to 200).
 
 ### D.6 Unit control (when `use_unit_control`; runs in Army before stance orders; a unit ordered here gets no stance order this think; never under all-in or rule K for D.6.1)
 

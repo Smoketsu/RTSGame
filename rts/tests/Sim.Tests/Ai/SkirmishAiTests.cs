@@ -490,11 +490,20 @@ namespace Rts.Sim.Tests.Ai
             {
                 sim.Submit(command);
             }
-            sim.Step();
-            foreach (SimEvent evt in sim.Events.Current)
+            // True once the structure has appeared (the worker walks to the site and places it, worker_construction.md). Range: true or false.
+            bool placed = false;
+            // Ticks stepped while waiting for the worker. Unit: ticks. Range: 0 to 1200.
+            for (int i = 0; i < 1200 && !placed; i++)
             {
-                Assert.That(evt, Is.Not.InstanceOf<CommandRejectedEvent>(), evt.Describe());
+                sim.Step();
+                foreach (SimEvent evt in sim.Events.Current)
+                {
+                    Assert.That(evt, Is.Not.InstanceOf<CommandRejectedEvent>(), evt.Describe());
+                    Assert.That(evt, Is.Not.InstanceOf<BuildOrderCancelledEvent>(), evt.Describe());
+                    placed |= evt is StructurePlacedEvent;
+                }
             }
+            Assert.That(placed, Is.True, "the worker places the structure");
             Assert.That(sim.Terrain.At(build.TileX, build.TileY).IsBlocked, Is.True, "the new structure's footprint blocks its tile");
         }
 

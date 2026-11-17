@@ -8,8 +8,8 @@
 //   D.3 target choice (use_target_choice): undefended enemy depots, then undefended producers, come before the v2 target order.
 //   D.4 rule HR (use_target_choice): a small squad of fast units harasses the known enemy drop-off farthest from the enemy army.
 //   D.5 measured defence (use_measured_defence): only the nearest units the predictor needs defend a threat inside the base.
-//   D.6 unit control (use_unit_control): hurt units fall back, ranged units step back from melee enemies, and units focus the enemy that
-//       dies fastest.
+//   D.6 unit control (use_unit_control): hurt units fall back and ranged units step back from armed enemy army units with a shorter range;
+//       with use_focus_fire, units focus the enemy that dies fastest.
 // Part of Rts.Ai. Everything reads only the AiWorldView (visible enemies, own units, public map data), the profile and the AiMemory; Fix64 and
 // integers only, ascending-ID iteration, ties to the lower ID, no random draw, no faction or unit named. Spatial queries go through AiProximity so no
 // loop runs over every pair of own and enemy units (a clumped army still visits every pair in the worst case, so the cost is bounded by the army
@@ -26,7 +26,7 @@ namespace Rts.Ai
     {
         private sealed partial class Turn
         {
-            /// <summary>The visible enemy army units inside the base this think (the threats of <see cref="ScanThreat"/>), ascending ID.</summary>
+            /// <summary>The visible enemy army units inside the base this think (the threats of <see cref="ScanThreat"/>), ascending ID. Unit: units. Range: 0 to the visible enemy army count.</summary>
             private readonly List<AiUnitView> _threats = new List<AiUnitView>();
 
             /// <summary>Every own army unit that is not an active scout, ascending ID; set by <see cref="Army"/> before the package D rules run.</summary>
@@ -41,16 +41,16 @@ namespace Rts.Ai
             /// <summary>Time to kill of each visible enemy army unit computed this think, or -1 when no own unit can shoot it (D.6.3). Unit: seconds. Range: -1, or 0 upward.</summary>
             private readonly SortedDictionary<EntityId, Fix64> _timeToKill = new SortedDictionary<EntityId, Fix64>();
 
-            /// <summary>Own army index for focus fire, built on first use. Radius focus_radius_tiles.</summary>
+            /// <summary>Own army index for focus fire, built on first use. Unit: grid cells of focus_radius_tiles (tiles, 1 to 30) over the own army units (0 to max army size).</summary>
             private AiProximity? _ownIndex;
 
-            /// <summary>Visible enemy army units index for focus fire, built on first use. Radius focus_radius_tiles.</summary>
+            /// <summary>Visible enemy army units index for focus fire, built on first use. Unit: grid cells of focus_radius_tiles (tiles, 1 to 30) over the visible enemy army units (0 to their count).</summary>
             private AiProximity? _foeIndex;
 
-            /// <summary>Visible armed non-worker enemies (structures included) index for the fall-back test, built on first use. Radius fallback_danger_tiles.</summary>
+            /// <summary>Visible armed non-worker enemies (structures included) index for the fall-back test, built on first use. Unit: grid cells of fallback_danger_tiles (tiles, 1 to 30) over the armed enemies (0 to their count).</summary>
             private AiProximity? _armedFoeIndex;
 
-            /// <summary>Visible armed enemy army units index for the keep-distance test, built on first use. Radius kite_trigger_tiles.</summary>
+            /// <summary>Visible armed enemy army units index for the keep-distance test, built on first use. Unit: grid cells of kite_trigger_tiles (tiles, 0.5 to 20) over the armed enemy army units (0 to their count).</summary>
             private AiProximity? _kiteFoeIndex;
 
             /// <summary>The predictor settings of the profile, built on first use.</summary>
@@ -601,7 +601,7 @@ namespace Rts.Ai
             /// <summary>
             /// D.5: answers a threat inside the base with as few units as the predictor needs (own complete static defences near the threat count
             /// as fixed defenders). Chosen units become the defend group and get the v2 Defend orders; if the chosen set holds an attack-group
-            /// member the stance becomes Defend (a recall: every army unit defends, as in v2). Without a threat the group holds until
+            /// member and the supply asked of attack-group members reaches defend_recall_supply, the stance becomes Defend (a recall: every army unit defends, as in v2). Without a threat the group holds until
             /// defend_hold_seconds after the last one. Returns true when the stance is Defend and the army has been ordered (Army then returns).
             /// </summary>
             /// <param name="armyAll">Every own army unit that is not an active scout.</param>
@@ -841,7 +841,7 @@ namespace Rts.Ai
 
             /// <summary>
             /// D.6.1 and D.6.2: hurt units near an armed enemy fall back home (never under all-in or rule K), and ranged units step back from
-            /// nearby melee enemies. Units ordered here are in <see cref="_controlled"/> and get no stance order this think.
+            /// nearby armed enemy army units with a range gap (the spec says melee). Units ordered here are in <see cref="_controlled"/> and get no stance order this think.
             /// </summary>
             /// <param name="armyAll">Every own army unit that is not an active scout.</param>
             private void UnitControl(List<AiUnitView> armyAll)
@@ -909,7 +909,7 @@ namespace Rts.Ai
             }
 
             /// <summary>
-            /// D.6.3 (replaces <see cref="Focus"/> when use_unit_control is on): the unit attacks, among the visible enemy army units it can
+            /// D.6.3 (replaces <see cref="Focus"/> when use_focus_fire is on): the unit attacks, among the visible enemy army units it can
             /// hit within focus_radius_tiles, the one that dies fastest (ties nearer, then lower ID). It keeps its current forced target while
             /// that target's time to kill is at most focus_switch_ratio times the best. At most focus_max_commands_per_think new orders per
             /// think; a unit beyond the budget gets its stance order. Returns true when the unit is focused (ordered or already on target).

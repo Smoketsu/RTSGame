@@ -71,12 +71,12 @@ namespace Rts.Net.Tests
             session.Start();
             Assert.That(session[N0].Peer.IsReferee, Is.True);
             Assert.That(session[N2].Peer.Referee, Is.EqualTo(N0));
-            // Iterations used until the match is decided on every peer.
-            int used = session.RunUntil(() => session[N0].Outcome.IsDecided && session[N1].Outcome.IsDecided && session[N2].Outcome.IsDecided, 6000 * 2);
+            // Worker construction (specs/worker_construction.md) makes the AI games longer, so the limit is 12000 ticks (it was 6000). Iterations used until the match is decided on every peer.
+            int used = session.RunUntil(() => session[N0].Outcome.IsDecided && session[N1].Outcome.IsDecided && session[N2].Outcome.IsDecided, 12000 * 2);
             session.AssertNoDesync();
             Assert.That(session[N0].Outcome.IsDecided, Is.True, "decided after " + used + " iterations, tick " + session[N0].Tick);
             Assert.That(session[N0].Outcome.Winner, Is.EqualTo(new TeamId(1)));
-            Assert.That(session[N0].Tick, Is.LessThan(6000));
+            Assert.That(session[N0].Tick, Is.LessThan(12000));
             session.AssertSameState();
             // Hash interval of the match. Unit: ticks.
             int interval = session[N0].Peer.Simulation.Settings.StateHashIntervalTicks;

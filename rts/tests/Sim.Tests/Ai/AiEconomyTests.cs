@@ -90,6 +90,8 @@ namespace Rts.Sim.Tests.Ai
             }
             Assert.That(Hq(sim, P0).HqState, Is.EqualTo(HqState.Rooted), "the Skai HQ starts Rooted beside its fields");
             Assert.That(Hq(sim, P1).HqState, Is.EqualTo(HqState.Rooted), "the Water HQ starts Rooted beside its fields");
+            // These tests are about where and when the AI builds, so every site counts as explored (the scouting trip is tested in AiConstructionTests).
+            ExploreKit.ExploreAll(sim);
             return sim;
         }
 

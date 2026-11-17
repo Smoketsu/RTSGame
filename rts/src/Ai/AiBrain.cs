@@ -107,8 +107,8 @@
 // the attack group against the visible armed enemies near it; use_target_choice puts undefended enemy depots and producers before the v2 target
 // order and adds rule HR (a small squad of fast units harasses the known enemy drop-off farthest from the enemy army); use_measured_defence
 // replaces "every army unit defends" by the nearest units the predictor needs (own static defences count), recalling the attack group only when
-// it is needed; use_unit_control adds fall back, keep distance and fastest-kill focus fire (replacing the nearest-enemy Focus). The scout, the
-// harass squad, the defend group and fallen-back units get no stance orders. Spatial tests use AiProximity, so no loop runs over every pair.
+// it is needed; use_unit_control adds fall back and keep distance, and use_focus_fire adds fastest-kill focus fire (replacing the nearest-enemy Focus). The scout, the
+// harass squad, the defend group and fallen-back units get no stance orders. Spatial tests use AiProximity, so no loop runs over every unit pair: each spatial test looks at its own cells (bounded by the army size).
 // Rule S now also treats a Defend that this think's threat would start as Defend (the scout is not taken on the first think of a Defend), and the
 // unreachable-waypoint skip waits until the move order has taken effect (AiMemory.ScoutOrderEffectiveTick).
 // Rule 0 also (skirmish_ai_v3.md B.3, only when use_enemy_model) updates the enemy model: the enemy army unit types seen with a count
@@ -210,7 +210,7 @@ namespace Rts.Ai
             }
             // This think's working state; nothing is decided.
             Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
-            return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots);
+            return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots, turn.StaticDefenceUnderConstructionNow, turn.StaticDefencesAtHq);
         }
 
         /// <summary>The economy facts one think derives from a view (test hook, see <see cref="Probe"/>).</summary>
@@ -225,9 +225,17 @@ namespace Rts.Ai
             /// <summary>Live depots. Unit: depots. Range: 0 upward.</summary>
             public int LiveDepots { get; }
 
+            /// <summary>True when an own static defence is under construction or ordered (a pending build order counts).</summary>
+            public bool StaticDefenceUnderConstruction { get; }
+
+            /// <summary>Own static defences, pending build orders included, within field_max_distance_tiles of the HQ. Unit: structures. Range: 0 upward.</summary>
+            public int StaticDefencesAtHq { get; }
+
             /// <summary>Stores the probe result.</summary>
-            public EconomyProbe(IReadOnlyList<int> served, int wantedWorkers, int liveDepots)
+            public EconomyProbe(IReadOnlyList<int> served, int wantedWorkers, int liveDepots, bool staticDefenceUnderConstruction, int staticDefencesAtHq)
             {
+                StaticDefenceUnderConstruction = staticDefenceUnderConstruction;
+                StaticDefencesAtHq = staticDefencesAtHq;
                 Served = served;
                 WantedWorkers = wantedWorkers;
                 LiveDepots = liveDepots;
@@ -2154,6 +2162,12 @@ namespace Rts.Ai
                 return indices;
             }
 
+            /// <summary>True when an own static defence is under construction or ordered (test hook through <see cref="Probe"/>).</summary>
+            public bool StaticDefenceUnderConstructionNow => StaticDefenceUnderConstruction();
+
+            /// <summary>Own static defences, pending orders included, near the HQ (test hook through <see cref="Probe"/>). Unit: structures.</summary>
+            public int StaticDefencesAtHq => StaticDefencesNear(_hq.Position);
+
             /// <summary>Live depots of this think (test hook through <see cref="Probe"/>). Unit: depots.</summary>
             public int LiveDepots => _liveDepots;
 
@@ -2596,6 +2610,7 @@ namespace Rts.Ai
                 Harass(armyAll, armySupplyAll);
                 UnitControl(armyAll);
                 // The army the stance orders go to: everyone except the harass, defend and fallen-back units (all of them when package D is off).
+                // Total supply of the stance army (declared by the call below). Unit: supply. Range: 0 upward.
                 List<AiUnitView> army = StanceArmy(armyAll, out int armySupply);
                 if (_profile.UseMeasuredDefence)
                 {
