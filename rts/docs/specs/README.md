@@ -50,11 +50,19 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | --- | --- | --- | --- |
 | [missing_roster.md](missing_roster.md) | Thunderhead, Tidecaller and Leviathan unit files (placeholder stats from stated rules), AI pool guard for unarmed units, re-measure of WC-3; no `rts/src/Sim` change | after WC-3 | skirmish AI v3, worker construction (built); build R-1, R-2, R-3 in order |
 
+<<<<<<< HEAD
 ## Combat mechanics (P-005 decisions 3, 6, 7, 18 Nov 2026)
 
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [combat_mechanics.md](combat_mechanics.md) | 1: area damage (`weapon.splash_radius_tiles`, flat, enemies only, blast at landing, dome-aware). 2: per-weapon `structure_damage_multiplier`. 3: `can_target_air_on_water` (hits flyers only while standing on a flooded tile). 4: Downdraft as a core `grounding_ability` with the `cast_grounding` command. All numbers are placeholders; no new step | P-005 | combat, statuses, flooding (built); build 1, 2, 3, 4 in order, sim-reviewer after each |
+=======
+## Equal-value fights (P-005 option M, 18 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [micro_benchmark.md](micro_benchmark.md) | Harness `--fights`: equal-value army fights without strategic AI (attack-move, both seats, flat, high ground, flooded and choke arenas), value-exchange matrix, design-rule checks 1 to 6 with the 15 s Rooted HQ floor, the matchups file (rule 7) outside the content digest; no `rts/src/Sim` change | P-005 decision 9 (built first) | balance harness (built); build F0 to F4 in order |
+>>>>>>> origin/review/spec-micro-benchmark
 
 ## Shared decisions (resolved across specs)
 
