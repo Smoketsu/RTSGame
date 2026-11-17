@@ -76,7 +76,7 @@ namespace Rts.Sim.Data
             {
                 return null;
             }
-            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench", "hit_delay_ticks", "splash_radius_tiles", "structure_damage_multiplier");
+            weapon.RejectUnknownKeys("damage", "damage_type", "range_tiles", "cooldown_seconds", "can_target", "applies_drench", "hit_delay_ticks", "splash_radius_tiles", "structure_damage_multiplier", "can_target_air_on_water");
             // Damage per hit. Unit: health points (fixed-point). Range: 0.01 to 100000.
             Fix64 damage = weapon.RequireFix64("damage", "0.01", "100000");
             // Damage type name; must be one of the damage types in tuning/combat.json.
@@ -132,7 +132,13 @@ namespace Rts.Sim.Data
             // Multiplier on damage against structures. Unit: multiplier of damage. Range: 0.1 to 4; 1 (no bonus) when absent.
             Fix64 structureMultiplier = weapon.TryGetMember("structure_damage_multiplier", out JsonValue? structureNode)
                 ? structureNode.AsFix64(WeaponDefinition.MinStructureDamageMultiplier, WeaponDefinition.MaxStructureDamageMultiplier) : Fix64.One;
-            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench, hitDelay, splash, structureMultiplier);
+            // Optional switch: the weapon also hits flyers while its unit stands on a flooded tile. Range: true or false; false when absent; must be absent or false when can_target lists "air".
+            bool airOnWater = weapon.TryGetMember("can_target_air_on_water", out JsonValue? airOnWaterNode) && airOnWaterNode.AsBool();
+            if (airOnWater && air)
+            {
+                throw airOnWaterNode!.Fail("is redundant: can_target already lists air");
+            }
+            return new WeaponDefinition(damage, damageType, range, cooldown, ground, water, air, appliesDrench, hitDelay, splash, structureMultiplier, airOnWater);
         }
 
         /// <summary>Reads the optional shield_dome object (all four keys required inside it). Returns null when absent.</summary>

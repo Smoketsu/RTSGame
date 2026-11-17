@@ -118,7 +118,7 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("target_not_enemy");
             }
-            if (!weapon.CanTarget(target.EffectiveLayer))
+            if (!CombatSystem.CanHitLayer(sim, unit, weapon, target.EffectiveLayer))
             {
                 return CommandResult.Reject("cannot_target_layer");
             }

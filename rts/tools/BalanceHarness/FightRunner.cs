@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Rts.Sim;
+using Rts.Sim.Combat;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
@@ -154,7 +155,7 @@ namespace Rts.Tools.BalanceHarness
                     reason = alive0 == 0 && alive1 == 0 ? "both_eliminated" : "eliminated";
                     break;
                 }
-                cannotStreak = CanHurt(live0, live1) || CanHurt(live1, live0) ? 0 : cannotStreak + 1;
+                cannotStreak = CanHurt(sim, live0, live1) || CanHurt(sim, live1, live0) ? 0 : cannotStreak + 1;
                 if (cannotStreak >= confirm)
                 {
                     result = FightRecord.Stalemate;
@@ -206,7 +207,7 @@ namespace Rts.Tools.BalanceHarness
                         // Enemy units ascending by ID; a strictly closer one wins, so ties go to the lower ID.
                         foreach (Unit enemy in live[1 - seat])
                         {
-                            if (!unit.Definition.Weapon!.CanTarget(enemy.EffectiveLayer))
+                            if (!CombatSystem.CanAttack(sim, unit, enemy))
                             {
                                 continue;
                             }
@@ -243,20 +244,17 @@ namespace Rts.Tools.BalanceHarness
             return live;
         }
 
-        /// <summary>True when some unit of <paramref name="own"/> has a weapon that can target the effective layer of some unit of <paramref name="enemy"/>.</summary>
-        private static bool CanHurt(List<Unit> own, List<Unit> enemy)
+        /// <summary>
+        /// True when some unit of <paramref name="own"/> can hit some unit of <paramref name="enemy"/> right now: the weapon's layer list, or flyers while
+        /// the shooter stands on water (CombatSystem.CanAttack, combat_mechanics.md 3.1), so a conditional target rule never declares a false stalemate.
+        /// </summary>
+        private static bool CanHurt(Simulation sim, List<Unit> own, List<Unit> enemy)
         {
-            // Bit mask of the enemy layers present (bit = layer number).
-            int layers = 0;
-            foreach (Unit unit in enemy)
-            {
-                layers |= 1 << (int)unit.EffectiveLayer;
-            }
             foreach (Unit unit in own)
             {
-                for (int layer = 0; layer < 3; layer++)
+                foreach (Unit target in enemy)
                 {
-                    if ((layers & (1 << layer)) != 0 && unit.Definition.Weapon!.CanTarget((MovementLayer)layer))
+                    if (CombatSystem.CanAttack(sim, unit, target))
                     {
                         return true;
                     }

@@ -730,7 +730,8 @@ namespace Rts.Sim.Tests.Economy
             // Re-pinned for the missing roster (specs/missing_roster.md R2-9): the content digest now includes the three new unit files. Old value 93762ddc16910b23; outcome unchanged.
             // Re-pinned for combat mechanics package 1 (specs/combat_mechanics.md): old value aff851b30f63e4f8, outcome unchanged (undecided, tick 1499). Re-pinned for combat mechanics package 2 (structure_damage_multiplier in the content digest): 9a71eaccaab510c5 became e4127bf62b50cbc1, outcome unchanged.
             // Re-pinned for F0 (specs/micro_benchmark.md 3.3, developer decision 4 of 18 Nov 2026: Rooted HQ floor 20 s to 15 s in hq.json and harness.json, both in the content digest): old value e4127bf62b50cbc1, outcome unchanged (undecided, tick 1499).
-            Assert.That(first, Does.Contain("STATE_HASH=9cffda66d3cb0548\n"));
+            // Re-pinned for combat mechanics package 3 (specs/combat_mechanics.md: can_target_air_on_water is in the weapon digest, Reef Runner and Shellback carry it): old value 9cffda66d3cb0548, outcome unchanged (undecided, tick 1499).
+            Assert.That(first, Does.Contain("STATE_HASH=d951951064e0b735\n"));
         }
     }
 }

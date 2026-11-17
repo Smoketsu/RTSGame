@@ -40,7 +40,9 @@
     "cooldown_seconds": 0.8,
     // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
     "hit_delay_ticks": 2,
-    // Movement layers of targets the weapon may hit: no air, so the Spoutling and the Coral Turret stay water's anti-air answer (open question Q2 default). Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
-    "can_target": ["ground", "water"]
+    // Movement layers of targets the weapon may hit: no static air, so the Spoutling and the Coral Turret stay water's unconditional anti-air answer (open question Q2 default); flyers can be hit only on a flooded tile, see can_target_air_on_water below. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
+    "can_target": ["ground", "water"],
+    // Lets this weapon also hit flying units, but only while this unit stands on a flooded tile (any water depth above 0, any team's water). Unit: boolean. Range: true or false (false when absent; must be absent or false when can_target lists "air"). Source: P-005 developer decision 3 (18 Nov 2026: "Some water units can hit fliers, but only when they're on Water"); choice of units is a placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 3.2).
+    "can_target_air_on_water": true
   }
 }

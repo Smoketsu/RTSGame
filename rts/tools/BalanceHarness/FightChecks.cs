@@ -158,17 +158,25 @@ namespace Rts.Tools.BalanceHarness
                     List<string> statics = new List<string>();
                     foreach (UnitDefinition own in units.Values)
                     {
-                        if (own.FactionId != faction || own.Weapon == null || !own.Weapon.CanTarget(target.Layer))
+                        if (own.FactionId != faction || own.Weapon == null)
                         {
                             continue;
                         }
+                        // True when the weapon hits the layer only conditionally (flyers while its unit stands on water, combat_mechanics.md 3.1): counted and named.
+                        bool conditional = !own.Weapon.CanTarget(target.Layer) && target.Layer == MovementLayer.Air && own.Weapon.CanTargetAirOnWater;
+                        if (!own.Weapon.CanTarget(target.Layer) && !conditional)
+                        {
+                            continue;
+                        }
+                        // Answer name in the detail line; a conditional answer carries "(on water)".
+                        string answer = conditional ? own.Id + " (on water)" : own.Id;
                         if (FightSettings.IsCombatUnit(own))
                         {
-                            mobile.Add(own.Id);
+                            mobile.Add(answer);
                         }
                         else if (own.Economy.IsStaticDefence)
                         {
-                            statics.Add(own.Id);
+                            statics.Add(answer);
                         }
                     }
                     if (mobile.Count < settings.Rule1MinMobileAnswers)
