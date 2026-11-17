@@ -50,6 +50,12 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | --- | --- | --- | --- |
 | [missing_roster.md](missing_roster.md) | Thunderhead, Tidecaller and Leviathan unit files (placeholder stats from stated rules), AI pool guard for unarmed units, re-measure of WC-3; no `rts/src/Sim` change | after WC-3 | skirmish AI v3, worker construction (built); build R-1, R-2, R-3 in order |
 
+## Combat mechanics (P-005 decisions 3, 6, 7, 18 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [combat_mechanics.md](combat_mechanics.md) | 1: area damage (`weapon.splash_radius_tiles`, flat, enemies only, blast at landing, dome-aware). 2: per-weapon `structure_damage_multiplier`. 3: `can_target_air_on_water` (hits flyers only while standing on a flooded tile). 4: Downdraft as a core `grounding_ability` with the `cast_grounding` command. All numbers are placeholders; no new step | P-005 | combat, statuses, flooding (built); build 1, 2, 3, 4 in order, sim-reviewer after each |
+
 ## Shared decisions (resolved across specs)
 
 **Step order** (the `Simulation.cs` header is authoritative; Phase 2 adds step 9, the coordinator makes the edit): 1. clear events; 2. apply commands in (issuer, sequence) order; 3. statuses (`StatusSystem.BeginTick`); 4. HQ timers (`HqSystem.Step`); 5. movement, then separation (`UnitSeparation`); 6. combat; 7. economy; 8. faction mechanics in ascending ordinal ID (`flooding` before `momentum`); 9. **cycles and Core** (`CycleSystem.Step`: out-of-match sides, presence, capture, hold accrual, Core win, lock, shift and quake paths, quake damage); 10. vision recompute; 11. state hash every interval; 12. advance the clock. A status applied by combat on tick t wipes Momentum on tick t and changes movement from tick t+1; a cycle that starts on tick S changes movement and combat from tick S+1; the hash and the AI read end-of-tick vision and Core state.
