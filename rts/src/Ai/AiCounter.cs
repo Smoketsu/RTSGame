@@ -1,5 +1,5 @@
 // rts/src/Ai/AiCounter.cs
-// The counter-mix of skirmish_ai_v3.md C.3 and C.4: the unit pool of a faction computed from data, the Lanchester score of every pool
+// The counter-mix of skirmish_ai_v3.md C.3 and C.4: the unit pool of a faction (armed units only) computed from data, the Lanchester score of every pool
 // unit (and static defence) against the enemy model, and the integer mix weights that replace the plan's composition when
 // use_counter_mix is on. Part of Rts.Ai. Everything is computed from UnitDefinition and the damage table (FightPredictor helpers); no
 // faction or unit ID is named here. Package C2 (skirmish_ai_v3.md C2.2, use_predictor_mix) adds PredictorMix: the pool units are scored by
@@ -19,7 +19,7 @@ namespace Rts.Ai
         private static readonly Fix64 MixTolerance = Fix64.FromRaw(1L << 12);
 
         /// <summary>
-        /// The unit pool of a faction (C.3): mobile (footprint 0) non-worker non-HQ units of the faction that some structure of the faction trains.
+        /// The unit pool of a faction (C.3): mobile (footprint 0) non-worker non-HQ armed (has a weapon) units of the faction that some structure of the faction trains.
         /// </summary>
         /// <param name="view">The view (for the unit catalogue).</param>
         /// <param name="factionId">The plan's faction ID.</param>
@@ -43,7 +43,7 @@ namespace Rts.Ai
             foreach (string id in trained)
             {
                 if (view.Content.Units.TryGetValue(id, out UnitDefinition? unit) && string.Equals(unit.FactionId, factionId, StringComparison.Ordinal)
-                    && AiIntel.IsArmyType(unit))
+                    && AiIntel.IsArmyType(unit) && unit.Weapon != null)
                 {
                     pool.Add(unit);
                 }

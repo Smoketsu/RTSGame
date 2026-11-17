@@ -1,0 +1,48 @@
+// rts/data/units/water/leviathan.json: Leviathan, the Water capstone siege unit (colossal king crab with two hydro-cannons). Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for the developer to confirm (rts/docs/specs/missing_roster.md section 3.3), not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Leviathan unit definition for the water faction (capstone siege unit: long-range blast cannons, slow, armoured, trained at the Shell Forge); every number is derived by the rules in rts/docs/specs/missing_roster.md section 2 and is a placeholder. Developer decision of 18 Nov 2026: it can target air (the spec default was ground and water only).",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.leviathan",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Leviathan, capstone siege unit).
+  "display_name": "Leviathan",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Whether the unit is a mobile unit or a building. Unit: kind name. Range: "unit" or "building" (default "unit" when absent). Source: Economy (buildings are units that stand still); placeholder.
+  "kind": "unit",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3); matches the other water combat units.
+  "layer": "water",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "max_health": 320,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "speed_tiles_per_second": 1.5,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "supply": 4,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "radius_tiles": 1.2,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "cost_common": 300,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "cost_rare": 80,
+  // Time to train this unit at a producer. Unit: seconds. Range: 0.05 to 3600. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "build_seconds": 60,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "armour_type": "armoured",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "sight_range_tiles": 12,
+  // Weapon: slow, heavy blast siege cannons at the longest ground range in the data; hits ground, water and air (developer decision 18 Nov 2026). Every number is a placeholder for the developer to confirm.
+  "weapon": {
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+    "damage": 80,
+    // Damage type, a key of the damage table. Unit: damage type name. Range: "kinetic", "blast" or "drench" (names in tuning/combat.json). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3); blast does 1.25 against structures.
+    "damage_type": "blast",
+    // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+    "range_tiles": 9,
+    // Time between two hits. Unit: seconds. Range: 0.05 to 60. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+    "cooldown_seconds": 3.0,
+    // Ticks between firing and the hit landing; the hit is bound to its target when fired and cannot be dodged. 0 for melee. Unit: ticks (20 per second). Range: 0 to 10 (0 when absent; must be 0 when range_tiles is 1.5 or less). Source: P-003 row 4 (developer, 16 Nov 2026: 2 ticks = 100 ms); placeholder.
+    "hit_delay_ticks": 2,
+    // Movement layers of targets the weapon may hit. Unit: list of layer names. Range: 1 to 3 distinct entries of "ground", "water", "air". Source: developer decision 18 Nov 2026 (includes air); placeholder, developer to confirm.
+    "can_target": ["ground", "water", "air"]
+  }
+}

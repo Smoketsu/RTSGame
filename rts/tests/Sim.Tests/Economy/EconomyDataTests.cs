@@ -46,7 +46,10 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(roost.Economy.ProvidesSupply, Is.EqualTo(8));
             Assert.That(roost.Economy.FootprintTiles, Is.EqualTo(1));
             UnitDefinition tidepool = data.Content.Units["water.tidepool"];
-            Assert.That(tidepool.Economy.Trains, Is.EqualTo(new[] { "water.spoutling", "water.grasper", "water.reef_runner" }));
+            Assert.That(tidepool.Economy.Trains, Is.EqualTo(new[] { "water.spoutling", "water.grasper", "water.reef_runner", "water.tidecaller" }));
+            // The three roster units of rts/docs/specs/missing_roster.md section 3.4 (R2-2): the second producers gain the bombardment and siege units.
+            Assert.That(data.Content.Units["skai.windspire"].Economy.Trains, Is.EqualTo(new[] { "skai.talon_archer", "skai.stormcaller", "skai.thunderhead" }));
+            Assert.That(data.Content.Units["water.shell_forge"].Economy.Trains, Is.EqualTo(new[] { "water.shellback", "water.ink_lobber", "water.leviathan" }));
             Assert.That(tidepool.Economy.ProvidesSupply, Is.EqualTo(8));
             foreach (string id in new[] { "skai.perch_tower", "water.coral_turret" })
             {

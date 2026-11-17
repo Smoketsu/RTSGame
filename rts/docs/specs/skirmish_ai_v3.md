@@ -296,7 +296,7 @@ Per-unit DPS used: Windrunner vs Pummeler 6 x 0.75 / 0.8 = 5.625; Pummeler vs Wi
 
 ### C.3 Unit pool (computed from data)
 
-Pool of a faction = every unit u with `FactionId` = the plan's faction, footprint 0, not a worker, not an HQ, listed in the `trains` of some structure of the faction. Shipped: Skai {roc_rider, stormcaller, talon_archer, windrunner}; Water {reef_runner, grasper, ink_lobber, shellback, spoutling}. Static defences of the faction = structures with `IsStaticDefence` and a weapon.
+Pool of a faction = every unit u with `FactionId` = the plan's faction, footprint 0, not a worker, not an HQ, armed (has a weapon; R-1 of specs/missing_roster.md, so an unarmed unit such as the Tidecaller never enters the pool), listed in the `trains` of some structure of the faction. Shipped: Skai {roc_rider, stormcaller, talon_archer, windrunner}; Water {reef_runner, grasper, ink_lobber, shellback, spoutling}. Static defences of the faction = structures with `IsStaticDefence` and a weapon.
 
 ### C.4 Counter-mix (rule 5 input when `use_counter_mix`)
 

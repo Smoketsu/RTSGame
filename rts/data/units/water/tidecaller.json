@@ -1,0 +1,37 @@
+// rts/data/units/water/tidecaller.json: Tidecaller, unarmed Water support caster that casts the wave and releases water around itself. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for the developer to confirm (rts/docs/specs/missing_roster.md section 3.2), not a balance decision.
+{
+  "$schema_version": 1,
+  "$doc": "Tidecaller unit definition for the water faction (unarmed support caster on the water layer that can cast the wave and is a small mobile flood source, trained at the Tidepool); stats are the Spoutling chassis, placeholders per rts/docs/specs/missing_roster.md section 3.2. Developer decisions of 18 Nov 2026: unarmed, water layer, generates water around itself (flood source at half the Tidepool's output and a quarter of its capacity).",
+  // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.tidecaller",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Tidecaller: "creates waves and extends the flood").
+  "display_name": "Tidecaller",
+  // Faction that fields this unit; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Water faction / Unit concepts; developer decision 18 Nov 2026 (water layer).
+  "layer": "water",
+  // Health at full. Unit: health points. Range: 1 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "max_health": 70,
+  // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (0 means the unit never moves). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "speed_tiles_per_second": 3,
+  // Supply used while the unit is alive. Unit: supply. Range: 0 to 100. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "supply": 2,
+  // Collision radius. Unit: tiles. Range: 0.05 to 10. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "radius_tiles": 0.4,
+  // Cost in the common resource. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "cost_common": 100,
+  // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "cost_rare": 25,
+  // Time to train this unit at a producer (or to construct it, for a structure). Unit: seconds. Range: 0.05 to 3600 (default 10 when absent). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "build_seconds": 20,
+  // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: one of the armour_types in tuning/combat.json ("light", "armoured", "structure"); defaults to default_armour_type when absent. Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "armour_type": "light",
+  // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64 (default 8 when absent). Source: placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3).
+  "sight_range_tiles": 9,
+  // Lets this unit take the cast_wave command (push enemies back and extend its team's flood; cooldown and size in tuning/flood.json). Unit: boolean. Range: true or false (false when absent). Source: Factions / Water faction / Unit concepts (Tidecaller: "creates waves and extends the flood"); rts/docs/specs/flooding.md section 2.
+  "can_cast_wave": true,
+  // Water this Tidecaller releases around its current tile while complete: flood source output (half the Tidepool's 1). Unit: depth-unit tiles per second. Range: 0 to 64 (0 or absent means not a flood source). Source: developer decision 18 Nov 2026 ("it should generate water around it"); placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3.2).
+  "flood_source_output_per_second": 0.5,
+  // This unit's share of its team's high-tide water volume (a quarter of the Tidepool's 40). Unit: depth-unit tiles. Range: 0 to 4096 (above 0 whenever the output is above 0). Source: developer decision 18 Nov 2026; placeholder, developer to confirm (rts/docs/specs/missing_roster.md section 3.2).
+  "flood_source_capacity": 10
+}

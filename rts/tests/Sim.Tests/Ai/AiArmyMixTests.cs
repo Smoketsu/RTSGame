@@ -717,5 +717,34 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(S2.UsePredictorMix, Is.False);
             Assert.That(S2.RaidMinSupply, Is.EqualTo(1));
         }
+
+        // ---------------------------------------------------------------- R-1 (rts/docs/specs/missing_roster.md): the pool holds armed units only
+
+        /// <summary>R1-1. A trainable unit with no weapon (the Tidecaller, trained at the Tidepool) is not in the pool; the armed Spoutling from the same producer is.</summary>
+        [Test]
+        public void Pool_SkipsAnUnarmedTrainableUnit()
+        {
+            Simulation sim = Greybox("water", "skai");
+            AiWorldView view = AiWorldView.Build(sim, P0);
+            UnitDefinition unarmed = Data.Content.Units["water.tidecaller"];
+            Assert.That(unarmed.Weapon, Is.Null);
+            Assert.That(Data.Content.Units["water.tidepool"].Economy.Trains, Does.Contain("water.tidecaller"));
+            // Pool unit IDs, ordinal.
+            List<string> ids = AiCounter.Pool(view, "water").ConvertAll(u => u.Id);
+            Assert.That(ids, Does.Contain("water.spoutling"));
+            Assert.That(ids, Does.Not.Contain("water.tidecaller"));
+        }
+
+        /// <summary>R1-2. On shipped data the pools hold exactly the armed combat units, in ordinal ID order (the Thunderhead and Leviathan join them, the Tidecaller does not).</summary>
+        [Test]
+        public void Pool_OnShippedData_IsTheArmedCombatUnits()
+        {
+            Simulation sim = Greybox("skai", "water");
+            AiWorldView view = AiWorldView.Build(sim, P0);
+            Assert.That(AiCounter.Pool(view, "skai").ConvertAll(u => u.Id),
+                Is.EqualTo(new[] { "skai.roc_rider", "skai.stormcaller", "skai.talon_archer", "skai.thunderhead", "skai.windrunner" }));
+            Assert.That(AiCounter.Pool(view, "water").ConvertAll(u => u.Id),
+                Is.EqualTo(new[] { "water.grasper", "water.ink_lobber", "water.leviathan", "water.reef_runner", "water.shellback", "water.spoutling" }));
+        }
     }
 }
