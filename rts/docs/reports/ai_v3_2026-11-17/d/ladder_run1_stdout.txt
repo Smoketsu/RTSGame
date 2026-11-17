@@ -1,0 +1,2 @@
+cell greybox_1v1 skai_vs_skai 24/24
+cell greybox_1v1 skai_vs_water 24/24

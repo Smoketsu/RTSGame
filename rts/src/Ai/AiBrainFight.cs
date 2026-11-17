@@ -49,8 +49,8 @@ namespace Rts.Ai
             /// <summary>Visible armed non-worker enemies (structures included) index for the fall-back test, built on first use. Radius fallback_danger_tiles.</summary>
             private AiProximity? _armedFoeIndex;
 
-            /// <summary>Visible enemy melee army units index for the keep-distance test, built on first use. Radius kite_trigger_tiles.</summary>
-            private AiProximity? _meleeFoeIndex;
+            /// <summary>Visible armed enemy army units index for the keep-distance test, built on first use. Radius kite_trigger_tiles.</summary>
+            private AiProximity? _kiteFoeIndex;
 
             /// <summary>The predictor settings of the profile, built on first use.</summary>
             private PredictorSettings? _predictorSettings;
@@ -703,23 +703,23 @@ namespace Rts.Ai
                 return _armedFoeIndex;
             }
 
-            /// <summary>Visible enemy melee army units, the index for the keep-distance test.</summary>
-            private AiProximity MeleeFoeIndex()
+            /// <summary>Visible armed enemy army units, the index for the keep-distance test (the range gap of the rule keeps out enemies that out-range the unit).</summary>
+            private AiProximity KiteFoeIndex()
             {
-                if (_meleeFoeIndex == null)
+                if (_kiteFoeIndex == null)
                 {
                     // The enemies indexed.
-                    List<AiUnitView> melee = new List<AiUnitView>();
+                    List<AiUnitView> armed = new List<AiUnitView>();
                     foreach (AiUnitView foe in _view.VisibleEnemies)
                     {
-                        if (foe.IsArmy && foe.Definition.Weapon != null && foe.Definition.Weapon.IsMelee)
+                        if (foe.IsArmy && foe.Definition.Weapon != null)
                         {
-                            melee.Add(foe);
+                            armed.Add(foe);
                         }
                     }
-                    _meleeFoeIndex = new AiProximity(melee, _profile.KiteTriggerTiles);
+                    _kiteFoeIndex = new AiProximity(armed, _profile.KiteTriggerTiles);
                 }
-                return _meleeFoeIndex;
+                return _kiteFoeIndex;
             }
 
             /// <summary>D.6.1 test: true when a visible armed enemy that can target the unit's layer stands within fallback_danger_tiles of it.</summary>
@@ -739,7 +739,8 @@ namespace Rts.Ai
             }
 
             /// <summary>
-            /// D.6.2: when the ranged <paramref name="unit"/> has a visible enemy melee army unit that can hit it within kite_trigger_tiles, and
+            /// D.6.2: when the ranged <paramref name="unit"/> has a visible armed enemy army unit that can hit it within kite_trigger_tiles (the spec says
+            /// melee, but its test D-9 also kites from a range-2 Shellback, so the range gap alone separates short-range enemies), and
             /// its range exceeds the enemy's by kite_min_range_gap_tiles and its speed is at least kite_speed_ratio_min times the enemy's, orders
             /// a move kite_step_tiles directly away from the nearest such enemy. Returns true when the order was given.
             /// </summary>
@@ -751,9 +752,9 @@ namespace Rts.Ai
                 {
                     return false;
                 }
-                // Enemy melee units in trigger range, nearest first by the scan below.
+                // Armed enemy army units in trigger range.
                 List<AiUnitView> near = new List<AiUnitView>();
-                MeleeFoeIndex().Near(unit.Position, _profile.KiteTriggerTiles, near);
+                KiteFoeIndex().Near(unit.Position, _profile.KiteTriggerTiles, near);
                 // The nearest enemy that can hit the unit (ties to the lower ID), and its squared distance. Unit: squared tiles.
                 AiUnitView? nearest = null;
                 Fix64 nearestSquared = Fix64.Zero;
@@ -776,9 +777,15 @@ namespace Rts.Ai
                 {
                     return false;
                 }
-                // The point opposite the enemy, and the step toward it. Unit: tiles.
-                FixVec2 away = unit.Position * Fix64.FromInt(2) - nearest.Position;
-                return Emit(AiIntent.Move(unit.Id, Standable(unit.Position.MoveTowards(away, _profile.KiteStepTiles))));
+                // The vector from the enemy to the unit and its length (above 0: the positions differ). Unit: tiles.
+                FixVec2 offset = unit.Position - nearest.Position;
+                Fix64 distance = offset.Length();
+                // The point exactly kite_step_tiles from the unit directly away from the enemy, kept 0.5 tiles inside the map edge (D.6.2; the spec's
+                // MoveTowards(2u - e, step) would stop at the mirror point when the enemy is closer than the step). Unit: tiles.
+                FixVec2 away = unit.Position + offset * (_profile.KiteStepTiles / distance);
+                Fix64 awayX = Fix64.Clamp(away.X, Fix64.Half, Fix64.FromInt(_view.Width) - Fix64.Half);
+                Fix64 awayY = Fix64.Clamp(away.Y, Fix64.Half, Fix64.FromInt(_view.Height) - Fix64.Half);
+                return Emit(AiIntent.Move(unit.Id, Standable(new FixVec2(awayX, awayY))));
             }
 
             /// <summary>
