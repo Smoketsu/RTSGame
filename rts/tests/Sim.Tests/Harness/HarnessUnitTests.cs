@@ -160,11 +160,12 @@ namespace Rts.Sim.Tests.Harness
         [Test]
         public void SingleRunMode_IsUnchanged()
         {
+            // Both hashes re-pinned for worker construction (specs/worker_construction.md): new tuning key worker_placement_seconds and workers walk to build sites.
             string folder = TestDataFolder();
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder }, out string output, out _), Is.EqualTo(0));
-            Assert.That(output, Does.Contain("STATE_HASH=9ece0ce1b0338423\n"));
+            Assert.That(output, Does.Contain("STATE_HASH=03674dfb1efc68b7\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=38db6dd44d0ec48b\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=93762ddc16910b23\n"));
         }
 
         /// <summary>The shipped data set.</summary>

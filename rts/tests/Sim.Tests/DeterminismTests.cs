@@ -85,11 +85,12 @@ namespace Rts.Sim.Tests
         /// Re-pinned for P-003 package A (rts/docs/specs/p003_rules.md): new combat tuning key, hit_delay_ticks and worker weapons and the Shellback dome in
         /// the unit texts, and new hashed state (pending hit queue, dome fields). No other behaviour of this script was intended to change.
         /// Re-pinned for P-003 package B (specs/p003_rules.md B.6): six new tuning/terrain.json keys are in the tuning text, and units of this script may now separate.
+        /// Re-pinned for worker construction (specs/worker_construction.md): new tuning key worker_placement_seconds and workers walk to build sites.
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// </summary>
-        private const ulong GoldenFinalHash = 0xc5368cde05d19445UL;
+        private const ulong GoldenFinalHash = 0xc152b29fd0252a8dUL;
 
         [Test]
         public void GoldenHash_IsPinned()
