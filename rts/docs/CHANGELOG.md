@@ -46,6 +46,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `docs/art/concept/round23/`: three concept options for the water faction's new scout unit (flying fish, seahorse, squid), awaiting the developer's pick. P-004 approved by the developer on 17 Nov 2026 for stages 1 to 3 (one strong AI, water gets its own scout, acceptance bar 65 percent of 200 games against the previous version).
+
 - `docs/proposals/P-004-smarter-skirmish-ai.md`: proposal for an AI that reacts to its opponent (scouting and an enemy model, a computed counter table and fight prediction, fight choices, several plans, faction play, tuning by self-play), with a ladder, response tests and a variety measure as acceptance. Awaiting the developer's decision.
 
 - `docs/reports/ai_v2_2026-11-16/batch_prototype_1v1.md`: 20 AI-versus-AI games per matchup on `prototype_1v1` (17 Nov 2026): all 60 decided before the 1500 s cap; mirror matches 55 percent (Skai) and 45 percent (water) for the first slot, so no spawn-side bias; Skai beats water in 75 percent; median length 572 to 1028 s. The HQ survivability floor still fails (6.6 s against 20 s), a balance item on hold.

@@ -1,0 +1,43 @@
+// rts/docs/art/concept/round23/shots.json: shot list for round 23, three options for the water faction Scout (cheapest, fastest, lightest unit; counterpart of the Skai Windrunner), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a quality, references (repository-relative images the result must stay faithful to) and a prompt.
+{
+  // Shared style text prepended to every shot prompt: one unit, three-quarter front view, light-grey backdrop, water palette, matte low-poly, scout role. Source: CONCEPT_BRIEF.md, Style and Faction palettes.
+  "style": "Concept art of ONE single science fiction strategy game unit rendered as a simple low-polygon 3D game model, in exactly the same chunky faceted matte look, proportions and colours as the three reference model sheets (the octopus Tender worker, the cuttlefish Spoutling and the mantis shrimp Pummeler). Use the references ONLY for the rendering style and the water faction palette; do not copy their creatures and do not draw three views. Draw exactly one unit, shown in a three-quarter front view, filling about two thirds of the frame, on a plain flat light-grey backdrop from edge to edge (NOT dark, NOT black, no vignette, no gradient, no ground shadow). Water faction palette: muted sea-green body, dusky rose-coral bands and rims, dark teal, small turquoise lights painted as flat colour, no white, no red anywhere. Fully matte, flat even lighting, no specular highlights, no glow, no halo, no bloom, no effects. Grown bio-technology: a living sea creature fitted with organic armour plates and engines. The unit is the water faction SCOUT: the cheapest, fastest, lightest unit, small, lean and built for speed, about the size of the Tender worker, clearly not a fighter, carrying only one small light weapon, a single thin dart or needle launcher. No text, no labels, no borders.",
+  "shots": [
+    {
+      // Output file name without extension.
+      "id": "water_scout_flying_fish",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images, the approved water sheets for the house look. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/turnarounds2/water_spoutling_sheet.jpg", "rts/docs/art/concept/turnarounds4/water_pummeler_sheet.jpg", "rts/docs/art/concept/turnarounds5/water_worker_sheet.jpg"],
+      // Shot text appended after the style text: which sea creature and how it moves on land.
+      "prompt": "The creature is a FLYING FISH. A slim streamlined sea-green fish body with a pointed head, turquoise round eyes and a forked rose-coral tail fin, two long wing-like pectoral fins swept back along its sides with rose-coral banded edges, slim rose-coral armour bands around the body, and a single thin needle launcher mounted under the chin pointing forward. It skims just above the ground on a small flat hover unit grown under its belly with a rose-coral rim and a turquoise light ring; no legs, no wheels."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_scout_seahorse",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images, the approved water sheets for the house look. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/turnarounds2/water_spoutling_sheet.jpg", "rts/docs/art/concept/turnarounds4/water_pummeler_sheet.jpg", "rts/docs/art/concept/turnarounds5/water_worker_sheet.jpg"],
+      // Shot text appended after the style text: which sea creature and how it moves on land.
+      "prompt": "The creature is a SEAHORSE. It is upright with a slim sea-green armoured body, a snouted horse-like head with a turquoise eye and a head-mounted sensor fin as a crest of rose-coral fan blades, slim rose-coral armour bands down the belly, a small dorsal fin, a single thin needle launcher on the snout side, and a long curled tail ending in one single flat rose-coral hover and skid pad that it rests on, a short distance above the ground. No other legs."
+    },
+    {
+      // Output file name without extension.
+      "id": "water_scout_squid",
+      // Image size. Unit: pixels, width x height.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum (low, medium, high).
+      "quality": "high",
+      // Reference images, the approved water sheets for the house look. Unit: repository-relative paths.
+      "references": ["rts/docs/art/concept/turnarounds2/water_spoutling_sheet.jpg", "rts/docs/art/concept/turnarounds4/water_pummeler_sheet.jpg", "rts/docs/art/concept/turnarounds5/water_worker_sheet.jpg"],
+      // Shot text appended after the style text: which sea creature and how it moves on land.
+      "prompt": "The creature is a small arrow-shaped SQUID (not an octopus, not a cuttlefish). It has a long pointed sea-green mantle like an arrowhead with rose-coral fins at the rear tip, rose-coral armour bands, two turquoise eyes, short tentacles tucked back along the body for speed, two small turquoise-rimmed jet nozzles at the back, a single thin needle launcher on one short front tentacle, and it runs on exactly four of its arms as slim sea-green legs with rose-coral joint bands and small turquoise-tipped feet, leaning forward in a running stance."
+    }
+  ]
+}
