@@ -231,7 +231,7 @@ namespace Rts.Sim.Tests.Combat
                     Assert.That(unit.Value.Weapon.CanTargetAirOnWater, Is.EqualTo(unit.Key == "water.reef_runner" || unit.Key == "water.shellback"), unit.Key);
                 }
             }
-            // The flag is part of the content digest.
+            // The constructor rejects the redundant flag too.
             Assert.That(Expect.Throws<System.ArgumentException>(() => new WeaponDefinition(Fix64.One, "kinetic", Fix64.One, Fix64.One, true, true, true, false, 0, default, null, true)).Message,
                 Does.Contain("redundant"));
         }

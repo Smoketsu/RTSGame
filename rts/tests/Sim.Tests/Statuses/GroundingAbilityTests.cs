@@ -246,7 +246,7 @@ namespace Rts.Sim.Tests.Statuses
             StepThrough(sim, 90);
             Assert.That(StatusTestWorld.UnitOf(sim, 3).AttackTarget, Is.EqualTo(EntityId.None), "invalid once it is Air again");
             StepThrough(sim, 110);
-            Assert.That(StatusTestWorld.UnitOf(sim, 2).Health, Is.LessThanOrEqualTo(healthAt89));
+            Assert.That(StatusTestWorld.UnitOf(sim, 2).Health, Is.EqualTo(healthAt89));
         }
 
         /// <summary>D7: an enemy Skai flyer with 5 Momentum stacks loses them on the cast's tick (one momentum_lost, reason grounded).</summary>

@@ -111,7 +111,7 @@ namespace Rts.Sim.Events
         /// <summary>The casting unit.</summary>
         public EntityId Caster { get; }
 
-        /// <summary>The caster's owner. Range: a valid player.</summary>
+        /// <summary>The caster's owner. Range: a valid player, or None when a script casts with a neutral unit.</summary>
         public PlayerId Owner { get; }
 
         /// <summary>Centre of the pulse. Unit: tiles.</summary>
