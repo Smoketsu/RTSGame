@@ -107,3 +107,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [worker_construction.md](worker_construction.md) | A build order names a worker; it walks to an explored site, spends `worker_placement_seconds` there, then the structure appears and builds alone. Refunds on every cancellation, pending orders count in supply and the static defence cap. WC-1: Sim, scripts, Sim tests, re-pinned hashes. WC-2: AI, harness. WC-3: AI re-baseline (report only) | worker construction | economy, HQ, vision (built); build WC-1, WC-2 on one branch, then WC-3 |
+
+## Walls and tech prerequisites (P-005 decisions 5 and 8, 18 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [walls_and_tech.md](walls_and_tech.md) | W: worker-built walls (`is_wall`, new `TileBlockers.BuiltWall`: blocks ground and water movement and flood flow, keeps water already there, hidden in fog for the AI, Quake damages it), Wind Baffle and Coral Wall. T: `requires` list on any definition (`missing_prerequisite` on train and build orders only), Storm Spire gates the Thunderhead, Reef Workshop the Leviathan, AI rule T2. F: flood-bound water flyer, option only, **not approved for build**. All numbers placeholders; no new step, command or event | P-005 | worker construction, combat mechanics (built); build W, then T, sim-reviewer after each |
