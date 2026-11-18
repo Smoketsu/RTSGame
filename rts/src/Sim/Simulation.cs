@@ -16,7 +16,7 @@
 //      (cooldown, target with armed-first acquisition, fire: damage fixed at fire time with the uphill multiplier, dome absorption,
 //      then land at once or queue for hit_delay_ticks; ascending ID order; a landing hit of a weapon with splash_radius_tiles also blasts the enemy units around its target, victims in ascending ID order; damage against a structure is also multiplied by the weapon's structure_damage_multiplier; a weapon with can_target_air_on_water also targets flyers while its unit stands on a flooded tile, checked whenever a target is chosen or kept); 6d deaths (sorted by victim, then killer; a dead worker's
 //      pending build order is cancelled through the RemoveUnit hook)
-//   7. economy (EconomySystem: 7a gather slots (AssignGatherSlots: waiting workers take free field slots in (queue tick, ID) order), 7b the unit loop: worker gather loops, build orders (walk to the site, placement, structure spawn; a worker with queued tiles takes the next one when a structure is placed or its tile fails), production queues,
+//   7. economy (EconomySystem: 7a gather slots (AssignGatherSlots: waiting workers take free field slots in (queue tick, slot grants, ID) order), 7b the unit loop: worker gather loops, build orders (walk to the site, placement, structure spawn; a worker with queued tiles takes the next one when a structure is placed or its tile fails), production queues,
 //      construction, supply; units in ascending ID order)
 //   8. faction mechanics in ascending mechanic ID order
 //   9. cycles and Core (CycleSystem.Step: holder or capturer that left the match, who stands in the Core, the capture state machine,
