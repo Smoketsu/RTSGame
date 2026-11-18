@@ -822,10 +822,10 @@ namespace Rts.Ai
                 return true;
             }
 
-            /// <summary>True when the stock minus reservations pays for <paramref name="definition"/>.</summary>
+            /// <summary>True when the stock minus reservations pays for <paramref name="definition"/>; a resource the definition does not cost is not checked (a reservation in it never blocks the purchase).</summary>
             private bool CanPay(UnitDefinition definition)
             {
-                return _common - _reserveCommon >= definition.CostCommon && _rare - _reserveRare >= definition.CostRare;
+                return (definition.CostCommon == 0 || _common - _reserveCommon >= definition.CostCommon) && (definition.CostRare == 0 || _rare - _reserveRare >= definition.CostRare);
             }
 
             /// <summary>True when <paramref name="definition"/>'s supply fits under the cap.</summary>
@@ -1376,7 +1376,7 @@ namespace Rts.Ai
                 {
                     return false;
                 }
-                if (_common - _reserveCommon < definition.CostCommon || _rare - _reserveRare < definition.CostRare)
+                if ((definition.CostCommon != 0 && _common - _reserveCommon < definition.CostCommon) || (definition.CostRare != 0 && _rare - _reserveRare < definition.CostRare))
                 {
                     // Rule R: hold the cost only while workers are earning; without income the bank is spent on whatever it can buy.
                     if (_income)
@@ -2567,7 +2567,7 @@ namespace Rts.Ai
                     {
                         // Definition of this composition unit.
                         UnitDefinition candidate = _view.Content.Units[pair.Key];
-                        if (pair.Value > 0 && !unaffordable.Contains(pair.Key) && candidate.CostRare <= _rare - _reserveRare && FindFreeProducer(pair.Key) != null)
+                        if (pair.Value > 0 && !unaffordable.Contains(pair.Key) && (candidate.CostRare == 0 || candidate.CostRare <= _rare - _reserveRare) && FindFreeProducer(pair.Key) != null)
                         {
                             candidates.Add(pair.Key);
                         }

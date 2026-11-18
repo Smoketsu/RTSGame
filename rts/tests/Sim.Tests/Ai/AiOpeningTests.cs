@@ -361,13 +361,13 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>
-        /// Not in the spec (it asked the builder to check, and the answer is NO, it can stall): a due build step that costs rare (the Storm Spire of skai_air, 150 common
+        /// A due build step that costs rare (the Storm Spire of skai_air, 150 common
         /// and 50 rare) with less rare in the bank reserves 50 rare (rule R, while the AI has income), and rule P then admits only units whose rare cost fits in
-        /// "rare - reserved rare" (AiBrain.Produce: CostRare &lt;= _rare - _reserveRare), which is negative, so even rare-free units are not trained until 50 rare are banked.
-        /// This test records that behaviour (a known limit, reported; old profiles never had a rare build step this early so none of them changes).
+        /// "rare - reserved rare" (AiBrain.Produce: CostRare &lt;= _rare - _reserveRare), which was negative, so rare-free units were refused (the bug). Fixed: a reservation in one resource never blocks a purchase that costs none of it,
+        /// so the Perch Depot (rare source) and other rare-free purchases go through while the Spire waits for rare, and the Spire is still not built until 50 rare are banked.
         /// </summary>
         [Test]
-        public void L10_RareBuildStepBlocksTrainingUntilRareIsBanked()
+        public void L10_RareReservationDoesNotBlockRareFreePurchases()
         {
             AiProfile profile = Edited(Opening("air", 100, Step("skai.roost", 1, 0) + "," + Step("skai.roost", 2, 6) + "," + Step("skai.storm_spire", 1, 12) + "," + Step("skai.windspire", 1, 14),
                 "\"skai.roc_rider\": 3, \"skai.thunderhead\": 1, \"skai.windrunner\": 1", handover: 420));
@@ -393,7 +393,7 @@ namespace Rts.Sim.Tests.Ai
             record!.SetStock(400, 0);
             AiMemory memory = MemoryFor(profile, 1);
             List<AiIntent> poor = Decide(sim, profile, memory);
-            Assert.That(poor.Exists(i => i.Kind == AiIntentKind.Train && i.DefinitionId != "skai.fledgling"), Is.False, "known limit: no army unit trains: " + Text(poor));
+            Assert.That(Of(poor, AiIntentKind.Build, "skai.perch_depot").Count, Is.EqualTo(1), "the rare-free Perch Depot (the rare source) is bought: " + Text(poor));
             Assert.That(Of(poor, AiIntentKind.Build, "skai.storm_spire").Count, Is.EqualTo(0), Text(poor));
             record.SetStock(400, 60);
             List<AiIntent> rich = Decide(sim, profile, MemoryFor(profile, 1));
