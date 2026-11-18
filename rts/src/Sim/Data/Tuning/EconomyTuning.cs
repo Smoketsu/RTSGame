@@ -1,5 +1,5 @@
 // rts/src/Sim/Data/Tuning/EconomyTuning.cs
-// Typed view of rts/data/tuning/economy.json: starting resources, base supply, worker gathering trips, the production
+// Typed view of rts/data/tuning/economy.json: starting resources, base supply, worker gathering trips and gather slots per field, the production
 // queue length, the base radius for the static defence cap, the interaction range and the construction start health.
 // Part of Rts.Sim.Data. Read by the economy system (Rts.Sim.Economy) and the train and build commands. When a key is added
 // to the JSON file, add the property here with the same Unit, Range and Source text, or the loader reports the key as unknown.
@@ -52,6 +52,19 @@ namespace Rts.Sim.Data
         /// <summary>How many rings of tiles around a producer are searched for a free tile when a trained unit appears. Unit: tiles (Chebyshev distance from the producer's tile). Range: 1 to 8. Source: Economy (production queue); placeholder.</summary>
         public int SpawnSearchRadiusTiles { get; }
 
+        /// <summary>Workers that can gather one common field at the same time; later arrivals wait first come first served. Unit: workers (count). Range: 1 to 16. Source: developer decision 18 Nov 2026 (field saturation); placeholder.</summary>
+        public int GatherSlotsCommon { get; }
+
+        /// <summary>Workers that can gather one rare field at the same time; later arrivals wait first come first served. Unit: workers (count). Range: 1 to 16. Source: developer decision 18 Nov 2026 (field saturation); placeholder.</summary>
+        public int GatherSlotsRare { get; }
+
+        /// <summary>Gather slots of a field of the given kind. Unit: workers (count). Range: 1 to 16.</summary>
+        /// <param name="kind">The field's resource kind.</param>
+        public int GatherSlots(ResourceKind kind)
+        {
+            return kind == ResourceKind.Rare ? GatherSlotsRare : GatherSlotsCommon;
+        }
+
         /// <summary>Workers each player starts with beside the HQ in a standard match start. Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.</summary>
         public int StartingWorkerCount { get; }
 
@@ -76,13 +89,15 @@ namespace Rts.Sim.Data
         /// <param name="root">The parsed file (root must be an object).</param>
         public EconomyTuning(JsonValue root)
         {
-            root.RejectUnknownKeys("starting_common", "starting_rare", "base_supply", "gather_amount_per_trip", "gather_seconds_per_trip",
+            root.RejectUnknownKeys("starting_common", "starting_rare", "base_supply", "gather_amount_per_trip", "gather_seconds_per_trip", "gather_slots_per_common_field", "gather_slots_per_rare_field",
                 "worker_speed_multiplier_while_carrying", "max_queue_length", "base_radius_tiles", "interact_range_tiles", "construction_start_health_fraction", "worker_placement_seconds", "spawn_search_radius_tiles", "starting_worker_count", "starting_worker_search_radius_tiles", "wall_line_max_tiles");
             StartingCommon = root.RequireInt("starting_common", 0, 100000);
             StartingRare = root.RequireInt("starting_rare", 0, 100000);
             BaseSupply = root.RequireInt("base_supply", 0, 300);
             GatherAmountPerTrip = root.RequireInt("gather_amount_per_trip", 1, 100);
             GatherSecondsPerTrip = root.RequireFix64("gather_seconds_per_trip", "0.05", "60");
+            GatherSlotsCommon = root.RequireInt("gather_slots_per_common_field", 1, 16);
+            GatherSlotsRare = root.RequireInt("gather_slots_per_rare_field", 1, 16);
             WorkerSpeedMultiplierWhileCarrying = root.RequireFix64("worker_speed_multiplier_while_carrying", "0.1", "2");
             MaxQueueLength = root.RequireInt("max_queue_length", 1, 20);
             BaseRadiusTiles = root.RequireFix64("base_radius_tiles", "2", "64");

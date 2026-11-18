@@ -7,8 +7,11 @@
 //   * ToField: the worker walks to the field's tile centre. It counts as arrived within interact_range_tiles (never less than
 //     the movement arrival radius). A worker that stops short of the field (no move target left and not in range: unreachable)
 //     gives up and goes Idle.
-//   * Gathering: waits gather_seconds_per_trip, then takes min(gather_amount_per_trip, remaining) from the field. Any number of
-//     workers may share a field (Phase 1 placeholder: no slot limit). If that empties the field, FieldDepletedEvent is emitted.
+//   * Waiting (field_saturation.md): every arrival queues here on the arrival tick (GatherQueuedTick). Each tick AssignGatherSlots
+//     (7a) gives free slots to waiting workers in (queue tick, ID) order; a field has gather_slots_per_common_field (rare: gather_slots_per_rare_field)
+//     slots, shared by every player. A Waiting worker whose field is depleted goes Idle; one pushed out of range walks back and queues again.
+//   * Gathering: holds a slot and waits gather_seconds_per_trip, then takes min(gather_amount_per_trip, remaining) from the field
+//     and leaves the slot. If that empties the field, FieldDepletedEvent is emitted.
 //   * ToDropOff: walks to the owner's nearest drop-off (a Rooted HQ or a complete is_drop_off structure; re-evaluated every tick,
 //     ties to the lowest ID) and deposits when within interact_range_tiles of its edge; ResourceDepositedEvent follows. With no
 //     drop-off the worker goes Idle and keeps its load. After the deposit the worker returns to the field, or goes Idle when
@@ -214,6 +217,8 @@ namespace Rts.Sim.Economy
             {
                 throw new InvalidOperationException("EconomySystem.Step can only run inside Simulation.Step.");
             }
+            // 7a: waiting workers take free field slots; 7b: the unit loop below.
+            AssignGatherSlots(sim);
             // Snapshot of live unit IDs in ascending order; units spawned during the loop are not visited this tick.
             List<EntityId> ids = sim.Units.IdsSnapshot();
             foreach (EntityId id in ids)
@@ -240,6 +245,60 @@ namespace Rts.Sim.Economy
                 }
             }
             RecomputeSupply(sim);
+        }
+
+        /// <summary>Step 7a: counts the Gathering workers per field, then gives each free slot to the first Waiting worker in (GatherQueuedTick, ID) order. Skips depleted fields and workers out of interact range (StepGather deals with them).</summary>
+        private static void AssignGatherSlots(Simulation sim)
+        {
+            // Gathering workers per field, by field index. Unit: workers. Range: 0 upward.
+            int[] occupied = new int[sim.Resources.Count];
+            // Waiting workers collected in ascending ID order.
+            List<Unit> waiting = new List<Unit>();
+            foreach (Unit unit in sim.Units.All)
+            {
+                // Field index of the unit's loop. Unit: field index. Range: -1 (none) to field count - 1.
+                int index = unit.GatherFieldIndex;
+                if (index < 0 || index >= occupied.Length)
+                {
+                    continue;
+                }
+                if (unit.GatherState == GatherState.Gathering)
+                {
+                    occupied[index]++;
+                }
+                else if (unit.GatherState == GatherState.Waiting)
+                {
+                    waiting.Add(unit);
+                }
+            }
+            if (waiting.Count == 0)
+            {
+                return;
+            }
+            // Total order (queue tick, then ID), so the unstable List.Sort is still deterministic.
+            waiting.Sort((a, b) =>
+            {
+                int byTick = a.GatherQueuedTick.CompareTo(b.GatherQueuedTick);
+                return byTick != 0 ? byTick : a.Id.CompareTo(b.Id);
+            });
+            // Reach for the interact test. Unit: tiles.
+            Fix64 reach = InteractRange(sim);
+            foreach (Unit worker in waiting)
+            {
+                // The field the worker waits at.
+                ResourceFieldState field = sim.Resources[worker.GatherFieldIndex];
+                // Centre of the field's tile. Unit: tiles.
+                FixVec2 fieldPoint = sim.Terrain.CentreOf(sim.Terrain.IndexOf(field.X, field.Y));
+                if (field.IsDepleted || !Within(worker.Position, fieldPoint, reach))
+                {
+                    continue;
+                }
+                if (occupied[field.Index] < sim.Tuning.Economy.GatherSlots(field.Kind))
+                {
+                    worker.SetGather(GatherState.Gathering, field.Index, sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock));
+                    occupied[field.Index]++;
+                }
+            }
         }
 
         /// <summary>Distance a worker must come within to gather or deposit: interact_range_tiles, never less than the movement arrival radius. Unit: tiles. Range: 0.5 to 4.</summary>
@@ -514,12 +573,25 @@ namespace Rts.Sim.Economy
                     else if (Within(worker.Position, fieldPoint, InteractRange(sim)))
                     {
                         worker.ClearMoveTarget();
-                        worker.SetGather(GatherState.Gathering, field.Index, sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock));
+                        worker.SetGatherWaiting(field.Index, sim.Clock.Tick);
                     }
                     else if (!worker.HasMoveTarget)
                     {
                         // Stopped short of the field: it cannot be reached.
                         worker.ClearGather();
+                    }
+                    break;
+                case GatherState.Waiting:
+                    if (field.IsDepleted)
+                    {
+                        worker.ClearGather();
+                        worker.ClearMoveTarget();
+                    }
+                    else if (!Within(worker.Position, fieldPoint, InteractRange(sim)))
+                    {
+                        // Pushed away (flood wave): walk back and queue again with a new tick.
+                        worker.SetGather(GatherState.ToField, field.Index, 0);
+                        worker.SetMoveTarget(EconomyRules.StandablePointNear(sim, fieldPoint, worker.EffectiveLayer));
                     }
                     break;
                 case GatherState.Gathering:
