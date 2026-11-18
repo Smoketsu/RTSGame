@@ -63,7 +63,21 @@ No mirror-interval warning and no distinct-share warning. Distinct / decided: sk
 | water | water_leviathan_tech | 28 | 0.259 | 19 | 14 | 0.737 | [51.2, 88.2] | 9 | 2 |
 | water | water_standard | 28 | 0.259 | 17 | 5 | 0.294 | [13.3, 53.1] | 11 | 0 |
 
-(Response scenarios and gate verdict follow in a later commit.)
+### Response scenarios
+
+`aggressive_s4r`: `RESPONSE_SUMMARY passed=5 of=10`, the same five pass (roc rush x2, mass Windrunner x2, turtle Water) and the same five fail (mass Pummeler x2, worker raid x2, turtle Skai). Numbers moved (for example mass_pummeler_skai share_gain -0.065, mass_windrunner_water trade_ratio 1.058, worker_raid_water max_workers_lost_in_wave 7, turtle_skai supply_lost_before_first_kill 38); no verdict changed.
+
+### Gate verdict (after the weight scale)
+
+| item | result | verdict |
+| --- | --- | --- |
+| 1 Variety | 1.000, 1.000, 1.000 distinct per decided game (self-ladder), no warning | **PASS** |
+| 2 Not weaker | fraction 0.468 >= 0.45; mirror 63/144 decided, Wilson upper bound 0.522 >= 0.50, no mirror warning | **PASS** (both halves) |
+| 3 Openings, self-ladder | use shares 0.162 to 0.352, none above 0.40: pass. Win fractions outside 0.35 to 0.65: skai_fast_expand 0.750, skai_windrunner_rush 0.000, water_grasper_rush 0.056, water_leviathan_tech 0.710 | use share PASS; win fractions **FAIL (4 of 8)** |
+| response | `passed=5 of=10`, as before | unchanged |
+
+Reading: against the pre-scale numbers (0.460 self, 0.463 strength) the ladder moves by noise (0.472, 0.468); skai_standard and skai_air came back inside the band, skai_fast_expand went outside (0.650 to 0.750), water_grasper_rush rose from 0.000 to 0.056. The two rush openings still lose on merit and `water_leviathan_tech` is still dominant. Nothing was tuned.
+
 
 ---
 
