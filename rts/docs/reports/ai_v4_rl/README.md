@@ -1,7 +1,33 @@
-<!-- rts/docs/reports/ai_v4_rl/README.md: L-M measurement report of skirmish AI v4 packages R and L (specs/skirmish_ai_v4_rl.md section E): self-ladder, strength ladder against aggressive_s3, response scenarios, per-opening traces, and the gate verdict item by item. Measured on branch review/ai-v4-rl, 18 Nov 2026, prototype_1v1 only. A record of the AI, not a balance reading (P-005 decision 11). -->
+<!-- rts/docs/reports/ai_v4_rl/README.md: L-M measurement report (with the package L-R re-measurement as its top section) of skirmish AI v4 packages R and L (specs/skirmish_ai_v4_rl.md section E): self-ladder, strength ladder against aggressive_s3, response scenarios, per-opening traces, and the gate verdict item by item. Measured on branch review/ai-v4-rl, 18 Nov 2026, prototype_1v1 only. A record of the AI, not a balance reading (P-005 decision 11). -->
 # AI v4 R and L: measurement report
 
-## After the weight scale (commit 2142640; current result)
+## After package L-R (commit 5627271; current result)
+
+Package L-R (spec `skirmish_ai_v4_rl.md` L-R): the two rush openings of `aggressive_s4r` became `skai_windrunner_pressure` and `water_grasper_pressure` with `early_expansion_seconds` 0 (data only, nothing under `rts/src`). Same commands, base seed and game counts as the sections below; `--jobs 4`; `-c Release`; output under `rts/build/ladder_lr_*` (git-ignored). Package checks: harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `dotnet test rts/RtsGame.sln -c Release`: Replay 27, Net 33, Sim 876 passed, 0 failed (873 plus L-R-1, L-R-2, L-R-3). No pin moved; `R9_SeedsChangePlay` stays 8. Each run below is added as it finishes.
+
+### Run 1: self-ladder (`aggressive_s4r` against itself), 216 of 216 decided, 2733 s
+
+```
+WARNING opening water/water_leviathan_tech: wins 21 of 31 mirror games against other openings (0.677, above 0.65).
+LADDER candidate=aggressive_s4r baseline=aggressive_s4r decided=216 wins=107 fraction=0.495 distinct=216 mirror=70/144 cross=37/72 bar=0.650 FAIL
+```
+
+Distinct / decided per cell: skai_vs_skai 72/72 = 1.000, skai_vs_water 72/72 = 1.000, water_vs_water 72/72 = 1.000 (the harness's own "distinct fraction" column prints the candidate fraction, 0.569, 0.514, 0.403; the counts are in its distinct column). Determinism spot check: 2 games, 0 mismatches. Mirror 70/144 = 0.486, Wilson [40.6, 56.7]; cross 37/72 = 0.514 (as skai 36/36, as water 1/36).
+
+| faction | opening | draws | use share | mirror games | wins | win fraction | Wilson interval | cross games | cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| skai | skai_air | 57 | 0.264 | 22 | 12 | 0.545 | [34.7, 73.1] | 19 | 19 |
+| skai | skai_fast_expand | 48 | 0.222 | 20 | 9 | 0.450 | [25.8, 65.8] | 16 | 15 |
+| skai | skai_standard | 76 | 0.352 | 28 | 11 | 0.393 | [23.6, 57.6] | 24 | 24 |
+| skai | skai_windrunner_pressure | 35 | 0.162 | 20 | 13 | 0.650 | [43.3, 81.9] | 13 | 13 |
+| water | water_fast_expand | 52 | 0.241 | 25 | 11 | 0.440 | [26.7, 62.9] | 15 | 0 |
+| water | water_grasper_pressure | 42 | 0.194 | 18 | 7 | 0.389 | [20.3, 61.4] | 20 | 0 |
+| water | water_leviathan_tech | 62 | 0.287 | 31 | 21 | 0.677 | [50.1, 81.4] | 17 | 1 |
+| water | water_standard | 60 | 0.278 | 32 | 14 | 0.438 | [28.2, 60.7] | 20 | 0 |
+
+Draws are the same as before (35 and 42), as the spec says. Skai pressure is exactly on the upper bar (0.650, not above it, so no warning); the Wilson half-width is about 0.19 to 0.20 at these counts.
+
+## After the weight scale (commit 2142640; before package L-R, superseded by the section above)
 
 Composition weights of `aggressive_s4r` multiplied by 10 (jitter band 0.25 now moves every weight both ways). Same commands, seeds and game counts as the sections below; `--jobs 4`; output under `rts/build/ladder_w10_*` (git-ignored). Step 1 checks: harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `dotnet test -c Release`: Replay 27, Net 33, Sim 873 passed, 0 failed. Neutrality evidence: test `R10_WeightScaleIsNeutralWithoutJitter` (jitter 0, x1 and x10 text give equal end tick, state hash and play signature); `R11_ScaledWeightsMoveBothWays`. No existing pin changed.
 
