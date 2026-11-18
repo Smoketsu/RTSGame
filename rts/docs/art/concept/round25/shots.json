@@ -1,0 +1,67 @@
+// rts/docs/art/concept/round25/shots.json: shot list for concept art round 25 (second pass on the Skai HQ redesign, from the developer's notes on round 24: three island-and-tree combinations and two bulkier bird citadels), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), a quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. Skai palette: storm charcoal armour, white feather-tip vanes, flat electric yellow energy panels. Angular, tall, sharp shapes; no wood, rope, cloth, stone masonry or cultural ornaments. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      // Output file name without extension. Option 1 of five: sky island carrying the great tree, fan pods become feet.
+      "id": "skai_hq_island_tree_fan_feet",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 24 options A, B and C and round 16 approved Skai buildings.
+      "references": ["rts/docs/art/concept/round24/skai_hq_option_a_great_tree.jpg", "rts/docs/art/concept/round24/skai_hq_option_b_sky_island.jpg", "rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. Match the references' style, colours and angular faceting. It must read as a large base, not a vehicle or creature. No lightning-bolt symbol anywhere. No text. The headquarters is the sky island from the second reference (faceted dark-grey rock chunk, flat on top, with a tapering underside and large turbines set into it) carrying the great tree from the first reference on top in place of any small buildings: one massive angular charcoal trunk, clearly the dominant feature, with several broad feathered canopy platforms with white feather-tip vanes at different heights, hanging yellow pods, a hangar door in the trunk and a twin turret in the crown. The third reference shows the approved Skai conifer and canopy buildings with talon feet. The turbines sit in pods on stout articulated arms. Left, Uprooted and flying: floating high, the arms tucked against the rock underside with the fans facing down giving lift, soft shadow far below. Right, Rooted on the ground: the arms swing down and out and the fan pods themselves become the feet, each housing planted flat on the ground with yellow talons gripping around its rim, fans stopped, the rock held above the ground. No text."
+    },
+    {
+      // Output file name without extension. Option 2 of five: sky island carrying the great tree, turbines in the thighs of four legs.
+      "id": "skai_hq_island_tree_fan_legs",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 24 options A, B and C and round 16 approved Skai buildings.
+      "references": ["rts/docs/art/concept/round24/skai_hq_option_a_great_tree.jpg", "rts/docs/art/concept/round24/skai_hq_option_b_sky_island.jpg", "rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. Match the references' style, colours and angular faceting. It must read as a large base, not a vehicle or creature. No lightning-bolt symbol anywhere. No text. The headquarters is the sky island from the second reference (faceted dark-grey rock chunk, flat on top, with a tapering underside and large turbines set into it) carrying the great tree from the first reference on top in place of any small buildings: one massive angular charcoal trunk, clearly the dominant feature, with several broad feathered canopy platforms with white feather-tip vanes at different heights, hanging yellow pods, a hangar door in the trunk and a twin turret in the crown. The third reference shows the approved Skai conifer and canopy buildings with talon feet. The turbines are built into the thighs of four thick legs. Left, Uprooted and flying: floating high, the legs folded up flat under the rock with the fans exposed and facing down, soft shadow far below. Right, Rooted on the ground: the legs unfold and stand on big taloned feet, with the stopped fans visible in the upper leg like shoulder vents. No text."
+    },
+    {
+      // Output file name without extension. Option 3 of five: sky island carrying the great tree, tree roots as feet.
+      "id": "skai_hq_island_tree_root_feet",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 24 options A, B and C and round 16 approved Skai buildings.
+      "references": ["rts/docs/art/concept/round24/skai_hq_option_a_great_tree.jpg", "rts/docs/art/concept/round24/skai_hq_option_b_sky_island.jpg", "rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. Match the references' style, colours and angular faceting. It must read as a large base, not a vehicle or creature. No lightning-bolt symbol anywhere. No text. The headquarters is the sky island from the second reference (faceted dark-grey rock chunk, flat on top, with a tapering underside and large turbines set into it) carrying the great tree from the first reference on top in place of any small buildings: one massive angular charcoal trunk, clearly the dominant feature, with several broad feathered canopy platforms with white feather-tip vanes at different heights, hanging yellow pods, a hangar door in the trunk and a twin turret in the crown. The third reference shows the approved Skai conifer and canopy buildings with talon feet. The fans stay fixed in the rock's underside; the great tree's talon roots grow down around the sides of the rock. Left, Uprooted and flying: floating high, the roots curled up tight against the rock, the turbines visible in the underside, soft shadow far below. Right, Rooted on the ground: the roots reach down past the rock and grip the ground with yellow talons as the feet, the rock resting low between them, turbines stopped. No text."
+    },
+    {
+      // Output file name without extension. Option 4 of five: a great owl citadel, bulkier than the round 24 roc.
+      "id": "skai_hq_bird_owl",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 24 options A, B and C and round 16 approved Skai buildings.
+      "references": ["rts/docs/art/concept/round24/skai_hq_option_c_perched_roc.jpg", "rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. Match the references' style, colours and angular faceting. It must read as a large base, not a vehicle or creature. No lightning-bolt symbol anywhere. No text. The headquarters is a citadel shaped as a great owl: a building in the shape of a bird, angular and architectural, not a living creature, no naturalistic feathers. The body is very broad, squat and barrel-shaped, as wide as it is tall, with a flat faceted face with two large round window-eyes, short thick legs and broad rounded wings. The head is small, faceted and architectural with no realistic eagle head. The body is the main hall with a big door and ramp and yellow panels; a turret sits on its back; wings are big white-tipped charcoal blade plates. Left, Uprooted and flying: wings spread wide, soft shadow far below on the ground. Right, Rooted on the ground: perched on short thick taloned legs, the wings folded forward around the base as fortress walls. The first reference is a previous, slimmer bird design: make this body clearly much bulkier and heavier. The second reference shows the approved Skai buildings. No text."
+    },
+    {
+      // Output file name without extension. Option 5 of five: a condor citadel, bulkier than the round 24 roc.
+      "id": "skai_hq_bird_condor",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 24 options A, B and C and round 16 approved Skai buildings.
+      "references": ["rts/docs/art/concept/round24/skai_hq_option_c_perched_roc.jpg", "rts/docs/art/concept/round16/skai_buildings.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. Match the references' style, colours and angular faceting. It must read as a large base, not a vehicle or creature. No lightning-bolt symbol anywhere. No text. The headquarters is a citadel shaped as a condor or vulture: a building in the shape of a bird, angular and architectural, not a living creature, no naturalistic feathers. The body is massive and hunched with heavy shoulders, a wide feathered collar like a rampart, very broad long wings, a small low head and thick legs. The head is small, faceted and architectural with no realistic eagle head. The body is the main hall with a big door and ramp and yellow panels; a turret sits on its back; wings are big white-tipped charcoal blade plates. Left, Uprooted and flying: wings spread wide, soft shadow far below on the ground. Right, Rooted on the ground: perched on short thick taloned legs, the wings folded forward around the base as fortress walls. The first reference is a previous, slimmer bird design: make this body clearly much bulkier and heavier. The second reference shows the approved Skai buildings. No text."
+    }
+  ]
+}
