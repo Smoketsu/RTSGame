@@ -166,7 +166,7 @@ namespace Rts.Sim.Tests.Ai
             return Opening(id, weight, Step("skai.roost", 1, 0), "\"skai.windrunner\": 3, \"skai.talon_archer\": 2");
         }
 
-        /// <summary>L-1: every shipped profile parses and carries no openings yet (aggressive_s4r gets its library in L-2).</summary>
+        /// <summary>L-1: every shipped profile parses; aggressive_s4r has the four openings per faction of L.5 and every other profile has none.</summary>
         [Test]
         public void L1_ShippedProfilesParse()
         {
@@ -178,6 +178,14 @@ namespace Rts.Sim.Tests.Ai
                     if (id != "aggressive_s4r")
                     {
                         Assert.That(pair.Value.Openings.Count, Is.EqualTo(0), id + "/" + pair.Key);
+                    }
+                    else
+                    {
+                        // Opening IDs and weights of L.5 in file order.
+                        string expected = pair.Key == "skai"
+                            ? "skai_standard=30,skai_windrunner_rush=20,skai_fast_expand=25,skai_air=25"
+                            : "water_standard=30,water_grasper_rush=20,water_fast_expand=25,water_leviathan_tech=25";
+                        Assert.That(string.Join(",", System.Linq.Enumerable.Select(pair.Value.Openings, o => o.Id + "=" + o.Weight)), Is.EqualTo(expected), pair.Key);
                     }
                 }
             }

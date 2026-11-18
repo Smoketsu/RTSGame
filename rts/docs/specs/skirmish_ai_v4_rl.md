@@ -112,7 +112,7 @@ With `attack_min_advantage` 1.3 the AI attacks on a predicted edge of 1.15 to 1.
 - **R-6 No variety for old profiles.** For every shipped profile except `aggressive_s4r`: after `OnMatchStart`, `Memory.Variety` is null.
 - **R-7 Effective values.** With `Memory.Variety` set by hand (`ExpandOffsetSeconds = -20`, `AttackAdvantageOffset = 0.15`): `Turn.ExpandAtSeconds()` is 220 for `expand_at_seconds` 240 and 0 for 10 (clamp); `AttackMinAdvantage()` is 1.45 for 1.3. With `Variety` null: 240 and 1.3.
 - **R-8 Same seed twice.** `GameRunner.Play` on `prototype_1v1`, `water_vs_water`, game 0, cap 300 s, both slots `aggressive_s4r`, seed 11 twice: equal `play_signature` and equal `state_hash`.
-- **R-9 Seeds change play.** Same game for seeds 1 to 8: 6 different `play_signature` values (measured on R-1, before any opening exists: the spec guessed at least 7; pinned as 6; re-measured at L-2).
+- **R-9 Seeds change play.** Same game for seeds 1 to 8: 6 different `play_signature` values (measured on R-1, before any opening exists: the spec guessed at least 7; pinned as 6 at R-1; at L-2, with the L.5 openings in `aggressive_s4r`, it is 8 of 8 and pinned as 8).
 - **R-10 Pins.** `V2ReferenceHash` (A-11), `BlindTraceHash` (C2-11), R-0, the harness smoke pins (`HarnessUnitTests`: smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`), `WorkerConstructionTests` (economy_smoke) and `DeterminismTests.GoldenFinalHash` stay green **without re-pinning**. If one moves, stop and report.
 
 ---

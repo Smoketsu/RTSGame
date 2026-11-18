@@ -316,9 +316,9 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>Recorded number of distinct play signatures over seeds 1 to 8 of the R-9 game. Unit: signatures. Range: 1 to 8.</summary>
-        private const int SeedsChangePlayDistinct = 6;
+        private const int SeedsChangePlayDistinct = 8;
 
-        /// <summary>R-9: different seeds change play: 6 of the 8 seeds give a different play signature in the first 300 s (measured; the spec guessed 7; the count is pinned).</summary>
+        /// <summary>R-9: different seeds change play: all 8 seeds give a different play signature in the first 300 s with the L.5 openings in aggressive_s4r (measured: 6 of 8 before the openings existed; the count is pinned).</summary>
         [Test]
         public void R9_SeedsChangePlay()
         {

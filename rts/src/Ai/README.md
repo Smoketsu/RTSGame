@@ -62,7 +62,7 @@ by weights computed from the enemy model and the unit data), tech on demand (rul
 The AI's memory is **not** simulation state and is never hashed. Its only random source is its own `DeterministicRandom` (the
 simulation's PCG32 class) seeded `matchSeed ^ (0x9E3779B97F4A7C15 * (player + 1))`; it never draws from `sim.Rng`. Package R (skirmish_ai_v4_rl.md) adds a second generator, `AiVariety` (seeded by `SplitMix64(seed ^ "VARIETY1")`),
 created only when a profile has `composition_jitter_fraction`, `expand_jitter_seconds` or `attack_advantage_jitter` above 0, so the old stream's
-draws never change and profiles with those keys at 0 play as before. Its commands are
+draws never change and profiles with those keys at 0 play as before. Package L adds `openings` to each faction plan of a profile (weighted, one drawn at match start from the variety stream, a build order for the whole game and a mix and timing values until its handover); only `aggressive_s4r` has any. Its commands are
 ordinary inputs, so two runs with the same data, script and seed submit the same commands and print the same hashes:
 `BalanceHarness --script rts/data/scripts/ai_vs_ai.json` twice gives identical `OUTCOME` and `STATE_HASH` lines, and
 `ExitTest_AiVsAi_TwoRunsAreIdenticalAndDecided` (rts/tests/Sim.Tests/Ai) checks it. Like simulation code, changes here get a

@@ -293,7 +293,111 @@
       // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
       "attack_tide_override_supply": 20,
       // Openings, one of which is drawn by weight at match start (each: id, weight 0 to 100, build_order replacing the plan's for the whole game, composition and the four timing keys until handover_seconds); [] = none, the plan plays as written. Unit: array of openings. Range: 0 to 16 entries; weights sum above 0 when not empty. Source: skirmish_ai_v4_rl.md L.2; placeholder.
-      "openings": [],
+      "openings": [
+        // Today's aggressive_s3 plan, so the proven line stays in the pool.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "skai_standard",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 30,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
+            { "structure": "skai.roost", "count": 2, "at_supply_used": 6 },
+            { "structure": "skai.windspire", "count": 1, "at_supply_used": 10 },
+            { "structure": "skai.roost", "count": 3, "at_supply_used": 14 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "skai.windrunner": 3, "skai.talon_archer": 2, "skai.roc_rider": 1, "skai.stormcaller": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 300,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 240,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 0,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 8,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 14
+        },
+        // One-base pressure: three Roosts early, first attack with 6 to 8 supply of Windrunners, rare depot not before 240 s.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "skai_windrunner_rush",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 20,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
+            { "structure": "skai.roost", "count": 2, "at_supply_used": 5 },
+            { "structure": "skai.roost", "count": 3, "at_supply_used": 8 },
+            { "structure": "skai.windspire", "count": 1, "at_supply_used": 16 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "skai.windrunner": 6, "skai.talon_archer": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 300,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 300,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 240,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 6,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 8
+        },
+        // Economy first: rare depot at once, second depot due at 120 + 150 s, first attack at 20 supply.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "skai_fast_expand",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 25,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
+            { "structure": "skai.windspire", "count": 1, "at_supply_used": 10 },
+            { "structure": "skai.roost", "count": 2, "at_supply_used": 12 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "skai.talon_archer": 3, "skai.windrunner": 2, "skai.roc_rider": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 420,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 120,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 0,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 14,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 20
+        },
+        // Air tech: rare depot at once, Storm Spire (50 rare) before the first Thunderhead, attack at 16 supply.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "skai_air",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 25,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "skai.roost", "count": 1, "at_supply_used": 0 },
+            { "structure": "skai.roost", "count": 2, "at_supply_used": 6 },
+            { "structure": "skai.storm_spire", "count": 1, "at_supply_used": 12 },
+            { "structure": "skai.windspire", "count": 1, "at_supply_used": 14 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "skai.roc_rider": 3, "skai.thunderhead": 1, "skai.windrunner": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 420,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 240,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 0,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 12,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 16
+        }
+      ],
       // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
       "cycle_preference": ["windstorm", "core_surge", "quake"]
     },
@@ -322,7 +426,111 @@
       // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
       "attack_tide_override_supply": 20,
       // Openings, one of which is drawn by weight at match start (each: id, weight 0 to 100, build_order replacing the plan's for the whole game, composition and the four timing keys until handover_seconds); [] = none, the plan plays as written. Unit: array of openings. Range: 0 to 16 entries; weights sum above 0 when not empty. Source: skirmish_ai_v4_rl.md L.2; placeholder.
-      "openings": [],
+      "openings": [
+        // Today's aggressive_s3 plan.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "water_standard",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 30,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
+            { "structure": "water.tidepool", "count": 2, "at_supply_used": 6 },
+            { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
+            { "structure": "water.tidepool", "count": 3, "at_supply_used": 14 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "water.grasper": 3, "water.shellback": 1, "water.ink_lobber": 1, "water.spoutling": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 300,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 240,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 0,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 8,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 14
+        },
+        // Pummeler pressure from three Tidepools, first attack with 6 to 8 supply, rare depot not before 240 s.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "water_grasper_rush",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 20,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
+            { "structure": "water.tidepool", "count": 2, "at_supply_used": 5 },
+            { "structure": "water.tidepool", "count": 3, "at_supply_used": 8 },
+            { "structure": "water.shell_forge", "count": 1, "at_supply_used": 16 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "water.grasper": 6, "water.reef_runner": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 300,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 300,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 240,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 6,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 8
+        },
+        // Economy first: rare depot at once, second depot due at 120 + 150 s, first attack at 20 supply.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "water_fast_expand",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 25,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
+            { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
+            { "structure": "water.tidepool", "count": 2, "at_supply_used": 12 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "water.grasper": 2, "water.shellback": 2, "water.ink_lobber": 1, "water.spoutling": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 420,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 120,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 0,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 14,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 20
+        },
+        // Siege tech: rare depot at once, Reef Workshop (50 rare), first Leviathan, attack at 16 supply.
+        {
+          // Opening name in reports and records. Unit: text ID. Range: lower-case letters, digits and underscores, 1 to 48 characters, unique in the plan. Source: skirmish_ai_v4_rl.md L.5.
+          "id": "water_leviathan_tech",
+          // Chance of being drawn = weight / sum of the plan's weights (0 keeps the opening in the file without drawing it). Unit: weight. Range: 0 to 100. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "weight": 25,
+          // Build order for the whole game (replaces the plan's): keep at least count of structure once supply used reaches at_supply_used. Unit: structure ID, structures (1 to 20), supply (0 to 200). Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "build_order": [
+            { "structure": "water.tidepool", "count": 1, "at_supply_used": 0 },
+            { "structure": "water.shell_forge", "count": 1, "at_supply_used": 6 },
+            { "structure": "water.reef_workshop", "count": 1, "at_supply_used": 12 },
+            { "structure": "water.tidepool", "count": 2, "at_supply_used": 16 }
+          ],
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "composition": { "water.ink_lobber": 2, "water.shellback": 2, "water.leviathan": 1, "water.spoutling": 1 },
+          // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "handover_seconds": 480,
+          // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "expand_at_seconds": 240,
+          // Replaces early_expansion_seconds until the handover (the first rare depot while no rare field is served). Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "early_expansion_seconds": 0,
+          // Replaces attack_army_supply until the handover (the fallback attack threshold before jitter). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_army_supply": 12,
+          // Replaces attack_min_supply until the handover (smallest army that may attack on a predicted win). Unit: supply. Range: 1 to 200. Source: skirmish_ai_v4_rl.md L.5; placeholder.
+          "attack_min_supply": 16
+        }
+      ],
       // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
       "cycle_preference": ["core_surge", "quake", "windstorm"]
     }
