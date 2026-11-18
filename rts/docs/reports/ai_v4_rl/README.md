@@ -1,7 +1,38 @@
 <!-- rts/docs/reports/ai_v4_rl/README.md: L-M measurement report of skirmish AI v4 packages R and L (specs/skirmish_ai_v4_rl.md section E): self-ladder, strength ladder against aggressive_s3, response scenarios, per-opening traces, and the gate verdict item by item. Measured on branch review/ai-v4-rl, 18 Nov 2026, prototype_1v1 only. A record of the AI, not a balance reading (P-005 decision 11). -->
 # AI v4 R and L: measurement report
 
-## Current result (after the reservation fix, commit 7f37605)
+## After the weight scale (commit 2142640; current result)
+
+Composition weights of `aggressive_s4r` multiplied by 10 (jitter band 0.25 now moves every weight both ways). Same commands, seeds and game counts as the sections below; `--jobs 4`; output under `rts/build/ladder_w10_*` (git-ignored). Step 1 checks: harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `dotnet test -c Release`: Replay 27, Net 33, Sim 873 passed, 0 failed. Neutrality evidence: test `R10_WeightScaleIsNeutralWithoutJitter` (jitter 0, x1 and x10 text give equal end tick, state hash and play signature); `R11_ScaledWeightsMoveBothWays`. No existing pin changed.
+
+### Self-ladder (`aggressive_s4r` against itself), 216 of 216 decided, 2396 s
+
+```
+WARNING opening skai/skai_fast_expand: wins 15 of 20 mirror games against other openings (0.750, above 0.65).
+WARNING opening skai/skai_windrunner_rush: wins 0 of 20 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_grasper_rush: wins 1 of 18 mirror games against other openings (0.056, below 0.35).
+WARNING opening water/water_leviathan_tech: wins 22 of 31 mirror games against other openings (0.710, above 0.65).
+LADDER candidate=aggressive_s4r baseline=aggressive_s4r decided=216 wins=102 fraction=0.472 distinct=216 mirror=64/144 cross=38/72 bar=0.650 FAIL
+```
+
+Distinct / decided per cell: skai_vs_skai 72/72 = 1.000, skai_vs_water 72/72 = 1.000, water_vs_water 72/72 = 1.000. Mirror 64/144 = 0.444, Wilson [36.6, 52.6]; cross 38/72 = 0.528 (as skai 36/36, as water 2/36).
+
+| faction | opening | draws | use share | mirror games | wins | win fraction | Wilson interval | cross games | cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| skai | skai_air | 57 | 0.264 | 22 | 14 | 0.636 | [43.0, 80.3] | 19 | 19 |
+| skai | skai_fast_expand | 48 | 0.222 | 20 | 15 | 0.750 | [53.1, 88.8] | 16 | 15 |
+| skai | skai_standard | 76 | 0.352 | 28 | 16 | 0.571 | [39.1, 73.5] | 24 | 24 |
+| skai | skai_windrunner_rush | 35 | 0.162 | 20 | 0 | 0.000 | [0.0, 16.1] | 13 | 12 |
+| water | water_fast_expand | 52 | 0.241 | 25 | 12 | 0.480 | [30.0, 66.5] | 15 | 0 |
+| water | water_grasper_rush | 42 | 0.194 | 18 | 1 | 0.056 | [1.0, 25.8] | 20 | 0 |
+| water | water_leviathan_tech | 62 | 0.287 | 31 | 22 | 0.710 | [53.4, 83.9] | 17 | 2 |
+| water | water_standard | 60 | 0.278 | 32 | 18 | 0.563 | [39.3, 71.8] | 20 | 0 |
+
+(Strength ladder, response scenarios and gate verdict follow in later commits.)
+
+---
+
+## After the reservation fix, before the weight scale (commit 7f37605; superseded by the section above)
 
 **Verdict in one line: gate item 1 (variety) PASSES; item 2 (not weaker) PASSES (0.463 against 0.45, mirror upper bound 0.513 against 0.50); item 3 (no dominant, no dud opening) still FAILS on the win-fraction halves (use-share half passes).** Nothing was tuned: no opening weight, build order, jitter, threshold, bar, scenario or game count was changed; the only change is the fix below. Same commands, seeds and game counts as section 1 (the tail of the old report, kept below).
 
