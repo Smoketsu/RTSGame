@@ -46,6 +46,8 @@
 //     focus_max_commands_per_think (every profile file carries them; the switches are false except in aggressive_s3); and the package D
 //     review keys use_focus_fire (fastest-kill focus split from use_unit_control), fallback_release_seconds, attack_retreat_grace_seconds,
 //     harass_max_seconds and rare_bank_return_cap (hysteresis of the rare-worker cap).
+//   * skirmish_ai_v4_rl.md package R (seeded variety): composition_jitter_fraction, expand_jitter_seconds and attack_advantage_jitter
+//     (every profile file carries them; 0 = off, which plays exactly as before; see AiVariety).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -141,6 +143,15 @@ namespace Rts.Ai
             AttackTideMin = attackTideMin;
             AttackTideMax = attackTideMax;
             AttackTideOverrideSupply = attackTideOverrideSupply;
+        }
+
+        /// <summary>A copy of this plan with another build order and army composition and every other field the same (used by <see cref="AiVariety"/>).</summary>
+        /// <param name="buildOrder">The build order of the copy.</param>
+        /// <param name="composition">The composition of the copy. Unit: weight. Range: 0 to 100 each.</param>
+        public AiFactionPlan WithOrders(IReadOnlyList<AiBuildStep> buildOrder, IReadOnlyDictionary<string, int> composition)
+        {
+            return new AiFactionPlan(FactionId, WorkerUnitId, SupplyBuildingId, buildOrder, composition, AttackTideMin, AttackTideMax,
+                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId);
         }
     }
 
@@ -544,6 +555,15 @@ namespace Rts.Ai
         /// <summary>C2.3: once capped, rare fields stay closed until the rare bank falls below this; 0 means the cap itself. Unit: resource units (rare). Range: 0 to <see cref="RareBankSoftCap"/> when that is above 0.</summary>
         public int RareBankReturnCap { get; }
 
+        /// <summary>R.4 (skirmish_ai_v4_rl.md): each base composition weight moves by up to this fraction at match start (one draw per unit from the variety stream); 0 = off. Unit: fraction. Range: 0 to 0.5.</summary>
+        public Fix64 CompositionJitterFraction { get; }
+
+        /// <summary>R.4: the first depot clocks (expand_at_seconds, early_expansion_seconds) move by a whole number of seconds drawn from minus to plus this at match start; 0 = off. Unit: seconds. Range: 0 to 120.</summary>
+        public int ExpandJitterSeconds { get; }
+
+        /// <summary>R.4: attack_min_advantage moves by an offset drawn from minus to plus this, in steps of 0.01, each time the army starts massing; 0 = off. Unit: ratio. Range: 0 to 0.5.</summary>
+        public Fix64 AttackAdvantageJitter { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -709,6 +729,9 @@ namespace Rts.Ai
             {
                 throw root.Require("rare_bank_return_cap").Fail("must not exceed rare_bank_soft_cap");
             }
+            CompositionJitterFraction = root.RequireFix64("composition_jitter_fraction", "0", "0.5");
+            ExpandJitterSeconds = root.RequireInt("expand_jitter_seconds", 0, 120);
+            AttackAdvantageJitter = root.RequireFix64("attack_advantage_jitter", "0", "0.5");
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -796,7 +819,7 @@ namespace Rts.Ai
                 "defend_max_candidates", "fallback_health_fraction", "fallback_danger_tiles",
                 "fallback_max_commands_per_think", "kite_trigger_tiles", "kite_step_tiles", "kite_min_range_gap_tiles",
                 "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think", "use_focus_fire", "fallback_release_seconds",
-                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "factions");
+                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.

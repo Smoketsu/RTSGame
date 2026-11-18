@@ -1059,7 +1059,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(S3.UseFocusFire, Is.EqualTo(S3FocusFire), "use_focus_fire as decided by the 72-game check");
             foreach (string id in Data.AiProfiles.Keys)
             {
-                if (id == "aggressive_s3")
+                if (id == "aggressive_s3" || id == "aggressive_s4r")
                 {
                     continue;
                 }

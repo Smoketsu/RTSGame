@@ -74,7 +74,7 @@ At match start, inside `AiVariety.Create`, all from the variety stream:
 
 During the match, in `AiBrain.EnterMassing` (same call sites as today, after the existing threshold draw from the old stream):
 
-5. **Attack advantage offset** (only when `Variety != null` and `attack_advantage_jitter > 0`): `A = floor(attack_advantage_jitter x 100)`; `AttackAdvantageOffset = Fix64.FromInt(NextIntInclusive(-A, A)) / 100`.
+5. **Attack advantage offset** (only when `Variety != null` and `attack_advantage_jitter > 0`): `A = round(attack_advantage_jitter x 100)` (built, 18 Nov 2026: `floor` was wrong because 0.15 is 0.1499... in Q32.32 and would give 14; the same rounding is used for `J` in draws 2 and 3); `AttackAdvantageOffset = Fix64.FromInt(NextIntInclusive(-A, A)) / 100`.
 
 `Jitter(int w, int d)` (public static, pure): `w == 0` gives 0; else `clamp((w x (100 + d) + 50) / 100, 1, 100)` in integers. So a band never adds a unit the data excluded, never removes one it included, and stays inside the composition range 0 to 100.
 
@@ -106,13 +106,13 @@ With `attack_min_advantage` 1.3 the AI attacks on a predicted edge of 1.15 to 1.
 - **R-0 Pin first** (first commit of R-1, on unchanged code): `aggressive_s3` against itself, `--trace --map prototype_1v1 --matchup skai_vs_skai --seed 20261117 --game 0`, same form as `AblationBlind_TracedGame_IsUnchangedByPackageC2`: record `end_tick`, `state_hash` and `play_signature` as constants `S3SelfTraceEndTick`, `S3SelfTraceHash`, `S3SelfTraceSignature`. The test must still pass, unchanged, after R and L.
 - **R-1 Jitter arithmetic.** `Jitter(3, -25) == 2`, `Jitter(3, 25) == 4`, `Jitter(1, -25) == 1`, `Jitter(100, 25) == 100`, `Jitter(0, 25) == 0`, `Jitter(4, 0) == 4`.
 - **R-2 Seeds.** `AiVariety.SeedFor(s, P0) != AiVariety.SeedFor(s, P1)` and `AiVariety.SeedFor(s, P) != SkirmishAiController.SeedFor(s, P)` for s in 1..32.
-- **R-3 Create is deterministic.** `AiVariety.Create(aggressive_s4r, skai plan, seed 7, 20)` twice: same opening ID, same composition weights, same expansion offset. Builder records the values for seeds 1 to 8 (both factions) as a pin in the test.
+- **R-3 Create is deterministic.** `AiVariety.Create(aggressive_s4r, skai plan, seed 7, 20)` twice: same opening ID, same composition weights, same expansion offset. Builder records the values for seeds 1 to 8 (both factions) as a pin in the test. (Built: the pin is taken on `aggressive_s3` text with the three R keys switched on, so it does not move when L-2 adds openings to `aggressive_s4r`. Measured: the base weights are 1 to 3, so the 25 percent band moves them by at most one step; the expansion offsets of seeds 1 to 8 are -4, -20, -4, 11, 10, -8, 5, 20. With `early_expansion_seconds` 0 every negative offset clamps to 0, so half the draws do not move the first rare depot.)
 - **R-4 Bounds.** For seeds 1 to 200: every expansion offset is in -20..20; every jittered weight `w'` of a base weight `w > 0` satisfies `max(1, floor(0.75 w)) <= w' <= min(100, ceil(1.25 w))`; 50 consecutive `EnterMassing` calls give offsets in -0.15..0.15 with a step of 0.01.
 - **R-5 Old stream untouched.** Two controllers on the same started greybox simulation, slot 0, one with `aggressive_s3`, one with `aggressive_s4r`: after `OnMatchStart` and one think each, `controller.Rng.State` and `controller.Rng.DrawCount` are equal (both drew only the threshold jitter).
 - **R-6 No variety for old profiles.** For every shipped profile except `aggressive_s4r`: after `OnMatchStart`, `Memory.Variety` is null.
 - **R-7 Effective values.** With `Memory.Variety` set by hand (`ExpandOffsetSeconds = -20`, `AttackAdvantageOffset = 0.15`): `Turn.ExpandAtSeconds()` is 220 for `expand_at_seconds` 240 and 0 for 10 (clamp); `AttackMinAdvantage()` is 1.45 for 1.3. With `Variety` null: 240 and 1.3.
 - **R-8 Same seed twice.** `GameRunner.Play` on `prototype_1v1`, `water_vs_water`, game 0, cap 300 s, both slots `aggressive_s4r`, seed 11 twice: equal `play_signature` and equal `state_hash`.
-- **R-9 Seeds change play.** Same game for seeds 1 to 8: at least 7 different `play_signature` values (the builder records the actual count and pins it).
+- **R-9 Seeds change play.** Same game for seeds 1 to 8: 6 different `play_signature` values (measured on R-1, before any opening exists: the spec guessed at least 7; pinned as 6; re-measured at L-2).
 - **R-10 Pins.** `V2ReferenceHash` (A-11), `BlindTraceHash` (C2-11), R-0, the harness smoke pins (`HarnessUnitTests`: smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`), `WorkerConstructionTests` (economy_smoke) and `DeterminismTests.GoldenFinalHash` stay green **without re-pinning**. If one moves, stop and report.
 
 ---

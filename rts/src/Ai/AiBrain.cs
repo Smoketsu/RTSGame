@@ -125,7 +125,12 @@
 // the worker target min(max_workers, workers_per_field x fields in range), the all-in test on fields near the HQ, and "Phase 1: the
 // HQ stays Rooted; no relocation". Home (rule M) is the relocation destination while the HQ relocates, else the HQ position.
 // Determinism: integers and Fix64 only; own units, enemies and fields walked in ascending ID or index order; squared distances;
-// ties to the lower ID or index; the only random draw is the attack threshold jitter from the controller's own generator.
+// ties to the lower ID or index; the random draws are the attack threshold jitter from the controller's own generator and, only when a profile
+// key of package R is above 0, the variety stream of AiVariety (a second generator in AiMemory.Variety: match-start composition band and
+// expansion offset, then an attack-advantage offset after each threshold draw).
+// Package R (skirmish_ai_v4_rl.md, keys composition_jitter_fraction, expand_jitter_seconds, attack_advantage_jitter, all 0 in old profiles):
+// Decide first swaps in memory.Variety.PlanAt(tick) (the jittered plan); rule E reads ExpandAtSeconds / EarlyExpansionSeconds (clock plus
+// the drawn offset, clamped to 0 to 1800) and the predicted attack reads AttackMinAdvantage (plus the drawn offset, clamped to 0 to 100).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -156,6 +161,8 @@ namespace Rts.Ai
         /// <param name="rng">The controller's own generator (never the simulation's).</param>
         public static List<AiIntent> Decide(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory, DeterministicRandom rng)
         {
+            // Package R and L: the plan of the drawn opening or the jittered plan, when the controller made a variety stream.
+            plan = memory.Variety?.PlanAt(view.Tick) ?? plan;
             // Intents decided this think, in rule order.
             List<AiIntent> intents = new List<AiIntent>();
             // The own HQ (lowest ID), or null when the player has none.
@@ -171,7 +178,7 @@ namespace Rts.Ai
             }
             if (memory.AttackThreshold < 0)
             {
-                EnterMassing(memory, profile, rng);
+                EnterMassing(memory, profile, rng, view.Tick);
             }
             // This think's working state (ledger, reservations, intents).
             Turn turn = new Turn(view, profile, plan, memory, rng, hq, intents);
@@ -294,12 +301,50 @@ namespace Rts.Ai
         /// <param name="memory">Gets the new threshold and stance Massing.</param>
         /// <param name="profile">The profile.</param>
         /// <param name="rng">The controller's generator.</param>
-        internal static void EnterMassing(AiMemory memory, AiProfile profile, DeterministicRandom rng)
+        /// <param name="tick">The tick being decided (selects the opening's or the profile's attack_army_supply). Unit: ticks. Range: 0 upward.</param>
+        internal static void EnterMassing(AiMemory memory, AiProfile profile, DeterministicRandom rng, int tick)
         {
             memory.Stance = AiStance.Massing;
             memory.HasAttackTarget = false;
             memory.AttackGroup.Clear();
             memory.AttackThreshold = profile.AttackArmySupply + rng.NextInt(profile.AttackSupplyJitter + 1);
+            // Package R draw 5, after the old draw so the old stream is untouched: a new offset of the predicted-advantage bar for this attack.
+            memory.Variety?.DrawAttackAdvantageOffset(profile);
+        }
+
+        /// <summary>
+        /// Rule E's clock of the first depot (expand_at_seconds) with the variety offset, clamped to 0 to 1800; the profile value when the
+        /// memory has no variety stream.
+        /// </summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The controller's memory.</param>
+        internal static Fix64 ExpandAtSeconds(AiProfile profile, AiMemory memory)
+        {
+            return OffsetSeconds(profile.ExpandAtSeconds, memory);
+        }
+
+        /// <summary>Rule E's early-expansion clock (early_expansion_seconds) with the variety offset, clamped to 0 to 1800; the profile value without variety.</summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The controller's memory.</param>
+        internal static Fix64 EarlyExpansionSeconds(AiProfile profile, AiMemory memory)
+        {
+            return OffsetSeconds(profile.EarlyExpansionSeconds, memory);
+        }
+
+        /// <summary>The effective attack_min_advantage: the profile value plus the variety offset, clamped to 0 to 100; the profile value without variety.</summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The controller's memory.</param>
+        internal static Fix64 AttackMinAdvantage(AiProfile profile, AiMemory memory)
+        {
+            return memory.Variety == null ? profile.AttackMinAdvantage
+                : Fix64.Clamp(profile.AttackMinAdvantage + memory.Variety.AttackAdvantageOffset, Fix64.Zero, Fix64.FromInt(100));
+        }
+
+        /// <summary>A clock value in seconds plus the variety's expansion offset, clamped to 0 to 1800; unchanged without variety.</summary>
+        private static Fix64 OffsetSeconds(Fix64 seconds, AiMemory memory)
+        {
+            return memory.Variety == null ? seconds
+                : Fix64.Clamp(seconds + Fix64.FromInt(memory.Variety.ExpandOffsetSeconds), Fix64.Zero, Fix64.FromInt(1800));
         }
 
         /// <summary>The lowest-ID own HQ, or null.</summary>
@@ -2076,7 +2121,7 @@ namespace Rts.Ai
                     return;
                 }
                 // Clock time from which the next depot is due. Unit: seconds.
-                Fix64 dueSeconds = _profile.ExpandAtSeconds + _profile.ExpandIntervalSeconds * _memory.DepotsPlaced;
+                Fix64 dueSeconds = ExpandAtSeconds(_profile, _memory) + _profile.ExpandIntervalSeconds * _memory.DepotsPlaced;
                 // Known amount left in the served fields. Unit: resource units. Range: 0 upward.
                 int servedKnown = 0;
                 // Start amount of the served fields. Unit: resource units. Range: 0 upward.
@@ -2093,11 +2138,11 @@ namespace Rts.Ai
                 // C2.5: while no rare field is served, the first rare depot is due at early_expansion_seconds (the other gates stay).
                 if (earlyGate)
                 {
-                    dueSeconds = Fix64.Min(dueSeconds, _profile.EarlyExpansionSeconds);
+                    dueSeconds = Fix64.Min(dueSeconds, EarlyExpansionSeconds(_profile, _memory));
                 }
                 // True once the early gate has opened (its time has come), so the depot it allows goes to a rare site even when the mix's rare
                 // share is below rare_need_weight_share (C2 review item 1). Unit: boolean.
-                bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(_profile.EarlyExpansionSeconds);
+                bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(EarlyExpansionSeconds(_profile, _memory));
                 // Rule RS: a needed rare resource puts rare sites first in the target order.
                 bool rarePriority = RarePriority() || earlyLift;
                 if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
@@ -2725,7 +2770,7 @@ namespace Rts.Ai
                 }
                 else if (_memory.Stance == AiStance.Retreat)
                 {
-                    EnterMassing(_memory, _profile, _rng);
+                    EnterMassing(_memory, _profile, _rng, _view.Tick);
                 }
                 if (_memory.Stance == AiStance.Massing)
                 {
@@ -2942,7 +2987,7 @@ namespace Rts.Ai
                 }
                 if (group.Count == 0)
                 {
-                    EnterMassing(_memory, _profile, _rng);
+                    EnterMassing(_memory, _profile, _rng, _view.Tick);
                     return;
                 }
                 if (!AllIn && _kill == null && ShouldRetreat(group, groupSupply))
@@ -2956,13 +3001,13 @@ namespace Rts.Ai
                         Emit(AiIntent.Move(unit.Id, home));
                     }
                     _memory.RegroupUntilTick = _view.Tick + _view.SecondsToTicks(_profile.RegroupSeconds);
-                    EnterMassing(_memory, _profile, _rng);
+                    EnterMassing(_memory, _profile, _rng, _view.Tick);
                     return;
                 }
                 if (!TryChooseTarget(out FixVec2 target))
                 {
                     // Nothing known left to attack: go home and mass again.
-                    EnterMassing(_memory, _profile, _rng);
+                    EnterMassing(_memory, _profile, _rng, _view.Tick);
                     return;
                 }
                 RallyIdle(rest);

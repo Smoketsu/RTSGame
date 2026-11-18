@@ -191,7 +191,7 @@ namespace Rts.Ai
                 }
                 // The prediction for the whole army against that enemy side.
                 FightPrediction prediction = PredictFight(FightPredictor.Group(army), enemy, IsUphill(target, RallyPoint()));
-                win = (prediction.AWins && prediction.Advantage >= _profile.AttackMinAdvantage && armySupply >= _profile.AttackMinSupply)
+                win = (prediction.AWins && prediction.Advantage >= AttackMinAdvantage(_profile, _memory) && armySupply >= _profile.AttackMinSupply)
                     || armySupply >= _profile.AttackForceSupply;
                 return true;
             }
