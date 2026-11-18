@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Art (18 Nov 2026): the developer picked the island-and-tree HQ with roots as feet (`concept/round25/skai_hq_island_tree_root_feet.jpg`) as the new Skai HQ, replacing the Great Aerie disc design; the other four round 25 options are dropped. Model sheets for both states in `docs/art/concept/turnarounds10/` (Rooted and Uprooted), awaiting marks before 3D generation.
+
 - Art (18 Nov 2026): concept round 25 (`docs/art/concept/round25/`): three Skai HQ designs combining the sky island with the great tree (fan-pod feet, turbine legs, root feet) and two bulkier bird citadels (owl, condor); awaiting the developer's marks.
 
 - Art (18 Nov 2026): the developer marked all nine building models Keep (`docs/art/models/buildings1/`). Skai HQ round 24 marks: great tree, sky island and perched roc Maybe (combine the tree with the island and try the fans as feet; make the bird bulkier or a different bird), ring spire No. Round 25 is being drawn from those notes.
