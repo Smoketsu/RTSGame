@@ -1,0 +1,55 @@
+// rts/docs/art/concept/round24/shots.json: shot list for concept art round 24 (four new Skai HQ design options, from the developer's note on the round 17 Great Aerie sheet), read by rts/tools/ConceptArt/generate.py. Each shot has an id (the output file name), a size in pixels (width x height), an optional quality, a prompt and references (repository-relative images the result must stay faithful to).
+{
+  // Shared style text prepended to every shot prompt. Source: CONCEPT_BRIEF.md, Style (low-poly rendering style decided in round 8).
+  "style": "Science fiction strategy game concept art rendered as simple low-polygon 3D game models: chunky faceted geometry with visible flat polygons, plain hand-painted colours in broad areas, fully matte shading with soft ambient light only, no specular highlights, no reflections, no glow bloom, no fine surface detail. Skai palette: storm charcoal armour, white feather-tip vanes, flat electric yellow energy panels. Angular, tall, sharp shapes; no wood, rope, cloth, stone masonry or cultural ornaments. No text, no labels, no logos, no borders, no watermark.",
+  "shots": [
+    {
+      // Output file name without extension. Option A of four Skai HQ designs.
+      "id": "skai_hq_option_a_great_tree",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 16 approved Skai buildings and round 9 approved Skai air units.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg", "rts/docs/art/concept/round9/skai_air_units.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. The first reference image shows the approved Skai buildings (angular charcoal conifer and canopy tree buildings with talon feet); the second shows Skai air units. Match their style, colours and angular faceting. The headquarters is a colossal version of the canopy tree buildings: one massive angular charcoal trunk with several broad canopy platforms at different heights, white feather-tip vanes on the platform edges, hanging pod modules, landing perches, yellow panels and a turret in the crown. It must read as a large base, not a vehicle or creature. Left, Uprooted and flying: the trunk's big talon roots are pulled up and folded against the trunk, and it is carried by large ducted rotors mounted under the canopy platforms, with a soft shadow far below on the ground. Right, Rooted on the ground: the same tree, the talon roots spread wide and dug into the earth, rotors stopped. No text."
+    },
+    {
+      // Output file name without extension. Option B of four Skai HQ designs.
+      "id": "skai_hq_option_b_sky_island",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 16 approved Skai buildings and round 9 approved Skai air units.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg", "rts/docs/art/concept/round9/skai_air_units.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. The first reference image shows the approved Skai buildings (angular charcoal conifer and canopy tree buildings with talon feet); the second shows Skai air units. Match their style, colours and angular faceting. The headquarters is a chunk of faceted dark-grey rock lifted into the air, flat on top, with a small cluster of Skai conifer and canopy buildings and a tall central tower growing on the flat top, landing pads, yellow panels and a turret, and large turbines set into the rock's underside. It must read as a base, not a vehicle. Left, Uprooted and flying: floating high, the underside of the rock tapering to a point with the turbines visible around it, soft shadow far below on the ground. Right, Rooted on the ground: the same island settled onto the ground on big taloned mechanical landing legs, so it looks like a rocky hill fort, turbines stopped. No text."
+    },
+    {
+      // Output file name without extension. Option C of four Skai HQ designs.
+      "id": "skai_hq_option_c_perched_roc",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 16 approved Skai buildings and round 9 approved Skai air units.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg", "rts/docs/art/concept/round9/skai_air_units.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. The first reference image shows the approved Skai buildings (angular charcoal conifer and canopy tree buildings with talon feet); the second shows Skai air units. Match their style, colours and angular faceting. The headquarters is a citadel shaped as an enormous stylised mechanical bird of prey: angular and architectural, a building in the shape of a bird, not a living creature, with no naturalistic feathers or eyes: the head is only a small faceted charcoal prow with a blunt hooked beak shape and one yellow slit window, clearly secondary to the large building body. The body is the main hall with big doors and windows and yellow panels; a turret sits on its back; wings are made of big white-tipped charcoal blade plates. Left, Uprooted and flying: wings spread wide, gliding, soft shadow far below on the ground. Right, Rooted on the ground: perched upright on two huge angular talons, the wings folded forward around the base as fortress walls. No text."
+    },
+    {
+      // Output file name without extension. Option D of four Skai HQ designs.
+      "id": "skai_hq_option_d_ring_spire",
+      // Image size. Unit: pixels, width x height. Range: API-supported sizes.
+      "size": "1536x1024",
+      // Render quality. Unit: API enum. Range: low, medium, high.
+      "quality": "high",
+      // Style references. Unit: repository-relative paths. Source: round 16 approved Skai buildings and round 9 approved Skai air units.
+      "references": ["rts/docs/art/concept/round16/skai_buildings.jpg", "rts/docs/art/concept/round9/skai_air_units.jpg"],
+      // Prompt text appended to the style text.
+      "prompt": "Concept sheet on a plain light-grey backdrop showing ONE design of the Skai faction's headquarters twice, side by side, at the same size, both seen from the same high three-quarter strategy game camera. The first reference image shows the approved Skai buildings (angular charcoal conifer and canopy tree buildings with talon feet, including the tech building with a ring); the second shows Skai air units. Match their style, colours and angular faceting. The headquarters is a tall slender conifer-style spire with two or three large ring platforms around it (like the approved tech building's ring, scaled up to a fortress), with white feather-tip vanes on the rings, yellow panels, and a storm emitter at the tip built as a tall angular yellow crystal antenna with a small floating ring around it (no lightning-bolt symbol or icon anywhere). It must read as a base, not a vehicle. Left, Uprooted and flying: the rings spin as lift rotors (shown with motion blur) and the spire hangs beneath them with its talon foot retracted, soft shadow far below on the ground. Right, Rooted on the ground: the spire stands on a single wide talon foot and the rings are lowered and locked as landing decks. No text."
+    }
+  ]
+}
