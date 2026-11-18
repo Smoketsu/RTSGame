@@ -121,7 +121,7 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --fi
   The first `verify_fights` fights are re-run in-process and must give identical JSON lines. No output depends on `--jobs`; elapsed time goes to stderr only.
 - `--only <fight id>` (for example `flat/1500/water.grasper/water.ink_lobber`) plays one fight in-process and prints its JSON line; no files, no checks.
 - Writes `fights.jsonl`, `hq_floor.jsonl` and `fights.md` to `--out` (default `rts/build/harness/fights`). stdout: `fights <done>/<total>` progress, one `CHECK <name> PASS|FAIL <detail>` per design-rule check, then
-  `FIGHTS fights=<n> decided=<n> draws=<n> stalemates=<n> unresolved=<n> mismatched=<n> checks_passed=<n> of=<m>`.
+  `FIGHTS fights=<n> decided=<n> draws=<n> stalemates=<n> unresolved=<n> mismatched=<n> checks_passed=<n> of=<m> dome_absorbed=<n>`. A stalemate with reason `dome_absorbed` had dome-absorbed shots inside the idle window (skirmish_ai_v4.md S.4); `no_damage` had none.
 - Exit codes: 0 done (failed checks included), 1 error, 2 a check failed and `--strict` was given, 3 spot check mismatch.
 - The checks (`FightChecks`) are the P-005 section 1.6 rules 1 to 6 plus `matchups_agree`; the HQ floor (rule 6) reuses `HqFloorTrial`, extended to compositions.
 - A new unit joins the sweep by being a combat unit (mobile, supplied, armed, not a worker or HQ); `matchups_agree` then fails until it has an entry in `matchups.json`.
@@ -137,7 +137,8 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --re
 ```
 
 - `--ladder` plays profile A (baseline) against profile B (candidate) on every selected map and matchup, in both seats (game g: slot s plays A when `(g / 2) % 2 == s`, else B; factions swap on odd g), in the same worker processes as `--batch`.
-  It writes `ladder.jsonl` and `ladder.md` to `--out` (default `rts/build/harness/ladder`) and prints `LADDER candidate=<id> baseline=<id> decided=<n> wins=<n> fraction=<0.000> bar=<0.000> PASS|FAIL`.
+  It writes `ladder.jsonl` and `ladder.md` to `--out` (default `rts/build/harness/ladder`) and prints `LADDER candidate=<id> baseline=<id> decided=<n> wins=<n> fraction=<0.000> distinct=<n> mirror=<wins>/<decided> cross=<wins>/<decided> bar=<0.000> PASS|FAIL`.
+  Every game record carries `play_signature` (hash of every AI command, independent of the seed); `ladder.md` counts distinct games, puts Wilson intervals over them, splits mirror and cross-faction rows, and warns (never gates) when a cell's distinct share is below `ladder_min_distinct_fraction` in `ai_eval.json` (skirmish_ai_v4.md S).
   Draws count as decided games and not as wins. Exit codes: 0 pass, 1 error, 2 bar missed or too few decided games, 3 determinism spot check failed (`ladder_verify_games` games re-run in-process).
   Every record line carries `profile_slot0` and `profile_slot1`.
 - `--response` plays each scenario of `ai_eval.json` `response_tests` (a script in `rts/data/scripts/ai_eval` whose slot 1 is a responder profile `rt_*`, slot 0 the profile under test) with a read-only observer and prints

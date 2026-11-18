@@ -135,7 +135,7 @@ namespace Rts.Sim.Tests.Harness
         /// <summary>A synthetic game record of the given game index and result.</summary>
         private static GameRecord Record(int game, string result)
         {
-            return new GameRecord("m", "skai_vs_water", game, 1, "skai", "water", "A", "B", result, 10, 1, 1, new List<HqKill>());
+            return new GameRecord("m", "skai_vs_water", game, 1, "skai", "water", "A", "B", result, 10, 1, 1, 1, new List<HqKill>());
         }
     }
 }

@@ -108,6 +108,8 @@ namespace Rts.Tools.BalanceHarness
             SortedDictionary<EntityId, int> seatOf = new SortedDictionary<EntityId, int>();
             // Last tick with damage to an army unit, the consecutive ticks neither side could hurt the other, and the result.
             int lastDamage = spawnTick;
+            // Last tick a dome of a seat army unit absorbed damage above 0; int.MinValue / 2 before the first, so no idle window reaches it. Unit: ticks.
+            int lastAbsorb = int.MinValue / 2;
             int cannotStreak = 0;
             string result = string.Empty;
             string reason = string.Empty;
@@ -142,6 +144,10 @@ namespace Rts.Tools.BalanceHarness
                     {
                         lastDamage = t;
                     }
+                    else if (simEvent is ShieldDomeHitEvent hit && hit.Absorbed > Fix64.Zero && seatOf.ContainsKey(hit.Dome))
+                    {
+                        lastAbsorb = t;
+                    }
                 }
                 // Live units per seat, and the layers of the enemy units each seat's weapons would have to hit.
                 List<Unit> live0 = Alive(sim, army[0]);
@@ -164,7 +170,8 @@ namespace Rts.Tools.BalanceHarness
                 else if (t - lastDamage >= idleLimit)
                 {
                     result = FightRecord.Stalemate;
-                    reason = "no_damage";
+                    // Shots absorbed by a dome inside the idle window make it a dome stalemate (skirmish_ai_v4.md S.4), not a missing-damage one.
+                    reason = t - lastAbsorb < idleLimit ? "dome_absorbed" : "no_damage";
                 }
                 else if (t - spawnTick >= cap)
                 {

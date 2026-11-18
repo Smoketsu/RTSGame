@@ -45,8 +45,8 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(GameRunner.FactionInSlot("skai_vs_water", 1, 0), Is.EqualTo("water"));
             Assert.That(GameRunner.FactionInSlot("skai_vs_water", 1, 1), Is.EqualTo("skai"));
             // A game 1 record where slot 1 (skai) won, and one where slot 0 (water) won.
-            GameRecord slot1Win = new GameRecord("m", "skai_vs_water", 1, 1, "water", "skai", "aggressive", "aggressive", GameRecord.Slot1, 10, 1, 1, new List<HqKill>());
-            GameRecord slot0Win = new GameRecord("m", "skai_vs_water", 1, 1, "water", "skai", "aggressive", "aggressive", GameRecord.Slot0, 10, 1, 1, new List<HqKill>());
+            GameRecord slot1Win = new GameRecord("m", "skai_vs_water", 1, 1, "water", "skai", "aggressive", "aggressive", GameRecord.Slot1, 10, 1, 1, 1, new List<HqKill>());
+            GameRecord slot0Win = new GameRecord("m", "skai_vs_water", 1, 1, "water", "skai", "aggressive", "aggressive", GameRecord.Slot0, 10, 1, 1, 1, new List<HqKill>());
             Assert.That(ReportWriter.ScoreFor(slot1Win, "skai"), Is.EqualTo(1));
             Assert.That(ReportWriter.ScoreFor(slot0Win, "skai"), Is.EqualTo(-1));
         }
@@ -140,8 +140,8 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(ReportWriter.EvaluateMedianCap(InputWithGames(shipped)).Result, Is.EqualTo("DEFERRED"));
             DataSet capped = HarnessTestSupport.Load(HarnessTestSupport.CopyData(new[] { new DataEdit("tuning/harness_batch.json", "\"earth_vs_water\"", "\"skai_vs_water\"") }));
             // Cap 1500 s is 30000 ticks; a 40000-tick game is over it, a 20000-tick game under it.
-            GameRecord slow = new GameRecord("greybox_1v1", "skai_vs_water", 0, 1, "skai", "water", "aggressive", "aggressive", GameRecord.Slot0, 39999, 1, 1, new List<HqKill>());
-            GameRecord fast = new GameRecord("greybox_1v1", "skai_vs_water", 0, 1, "skai", "water", "aggressive", "aggressive", GameRecord.Slot0, 19999, 1, 1, new List<HqKill>());
+            GameRecord slow = new GameRecord("greybox_1v1", "skai_vs_water", 0, 1, "skai", "water", "aggressive", "aggressive", GameRecord.Slot0, 39999, 1, 1, 1, new List<HqKill>());
+            GameRecord fast = new GameRecord("greybox_1v1", "skai_vs_water", 0, 1, "skai", "water", "aggressive", "aggressive", GameRecord.Slot0, 19999, 1, 1, 1, new List<HqKill>());
             Assert.That(ReportWriter.EvaluateMedianCap(InputWithGames(capped, slow)).Result, Is.EqualTo("FAIL"));
             Assert.That(ReportWriter.EvaluateMedianCap(InputWithGames(capped, fast)).Result, Is.EqualTo("PASS"));
             Assert.That(ReportWriter.EvaluateMedianCap(InputWithGames(capped)).Result, Is.EqualTo("DEFERRED"), "no game played");

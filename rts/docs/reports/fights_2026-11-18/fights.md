@@ -1,13 +1,13 @@
 <!-- fights.md: written by the balance harness --fights (rts/tools/BalanceHarness/FightCoordinator.cs); not a source file. -->
 # Equal-value fights
 
-- Data digest: tuning d522ef6d82fa09f1, content 1949943b73b01967.
+- Data digest: tuning d522ef6d82fa09f1, content b0014f3f65365bb8.
 - Base seed 20261118; fight seed = SeedDerivation.GameSeed(base seed, "fights", fight ID, 0).
 - Value: cost_common + cost_rare per unit; an army is the recipe repeated k = max(1, (2V + rv) / (2 rv)) times.
 - Control: plain attack-move at the enemy front rank, idle units re-target every 2 s; no strategic AI, no HQ.
 - Fights: 780 (13 sides); determinism spot check: 2 fights re-run in-process, 0 mismatches.
 
-**FIGHTS fights=780 decided=765 draws=0 stalemates=13 unresolved=2 mismatched=0 checks_passed=2 of=8**
+**FIGHTS fights=780 decided=765 draws=0 stalemates=13 unresolved=2 mismatched=0 checks_passed=2 of=8 dome_absorbed=12**
 
 ## Design-rule checks
 
@@ -232,23 +232,23 @@ Cell (row, column) is the row's value left minus the column's, from the fight wi
 
 ## Stalemates, unresolved fights and seat splits
 
-A seat split means the two seat orders of a pair have different winners. On high_ground and flooded the seats are not symmetric by design, so splits there show terrain at work, not seat bias. A `no_damage` stalemate counts only damage events: hits absorbed by a shield dome do not reset the idle timer.
+A seat split means the two seat orders of a pair have different winners. On high_ground and flooded the seats are not symmetric by design, so splits there show terrain at work, not seat bias. A `no_damage` stalemate counts only damage events; when shots absorbed by a shield dome fell inside the idle window the stalemate is `dome_absorbed` instead.
 
 | Fight | Finding | Reason |
 | --- | --- | --- |
-| flat/750/skai.roc_rider/water.shellback | stalemate | no_damage |
-| flat/750/water.shellback/skai.roc_rider | stalemate | no_damage |
+| flat/750/skai.roc_rider/water.shellback | stalemate | dome_absorbed |
+| flat/750/water.shellback/skai.roc_rider | stalemate | dome_absorbed |
 | flat/750/skai.roc_rider/water_ai_mix | seat split (water_ai_mix wins this order, skai.roc_rider wins the swapped order) | eliminated |
 | flat/750/skai.windrunner/water.reef_runner | seat split (skai.windrunner wins this order, water.reef_runner wins the swapped order) | eliminated |
 | flat/750/water.ink_lobber/water.reef_runner | seat split (water.reef_runner wins this order, water.ink_lobber wins the swapped order) | eliminated |
-| flat/750/water.shellback/skai_ai_mix | stalemate | no_damage |
-| flat/750/skai_ai_mix/water.shellback | stalemate | no_damage |
-| flat/1500/skai.roc_rider/water.shellback | stalemate | no_damage |
+| flat/750/water.shellback/skai_ai_mix | stalemate | dome_absorbed |
+| flat/750/skai_ai_mix/water.shellback | stalemate | dome_absorbed |
+| flat/1500/skai.roc_rider/water.shellback | stalemate | dome_absorbed |
 | flat/1500/water.shellback/skai.roc_rider | unresolved | time_cap |
 | flat/1500/skai.stormcaller/water.grasper | seat split (water.grasper wins this order, skai.stormcaller wins the swapped order) | eliminated |
 | flat/1500/skai.windrunner/water.reef_runner | seat split (water.reef_runner wins this order, skai.windrunner wins the swapped order) | eliminated |
-| flat/1500/water.shellback/skai_ai_mix | stalemate | no_damage |
-| flat/1500/skai_ai_mix/water.shellback | stalemate | no_damage |
+| flat/1500/water.shellback/skai_ai_mix | stalemate | dome_absorbed |
+| flat/1500/skai_ai_mix/water.shellback | stalemate | dome_absorbed |
 | high_ground/1500/skai.roc_rider/skai.windrunner | seat split (skai.roc_rider wins this order, skai.windrunner wins the swapped order) | eliminated |
 | high_ground/1500/skai.roc_rider/water_ai_mix | seat split (skai.roc_rider wins this order, water_ai_mix wins the swapped order) | eliminated |
 | high_ground/1500/skai.roc_rider/skai_ai_mix | seat split (skai.roc_rider wins this order, skai_ai_mix wins the swapped order) | eliminated |
@@ -256,7 +256,7 @@ A seat split means the two seat orders of a pair have different winners. On high
 | high_ground/1500/skai.stormcaller/skai.windrunner | seat split (skai.windrunner wins this order, skai.stormcaller wins the swapped order) | eliminated |
 | high_ground/1500/skai.stormcaller/water.ink_lobber | seat split (water.ink_lobber wins this order, skai.stormcaller wins the swapped order) | eliminated |
 | high_ground/1500/skai.stormcaller/water.reef_runner | seat split (water.reef_runner wins this order, skai.stormcaller wins the swapped order) | eliminated |
-| high_ground/1500/skai.stormcaller/water.shellback | stalemate | no_damage |
+| high_ground/1500/skai.stormcaller/water.shellback | stalemate | dome_absorbed |
 | high_ground/1500/skai.stormcaller/water_ai_mix | seat split (skai.stormcaller wins this order, water_ai_mix wins the swapped order) | eliminated |
 | high_ground/1500/skai.talon_archer/water.grasper | seat split (skai.talon_archer wins this order, water.grasper wins the swapped order) | eliminated |
 | high_ground/1500/skai.talon_archer/water.ink_lobber | seat split (water.ink_lobber wins this order, skai.talon_archer wins the swapped order) | eliminated |
@@ -274,7 +274,7 @@ A seat split means the two seat orders of a pair have different winners. On high
 | high_ground/1500/water.ink_lobber/water_ai_mix | seat split (water.ink_lobber wins this order, water_ai_mix wins the swapped order) | eliminated |
 | high_ground/1500/water.leviathan/water.shellback | seat split (water.leviathan wins this order, water.shellback wins the swapped order) | eliminated |
 | high_ground/1500/water.reef_runner/water.shellback | seat split (water.reef_runner wins this order, water.shellback wins the swapped order) | eliminated |
-| high_ground/1500/water.spoutling/water.shellback | stalemate | no_damage |
+| high_ground/1500/water.spoutling/water.shellback | stalemate | dome_absorbed |
 | high_ground/1500/water.shellback/water_ai_mix | seat split (water.shellback wins this order, water_ai_mix wins the swapped order) | eliminated |
 | high_ground/1500/skai_ai_mix/water_ai_mix | seat split (skai_ai_mix wins this order, water_ai_mix wins the swapped order) | eliminated |
 | flooded/1500/skai.roc_rider/skai.talon_archer | seat split (skai.talon_archer wins this order, skai.roc_rider wins the swapped order) | eliminated |
@@ -311,10 +311,10 @@ A seat split means the two seat orders of a pair have different winners. On high
 | flooded/1500/water.shellback/water_ai_mix | seat split (water_ai_mix wins this order, water.shellback wins the swapped order) | eliminated |
 | flooded/1500/skai_ai_mix/water.spoutling | seat split (water.spoutling wins this order, skai_ai_mix wins the swapped order) | eliminated |
 | flooded/1500/skai_ai_mix/water_ai_mix | seat split (water_ai_mix wins this order, skai_ai_mix wins the swapped order) | eliminated |
-| choke/1500/skai.roc_rider/water.shellback | stalemate | no_damage |
+| choke/1500/skai.roc_rider/water.shellback | stalemate | dome_absorbed |
 | choke/1500/water.shellback/skai.roc_rider | unresolved | time_cap |
-| choke/1500/water.shellback/skai_ai_mix | stalemate | no_damage |
-| choke/1500/skai_ai_mix/water.shellback | stalemate | no_damage |
+| choke/1500/water.shellback/skai_ai_mix | stalemate | dome_absorbed |
+| choke/1500/skai_ai_mix/water.shellback | stalemate | dome_absorbed |
 
 ## All fights
 
@@ -336,8 +336,8 @@ A seat split means the two seat orders of a pair have different winners. On high
 | flat/750/water.leviathan/skai.roc_rider | seat0 | eliminated | 7.0 | 0.793 | 0.000 | 760/800 |
 | flat/750/skai.roc_rider/water.reef_runner | seat0 | eliminated | 19.4 | 1.000 | 0.000 | 800/750 |
 | flat/750/water.reef_runner/skai.roc_rider | seat1 | eliminated | 19.4 | 0.000 | 1.000 | 750/800 |
-| flat/750/skai.roc_rider/water.shellback | stalemate | no_damage | 36.6 | 1.000 | 0.928 | 800/700 |
-| flat/750/water.shellback/skai.roc_rider | stalemate | no_damage | 36.6 | 0.928 | 1.000 | 700/800 |
+| flat/750/skai.roc_rider/water.shellback | stalemate | dome_absorbed | 36.6 | 1.000 | 0.928 | 800/700 |
+| flat/750/water.shellback/skai.roc_rider | stalemate | dome_absorbed | 36.6 | 0.928 | 1.000 | 700/800 |
 | flat/750/skai.roc_rider/water.spoutling | seat0 | eliminated | 11.3 | 0.719 | 0.000 | 800/750 |
 | flat/750/water.spoutling/skai.roc_rider | seat1 | eliminated | 11.2 | 0.000 | 0.703 | 750/800 |
 | flat/750/skai.roc_rider/water_ai_mix | seat1 | eliminated | 26.7 | 0.000 | 0.494 | 800/790 |
@@ -468,8 +468,8 @@ A seat split means the two seat orders of a pair have different winners. On high
 | flat/750/water.spoutling/water.shellback | seat1 | eliminated | 15.8 | 0.000 | 0.955 | 750/700 |
 | flat/750/water.shellback/water_ai_mix | seat0 | eliminated | 55.4 | 0.494 | 0.000 | 700/790 |
 | flat/750/water_ai_mix/water.shellback | seat1 | eliminated | 52.5 | 0.000 | 0.524 | 790/700 |
-| flat/750/water.shellback/skai_ai_mix | stalemate | no_damage | 47.4 | 0.867 | 0.245 | 700/815 |
-| flat/750/skai_ai_mix/water.shellback | stalemate | no_damage | 47.4 | 0.245 | 0.850 | 815/700 |
+| flat/750/water.shellback/skai_ai_mix | stalemate | dome_absorbed | 47.4 | 0.867 | 0.245 | 700/815 |
+| flat/750/skai_ai_mix/water.shellback | stalemate | dome_absorbed | 47.4 | 0.245 | 0.850 | 815/700 |
 | flat/750/water.spoutling/water_ai_mix | seat1 | eliminated | 9.7 | 0.000 | 0.908 | 750/790 |
 | flat/750/water_ai_mix/water.spoutling | seat0 | eliminated | 9.1 | 0.879 | 0.000 | 790/750 |
 | flat/750/water.spoutling/skai_ai_mix | seat1 | eliminated | 7.6 | 0.000 | 0.831 | 750/815 |
@@ -492,7 +492,7 @@ A seat split means the two seat orders of a pair have different winners. On high
 | flat/1500/water.leviathan/skai.roc_rider | seat0 | eliminated | 4.5 | 0.906 | 0.000 | 1520/1600 |
 | flat/1500/skai.roc_rider/water.reef_runner | seat0 | eliminated | 20.6 | 1.000 | 0.000 | 1600/1500 |
 | flat/1500/water.reef_runner/skai.roc_rider | seat1 | eliminated | 20.6 | 0.000 | 1.000 | 1500/1600 |
-| flat/1500/skai.roc_rider/water.shellback | stalemate | no_damage | 58.2 | 1.000 | 0.939 | 1600/1575 |
+| flat/1500/skai.roc_rider/water.shellback | stalemate | dome_absorbed | 58.2 | 1.000 | 0.939 | 1600/1575 |
 | flat/1500/water.shellback/skai.roc_rider | unresolved | time_cap | 180.0 | 0.693 | 1.000 | 1575/1600 |
 | flat/1500/skai.roc_rider/water.spoutling | seat0 | eliminated | 11.2 | 0.750 | 0.000 | 1600/1500 |
 | flat/1500/water.spoutling/skai.roc_rider | seat1 | eliminated | 11.7 | 0.000 | 0.719 | 1500/1600 |
@@ -624,8 +624,8 @@ A seat split means the two seat orders of a pair have different winners. On high
 | flat/1500/water.spoutling/water.shellback | seat1 | eliminated | 14.8 | 0.000 | 0.975 | 1500/1575 |
 | flat/1500/water.shellback/water_ai_mix | seat0 | eliminated | 43.9 | 0.604 | 0.000 | 1575/1580 |
 | flat/1500/water_ai_mix/water.shellback | seat1 | eliminated | 43.9 | 0.000 | 0.655 | 1580/1575 |
-| flat/1500/water.shellback/skai_ai_mix | stalemate | no_damage | 46.1 | 0.941 | 0.245 | 1575/1630 |
-| flat/1500/skai_ai_mix/water.shellback | stalemate | no_damage | 46.2 | 0.245 | 0.917 | 1630/1575 |
+| flat/1500/water.shellback/skai_ai_mix | stalemate | dome_absorbed | 46.1 | 0.941 | 0.245 | 1575/1630 |
+| flat/1500/skai_ai_mix/water.shellback | stalemate | dome_absorbed | 46.2 | 0.245 | 0.917 | 1630/1575 |
 | flat/1500/water.spoutling/water_ai_mix | seat1 | eliminated | 9.3 | 0.000 | 0.928 | 1500/1580 |
 | flat/1500/water_ai_mix/water.spoutling | seat0 | eliminated | 9.9 | 0.859 | 0.000 | 1580/1500 |
 | flat/1500/water.spoutling/skai_ai_mix | seat1 | eliminated | 8.7 | 0.000 | 0.824 | 1500/1630 |
@@ -670,7 +670,7 @@ A seat split means the two seat orders of a pair have different winners. On high
 | high_ground/1500/water.leviathan/skai.stormcaller | seat0 | eliminated | 17.3 | 0.500 | 0.000 | 1520/1520 |
 | high_ground/1500/skai.stormcaller/water.reef_runner | seat1 | eliminated | 19.3 | 0.000 | 0.344 | 1520/1500 |
 | high_ground/1500/water.reef_runner/skai.stormcaller | seat1 | eliminated | 14.9 | 0.000 | 0.281 | 1500/1520 |
-| high_ground/1500/skai.stormcaller/water.shellback | stalemate | no_damage | 30.0 | 1.000 | 1.000 | 1520/1575 |
+| high_ground/1500/skai.stormcaller/water.shellback | stalemate | dome_absorbed | 30.0 | 1.000 | 1.000 | 1520/1575 |
 | high_ground/1500/water.shellback/skai.stormcaller | seat0 | eliminated | 18.1 | 1.000 | 0.000 | 1575/1520 |
 | high_ground/1500/skai.stormcaller/water.spoutling | seat0 | eliminated | 25.2 | 0.229 | 0.000 | 1520/1500 |
 | high_ground/1500/water.spoutling/skai.stormcaller | seat1 | eliminated | 10.4 | 0.000 | 0.847 | 1500/1520 |
@@ -777,7 +777,7 @@ A seat split means the two seat orders of a pair have different winners. On high
 | high_ground/1500/water.reef_runner/skai_ai_mix | seat1 | eliminated | 15.9 | 0.000 | 0.531 | 1500/1630 |
 | high_ground/1500/skai_ai_mix/water.reef_runner | seat0 | eliminated | 18.2 | 0.724 | 0.000 | 1630/1500 |
 | high_ground/1500/water.shellback/water.spoutling | seat0 | eliminated | 19.9 | 0.997 | 0.000 | 1575/1500 |
-| high_ground/1500/water.spoutling/water.shellback | stalemate | no_damage | 39.8 | 0.917 | 1.000 | 1500/1575 |
+| high_ground/1500/water.spoutling/water.shellback | stalemate | dome_absorbed | 39.8 | 0.917 | 1.000 | 1500/1575 |
 | high_ground/1500/water.shellback/water_ai_mix | seat0 | eliminated | 45.7 | 0.689 | 0.000 | 1575/1580 |
 | high_ground/1500/water_ai_mix/water.shellback | seat0 | eliminated | 68.0 | 0.563 | 0.000 | 1580/1575 |
 | high_ground/1500/water.shellback/skai_ai_mix | seat1 | eliminated | 126.9 | 0.000 | 0.245 | 1575/1630 |
@@ -960,7 +960,7 @@ A seat split means the two seat orders of a pair have different winners. On high
 | choke/1500/water.leviathan/skai.roc_rider | seat0 | eliminated | 17.8 | 0.724 | 0.000 | 1520/1600 |
 | choke/1500/skai.roc_rider/water.reef_runner | seat0 | eliminated | 20.6 | 1.000 | 0.000 | 1600/1500 |
 | choke/1500/water.reef_runner/skai.roc_rider | seat1 | eliminated | 20.6 | 0.000 | 1.000 | 1500/1600 |
-| choke/1500/skai.roc_rider/water.shellback | stalemate | no_damage | 111.1 | 1.000 | 0.889 | 1600/1575 |
+| choke/1500/skai.roc_rider/water.shellback | stalemate | dome_absorbed | 111.1 | 1.000 | 0.889 | 1600/1575 |
 | choke/1500/water.shellback/skai.roc_rider | unresolved | time_cap | 180.0 | 0.767 | 1.000 | 1575/1600 |
 | choke/1500/skai.roc_rider/water.spoutling | seat0 | eliminated | 12.4 | 0.734 | 0.000 | 1600/1500 |
 | choke/1500/water.spoutling/skai.roc_rider | seat1 | eliminated | 12.4 | 0.000 | 0.730 | 1500/1600 |
@@ -1092,8 +1092,8 @@ A seat split means the two seat orders of a pair have different winners. On high
 | choke/1500/water.spoutling/water.shellback | seat1 | eliminated | 15.1 | 0.000 | 0.982 | 1500/1575 |
 | choke/1500/water.shellback/water_ai_mix | seat0 | eliminated | 46.4 | 0.605 | 0.000 | 1575/1580 |
 | choke/1500/water_ai_mix/water.shellback | seat1 | eliminated | 44.4 | 0.000 | 0.671 | 1580/1575 |
-| choke/1500/water.shellback/skai_ai_mix | stalemate | no_damage | 46.1 | 0.939 | 0.245 | 1575/1630 |
-| choke/1500/skai_ai_mix/water.shellback | stalemate | no_damage | 46.2 | 0.245 | 0.943 | 1630/1575 |
+| choke/1500/water.shellback/skai_ai_mix | stalemate | dome_absorbed | 46.1 | 0.939 | 0.245 | 1575/1630 |
+| choke/1500/skai_ai_mix/water.shellback | stalemate | dome_absorbed | 46.2 | 0.245 | 0.943 | 1630/1575 |
 | choke/1500/water.spoutling/water_ai_mix | seat1 | eliminated | 9.3 | 0.000 | 0.931 | 1500/1580 |
 | choke/1500/water_ai_mix/water.spoutling | seat0 | eliminated | 9.9 | 0.859 | 0.000 | 1580/1500 |
 | choke/1500/water.spoutling/skai_ai_mix | seat1 | eliminated | 8.7 | 0.000 | 0.820 | 1500/1630 |
