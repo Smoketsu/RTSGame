@@ -58,7 +58,7 @@ namespace Rts.Sim.Data
         /// <summary>Workers that can gather one rare field at the same time; later arrivals wait first come first served. Unit: workers (count). Range: 1 to 16. Source: developer decision 18 Nov 2026 (field saturation); placeholder.</summary>
         public int GatherSlotsRare { get; }
 
-        /// <summary>Gather slots of a field of the given kind. Unit: workers (count). Range: 1 to 16.</summary>
+        /// <summary>Gather slots of a field of the given kind. Unit: workers (count). Range: 1 to 16. Source: developer decision 18 Nov 2026 (field saturation).</summary>
         /// <param name="kind">The field's resource kind.</param>
         public int GatherSlots(ResourceKind kind)
         {

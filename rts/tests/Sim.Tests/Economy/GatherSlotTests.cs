@@ -28,13 +28,13 @@ namespace Rts.Sim.Tests.Economy
     public class GatherSlotTests
     {
         /// <summary>The fixture map: see the file header. Unit: map definition.</summary>
-        private static MapDefinition SlotMap()
+        private static MapDefinition SlotMap(int field0Amount = 1500)
         {
             return new MapDefinition("test_slots", "Test Slots", TestWorld.FlatMapSize, TestWorld.FlatMapSize,
                 new List<FixVec2> { FixVec2.FromInts(4, 4), FixVec2.FromInts(60, 60), FixVec2.FromInts(60, 4) }, null, null,
                 new List<ResourceField>
                 {
-                    new ResourceField(10, 10, ResourceKind.Common, 1500),
+                    new ResourceField(10, 10, ResourceKind.Common, field0Amount),
                     new ResourceField(30, 10, ResourceKind.Rare, 1500),
                     new ResourceField(50, 50, ResourceKind.Common, 15),
                     new ResourceField(10, 40, ResourceKind.Common, 1500),
@@ -199,7 +199,7 @@ namespace Rts.Sim.Tests.Economy
             return late;
         }
 
-        /// <summary>SAT-4: the worker that started waiting first gets the freed slot even with the higher ID; on equal ticks the lower ID wins.</summary>
+        /// <summary>SAT-4: the worker that started waiting first gets the freed slot even with the higher ID; on equal ticks and equal grant counts the lower ID wins.</summary>
         [Test]
         public void Sat4_FirstComeFirstServed()
         {
@@ -226,7 +226,7 @@ namespace Rts.Sim.Tests.Economy
             return loads;
         }
 
-        /// <summary>SAT-5: with 2S + 2 workers on one field for 120 s nobody starves: every worker deposits at least two thirds of the fair share (the spec asked floor(loads / workers) - 1; see the comment in the test).</summary>
+        /// <summary>SAT-5: with 2S + 2 workers on one field for 120 s nobody starves: every worker deposits at least floor(total / workers) - 1 loads (the spec's bound), and no single wait in the queue is longer than ceil((N - 1) / S) x G plus a walking allowance.</summary>
         [Test]
         public void Sat5_NoStarvation()
         {
@@ -234,7 +234,28 @@ namespace Rts.Sim.Tests.Economy
             int n = 2 * S + 2;
             List<EntityId> w = Crowd(sim, n, 10, 10);
             GatherAll(sim, w, 0);
-            SortedDictionary<EntityId, int> loads = RunAndCountDeposits(sim, 120 * TestWorld.TicksPerSecond);
+            // Deposits per worker. Range: 0 upward.
+            SortedDictionary<EntityId, int> loads = new SortedDictionary<EntityId, int>();
+            // Ticks each worker has been Waiting in a row. Unit: ticks.
+            SortedDictionary<EntityId, int> run = new SortedDictionary<EntityId, int>();
+            // Longest single wait seen. Unit: ticks.
+            int longest = 0;
+            for (int t = 0; t < 120 * TestWorld.TicksPerSecond; t++)
+            {
+                sim.Step();
+                foreach (ResourceDepositedEvent deposit in Of<ResourceDepositedEvent>(new List<SimEvent>(sim.Events.Current)))
+                {
+                    loads.TryGetValue(deposit.Worker, out int before);
+                    loads[deposit.Worker] = before + 1;
+                }
+                foreach (EntityId id in w)
+                {
+                    run.TryGetValue(id, out int waited);
+                    waited = Get(sim, id).GatherState == GatherState.Waiting ? waited + 1 : 0;
+                    run[id] = waited;
+                    longest = System.Math.Max(longest, waited);
+                }
+            }
             // Total loads delivered. Unit: loads.
             int total = 0;
             foreach (int count in loads.Values)
@@ -242,15 +263,80 @@ namespace Rts.Sim.Tests.Economy
                 total += count;
             }
             Assert.That(total, Is.GreaterThan(0));
-            TestContext.WriteLine("SAT-5 loads per worker: " + string.Join(",", loads.Values) + " total " + total);
+            TestContext.WriteLine("SAT-5 loads per worker: " + string.Join(",", loads.Values) + " total " + total + ", longest wait " + longest + " ticks");
             foreach (EntityId id in w)
             {
                 loads.TryGetValue(id, out int mine);
-                // The spec's floor(total / n) - 1 is not met by the first-come rule: workers that return on the same tick queue by ID and
-                // the leftover workers (8 on 3 slots) alternate, so a worker gets 19 to 30 loads where the mean is 22 (measured, see the
-                // report). No starvation is asserted as at least two thirds of the fair share.
-                Assert.That(mine * 3, Is.GreaterThanOrEqualTo(total / n * 2), id + " delivered " + mine + " of " + total);
+                Assert.That(mine, Is.GreaterThanOrEqualTo(total / n - 1), id + " delivered " + mine + " of " + total);
             }
+            // Bound of the queue: the N - 1 others take S at a time, G ticks each round. Allowance: walking is outside the wait, so 0 ticks unless measured otherwise.
+            Assert.That(longest, Is.LessThanOrEqualTo(((n - 1 + S - 1) / S) * G), "longest wait");
+        }
+
+        /// <summary>
+        /// SAT-5b: at one field shared by two players (one team, so the test HQs do not shoot), workers ordered on the same tick share it fairly at 120 s and at 480 s.
+        /// A deterministic queue always lets someone go first, so a constant head start of up to one load per worker is unavoidable: the players' loads may differ by at
+        /// most the workers per player, and the 8 workers' loads by at most 2. A gap that grows between 120 s and 480 s would be a rate bias, which the same bound at 480 s catches.
+        /// </summary>
+        [TestCase(120)]
+        [TestCase(480)]
+        public void Sat5b_SharedFieldIsFair(int seconds)
+        {
+            // Field 0 is made big enough (10000 units = 2000 loads) not to run dry in 480 s.
+            Simulation sim = new Simulation(new SimulationConfig(new MatchSettings(1234, TestWorld.TicksPerSecond, TestWorld.HashInterval),
+                TestWorld.Catalog(), new List<PlayerSetup>
+                {
+                    new PlayerSetup(P0, new TeamId(0), TestWorld.TestFactionId, "Alice"),
+                    new PlayerSetup(P1, new TeamId(0), TestWorld.TestFactionId, "Bob"),
+                }, BuiltInMechanics.CreateRegistry(), TestWorld.Tuning, SlotMap(10000)));
+            sim.Start();
+            // The HQs mirror each other across the field, both within reach of every standing spot beside it, so walks are equal for both players
+            // (a first fixture with HQs at (12, 12) and (8, 8) let separation seat one worker 2 ticks further from its drop-off: first come first served then correctly served it last, 80 loads against 91 in 480 s).
+            Spawn(sim, TestWorld.HqId, P0, 11, 10);
+            Spawn(sim, TestWorld.HqId, P1, 9, 10);
+            // Workers per player. Unit: workers. Range: 1 to 8.
+            int each = S + 1;
+            List<EntityId> a = Crowd(sim, each, 10, 10);
+            List<EntityId> b = new List<EntityId>();
+            for (int i = 0; i < each; i++)
+            {
+                b.Add(Spawn(sim, TestWorld.WorkerId, P1, 10, 10));
+            }
+            // The tick both groups are ordered on, so they queue together.
+            int tick = sim.Clock.Tick;
+            foreach (EntityId id in a)
+            {
+                sim.Submit(new GatherCommand(tick, P0, Seq(), id, 0));
+            }
+            foreach (EntityId id in b)
+            {
+                sim.Submit(new GatherCommand(tick, P1, Seq(), id, 0));
+            }
+            // Loads per worker. Range: 0 upward.
+            SortedDictionary<EntityId, int> loads = RunAndCountDeposits(sim, seconds * TestWorld.TicksPerSecond);
+            // Loads per player, and the smallest and largest per worker. Unit: loads.
+            int loadsA = 0;
+            int loadsB = 0;
+            int min = int.MaxValue;
+            int max = 0;
+            foreach (EntityId id in a)
+            {
+                loads.TryGetValue(id, out int mine);
+                loadsA += mine;
+                min = System.Math.Min(min, mine);
+                max = System.Math.Max(max, mine);
+            }
+            foreach (EntityId id in b)
+            {
+                loads.TryGetValue(id, out int mine);
+                loadsB += mine;
+                min = System.Math.Min(min, mine);
+                max = System.Math.Max(max, mine);
+            }
+            TestContext.WriteLine("SAT-5b " + seconds + " s: P0 " + loadsA + ", P1 " + loadsB + "; per worker " + string.Join(",", loads.Values));
+            Assert.That(loadsA, Is.GreaterThan(0));
+            Assert.That(System.Math.Abs(loadsA - loadsB), Is.LessThanOrEqualTo(each));
+            Assert.That(max - min, Is.LessThanOrEqualTo(2));
         }
 
         /// <summary>SAT-6: the throughput cap is S x amount per G ticks, and it is reached (at least 90 percent of the bound).</summary>

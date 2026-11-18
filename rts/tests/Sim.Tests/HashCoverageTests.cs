@@ -90,6 +90,8 @@ namespace Rts.Sim.Tests
                 Case("Unit.GatherState", w => w.Worker.SetGather(GatherState.ToDropOff, 0, 2)),
                 Case("Unit.GatherFieldIndex", w => w.Worker.SetGather(GatherState.ToField, 1, 2)),
                 Case("Unit.GatherTicksRemaining", w => w.Worker.SetGather(GatherState.ToField, 0, 5)),
+                Case("Unit.GatherQueuedTick", w => w.Worker.SetGatherWaiting(0, 7)),
+                Case("Unit.GatherSlotGrants", w => w.Worker.AddGatherSlotGrant()),
                 Case("Unit.CarriedAmount", w => w.Worker.SetCarried(ResourceKind.Common, 4)),
                 Case("Unit.CarriedKind", w => w.Worker.SetCarried(ResourceKind.Rare, 3)),
                 Case("Unit.ProductionQueue + ProductionTicksRemaining", w => w.Barracks.EnqueueProduction(TestWorld.RunnerId, 50)),

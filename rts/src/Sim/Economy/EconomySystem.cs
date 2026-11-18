@@ -3,12 +3,12 @@
 // Rts.Sim.Economy. Runs once per tick inside Simulation.Step after combat (step order in Simulation.cs). All work walks units in
 // ascending entity ID order over a snapshot of the IDs, so units spawned this tick (trained units) first act next tick.
 //
-// Worker loop (GatherState): ToField -> Gathering -> ToDropOff -> deposit -> ToField ... until the field is empty.
+// Worker loop (GatherState): ToField -> Waiting (queue for a slot) -> Gathering (holds a slot) -> ToDropOff -> deposit -> ToField ... until the field is empty.
 //   * ToField: the worker walks to the field's tile centre. It counts as arrived within interact_range_tiles (never less than
 //     the movement arrival radius). A worker that stops short of the field (no move target left and not in range: unreachable)
 //     gives up and goes Idle.
 //   * Waiting (field_saturation.md): every arrival queues here on the arrival tick (GatherQueuedTick). Each tick AssignGatherSlots
-//     (7a) gives free slots to waiting workers in (queue tick, ID) order; a field has gather_slots_per_common_field (rare: gather_slots_per_rare_field)
+//     (7a) gives free slots to waiting workers in (queue tick, slot grants, ID) order; a field has gather_slots_per_common_field (rare: gather_slots_per_rare_field)
 //     slots, shared by every player. A Waiting worker whose field is depleted goes Idle; one pushed out of range walks back and queues again.
 //   * Gathering: holds a slot and waits gather_seconds_per_trip, then takes min(gather_amount_per_trip, remaining) from the field
 //     and leaves the slot. If that empties the field, FieldDepletedEvent is emitted.
@@ -247,26 +247,14 @@ namespace Rts.Sim.Economy
             RecomputeSupply(sim);
         }
 
-        /// <summary>Step 7a: counts the Gathering workers per field, then gives each free slot to the first Waiting worker in (GatherQueuedTick, ID) order. Skips depleted fields and workers out of interact range (StepGather deals with them).</summary>
+        /// <summary>Step 7a: counts the Gathering workers per field, then gives each free slot to the first Waiting worker in (GatherQueuedTick, GatherSlotGrants, ID) order. Skips depleted fields and workers out of interact range (StepGather deals with them).</summary>
         private static void AssignGatherSlots(Simulation sim)
         {
-            // Gathering workers per field, by field index. Unit: workers. Range: 0 upward.
-            int[] occupied = new int[sim.Resources.Count];
-            // Waiting workers collected in ascending ID order.
+            // Waiting workers collected in ascending ID order. Unit: workers. Range: 0 to the unit count.
             List<Unit> waiting = new List<Unit>();
             foreach (Unit unit in sim.Units.All)
             {
-                // Field index of the unit's loop. Unit: field index. Range: -1 (none) to field count - 1.
-                int index = unit.GatherFieldIndex;
-                if (index < 0 || index >= occupied.Length)
-                {
-                    continue;
-                }
-                if (unit.GatherState == GatherState.Gathering)
-                {
-                    occupied[index]++;
-                }
-                else if (unit.GatherState == GatherState.Waiting)
+                if (unit.GatherState == GatherState.Waiting && unit.GatherFieldIndex >= 0 && unit.GatherFieldIndex < sim.Resources.Count)
                 {
                     waiting.Add(unit);
                 }
@@ -275,13 +263,28 @@ namespace Rts.Sim.Economy
             {
                 return;
             }
-            // Total order (queue tick, then ID), so the unstable List.Sort is still deterministic.
+            // Gathering workers per field, by field index. Unit: workers. Range: 0 upward.
+            int[] occupied = new int[sim.Resources.Count];
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.GatherState == GatherState.Gathering && unit.GatherFieldIndex >= 0 && unit.GatherFieldIndex < occupied.Length)
+                {
+                    occupied[unit.GatherFieldIndex]++;
+                }
+            }
+            // Total order (queue tick, slot grants, ID): the worker with the fewest grants so far goes first, so lockstep groups rotate fairly
+            // and the unstable List.Sort is still deterministic.
             waiting.Sort((a, b) =>
             {
+                // Comparison of the queue ticks, then the grant counts. Unit: sign (-1, 0, 1).
                 int byTick = a.GatherQueuedTick.CompareTo(b.GatherQueuedTick);
+                if (byTick == 0)
+                {
+                    byTick = a.GatherSlotGrants.CompareTo(b.GatherSlotGrants);
+                }
                 return byTick != 0 ? byTick : a.Id.CompareTo(b.Id);
             });
-            // Reach for the interact test. Unit: tiles.
+            // Reach for the interact test. Unit: tiles. Range: 0.5 to 4.
             Fix64 reach = InteractRange(sim);
             foreach (Unit worker in waiting)
             {
@@ -296,6 +299,7 @@ namespace Rts.Sim.Economy
                 if (occupied[field.Index] < sim.Tuning.Economy.GatherSlots(field.Kind))
                 {
                     worker.SetGather(GatherState.Gathering, field.Index, sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock));
+                    worker.AddGatherSlotGrant();
                     occupied[field.Index]++;
                 }
             }
