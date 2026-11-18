@@ -1,4 +1,4 @@
-<!-- rts/docs/specs/skirmish_ai_v4_rl.md: build spec for packages R (seeded randomness) and L (opening library) of the skirmish AI, P-005 part 2 option R and L, so that ladder games differ from seed to seed without the AI getting weaker. Replaces the R+L outline of skirmish_ai_v4.md; also says how package F's options are re-measured once R is in. Part of rts/docs/specs (index: README.md). -->
+<!-- rts/docs/specs/skirmish_ai_v4_rl.md: build spec for packages R (seeded randomness) and L (opening library) of the skirmish AI, P-005 part 2 option R and L, so that ladder games differ from seed to seed without the AI getting weaker. Replaces the R+L outline of skirmish_ai_v4.md; also says how package F's options are re-measured once R is in. Package L-R (18 Nov 2026) reworks the two rush openings into pressure openings that expand at once (evidence: reports/ai_v4_rush). Part of rts/docs/specs (index: README.md). -->
 # Spec: Skirmish AI v4, packages R and L (seeded variety and an opening library)
 
 ## 0. Goal, sources and ground rules
@@ -179,6 +179,8 @@ Columns: build order as `structure x count @ at_supply_used`; composition weight
 | `water_fast_expand` | 25 | tidepool x1 @0, shell_forge x1 @10, tidepool x2 @12 | grasper 2, shellback 2, ink_lobber 1, spoutling 1 | 420 / 120 / 0 / 14 / 20 | Economy first, second depot due at 270 s, first attack at 20 supply around 360 s. |
 | `water_leviathan_tech` | 25 | tidepool x1 @0, shell_forge x1 @6, reef_workshop x1 @12, tidepool x2 @16 | ink_lobber 2, shellback 2, leviathan 1, spoutling 1 | 480 / 240 / 0 / 12 / 16 | Siege tech: rare at once, Reef Workshop about 240 s, first Leviathan (60 s train) about 330 s. |
 
+The two rush rows were reworked by package L-R (ids `*_pressure`, `early_expansion_seconds` 0).
+
 Largest weight 30 of 100, so the expected largest use share (0.30) is below the 0.40 limit. In every opening of this table the root and opening values satisfy the existing profile validation.
 
 ### L.6 Tests (`AiOpeningTests.cs`, greybox simulations as in `AiFightTests`, profile text edits as `AiFightTests.S3Edited`)
@@ -238,6 +240,145 @@ Warnings (stdout before the LADDER line and in the report under it, like S.2; **
 
 ---
 
+## Package L-R: rework of the two rush openings (developer decision, 18 Nov 2026: "Rework them. It's important for the AI to have a variety of tactics.")
+
+### L-R.0 Evidence (report `rts/docs/reports/ai_v4_rush/README.md`, main at `fe89236`)
+
+The two L.5 rush openings lost every self-ladder mirror (`skai_windrunner_rush` 0 of 20, `water_grasper_rush` 1 of 18) and every game against `aggressive_s3`. Forced-opening traces, 32 mirror games plus 4 cross-faction games, show:
+
+- **The attack is on time.** It leaves at 130 to 141 s (Skai) or 116 to 153 s (Water), 20 to 80 s before any other opening.
+- **The trades are even.** The Skai rush is slightly behind; the Water rush is ahead (by 300 s it killed 9 to 28 army supply and lost 5 to 21).
+- **The economy is the problem.** `early_expansion_seconds` 240 delays the first depot to 236 to 275 s. Rule W caps workers at `workers_per_field` x served common fields, which is 6 on one base, while every other opening has 11 to 14 workers by 180 s. The rusher's income is about half its opponent's from about 90 s to 300 s (median ratio 0.56 and 0.44 at 180 s, 0.49 at 300 s).
+- **The AI's attack rules are not the cause.** Turning off `use_predictor_attack`, or both retreat rules, leaves the rush at 0 of 8 per faction.
+- **The depot timing is the cause.** Changing only the opening's `early_expansion_seconds` to 0 gives Skai 15 of 24 and Water 8 of 24 against the other three openings of the faction (8 games per pairing). Weighted by the draw weights that is about 0.63 and 0.38, inside the 0.35 to 0.65 band but near its edges. Against `aggressive_s3`: 7 of 8 and 5 of 8.
+
+**Honest finding: a one-base all-in cannot work under the current AI rules,** whatever its timing or attack thresholds. Rule W gives one base 6 workers. The depot costs 100 common, the same as about 1.3 Windrunners, and returns about 1.6 common per second for every extra worker it allows. No unit number makes an early wave worth that much income. The tactic that can work is **early pressure that expands at once**: three producers by about 90 s, a cheap-unit mix, the first wave at about 150 to 160 s (others 175 to 235 s), then the plan's mix at the handover. That is what L-R builds.
+
+### L-R.1 Shape: one pressure opening per faction (recommended)
+
+Keep four openings per faction (standard, pressure, fast expand, tech) and the weights 30 / 20 / 25 / 25. The rush slot becomes a **pressure** slot. Alternatives, rejected:
+
+- **Keep the one-base all-in.** It measured 0 of 32 mirror games. It could only work with a rule-W change that lets a one-base opening put more than 3 workers on a home field. That changes what "one base" means for every opening, so it is not part of L-R (Q-LR-2).
+- **Pressure first, expand at about 90 to 150 s.** This is a smaller version of the measured loss: under rule W every second of delay is lost income, and no evidence says a wave repays it.
+- **An opening-scoped attack-edge or retreat override.** With both turned off the result did not move (0 of 8), so it adds a rule for no measured gain. Held in reserve if L-R-A4 fails (L-R.6).
+- **Replace the rush slot by a second economy or tech opening, or drop to three openings.** Either loses the early-aggression tactic, against the developer's goal.
+
+### L-R.2 What changes (data only)
+
+Only `rts/data/ai/aggressive_s4r.json`, two opening entries. Nothing under `rts/src`. No unit, building or combat number changes (P-005 freeze). No other profile changes.
+
+| Faction | Old `id` | New `id` | Key changed | Old | New |
+| --- | --- | --- | --- | --- | --- |
+| skai | `skai_windrunner_rush` | `skai_windrunner_pressure` | `early_expansion_seconds` | 240 | **0** (placeholder) |
+| water | `water_grasper_rush` | `water_grasper_pressure` | `early_expansion_seconds` | 240 | **0** (placeholder) |
+
+Every other key of the two entries stays as in L.5:
+
+| Key | Value |
+| --- | --- |
+| `weight` | 20 |
+| `build_order` | Skai: roost x1 @0, x2 @5, x3 @8, windspire x1 @16. Water: tidepool x1 @0, x2 @5, x3 @8, shell_forge x1 @16 |
+| `composition` | `skai.windrunner` 60, `skai.talon_archer` 10 / `water.grasper` 60, `water.reef_runner` 10 |
+| `handover_seconds` | 300 |
+| `expand_at_seconds` | 300 |
+| `attack_army_supply` | 6 |
+| `attack_min_supply` | 8 |
+
+The value tested in the report is `expand_at_seconds` 300 (variant "min"). Do not use the "econ" variant's 120: it was stronger for Skai (0.75) and weaker for Water (0.25).
+
+- **Comment lines.** The description line above each entry becomes:
+  - Skai: `// Early pressure: depot at once, three Roosts by about 90 s, Windrunner-heavy mix, first wave at 6 to 8 supply around 150 s; the plan's mix from 300 s (skirmish_ai_v4_rl.md L-R).`
+  - Water: the same with "Tidepools" and "Pummeler-heavy".
+- The house-format comment above each entry's `early_expansion_seconds` stays word for word. The per-key comments name `Source: skirmish_ai_v4_rl.md L.5`; in these two entries the builder changes that to `L-R`.
+- In L.5 the two rush rows stay as the historical design. Add one line under the Water table: "The two rush rows were reworked by package L-R (ids `*_pressure`, `early_expansion_seconds` 0)."
+- **New keys: none.** No profile, `ai_eval.json` or `harness_batch.json` key is added. The documentation-standard requirement for new keys therefore has nothing to cover. The two changed comment lines above follow the house format.
+
+**Determinism and old profiles.** Only data changes. The opening count, the file order and the weights are unchanged, and draws 1 to 5 (R.2) do not read IDs. Every seed therefore draws the same opening as before; only play after a pressure draw changes. In particular:
+- Every profile other than `aggressive_s4r` is bit-identical.
+- Every `aggressive_s4r` game in which neither seat drew a pressure opening is bit-identical to the same game on `fe89236`. L-R-A5 checks this.
+- No pinned hash moves (L-R-4).
+
+### L-R.3 Tests (`rts/tests/Sim.Tests/Ai/AiOpeningTests.cs`; L-R-3 may go in `Harness/HarnessTraceTests.cs`)
+
+- **L-R-1 Data.**
+  - Edit L-1's expected strings to `skai_standard=30,skai_windrunner_pressure=20,skai_fast_expand=25,skai_air=25` and `water_standard=30,water_grasper_pressure=20,water_fast_expand=25,water_leviathan_tech=25`.
+  - New test: each pressure opening of the shipped `aggressive_s4r` has exactly the values of L-R.2, and the same build order and composition as before. Compare with literal values, not by reading the old file.
+- **L-R-2 Effective clocks.** Use a copy of the shipped `aggressive_s4r` text with the Skai weights edited to 0, 100, 0, 0 (text edit as in `AiVarietyTests.WithS4r`). For seeds 1 to 50, `AiVariety.Create(profile, skai plan, seed, 20)` must give:
+  - `OpeningId == "skai_windrunner_pressure"`;
+  - `AiBrain.EarlyExpansionSeconds(profile, memory, 0)` in 0 to 20 (0 plus an offset of -20 to 20, clamped at 0);
+  - `AiBrain.ExpandAtSeconds(profile, memory, 0)` in 280 to 320.
+
+  The same for Water with weights 0, 100, 0, 0.
+- **L-R-3 The pressure line expands at once and attacks first.**
+  - *Data.* A copy of the shipped data whose profile set gains two text-edited copies of `aggressive_s4r`, each with its `id` changed to its key. `lr_pressure` has weights 0, 100, 0, 0 in both factions. `lr_standard` has weights 100, 0, 0, 0 in both factions.
+  - *Game.* `GameRunner.Play(data, "prototype_1v1", m, 0, SeedDerivation.GameSeed(20261117, "prototype_1v1", m, 0), "lr_pressure", "lr_standard", 300, new GameTrace(writer, 30))` for m = `skai_vs_skai` and `water_vs_water`.
+  - *Read from the trace text* (slot 0 is the pressure player):
+    - its first `perch_depot` / `pearl_depot` entry under "structure sites" is before tick 1800 (90 s);
+    - its `t=180s P0` line has `workers=` at least 12;
+    - its first `Massing -> Attack` stance change is before 180 s and before slot 1's first one, or slot 1 has none within 300 s.
+  - *Measured in the report (games 0 to 7):* depot 52 to 54 s, 13 to 14 workers, first attack 147 to 165 s against 174 to 202 s.
+  - *If an assertion fails, stop and report.* Do not edit the thresholds.
+- **L-R-4 Nothing else moved, without re-pinning.**
+  - R-0 (`S3SelfTraceHash`), R-10's pins (`V2ReferenceHash`, `BlindTraceHash`, `GoldenFinalHash`, harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `WorkerConstructionTests`), R-8 and `R10_WeightScaleIsNeutralWithoutJitter` stay green. The changed compositions are untouched, so the x10 weights still divide by 10.
+  - R-9's count (8 of 8) is expected to stay 8. If it moves, stop and report; do not re-pin.
+  - The full suite stays green.
+
+### L-R.4 Measurement (L-R-M; same commands, seeds and game counts as the L-M report; `-c Release`, `--jobs 4`)
+
+1. **Self-ladder.** `--ladder --profile-a aggressive_s4r --profile-b aggressive_s4r --out rts/build/ladder_lr_self`.
+2. **Strength ladder.** `--ladder --profile-a aggressive_s3 --profile-b aggressive_s4r --non-regression --out rts/build/ladder_lr_vs_s3`.
+3. **Scope check.** Run the command of run 1 on a worktree of `fe89236` with `--out rts/build/ladder_lr_self_before`. For every game index where neither record opening is `*_rush` or `*_pressure`, compare `play_signature` and `state_hash` between the two `ladder.jsonl` files.
+4. **Response.** `--response --profile aggressive_s4r` (report only).
+5. **Forced traces.** Each pressure opening against each of the other three openings of its faction, games 0 to 3, with the method of the report's section 1 (scratch copies under `rts/build`, not committed). Table per game: first depot, workers at 180 s, first attack, attacks started before 420 s, result.
+
+Write the results as a new top section of `rts/docs/reports/ai_v4_rush/README.md`. Give the LADDER lines, every `WARNING` line, the `## Openings` tables of both ladders with Wilson intervals, the run 3 counts and the run 5 table. Do not edit the earlier sections.
+
+### L-R.5 Acceptance (the gate bars are unchanged)
+
+| ID | Requirement | Source |
+| --- | --- | --- |
+| L-R-A1 | L-R-1 to L-R-4 green; full suite green; build without warnings | L-R.3 |
+| L-R-A2 | Self-ladder: `skai_windrunner_pressure` and `water_grasper_pressure` each have at least `opening_min_games` (10) decided mirror games against other openings, with a win fraction from 0.35 to 0.65 (`opening_min_mirror_win_fraction`, `opening_max_mirror_win_fraction`). Strength ladder: neither is below 0.35 with at least 10 games. | goal item 3 |
+| L-R-A3 | Goal items 1 and 2 still PASS: every self-ladder cell at least 0.8 distinct per decided game; strength LADDER at least 0.45 with a mirror Wilson upper bound of at least 0.50. | goal items 1, 2 |
+| L-R-A4 | Distinct tactic, from run 5: per faction, the pressure opening's median first attack is at most 180 s and earlier than the median first attack of the same games' `*_standard` side. Its median workers at 180 s are at least 12. | L-R.0 |
+| L-R-A5 | Run 3: every compared game has equal `play_signature` and `state_hash` | L-R.2 |
+
+The other six openings' win fractions are reported with the same bars. They will move, because they now face a stronger opponent (for example `water_standard` lost 8 of 8 to the Water pressure opening in the report). They are **not** part of L-R's pass. Goal item 3 as a whole stays the gate for making `aggressive_s4r` the baseline (Q-10).
+
+### L-R.6 What "rework failed" means and what happens then
+
+L-R has **failed** when any of these holds:
+- L-R-A2 fails for either pressure opening, below or above;
+- L-R-A3 regresses to FAIL;
+- L-R-A5 shows a difference. That is a scoping bug: stop at once.
+
+When it fails, the builder changes nothing more:
+- no further key changes;
+- no weight changes: the once-only "weight 0" allowance of section E does **not** apply to the pressure openings, because the developer asked for variety;
+- no unit data.
+
+It reports the numbers, the Wilson intervals and the run 5 table. Note for the report that with about 20 mirror games per opening the Wilson half-width is about 0.2, so a point estimate just outside the band is weak evidence either way. The bar is still applied as written.
+
+The coordinator takes the result to the developer with these options:
+1. Keep the pressure openings at weight 20 as they are (variety before balance).
+2. A second rework spec, by failure mode:
+   - *Water below the band.* Give the Water pressure line a rare sink before the handover. In the report's loss trace it banked 300 to 575 rare unspent; for example, an earlier `shell_forge` step and an `ink_lobber` weight.
+   - *Skai above the band.* A later handover or a later Windspire step.
+   - *L-R-A4 fails.* The opening-scoped attack-edge key held back in L-R.1.
+3. Revisit unit numbers under P-005 once the AI is trusted.
+
+L-R-A4 failing on its own, with A2 and A3 passing, also counts as "rework failed (not distinct enough)" and goes the same way.
+
+### L-R.7 Package, tier, review
+
+| Package | What | Depends on | Tier | Reviewer |
+| --- | --- | --- | --- | --- |
+| L-R | L-R.2 data, L-R.3 tests, L-R.4 runs, report section | `main` at `fe89236` or later | Sonnet (Haiku may write the two comment lines) | none for the data. The tests only add assertions and touch no `rts/src` file, so no `sim-reviewer` pass is needed. The coordinator reads the report. |
+
+Changelog bullets are given to the coordinator, as usual.
+
+---
+
 ## E. Acceptance (gate runs; attach every report under `rts/docs/reports/ai_v4_rl/`)
 
 | Package | NUnit | Runs (`prototype_1v1`, `ai_eval.json` defaults, `-c Release`) |
@@ -261,6 +402,7 @@ Files affected: every profile under `rts/data/ai` (new keys); `AiProfile.cs`, `A
 | L-2 | The L.5 openings in `aggressive_s4r.json` with house-format comments | L-1 | Sonnet (data), Haiku for the comment lines | none (data) |
 | H-1 | Record fields, `## Openings`, warnings, `ai_eval.json` keys, tests H-1 to H-5 | L-1 (for `OpeningId`); can run in parallel with L-2 | Sonnet | `sim-reviewer` on the harness diff |
 | L-M | The runs of section E, report `rts/docs/reports/ai_v4_rl/README.md` | L-2, H-1 | Sonnet | coordinator reads it |
+| L-R | Rework of the rush openings into pressure openings (package L-R: data, tests L-R-1 to L-R-4, runs L-R.4, report `rts/docs/reports/ai_v4_rush/README.md`) | L-M (on `main`) | Sonnet | coordinator reads the report |
 
 ---
 
@@ -312,3 +454,11 @@ Package F (branch `review/ai-v4-f`, not merged) failed its ladder against `aggre
 - **Q-10. Which profile is the baseline afterwards?** *Default: `aggressive_s4r` becomes the baseline of every later ladder once section E passes. F and A are rebuilt on it, and balance batches still wait for bar items 1 to 3.*
 - **Q-11. Openings inside the profile, or in their own files?** *Default: inside the profile (no `rts/src/Sim` change).*
 - **Q-12. Does the human benchmark wait for L?** (open in the v4 outline) *Default: no dependency; decision 12 places it at the end anyway, and the developer then plays `aggressive_s4r`.*
+
+### Questions for the developer from package L-R (the builder uses the defaults)
+
+- **Q-LR-1. Should the reworked openings be renamed from "rush" to "pressure"?** *Default: yes* (`skai_windrunner_pressure`, `water_grasper_pressure`). They now expand at once, so "rush" would mislabel them in reports.
+- **Q-LR-2. Should the AI have a true one-base all-in at all?** Under rule W one base supports only 6 workers, and the report found no timing that repays that. Making it possible would need a rule letting a one-base opening put more workers on its home fields. *Default: no, not in L-R; revisit after P-005 if wanted.*
+- **Q-LR-3. Is a rock-paper-scissors opening acceptable?** The Water pressure line beat `water_standard` 8 of 8 and lost to `water_fast_expand` and `water_leviathan_tech` 0 of 8 each (8 games per pairing). *Default: yes, as long as its overall mirror fraction is inside the gate band; the gate judges, not the pairings.*
+- **Q-LR-4. If L-R fails its bar, should the pressure opening keep weight 20 or drop to 0?** *Default: keep 20 and report (L-R.6); the developer chooses.*
+- **Q-LR-5. Every attack into an enemy main retreats once the HQ comes into view,** because the predicted retreat counts the armed HQ (1500 to 1800 hp) among the engaged enemies. *Default: unchanged.* The report shows it does not decide the rush games (0 of 8 with retreats off either way); it is a general attack-rule question for a later package.
