@@ -2,7 +2,8 @@
 // The map as a grid of TerrainTile values with passability, speed and neighbour queries, and the only
 // mutators that may change terrain during a match. Part of Rts.Sim.Terrain (ADR-006). Every change raises
 // a TerrainChangedEvent and increments Version so pathfinding caches rebuild. Tiles are indexed
-// y * Width + x and iterated in ascending index order.
+// y * Width + x and iterated in ascending index order. Passability has team-aware overloads: a gate tile is passable only
+// for its GateTeam (walls_and_tech.md G.1); the team-less forms treat a gate as a wall. GateTileCount says whether any gate stands.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -26,6 +27,9 @@ namespace Rts.Sim.Terrain
 
         /// <summary>Increases by 1 on every terrain change that can alter passability or traversal cost (height, ramp, blockers, surface, depth class). Range: 0 upward. Pathfinding caches compare against it.</summary>
         public int Version { get; private set; }
+
+        /// <summary>Number of tiles whose blockers include <see cref="TileBlockers.Gate"/>. Unit: tiles. Range: 0 to tile count. Derived from the tiles by <see cref="Replace"/>, so not hashed; flow fields are keyed by team only while it is above 0 (walls_and_tech.md G.1 rule 6).</summary>
+        public int GateTileCount { get; private set; }
 
         /// <summary>The map this grid was built from (resource fields, Core, spawns).</summary>
         public MapDefinition Map { get; }
@@ -63,7 +67,7 @@ namespace Rts.Sim.Terrain
             // Tile index being created. Unit: tile index. Range: 0 to Width * Height - 1.
             for (int index = 0; index < _tiles.Length; index++)
             {
-                _tiles[index] = new TerrainTile(map.HeightAt(index), map.IsRampAt(index), Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None);
+                _tiles[index] = new TerrainTile(map.HeightAt(index), map.IsRampAt(index), Fix64.Zero, TeamId.None, SurfaceState.Dry, TileBlockers.None, TeamId.None);
             }
             Version = 0;
         }
@@ -148,11 +152,24 @@ namespace Rts.Sim.Terrain
         /// </summary>
         public bool IsStepPassable(int from, int to, MovementLayer layer)
         {
+            return IsStepPassable(from, to, layer, TeamId.None);
+        }
+
+        /// <summary>
+        /// As <see cref="IsStepPassable(int, int, MovementLayer)"/> for a unit of <paramref name="team"/>: a gate tile is passable
+        /// when it is that team's gate (walls_and_tech.md G.1 rule 5). <see cref="TeamId.None"/> treats every gate as a wall.
+        /// </summary>
+        /// <param name="from">Tile index stepped from, 0 to tile count - 1.</param>
+        /// <param name="to">Adjacent tile index stepped to, 0 to tile count - 1.</param>
+        /// <param name="layer">Movement layer.</param>
+        /// <param name="team">Team of the moving unit, or None.</param>
+        public bool IsStepPassable(int from, int to, MovementLayer layer, TeamId team)
+        {
             if (layer == MovementLayer.Air)
             {
                 return true;
             }
-            if (!EdgePassable(from, to))
+            if (!EdgePassable(from, to, team))
             {
                 return false;
             }
@@ -166,19 +183,19 @@ namespace Rts.Sim.Terrain
                 int viaX = IndexOf(XOf(from) + dx, YOf(from));
                 // Tile reached by the vertical half of a diagonal step. Unit: tile index. Range: 0 to tile count - 1.
                 int viaY = IndexOf(XOf(from), YOf(from) + dy);
-                return EdgePassable(from, viaX) && EdgePassable(from, viaY) && EdgePassable(viaX, to) && EdgePassable(viaY, to);
+                return EdgePassable(from, viaX, team) && EdgePassable(from, viaY, team) && EdgePassable(viaX, to, team) && EdgePassable(viaY, to, team);
             }
             return true;
         }
 
         /// <summary>The ground height rule between two adjacent tiles, ignoring diagonals.</summary>
-        private bool EdgePassable(int a, int b)
+        private bool EdgePassable(int a, int b, TeamId team)
         {
             // Tile value at a. Read-only copy.
             TerrainTile ta = _tiles[a];
             // Tile value at b. Read-only copy.
             TerrainTile tb = _tiles[b];
-            if (ta.IsBlocked || tb.IsBlocked)
+            if (ta.IsBlockedFor(team) || tb.IsBlockedFor(team))
             {
                 return false;
             }
@@ -194,7 +211,16 @@ namespace Rts.Sim.Terrain
         /// <summary>True when a unit on <paramref name="layer"/> may stand on the tile at all (used for goal validation).</summary>
         public bool IsStandable(int index, MovementLayer layer)
         {
-            return layer == MovementLayer.Air || !_tiles[index].IsBlocked;
+            return IsStandable(index, layer, TeamId.None);
+        }
+
+        /// <summary>As <see cref="IsStandable(int, MovementLayer)"/> for a unit of <paramref name="team"/>: its own team's gate tile is standable.</summary>
+        /// <param name="index">Tile index, 0 to tile count - 1.</param>
+        /// <param name="layer">Movement layer.</param>
+        /// <param name="team">Team of the unit, or None.</param>
+        public bool IsStandable(int index, MovementLayer layer, TeamId team)
+        {
+            return layer == MovementLayer.Air || !_tiles[index].IsBlockedFor(team);
         }
 
         /// <summary>Depth class of a tile: 0 dry, 1 shallow, 2 deep, from the tuning threshold.</summary>
@@ -279,7 +305,7 @@ namespace Rts.Sim.Terrain
             {
                 return false;
             }
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, clamped, owner, tile.Surface, tile.Blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, clamped, owner, tile.Surface, tile.Blockers, tile.GateTeam));
             return true;
         }
 
@@ -292,7 +318,7 @@ namespace Rts.Sim.Terrain
             }
             // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers));
+            Replace(sim, index, new TerrainTile(height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers, tile.GateTeam));
         }
 
         /// <summary>Changes a tile's surface state. Internal; inside a step only.</summary>
@@ -300,15 +326,26 @@ namespace Rts.Sim.Terrain
         {
             // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, surface, tile.Blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, surface, tile.Blockers, tile.GateTeam));
         }
 
-        /// <summary>Adds blockers to a tile (walls, footprints). Internal; inside a step only.</summary>
+        /// <summary>Adds blockers other than a gate to a tile (walls, footprints); gates go through <see cref="SetGate"/>. Internal; inside a step only.</summary>
         internal void AddBlockers(Simulation sim, int index, TileBlockers blockers)
         {
             // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers | blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers | blockers, tile.GateTeam));
+        }
+
+        /// <summary>Adds the gate blocker to a tile and sets the team that may cross it (also used to change the team when stacked gates are removed). Internal; inside a step only.</summary>
+        /// <param name="sim">The stepping simulation.</param>
+        /// <param name="index">Tile index, 0 to tile count - 1.</param>
+        /// <param name="team">Team of the gate's owner, a valid team.</param>
+        internal void SetGate(Simulation sim, int index, TeamId team)
+        {
+            // Tile value before the change. Read-only copy.
+            TerrainTile tile = _tiles[index];
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers | TileBlockers.Gate, team));
         }
 
         /// <summary>Removes blockers from a tile. Internal; inside a step only.</summary>
@@ -316,7 +353,7 @@ namespace Rts.Sim.Terrain
         {
             // Tile value before the change. Read-only copy.
             TerrainTile tile = _tiles[index];
-            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers & ~blockers));
+            Replace(sim, index, new TerrainTile(tile.Height, tile.IsRamp, tile.WaterDepth, tile.WaterTeam, tile.Surface, tile.Blockers & ~blockers, tile.GateTeam));
         }
 
         /// <summary>
@@ -334,8 +371,9 @@ namespace Rts.Sim.Terrain
             TerrainTile old = _tiles[index];
             // True when any field the flow-field cost function reads has changed.
             bool affectsPathing = old.Height != tile.Height || old.IsRamp != tile.IsRamp || old.Blockers != tile.Blockers
-                || old.Surface != tile.Surface || DepthClassOf(old.WaterDepth) != DepthClassOf(tile.WaterDepth);
+                || old.GateTeam != tile.GateTeam || old.Surface != tile.Surface || DepthClassOf(old.WaterDepth) != DepthClassOf(tile.WaterDepth);
             _tiles[index] = tile;
+            GateTileCount += ((tile.Blockers & TileBlockers.Gate) != 0 ? 1 : 0) - ((old.Blockers & TileBlockers.Gate) != 0 ? 1 : 0);
             if (affectsPathing)
             {
                 Version++;

@@ -50,6 +50,7 @@ namespace Rts.Replay.Tests
                 new SetConnectionStateCommand(15, Script, 14, new PlayerId(1), ConnectionState.Disconnected),
                 new CastWaveCommand(16, new PlayerId(1), 15, new EntityId(18), position),
                 new CastGroundingCommand(17, new PlayerId(0), 16, new EntityId(19), position),
+                new BuildWallLineCommand(18, new PlayerId(0), 17, new EntityId(20), "skai.wind_baffle", new List<(int X, int Y)> { (21, 34), (22, 35), (23, -1) }),
             };
         }
 

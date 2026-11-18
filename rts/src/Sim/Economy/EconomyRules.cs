@@ -26,6 +26,43 @@ namespace Rts.Sim.Economy
         }
 
         /// <summary>
+        /// Static check of one tile of a dragged wall line (walls_and_tech.md D.2 rule 2), returning why the tile is left out or null when it may be
+        /// built: out_of_bounds, site_unexplored (the worker owner's team has never seen it), tile_blocked (any blocker on it), site_pending
+        /// (another own unit, not <paramref name="worker"/>, has an active order or a queued tile there). A unit standing on the tile is not a problem here
+        /// (units move; the arrival and placement checks handle it). Unity calls this for the ghost preview; duplicate_tile is added by the command.
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="worker">The worker that would build the tile (its own orders are about to be replaced, so they do not count).</param>
+        /// <param name="tileX">Tile X. Unit: tiles. Range: any int.</param>
+        /// <param name="tileY">Tile Y. Unit: tiles. Range: any int.</param>
+        public static string? WallLineTileProblem(Simulation sim, Unit worker, int tileX, int tileY)
+        {
+            if (!sim.Terrain.Contains(tileX, tileY))
+            {
+                return "out_of_bounds";
+            }
+            if (!sim.Vision.IsTileExplored(sim.Players.TeamOf(worker.Owner), tileX, tileY))
+            {
+                return "site_unexplored";
+            }
+            // Index of the tile. Unit: tile index. Range: 0 to tile count - 1.
+            int tile = sim.Terrain.IndexOf(tileX, tileY);
+            if (sim.Terrain[tile].IsBlocked)
+            {
+                return "tile_blocked";
+            }
+            foreach (Unit other in sim.Units.All)
+            {
+                if (other.Owner == worker.Owner && other.Id != worker.Id
+                    && ((other.BuildState != BuildOrderState.None && other.BuildTileX == tileX && other.BuildTileY == tileY) || other.QueuesTile(tile)))
+                {
+                    return "site_pending";
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// The first entry of <c>definition.Economy.Requires</c>, in file order, that <paramref name="owner"/> does not meet, or null when all are
         /// met or the list is empty (walls_and_tech.md T.1). A requirement is met when the owner has a registered, complete (not under
         /// construction), living unit of that definition; allies' and enemies' buildings never count. One scan of the units per entry.

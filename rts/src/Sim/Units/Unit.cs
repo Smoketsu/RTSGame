@@ -158,6 +158,15 @@ namespace Rts.Sim.Units
         /// <summary>Gather field to go back to after the order ends. Unit: field index. Range: -1 (none) or 0 to field count - 1. Hashed.</summary>
         public int BuildResumeFieldIndex { get; private set; }
 
+        /// <summary>
+        /// Tiles of a dragged wall line still to build after the active order, as tile indices in build order (walls_and_tech.md D.2). Already paid for.
+        /// Range: 0 to wall_line_max_tiles - 1 entries, each 0 to tile count - 1; empty whenever <see cref="BuildState"/> is None. Hashed (right after <see cref="BuildResumeFieldIndex"/>).
+        /// </summary>
+        public IReadOnlyList<int> BuildQueue => _buildQueue;
+
+        /// <summary>Backing list of <see cref="BuildQueue"/>, head first. Unit: tile indices. Range: 0 to 255 entries, each 0 to map tile count - 1.</summary>
+        private readonly List<int> _buildQueue = new List<int>();
+
         /// <summary>Dome shield pool left (P-003 row 6). Unit: health points (fixed-point). Range: 0 to the definition's dome pool; 0 for a unit without a dome. Hashed.</summary>
         public Fix64 ShieldPool { get; private set; }
 
@@ -449,6 +458,35 @@ namespace Rts.Sim.Units
             BuildResumeFieldIndex = resumeFieldIndex;
         }
 
+        /// <summary>True when the wall-line queue holds the tile. Unit: tile index. Range: 0 to tile count - 1.</summary>
+        public bool QueuesTile(int tile)
+        {
+            return _buildQueue.Contains(tile);
+        }
+
+        /// <summary>Replaces the queued wall-line tiles. Internal: the wall line command only.</summary>
+        /// <param name="tiles">Tile indices in build order. Range: 0 to wall_line_max_tiles - 1 entries.</param>
+        internal void SetBuildQueue(IEnumerable<int> tiles)
+        {
+            _buildQueue.Clear();
+            _buildQueue.AddRange(tiles);
+        }
+
+        /// <summary>Removes and returns the first queued tile. Internal: economy system only. The queue must not be empty.</summary>
+        internal int PopBuildQueueHead()
+        {
+            // First queued tile index. Unit: tile index.
+            int head = _buildQueue[0];
+            _buildQueue.RemoveAt(0);
+            return head;
+        }
+
+        /// <summary>Empties the wall-line queue. Internal: economy system only.</summary>
+        internal void ClearBuildQueue()
+        {
+            _buildQueue.Clear();
+        }
+
         /// <summary>Moves the order to Placing with a countdown. Internal: economy system only.</summary>
         /// <param name="ticks">Placement time. Unit: ticks. Range: 1 or more.</param>
         internal void StartPlacing(int ticks)
@@ -466,7 +504,7 @@ namespace Rts.Sim.Units
             }
         }
 
-        /// <summary>Resets every build field to its None value. Internal: build command and economy system only.</summary>
+        /// <summary>Resets every build field to its None value; the wall-line queue is left alone (see <see cref="BuildQueue"/>). Internal: build command and economy system only.</summary>
         internal void ClearBuildOrder()
         {
             BuildState = BuildOrderState.None;
@@ -520,6 +558,11 @@ namespace Rts.Sim.Units
             hasher.Write(BuildTileY);
             hasher.Write(BuildTicksRemaining);
             hasher.Write(BuildResumeFieldIndex);
+            hasher.Write(_buildQueue.Count);
+            foreach (int queuedTile in _buildQueue)
+            {
+                hasher.Write(queuedTile);
+            }
             hasher.Write(ShieldPool);
             hasher.Write(ShieldDown);
             hasher.Write(ShieldLastAbsorbTick);

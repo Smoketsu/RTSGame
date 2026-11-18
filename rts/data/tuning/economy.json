@@ -29,5 +29,7 @@
   // Workers each player starts with beside the HQ in a standard match start (StandardMatchStart). Unit: workers (count). Range: 0 to 20. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER count.
   "starting_worker_count": 4,
   // Outermost Chebyshev ring around a spawn tile searched for the starting workers' tiles (ring 1 is the eight neighbours); the loader also rejects a map whose quake paths touch the spawn tile or these rings. Unit: tiles (Chebyshev distance from the spawn tile). Range: 1 to 8. Source: Core gameplay loop / Opening ("spawn with the mobile HQ unit and a few workers"); PLACEHOLDER.
-  "starting_worker_search_radius_tiles": 3
+  "starting_worker_search_radius_tiles": 3,
+  // Most tiles one build_wall_line order may name; Unity caps a dragged line at this length. Unit: tiles (count). Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md D.4).
+  "wall_line_max_tiles": 16
 }

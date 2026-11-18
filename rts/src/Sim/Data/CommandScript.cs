@@ -28,7 +28,7 @@ namespace Rts.Sim.Data
         private static readonly string[] CoreKinds =
         {
             "noop", "spawn_unit", "move_unit", "remove_unit", "attack_move", "attack_unit", "stop", "root_hq", "uproot_hq",
-            "gather", "train_unit", "build_structure", "apply_status", "pick_cycle", "cast_grounding",
+            "gather", "train_unit", "build_structure", "build_wall_line", "apply_status", "pick_cycle", "cast_grounding",
         };
 
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
@@ -222,6 +222,10 @@ namespace Rts.Sim.Data
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "definition", "x", "y");
                     return new BuildStructureCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
                         node.RequireNonEmptyString("definition"), node.RequireInt("x", 0, 1023), node.RequireInt("y", 0, 1023));
+                case "build_wall_line":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "definition", "tiles");
+                    return new BuildWallLineCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
+                        node.RequireNonEmptyString("definition"), ReadTiles(node.Require("tiles")));
                 case "apply_status":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "status", "multiplier", "seconds", "source");
                     return ReadApplyStatus(node, tick, issuer, sequence);
@@ -274,6 +278,30 @@ namespace Rts.Sim.Data
             }
             return new ApplyStatusCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
                 status == "grounded" ? Statuses.StatusKind.Grounded : Statuses.StatusKind.Slowed, multiplier, seconds, source);
+        }
+
+        /// <summary>Reads a tiles array of [x, y] pairs (at most 255, each coordinate 0 to 1023) into the tile list of a build_wall_line command.</summary>
+        private static List<(int X, int Y)> ReadTiles(JsonValue array)
+        {
+            // Pairs of the array, in order.
+            IReadOnlyList<JsonValue> pairs = array.Items;
+            if (pairs.Count > 255)
+            {
+                throw array.Fail("lists " + pairs.Count + " tiles; at most 255 are allowed");
+            }
+            // Tiles of the line, in script order. Unit: tiles (column, row). Range: 0 to 255 entries.
+            List<(int X, int Y)> tiles = new List<(int X, int Y)>(pairs.Count);
+            foreach (JsonValue pair in pairs)
+            {
+                // The two coordinates of one pair.
+                IReadOnlyList<JsonValue> coordinates = pair.Items;
+                if (coordinates.Count != 2)
+                {
+                    throw pair.Fail("must be a pair [x, y]");
+                }
+                tiles.Add((coordinates[0].AsInt(0, 1023), coordinates[1].AsInt(0, 1023)));
+            }
+            return tiles;
         }
 
         /// <summary>Reads the x and y members, each either decimal text ("20.5") or a JSON number, as a fixed-point point in tiles.</summary>

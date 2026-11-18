@@ -57,6 +57,7 @@ namespace Rts.Sim.Tests
                 new SetConnectionStateCommand(21, PlayerId.None, 15, P0, ConnectionState.Disconnected),
                 new CastWaveCommand(22, P1, 16, new EntityId(54), Spot),
                 new CastGroundingCommand(23, P0, 17, new EntityId(55), Spot),
+                new BuildWallLineCommand(24, P0, 18, new EntityId(56), "skai.wind_baffle", new List<(int X, int Y)> { (21, 34), (22, 35), (23, -1) }),
             };
         }
 
@@ -132,13 +133,13 @@ namespace Rts.Sim.Tests
             CommandCodecRegistry core = new CommandCodecRegistry();
             CoreCommandCodecs.RegisterAll(core);
             Assert.That(core.Contains(CastWaveCommand.KindName), Is.False);
-            Assert.That(core.Count, Is.EqualTo(17));
+            Assert.That(core.Count, Is.EqualTo(18));
             CommandCodecException ex = Expect.Throws<CommandCodecException>(() => core.EncodePayload(new CastWaveCommand(1, P1, 1, new EntityId(1), Spot)));
             Assert.That(ex.Message, Does.Contain("CastWaveCommand"), "the error names the command type");
             // The built-in registry is core plus the faction codecs.
             CommandCodecRegistry builtIn = Registry;
             Assert.That(builtIn.Contains(CastWaveCommand.KindName), Is.True);
-            Assert.That(builtIn.Count, Is.EqualTo(18));
+            Assert.That(builtIn.Count, Is.EqualTo(19));
         }
 
         /// <summary>The byte layout keeps the field order the network codecs had: pinned for move_unit, spawn_unit and apply_status.</summary>
@@ -156,6 +157,30 @@ namespace Rts.Sim.Tests
             // apply_status: unit u32 (5), status u8 (1 = slowed), multiplier raw (1), duration raw (2), source (length 1, "s").
             Command status = new ApplyStatusCommand(1, P0, 1, new EntityId(5), StatusKind.Slowed, Fix64.FromInt(1), Fix64.FromInt(2), "s");
             Assert.That(Hex(registry.EncodePayload(status)), Is.EqualTo("05000000" + "01" + "0000000001000000" + "0000000002000000" + "0100" + "73"));
+        }
+
+        /// <summary>build_wall_line (walls_and_tech.md D-13): the byte layout is pinned (worker u32, definition string, count u8, x and y int32 per tile), a 255-tile command round-trips, and 256 tiles are refused when writing.</summary>
+        [Test]
+        public void BuildWallLine_BytePin_And_Limits()
+        {
+            // The registry under test.
+            CommandCodecRegistry registry = Registry;
+            // worker u32 (7), definition (u16 length 2, "ab"), count u8 (2), tiles (1, 2) and (-1, 3) as int32 little endian.
+            Command line = new BuildWallLineCommand(1, P0, 1, new EntityId(7), "ab", new List<(int X, int Y)> { (1, 2), (-1, 3) });
+            Assert.That(Hex(registry.EncodePayload(line)), Is.EqualTo("07000000" + "0200" + "6162" + "02" + "01000000" + "02000000" + "ffffffff" + "03000000"));
+            // 255 tiles: the largest count the byte holds.
+            List<(int X, int Y)> many = new List<(int X, int Y)>();
+            for (int i = 0; i < 255; i++)
+            {
+                many.Add((i, 1000 - i));
+            }
+            Command big = new BuildWallLineCommand(2, P0, 2, new EntityId(7), "ab", many);
+            byte[] payload = registry.EncodePayload(big);
+            Assert.That(payload.Length, Is.EqualTo(4 + 2 + 2 + 1 + 255 * 8));
+            Command back = registry.DecodePayload(big.Kind, big.Tick, big.Issuer, big.Sequence, payload);
+            Assert.That(Fingerprint(back), Is.EqualTo(Fingerprint(big)));
+            many.Add((300, 300));
+            Expect.Throws<CommandCodecException>(() => registry.EncodePayload(new BuildWallLineCommand(3, P0, 3, new EntityId(7), "ab", many)));
         }
 
         /// <summary>A string at the limit of 65,535 UTF-8 bytes round-trips; one byte more is refused when writing; multi-byte characters are counted in bytes.</summary>
@@ -341,7 +366,7 @@ namespace Rts.Sim.Tests
             Expect.Throws<ArgumentNullException>(() => registry.Register(null!));
             Expect.Throws<ArgumentException>(() => registry.Register(new AbstractTypeCodec()));
             // A failed registration leaves the registry as it was.
-            Assert.That(registry.Count, Is.EqualTo(18));
+            Assert.That(registry.Count, Is.EqualTo(19));
             Assert.That(registry.Contains("noop_again"), Is.False);
             // Lookup failures name the kind and the type.
             Assert.That(Expect.Throws<CommandCodecException>(() => registry.GetByKind("warp")).Message, Does.Contain("warp"));

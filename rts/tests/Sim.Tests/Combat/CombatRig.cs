@@ -28,6 +28,9 @@ namespace Rts.Sim.Tests.Combat
         /// <summary>Owner of the victims. Unit: player ID. Range: 2; on a different team from <see cref="P1"/>.</summary>
         public static readonly PlayerId P2 = new PlayerId(2);
 
+        /// <summary>Optional third player of the arena, an ally of <see cref="P1"/> (team 1). Unit: player ID. Range: 3.</summary>
+        public static readonly PlayerId P3 = new PlayerId(3);
+
         /// <summary>The started simulation.</summary>
         public Simulation Sim { get; }
 
@@ -130,7 +133,8 @@ namespace Rts.Sim.Tests.Combat
         /// <param name="modifierFactor">When set, the first player's faction registers a damage modifier answering this factor. Unit: fraction.</param>
         /// <param name="tuning">Tuning override, or null for <see cref="ArenaTuning"/>.</param>
         /// <param name="map">Map override, or null for the 24 x 24 flat map.</param>
-        public CombatRig(ContentCatalog catalog, Fix64? modifierFactor = null, Tuning? tuning = null, MapDefinition? map = null)
+        /// <param name="allyOfP1">True to add <see cref="P3"/> on team 1, an ally of P1 (walls_and_tech.md G-4).</param>
+        public CombatRig(ContentCatalog catalog, Fix64? modifierFactor = null, Tuning? tuning = null, MapDefinition? map = null, bool allyOfP1 = false)
         {
             FactionMechanicRegistry registry = BuiltInMechanics.CreateRegistry();
             // Mechanic ID for the first player's faction: "none" or the test modifier.
@@ -148,6 +152,10 @@ namespace Rts.Sim.Tests.Combat
                 new PlayerSetup(P1, new TeamId(1), "arena_a", "A"),
                 new PlayerSetup(P2, new TeamId(2), "arena_b", "B"),
             };
+            if (allyOfP1)
+            {
+                players.Add(new PlayerSetup(P3, new TeamId(1), "arena_a", "C"));
+            }
             MapDefinition arena = map ?? new MapDefinition("arena", "Arena", 24, 24, new List<FixVec2> { FixVec2.FromInts(2, 2), FixVec2.FromInts(22, 22) });
             Sim = new Simulation(new SimulationConfig(new MatchSettings(1, TestWorld.TicksPerSecond, 1), catalog, players, registry,
                 tuning ?? ArenaTuning(), arena));

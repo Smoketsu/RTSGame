@@ -295,7 +295,7 @@ namespace Rts.Sim.Combat
             }
             // Tile holding the destination (clamped into the map like the movement system does).
             int goalTile = sim.Terrain.TileOf(sim.Terrain.ClampToMap(point));
-            return sim.Pathing.Get(layer, goalTile).IsReachable(sim.Terrain.TileOf(unit.Position));
+            return sim.Pathing.Get(layer, goalTile, sim.Players.TeamOf(unit.Owner)).IsReachable(sim.Terrain.TileOf(unit.Position));
         }
 
         /// <summary>

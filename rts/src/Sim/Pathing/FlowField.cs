@@ -1,8 +1,10 @@
 // rts/src/Sim/Pathing/FlowField.cs
 // One flow field: for a movement layer and a goal tile, the integration cost of every tile and the direction
 // each tile points in. Part of Rts.Sim.Pathing (ADR-007). Built by Dijkstra over the terrain grid with integer
-// costs so the result is identical on every machine; not hashed because it is a pure function of terrain.
+// costs so the result is identical on every machine; not hashed because it is a pure function of terrain, layer, goal and passing team
+// (the team matters only while a gate stands: a gate tile is passable for its team, walls_and_tech.md G.1).
 using System;
+using Rts.Sim.Core;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
 
@@ -23,6 +25,9 @@ namespace Rts.Sim.Pathing
         /// <summary>Movement layer the field was built for.</summary>
         public MovementLayer Layer { get; }
 
+        /// <summary>Team whose gates the field treats as open; <see cref="TeamId.None"/> treats every gate as a wall (and is the only value used while no gate stands).</summary>
+        public TeamId PassTeam { get; }
+
         /// <summary>Goal tile index. Range: 0 to tile count - 1.</summary>
         public int GoalIndex { get; }
 
@@ -42,11 +47,13 @@ namespace Rts.Sim.Pathing
         /// <param name="grid">Terrain to path over.</param>
         /// <param name="layer">Movement layer.</param>
         /// <param name="goalIndex">Goal tile index.</param>
+        /// <param name="passTeam">Team whose gates are open, or None.</param>
         /// <param name="creationSequence">Cache creation counter.</param>
         /// <param name="heap">Scratch heap shared by the cache.</param>
-        internal FlowField(TerrainGrid grid, MovementLayer layer, int goalIndex, long creationSequence, MinHeap heap)
+        internal FlowField(TerrainGrid grid, MovementLayer layer, int goalIndex, TeamId passTeam, long creationSequence, MinHeap heap)
         {
             Layer = layer;
+            PassTeam = passTeam;
             GoalIndex = goalIndex;
             TerrainVersion = grid.Version;
             CreationSequence = creationSequence;
@@ -74,9 +81,9 @@ namespace Rts.Sim.Pathing
         }
 
         /// <summary>Per-tile traversal cost on this layer: CostScale / speed multiplier, at least 1; int.MaxValue when not standable.</summary>
-        private static int TileCost(TerrainGrid grid, int index, MovementLayer layer)
+        private static int TileCost(TerrainGrid grid, int index, MovementLayer layer, TeamId team)
         {
-            if (!grid.IsStandable(index, layer))
+            if (!grid.IsStandable(index, layer, team))
             {
                 return int.MaxValue;
             }
@@ -95,7 +102,7 @@ namespace Rts.Sim.Pathing
                 _flow[i] = NoDirection;
             }
             heap.Clear();
-            if (grid.IsStandable(GoalIndex, Layer))
+            if (grid.IsStandable(GoalIndex, Layer, PassTeam))
             {
                 _integration[GoalIndex] = 0;
                 heap.Push(((long)0 << 32) | (uint)GoalIndex);
@@ -108,7 +115,7 @@ namespace Rts.Sim.Pathing
                 {
                     // Tile index next to the blocked goal in this direction, or -1 off the map. Unit: tile index. Range: -1 or 0 to tile count - 1.
                     int neighbour = grid.Neighbour(GoalIndex, direction);
-                    if (neighbour >= 0 && grid.IsStandable(neighbour, Layer))
+                    if (neighbour >= 0 && grid.IsStandable(neighbour, Layer, PassTeam))
                     {
                         _integration[neighbour] = 0;
                         heap.Push(((long)0 << 32) | (uint)neighbour);
@@ -132,12 +139,12 @@ namespace Rts.Sim.Pathing
                 {
                     // Tile index next to the popped tile in this direction, or -1 off the map. Unit: tile index. Range: -1 or 0 to tile count - 1.
                     int neighbour = grid.Neighbour(index, direction);
-                    if (neighbour < 0 || !grid.IsStepPassable(neighbour, index, Layer))
+                    if (neighbour < 0 || !grid.IsStepPassable(neighbour, index, Layer, PassTeam))
                     {
                         continue;
                     }
                     // Cost of entering the neighbour tile. Unit: cost. Range: 1 upward, int.MaxValue when it cannot be entered.
-                    int stepCost = TileCost(grid, neighbour, Layer);
+                    int stepCost = TileCost(grid, neighbour, Layer, PassTeam);
                     if (stepCost == int.MaxValue)
                     {
                         continue;
@@ -172,7 +179,7 @@ namespace Rts.Sim.Pathing
                 {
                     // Tile index next to this tile in this direction, or -1 off the map. Unit: tile index. Range: -1 or 0 to tile count - 1.
                     int neighbour = grid.Neighbour(index, direction);
-                    if (neighbour < 0 || !grid.IsStepPassable(index, neighbour, Layer))
+                    if (neighbour < 0 || !grid.IsStepPassable(index, neighbour, Layer, PassTeam))
                     {
                         continue;
                     }

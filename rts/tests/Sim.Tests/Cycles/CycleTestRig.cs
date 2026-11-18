@@ -50,6 +50,9 @@ namespace Rts.Sim.Tests.Cycles
         /// <summary>Wall (walls_and_tech.md W-12): 200 health, speed 0, footprint 1, is_wall, no weapon.</summary>
         public const string BuiltWallId = "test.built_wall";
 
+        /// <summary>ID of a built gate (is_wall and is_gate, 200 health, footprint 1); Quake damages it like a wall (walls_and_tech.md G-13).</summary>
+        public const string BuiltGateId = "test.built_gate";
+
         /// <summary>Water-layer unit: 100 health, speed 2, radius 0.5, no weapon.</summary>
         public const string BoatId = "test.boat";
 
@@ -104,6 +107,9 @@ namespace Rts.Sim.Tests.Cycles
             catalog.AddUnit(new UnitDefinition(BuiltWallId, "Built wall", TestWorld.TestFactionId, MovementLayer.Ground,
                 Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null, null,
                 new UnitEconomyDefinition(Fix64.FromInt(2), false, false, new List<string>(), false, 1, 0, true)));
+            catalog.AddUnit(new UnitDefinition(BuiltGateId, "Built gate", TestWorld.TestFactionId, MovementLayer.Ground,
+                Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0, "light", Fix64.FromInt(8), null, null,
+                new UnitEconomyDefinition(Fix64.FromInt(2), false, false, new List<string>(), false, 1, 0, true, null, true)));
             return catalog;
         }
 

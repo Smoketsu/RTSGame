@@ -1,17 +1,19 @@
 // rts/src/Sim/Pathing/FlowFieldCache.cs
 // Owns the flow fields of a match: builds them on demand, reuses them while the terrain version matches,
-// and evicts the oldest when over the tuning limit. Part of Rts.Sim.Pathing (ADR-007). Owned by Simulation.
+// and evicts the oldest when over the tuning limit. The key holds the passing team only while a gate stands on the map
+// (TerrainGrid.GateTileCount > 0), so with no gate the cache behaves exactly as before (walls_and_tech.md G.1 rule 6). Part of Rts.Sim.Pathing (ADR-007). Owned by Simulation.
 using System;
 using System.Collections.Generic;
+using Rts.Sim.Core;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
 
 namespace Rts.Sim.Pathing
 {
-    /// <summary>Keyed by (layer, goal tile). Deterministic: eviction order follows creation order, never hash order.</summary>
+    /// <summary>Keyed by (layer, goal tile, passing team while a gate stands). Deterministic: eviction order follows creation order, never hash order.</summary>
     public sealed class FlowFieldCache
     {
-        /// <summary>Fields by packed key (layer << 32 | goal index), ordinal order.</summary>
+        /// <summary>Fields by packed key (layer << 40 | team << 32 | goal index), ordinal order.</summary>
         private readonly SortedDictionary<long, FlowField> _fields = new SortedDictionary<long, FlowField>();
 
         /// <summary>The grid fields are built over.</summary>
@@ -51,8 +53,21 @@ namespace Rts.Sim.Pathing
         /// <param name="goalIndex">Goal tile index, 0 to tile count - 1.</param>
         public FlowField Get(MovementLayer layer, int goalIndex)
         {
+            return Get(layer, goalIndex, TeamId.None);
+        }
+
+        /// <summary>Returns the field for a layer, goal and passing team, building or rebuilding it when missing or stale.</summary>
+        /// <param name="layer">Movement layer.</param>
+        /// <param name="goalIndex">Goal tile index, 0 to tile count - 1.</param>
+        /// <param name="team">Team of the moving unit (its gates are open), or None. Ignored (treated as None) while no gate stands.</param>
+        public FlowField Get(MovementLayer layer, int goalIndex, TeamId team)
+        {
+            if (_grid.GateTileCount == 0)
+            {
+                team = TeamId.None;
+            }
             // Packed cache key.
-            long key = ((long)(byte)layer << 32) | (uint)goalIndex;
+            long key = ((long)(byte)layer << 40) | ((long)team.Value << 32) | (uint)goalIndex;
             if (_fields.TryGetValue(key, out FlowField? field) && field.TerrainVersion == _grid.Version)
             {
                 return field;
@@ -65,7 +80,7 @@ namespace Rts.Sim.Pathing
             {
                 EvictOldest();
             }
-            field = new FlowField(_grid, layer, goalIndex, _nextSequence++, _heap);
+            field = new FlowField(_grid, layer, goalIndex, team, _nextSequence++, _heap);
             BuildCount++;
             _fields.Add(key, field);
             return field;

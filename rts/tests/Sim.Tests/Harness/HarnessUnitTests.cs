@@ -170,9 +170,11 @@ namespace Rts.Sim.Tests.Harness
             // Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability): smoke a3aada433dad3915 is now e1ab5e425ce8cb35 (undecided, tick 599), economy_smoke d951951064e0b735 is now 06d921a35888ec95 (undecided, tick 1499).
             // Re-pinned for walls (specs/walls_and_tech.md package W: is_wall in the content digest, two wall unit files): smoke e1ab5e425ce8cb35 is now 2c679e2fc3c0a732 and economy_smoke 06d921a35888ec95 is now b27e696890ec03ba; outcomes unchanged (undecided, ticks 599 and 1499).
             // Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: requires in the content digest, two tech building files): smoke 2c679e2fc3c0a732 is now 9c985e8fc052ce36 and economy_smoke b27e696890ec03ba is now 57e92601f6755ea6; outcomes unchanged (undecided, ticks 599 and 1499).
-            Assert.That(output, Does.Contain("STATE_HASH=9c985e8fc052ce36\n"));
+            // Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files): smoke 9c985e8fc052ce36 is now 722a561a7c2ad335 and economy_smoke 57e92601f6755ea6 is now ea7a4a9d577c9b83; outcomes unchanged (undecided, ticks 599 and 1499).
+            // Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest): smoke 722a561a7c2ad335 is now c423332711029434 and economy_smoke ea7a4a9d577c9b83 is now ce62b175ea751ba6; outcomes unchanged (undecided, ticks 599 and 1499).
+            Assert.That(output, Does.Contain("STATE_HASH=c423332711029434\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=57e92601f6755ea6\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=ce62b175ea751ba6\n"));
         }
 
         /// <summary>The shipped data set.</summary>

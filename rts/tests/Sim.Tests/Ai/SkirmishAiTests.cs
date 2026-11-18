@@ -188,6 +188,9 @@ namespace Rts.Sim.Tests.Ai
             /// <summary>build_structure commands naming a wall definition (is_wall), as "tick definition"; the AI never builds walls (walls_and_tech.md W-14).</summary>
             public List<string> WallBuilds { get; } = new List<string>();
 
+            /// <summary>build_structure commands naming a gate definition (is_gate) and every build_wall_line, as "tick definition"; the AI issues neither (walls_and_tech.md G-14, D-14).</summary>
+            public List<string> GateOrLineBuilds { get; } = new List<string>();
+
             /// <summary>Violations of the vision rule found while the AIs played.</summary>
             public List<string> VisionViolations { get; } = new List<string>();
 
@@ -235,6 +238,10 @@ namespace Rts.Sim.Tests.Ai
                         if (command is BuildStructureCommand build && sim.Content.Units.TryGetValue(build.DefinitionId, out UnitDefinition? built) && built.Economy.IsWall)
                         {
                             result.WallBuilds.Add(sim.Clock.Tick + " " + build.DefinitionId);
+                        }
+                        if ((command is BuildStructureCommand gateBuild && sim.Content.Units.TryGetValue(gateBuild.DefinitionId, out UnitDefinition? gateDef) && gateDef.Economy.IsGate) || command is BuildWallLineCommand)
+                        {
+                            result.GateOrLineBuilds.Add(sim.Clock.Tick + " " + command.GetType().Name);
                         }
                     }
                 }
@@ -853,8 +860,10 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability). Old value 0xc055605b9505f7a0; outcome unchanged (winner 1, tick 7613; the AI never casts).
         /// Re-pinned for walls (specs/walls_and_tech.md package W: is_wall in the content digest, two wall unit files). Old value 0x9ce80037ea382870; outcome unchanged (winner 1, tick 7613; the AI never builds walls).
         /// Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: requires in the content digest, two tech building files, the Thunderhead and Leviathan carry requires). Old value 0x6afcdd53a683b20f; outcome unchanged (winner 1, tick 7613; this script trains no gated unit).
+        /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files). Old value 0xacd32f73604e2bd3; outcome unchanged (winner 1, tick 7613; the AI never builds gates).
+        /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest). Old value 0x849c8691d566adde; outcome unchanged (winner 1, tick 7613; the AI never issues build_wall_line).
         /// </summary>
-        private const ulong V2ReferenceHash = 0xacd32f73604e2bd3UL;
+        private const ulong V2ReferenceHash = 0x38e1f3919c6d0aebUL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -880,11 +889,13 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability). Old hash 79031cdfce62011e; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for walls (specs/walls_and_tech.md package W: is_wall in the content digest, two wall unit files). Old hash 22b692cd508a7958; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: requires in the content digest, two tech building files, the Thunderhead and Leviathan carry requires). Old hash 10177cc3d3df74e9; the end tick (20151) and the winner (slot 0) do not move.
+        /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files). Old hash a8211dfa11746641; the end tick (20151) and the winner (slot 0) do not move.
+        /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest). Old hash b68b2102f6713a46; the end tick (20151) and the winner (slot 0) do not move.
         /// </summary>
         private const int BlindTraceEndTick = 20151;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "a8211dfa11746641";
+        private const string BlindTraceHash = "015496c40671ead9";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]
@@ -937,6 +948,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(runs[0].LastTick, Is.LessThan(limit));
             Assert.That(runs[0].Rejections, Is.Empty);
             Assert.That(runs[0].WallBuilds, Is.Empty, "W-14: no build_structure names a wall definition");
+            Assert.That(runs[0].GateOrLineBuilds, Is.Empty, "G-14, D-14: no gate build_structure and no build_wall_line");
             Assert.That(runs[0].VisionViolations, Is.Empty);
         }
     }

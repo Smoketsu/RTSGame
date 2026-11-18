@@ -6,17 +6,17 @@
 //
 // Step order (fixed, documented here and in rts/src/Sim/README.md):
 //   1. clear the event log
-//   2. apply this tick's commands in (issuer, sequence) order (train and build orders need the definition's requires buildings, standing and complete; cast_grounding grounds the enemy flyers around its point at once, StatusSystem.CastGrounding; an accepted move, attack, stop, gather or build order cancels a
+//   2. apply this tick's commands in (issuer, sequence) order (train and build orders need the definition's requires buildings, standing and complete; build_wall_line pays for a whole line and queues its tiles on the worker; cast_grounding grounds the enemy flyers around its point at once, StatusSystem.CastGrounding; an accepted move, attack, stop, gather or build order cancels a
 //      worker's pending build order and refunds it)
 //   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 //   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
-//   5. movement, then separation (UnitSeparation: touching units pushed apart from a position snapshot, keep-right sidestep, crowd arrival)
+//   5. movement (ground and water flow fields are per team while any gate stands: a gate tile is passable only for its team, walls_and_tech.md G.1), then separation (UnitSeparation: touching units pushed apart from a position snapshot, keep-right sidestep, crowd arrival)
 //   6. combat (CombatSystem), in this order: 6a dome regen (units with a shield_dome, ascending ID; also collects the active domes);
 //      6b land due hits (PendingHits.TakeDue, in (land tick, sequence) order; a hit whose target is gone is dropped); 6c the unit loop
 //      (cooldown, target with armed-first acquisition, fire: damage fixed at fire time with the uphill multiplier, dome absorption,
 //      then land at once or queue for hit_delay_ticks; ascending ID order; a landing hit of a weapon with splash_radius_tiles also blasts the enemy units around its target, victims in ascending ID order; damage against a structure is also multiplied by the weapon's structure_damage_multiplier; a weapon with can_target_air_on_water also targets flyers while its unit stands on a flooded tile, checked whenever a target is chosen or kept); 6d deaths (sorted by victim, then killer; a dead worker's
 //      pending build order is cancelled through the RemoveUnit hook)
-//   7. economy (EconomySystem: worker gather loops, build orders (walk to the site, placement, structure spawn), production queues,
+//   7. economy (EconomySystem: worker gather loops, build orders (walk to the site, placement, structure spawn; a worker with queued tiles takes the next one when a structure is placed or its tile fails), production queues,
 //      construction, supply; units in ascending ID order)
 //   8. faction mechanics in ascending mechanic ID order
 //   9. cycles and Core (CycleSystem.Step: holder or capturer that left the match, who stands in the Core, the capture state machine,
@@ -30,7 +30,7 @@
 // previous tick's end (a one-tick delay) plus the sight of units spawned this tick (SpawnUnit stamps them at once, so a new unit
 // can fight on its spawn tick); the hash reads the end of this tick.
 // Spawn and removal hooks (SpawnUnit, RemoveUnit) also run the HQ and economy bookkeeping: a new HQ picks Rooted or Uprooted, a
-// structure's footprint or wall blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
+// structure's footprint, wall or gate blocker is added and removed, and removing an HQ defeats its owner (cause hq_destroyed).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Combat;

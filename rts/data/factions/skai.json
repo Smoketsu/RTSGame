@@ -24,6 +24,7 @@
     "skai.perch_tower",
     "skai.perch_depot",
     "skai.wind_baffle",
+    "skai.wind_gate",
     "skai.storm_spire"
   ]
 }

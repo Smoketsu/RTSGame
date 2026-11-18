@@ -91,7 +91,9 @@ namespace Rts.Sim.Tests.Combat
             Assert.That(kills, Is.GreaterThan(0));
             Assert.That(RunScene(out int _, out int _, out int _), Is.EqualTo(first), "two runs agree");
             // Pinned 18 Nov 2026 for combat_mechanics.md package 1 (digest includes splash_damage_fraction and SplashRadiusTiles); re-pinned for package 2 (digest includes StructureDamageMultiplier), old value 3521365824097976314; re-pinned for F0 (hq.json and harness.json floor 20 s to 15 s are in the content digest), old value 18165753124669140004; re-pinned for combat mechanics package 3 (can_target_air_on_water in the weapon digest), old value 3305694457895044441; re-pinned for combat mechanics package 4 (grounding_ability in the digest, GroundingReadyTick in the unit hash), old value 18029847149085244240; re-pinned for walls (specs/walls_and_tech.md package W: IsWall in the unit economy digest), old value 6545833853995777457; re-pinned for tech prerequisites (specs/walls_and_tech.md package T: Requires in the unit economy digest), old value 8262926576438683502.
-            Assert.That(first, Is.EqualTo(14794191616404630340UL), "pin");
+            // Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, IsGate in the content digest): old value 14794191616404630340; hash only.
+            // Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest): old value 7171673623519835621; hash only.
+            Assert.That(first, Is.EqualTo(12309595045426278381UL), "pin");
         }
     }
 }

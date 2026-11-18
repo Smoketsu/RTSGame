@@ -255,7 +255,7 @@ namespace Rts.Sim.Factions.Water
                 // The tile being copied. Unit: one tile.
                 TerrainTile tile = terrain[i];
                 field.LayerHeight[i] = tile.Height;
-                field.Wall[i] = (tile.Blockers & (TileBlockers.Wall | TileBlockers.BuiltWall)) != 0;
+                field.Wall[i] = (tile.Blockers & (TileBlockers.Wall | TileBlockers.BuiltWall | TileBlockers.Gate)) != 0;
                 field.Footprint[i] = (tile.Blockers & TileBlockers.Footprint) != 0;
                 field.Drops[i] = FloodMath.ToDrops(tile.WaterDepth);
                 // Owner of the water. Water another system left unowned stays unowned (never given away) until a team's flow claims the tile.
@@ -656,7 +656,7 @@ namespace Rts.Sim.Factions.Water
             _nextWaveTick[caster.Id] = tick + WaveCooldownTicks;
         }
 
-        /// <summary>Shoves every enemy non-air unit standing on an area tile (never a Rooted, Rooting or Uprooting HQ), ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>
+        /// <summary>Shoves every enemy non-air unit standing on an area tile (never a Rooted, Rooting or Uprooting HQ, nor any structure with a footprint, such as a gate), ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>
         private void PushEnemies(Simulation sim, TeamId casterTeam, SortedSet<int> area, int dirX, int dirY)
         {
             // The live terrain grid this method reads and (through SetWater) changes.
@@ -670,7 +670,7 @@ namespace Rts.Sim.Factions.Water
                 TeamId team = TeamOfOwner(sim, unit.Owner);
                 // Layer the unit currently moves on (a status or override may change it). Range: Ground, Water or Air.
                 MovementLayer layer = unit.EffectiveLayer;
-                if (!team.IsValid || team == casterTeam || layer == MovementLayer.Air || HqSystem.IsMovementLocked(unit) || !area.Contains(terrain.TileOf(unit.Position)))
+                if (!team.IsValid || team == casterTeam || layer == MovementLayer.Air || HqSystem.IsMovementLocked(unit) || unit.Definition.Economy.FootprintTiles > 0 || !area.Contains(terrain.TileOf(unit.Position)))
                 {
                     continue;
                 }
@@ -691,7 +691,7 @@ namespace Rts.Sim.Factions.Water
                     }
                     // Index of the tile one step ahead.
                     int next = terrain.IndexOf(nx, ny);
-                    if (!terrain.IsStepPassable(tile, next, layer))
+                    if (!terrain.IsStepPassable(tile, next, layer, team))
                     {
                         break;
                     }

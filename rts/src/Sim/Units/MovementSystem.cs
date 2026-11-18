@@ -78,8 +78,8 @@ namespace Rts.Sim.Units
                 {
                     // Tile containing the goal; the flow field is built for it.
                     int goalTile = terrain.TileOf(goal);
-                    // Flow field leading to the goal tile for this layer, from the cache.
-                    FlowField field = sim.Pathing.Get(layer, goalTile);
+                    // Flow field leading to the goal tile for this layer and the unit's team (its gates are open), from the cache.
+                    FlowField field = sim.Pathing.Get(layer, goalTile, sim.Players.TeamOf(unit.Owner));
                     if (!field.IsReachable(currentTile))
                     {
                         // The goal as ordered, read before the order is cleared.
