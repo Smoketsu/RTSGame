@@ -32,6 +32,5 @@ Each model also has its preview (`<name>_preview.webp`), its log (`<name>_log.tx
 
 ## Not done yet
 
-- Import into Unity (PC session). The two Skai HQ models (`skai_great_aerie_rooted.glb`, `skai_great_aerie_uprooted.glb`) await the developer's marks.
+- Import into Unity (PC session). All eleven models here are approved, including the two Skai HQ states.
 - Rigging and Unity import untested; the models are smoother than the faceted drawings.
-- The Great Aerie needs a redesigned sheet first.

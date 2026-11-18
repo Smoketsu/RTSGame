@@ -21,7 +21,8 @@ Twelve rounds of concept art on 16 Nov 2026 settled the art direction. The table
 | Water Tidecaller and Leviathan | `round20/water_tidecaller_leviathan.jpg` | Round 20 |
 | Titan, earth HQ, Uprooted and Rooted (meditating, base risen around him) | `round20/earth_titan_hq.jpg` | Round 20 |
 | Earth buildings (seven) | `round20/earth_buildings.jpg` | Round 20 |
-| Great Aerie, Skai HQ: hovering from below, hovering from the game camera, and landed. The propellers are barely visible from the game camera; revisit once it is seen in motion | `round17/skai_great_aerie_hq.jpg` | Round 17 |
+| Great Aerie, Skai HQ, current design (18 Nov 2026): a sky island of rock carrying one great canopy tree, turbines in the rock's underside, the tree's talon roots as feet when Rooted. Replaces the disc design in the next row | `round25/skai_hq_island_tree_root_feet.jpg`; sheets `turnarounds10/`; models `../models/buildings1/skai_great_aerie_rooted.glb`, `skai_great_aerie_uprooted.glb` | Round 25 |
+| SUPERSEDED 18 Nov 2026. Great Aerie, earlier disc design: hovering from below, hovering from the game camera, and landed. The propellers are barely visible from the game camera; revisit once it is seen in motion | `round17/skai_great_aerie_hq.jpg` | Round 17 |
 | Skai buildings (seven, conifer and canopy styles) | `round16/skai_buildings.jpg` | Round 16 |
 | Water buildings (seven, coral reef) | `round16/water_buildings.jpg` | Round 16 |
 | Grand Shell, water HQ, Uprooted and Rooted | `round13/water_grand_shell_hq.jpg` | Round 13 |

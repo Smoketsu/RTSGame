@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Art (18 Nov 2026): the developer marked both Skai HQ models Keep. All Skai and water buildings and both HQs now have approved models (`docs/art/models/buildings1/`, eleven files); `CONCEPT_BRIEF.md` records the island-and-tree HQ as the current Great Aerie design and marks the disc design superseded.
+
 - Art (18 Nov 2026): the developer marked both Skai HQ sheets Keep; models generated with Tripo (`docs/art/models/buildings1/skai_great_aerie_rooted.glb`, `skai_great_aerie_uprooted.glb`; 220 credits, 470 left), awaiting marks.
 
 - Art (18 Nov 2026): the developer picked the island-and-tree HQ with roots as feet (`concept/round25/skai_hq_island_tree_root_feet.jpg`) as the new Skai HQ, replacing the Great Aerie disc design; the other four round 25 options are dropped. Model sheets for both states in `docs/art/concept/turnarounds10/` (Rooted and Uprooted), awaiting marks before 3D generation.
