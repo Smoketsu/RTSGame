@@ -171,12 +171,16 @@ namespace Rts.Sim.Tests.Economy
         /// <summary>
         /// Field full by S staggered gatherers (the first arrives on A, the others on A + 1, so one slot frees on A + G + 1 and the next on
         /// A + G + 2); two more workers are sent on ticks <paramref name="firstSend"/> and <paramref name="secondSend"/> (offsets from A)
-        /// and the method returns them after the tick A + G + 1.
+        /// and the method returns them after the tick A + G + 1. With <paramref name="lowerHasGrant"/> the lower-ID late worker is given one earlier slot grant first.
         /// </summary>
-        private static List<EntityId> StaggeredFullField(Simulation sim, int firstSend, int secondSend)
+        private static List<EntityId> StaggeredFullField(Simulation sim, int firstSend, int secondSend, bool lowerHasGrant = false)
         {
             List<EntityId> gatherers = Crowd(sim, S, 10, 10);
             List<EntityId> late = Crowd(sim, 2, 10, 10);
+            if (lowerHasGrant)
+            {
+                Get(sim, late[0]).AddGatherSlotGrant();
+            }
             // Tick of the first gatherer's order.
             int a = sim.Clock.Tick;
             GatherAll(sim, new List<EntityId> { gatherers[0] }, 0);
@@ -199,7 +203,7 @@ namespace Rts.Sim.Tests.Economy
             return late;
         }
 
-        /// <summary>SAT-4: the worker that started waiting first gets the freed slot even with the higher ID; on equal ticks and equal grant counts the lower ID wins.</summary>
+        /// <summary>SAT-4: the worker that started waiting first gets the freed slot even with the higher ID; on equal ticks and equal grant counts the lower ID wins; on equal ticks, fewer grants beats the lower ID.</summary>
         [Test]
         public void Sat4_FirstComeFirstServed()
         {
@@ -211,6 +215,11 @@ namespace Rts.Sim.Tests.Economy
             List<EntityId> same = StaggeredFullField(tie, 3, 3);
             Assert.That(Get(tie, same[0]).GatherState, Is.EqualTo(GatherState.Gathering), "same tick, lower ID");
             Assert.That(Get(tie, same[1]).GatherState, Is.EqualTo(GatherState.Waiting));
+            // Same tick, but the lower ID already has a grant: fewer grants beats the lower ID.
+            Simulation grants = World();
+            List<EntityId> fewer = StaggeredFullField(grants, 3, 3, true);
+            Assert.That(Get(grants, fewer[1]).GatherState, Is.EqualTo(GatherState.Gathering), "same tick, higher ID with fewer grants");
+            Assert.That(Get(grants, fewer[0]).GatherState, Is.EqualTo(GatherState.Waiting));
         }
 
         /// <summary>Loads deposited per worker by the events of a run; also the field's remaining after it.</summary>
@@ -226,7 +235,7 @@ namespace Rts.Sim.Tests.Economy
             return loads;
         }
 
-        /// <summary>SAT-5: with 2S + 2 workers on one field for 120 s nobody starves: every worker deposits at least floor(total / workers) - 1 loads (the spec's bound), and no single wait in the queue is longer than ceil((N - 1) / S) x G plus a walking allowance.</summary>
+        /// <summary>SAT-5: with 2S + 2 workers on one field for 120 s nobody starves: every worker deposits at least floor(total / workers) - 1 loads (the spec's bound), and no single wait in the queue is longer than ceil((N - 1) / S) x G plus a walking allowance (0 ticks: walking is outside the wait).</summary>
         [Test]
         public void Sat5_NoStarvation()
         {
@@ -236,9 +245,9 @@ namespace Rts.Sim.Tests.Economy
             GatherAll(sim, w, 0);
             // Deposits per worker. Range: 0 upward.
             SortedDictionary<EntityId, int> loads = new SortedDictionary<EntityId, int>();
-            // Ticks each worker has been Waiting in a row. Unit: ticks.
+            // Ticks each worker has been Waiting in a row. Unit: ticks. Range: 0 to 2400 (the 120 s run at 20 ticks per second).
             SortedDictionary<EntityId, int> run = new SortedDictionary<EntityId, int>();
-            // Longest single wait seen. Unit: ticks.
+            // Longest single wait seen. Unit: ticks. Range: 0 to 2400 (the 120 s run at 20 ticks per second).
             int longest = 0;
             for (int t = 0; t < 120 * TestWorld.TicksPerSecond; t++)
             {
@@ -302,7 +311,7 @@ namespace Rts.Sim.Tests.Economy
             {
                 b.Add(Spawn(sim, TestWorld.WorkerId, P1, 10, 10));
             }
-            // The tick both groups are ordered on, so they queue together.
+            // The tick both groups are ordered on, so they queue together. Unit: ticks. Range: 0 upward.
             int tick = sim.Clock.Tick;
             foreach (EntityId id in a)
             {
@@ -314,7 +323,7 @@ namespace Rts.Sim.Tests.Economy
             }
             // Loads per worker. Range: 0 upward.
             SortedDictionary<EntityId, int> loads = RunAndCountDeposits(sim, seconds * TestWorld.TicksPerSecond);
-            // Loads per player, and the smallest and largest per worker. Unit: loads.
+            // Loads per player (loadsA, loadsB) and the smallest (min) and largest (max) per worker. Unit: loads. Range: 0 to 2000 (field 10000 units at 5 per load); min starts at int.MaxValue until a worker is read.
             int loadsA = 0;
             int loadsB = 0;
             int min = int.MaxValue;

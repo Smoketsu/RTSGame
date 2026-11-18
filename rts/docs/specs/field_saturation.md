@@ -99,9 +99,9 @@ Inside step 7 (economy); no new step. `EconomySystem.Step` calls a new `AssignGa
 
 #### 2.3 `AssignGatherSlots` (7a)
 
-1. `occupied = new int[sim.Resources.Count]`. Walk `sim.Units.All` (ascending ID): a unit with `GatherState == Gathering` and a valid field index adds 1 to `occupied[index]`; a unit with `GatherState == Waiting` and a valid index goes into a list `waiting`.
+1. Walk `sim.Units.All` (ascending ID) and collect every unit with `GatherState == Waiting` and a valid field index into a list `waiting`; return at once when it is empty. Otherwise `occupied = new int[sim.Resources.Count]` and a second walk adds 1 to `occupied[index]` for each unit with `GatherState == Gathering` and a valid field index.
 2. Sort `waiting` by `GatherQueuedTick` ascending, then `GatherSlotGrants` ascending (the worker with the fewest grants so far first), then `Id` ascending (a total order, so `List.Sort` with this comparer is deterministic).
-3. For each worker in that order: field `f = sim.Resources[index]`. Skip it when `f.IsDepleted` or when the worker is not within `InteractRange(sim)` of the field's tile centre (the loop deals with both, 2.4). Otherwise, if `occupied[index] < GatherSlots(f.Kind)`: `SetGather(Gathering, index, GatherTicksPerTrip(clock))` and `occupied[index]++`.
+3. For each worker in that order: field `f = sim.Resources[index]`. Skip it when `f.IsDepleted` or when the worker is not within `InteractRange(sim)` of the field's tile centre (the loop deals with both, 2.4). Otherwise, if `occupied[index] < GatherSlots(f.Kind)`: `SetGather(Gathering, index, GatherTicksPerTrip(clock))`, `worker.AddGatherSlotGrant()` (increments `GatherSlotGrants`) and `occupied[index]++`.
 
 Fields are independent, so the cross-field order does not matter. Cost: one pass over units plus a sort of the waiting workers.
 
