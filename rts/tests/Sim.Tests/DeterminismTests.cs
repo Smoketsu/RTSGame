@@ -98,8 +98,9 @@ namespace Rts.Sim.Tests
         /// A change here means the simulation no longer produces the same match from the same inputs: either a
         /// determinism bug or an intended change to hashing or behaviour. If intended, record why in the changelog and
         /// update the value; replays recorded before the change will no longer re-simulate.
+        /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value 0x414b070cac0f68aa; hash only. Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): old 0x59ffb5d3accc2ed7, new 0x13ca4053c7b10a07; hash only.
         /// </summary>
-        private const ulong GoldenFinalHash = 0x414b070cac0f68aaUL;
+        private const ulong GoldenFinalHash = 0x13ca4053c7b10a07UL;
 
         [Test]
         public void GoldenHash_IsPinned()

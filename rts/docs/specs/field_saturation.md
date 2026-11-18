@@ -55,7 +55,7 @@ A slot is held for the whole `gather_seconds_per_trip` of one load, so one field
 **Why this model and not a rate falloff.**
 1. *A second base raises income.* One base's yield is capped by its slots; a depot at a second field cluster adds its slots. Section 1.2 gives the numbers.
 2. *Legible.* A player sees workers standing at a full field. "3 of 3 slots, 2 waiting" can be shown on the field. A falloff (each trip slower as more workers share the field) is invisible and its trip time depends on a count that changes during the trip.
-3. *Deterministic and cheap.* Occupancy is derived from unit state each tick (no per-field state to keep in step), one integer per waiting worker is the only new hashed value, and the queue order is a total order on (arrival tick, entity ID). Below saturation the timing of every trip is **identical** to today (section 2.4), so the change bites only where workers are crowded.
+3. *Deterministic and cheap.* Occupancy is derived from unit state each tick (no per-field state to keep in step), two integers per worker are the only new hashed values (the queue tick and the slot grant count), and the queue order is a total order on (arrival tick, slot grants so far, entity ID). Below saturation the timing of every trip is **identical** to today (section 2.4), so the change bites only where workers are crowded.
 
 Rejected: falloff (above); a per-player slot count (enemy workers at a contested field would not compete, and the rule gets player-count cases); automatic redirection of waiting workers to another field (a rule about which field is "near" and "free" that the player cannot see; Q-2).
 
@@ -90,6 +90,7 @@ Common per minute, `min(workers x 96, cap)`. Rare: field 16 with 2 slots yields 
 
 - `GatherState` (`Economy/GatherState.cs`): add `Waiting = 4` ("At a full field, waiting for a gather slot; first come first served."). Values stay stable.
 - `Unit` (`Units/Unit.cs`): add `int GatherQueuedTick` ("Tick this worker started waiting at its field; -1 unless GatherState is Waiting. Unit: ticks. Range: -1, or 0 to the current tick. Hashed."). `SetGather` sets it to -1 for every state. New `internal void SetGatherWaiting(int fieldIndex, int tick)` sets `GatherState = Waiting`, `GatherFieldIndex = fieldIndex`, `GatherTicksRemaining = 0`, `GatherQueuedTick = tick`. Initial value -1.
+- `Unit`: add `int GatherSlotGrants` ("Slot grants this worker has received in its lifetime. Unit: grants (count). Range: 0 to int.MaxValue. Hashed."). Incremented by 7a on each grant; never reset (not by leaving Waiting, not by any order). Initial value 0.
 - No per-field state. Occupancy is counted each tick from units (2.3), so it can never disagree with the units.
 
 #### 2.2 Where it runs
@@ -99,7 +100,7 @@ Inside step 7 (economy); no new step. `EconomySystem.Step` calls a new `AssignGa
 #### 2.3 `AssignGatherSlots` (7a)
 
 1. `occupied = new int[sim.Resources.Count]`. Walk `sim.Units.All` (ascending ID): a unit with `GatherState == Gathering` and a valid field index adds 1 to `occupied[index]`; a unit with `GatherState == Waiting` and a valid index goes into a list `waiting`.
-2. Sort `waiting` by `GatherQueuedTick` ascending, then `Id` ascending (a total order, so `List.Sort` with this comparer is deterministic).
+2. Sort `waiting` by `GatherQueuedTick` ascending, then `GatherSlotGrants` ascending (the worker with the fewest grants so far first), then `Id` ascending (a total order, so `List.Sort` with this comparer is deterministic).
 3. For each worker in that order: field `f = sim.Resources[index]`. Skip it when `f.IsDepleted` or when the worker is not within `InteractRange(sim)` of the field's tile centre (the loop deals with both, 2.4). Otherwise, if `occupied[index] < GatherSlots(f.Kind)`: `SetGather(Gathering, index, GatherTicksPerTrip(clock))` and `occupied[index]++`.
 
 Fields are independent, so the cross-field order does not matter. Cost: one pass over units plus a sort of the waiting workers.
@@ -129,7 +130,7 @@ Fields are independent, so the cross-field order does not matter. Cost: one pass
 
 #### 2.6 Hash, digest, events, wire format, replays
 
-- **Hash.** `Unit.WriteHash` writes `GatherQueuedTick` (int) right after `GatherTicksRemaining`. `GatherState` is already hashed as a byte; `Waiting` is its new value 4. Nothing else is added: occupancy is derived.
+- **Hash.** `Unit.WriteHash` writes `GatherQueuedTick` (int) right after `GatherTicksRemaining`, then `GatherSlotGrants` (int). `GatherState` is already hashed as a byte; `Waiting` is its new value 4. Nothing else is added: occupancy is derived.
 - **Content digest.** The two tuning keys change `Simulation.ContentDigest`, so every state hash moves from tick 0.
 - **Events.** None new. The renderer reads `Unit.GatherState == Waiting` and the slot counts from `sim.Tuning.Economy` (section 4). Listeners never change state (unchanged rule).
 - **Wire format and replays.** No command or payload changes; `MessageCodec.ProtocolVersion` and `ReplayFormat.CurrentVersion` stay. Replays recorded before SAT are refused by `ReplayCheck` on the content digest (`REPLAY REFUSED`, exit 2) before any step runs, as ADR-009 allows for a rule change (same handling as `worker_construction.md` section 7). Say so in the changelog.
@@ -147,7 +148,7 @@ Setup: `TestWorld.StartedEconomy()` as in `worker_construction.md` 11.1 (worker 
 | SAT-1 | Loader | Both keys required; missing, 0 and 17 are load errors naming `tuning/economy.json` and the key. `GatherSlots(Common) == 3`, `GatherSlots(Rare) == 2` on shipped data. |
 | SAT-2 | Timing below saturation | One worker ordered to gather, arriving on tick A, takes its first load on tick A + G (same as before SAT); on tick A it is Waiting with `GatherQueuedTick == A`, on A + 1 Gathering. |
 | SAT-3 | Overflow waits | S + 1 workers arrive on the same tick: S are Gathering on the next tick, the highest-ID one is Waiting; it becomes Gathering on the tick after the first of the others takes its load. |
-| SAT-4 | First come first served | Field full. Worker with ID 9 starts waiting on tick 100, worker with ID 5 on tick 101: when one slot frees, ID 9 gets it. Two workers starting on the same tick: the lower ID gets it. |
+| SAT-4 | First come first served | Field full. Worker with ID 9 starts waiting on tick 100, worker with ID 5 on tick 101: when one slot frees, ID 9 gets it. Two workers starting on the same tick: the one with fewer slot grants so far gets it; if that is equal too, the lower ID. |
 | SAT-5 | No starvation | 2S + 2 workers on one field with a drop-off 2 tiles away for 120 s: every worker deposits at least `floor(total loads / workers) - 1` loads. |
 | SAT-6 | Throughput cap | Same setup, N = 2S + 2, T = 1200 ticks: resources taken from the field by tick T are at most `S x amount x (floor(T / G) + 1)` and at least 90 percent of that (the cap is reached, not just bounded). |
 | SAT-7 | Rare uses rare slots | R + 1 workers on a rare field: R Gathering, 1 Waiting. |

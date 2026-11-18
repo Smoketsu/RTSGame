@@ -33,7 +33,7 @@ Unity writes a `.meta` file next to every file and folder here when the project 
 4. HQ timers (`HqSystem`: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)
 5. movement
 6. combat (`CombatSystem`: 6a dome regen, 6b land due hits, 6c cooldowns, armed-first targeting and firing, 6d deaths, which cancel the dead worker's pending build order through the `RemoveUnit` hook; units in ascending ID order)
-7. economy (`EconomySystem`: worker gather loops, build orders (walk to the site, placement, structure spawn), production queues, construction, supply; units in ascending ID order)
+7. economy (`EconomySystem`: worker gather loops (field slots, waiting queue), build orders (walk to the site, placement, structure spawn), production queues, construction, supply; units in ascending ID order)
 8. faction mechanics in ascending mechanic ID order
 9. cycles and Core (`CycleSystem.Step`: a holder or capturer that left the match, who stands in the Core, the capture state machine, hold accrual, the cumulative Core win, the lock of the next Planetary Cycle, the shift and quake paths, quake damage). A cycle that shifts on tick S is read by movement and combat from tick S + 1.
 10. vision recompute (`VisionSystem.Recompute`: per-team visible and explored grids; `Start` runs it once too, so tick 0 has vision)

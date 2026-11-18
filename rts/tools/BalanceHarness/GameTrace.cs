@@ -79,7 +79,7 @@ namespace Rts.Tools.BalanceHarness
                 _players.Add(player.Id.Value, new PlayerTrace(player.Id, player.FactionId));
             }
             _out.Write("# " + header + "\n");
-            _out.Write("# line format per player: bank=common/rare  +income=common/rare since last line  supply=used/cap  workers=total gather=n idle=n  "
+            _out.Write("# line format per player: bank=common/rare  +income=common/rare since last line  supply=used/cap  workers=total gather=n (Waiting ones included) waiting=n (workers queued at a full field, field_saturation.md) idle=n  "
                 + "done=[structures complete]  building=[under construction]  army=[units]  trained=[since last line]  lost=[since last line]  "
                 + "hq=state hp=health/max @(x,y)  cmds=[commands issued since last line, by kind]  rejected=[by reason]  atk=attack-moving/army  "
                 + "armyDist=tiles from army centre to enemy HQ  atkDist=same for the attack-moving part  "
@@ -315,7 +315,7 @@ namespace Rts.Tools.BalanceHarness
                     continue;
                 }
                 // Counters filled by one pass over the player's units.
-                int workers = 0, gathering = 0, idle = 0, armyCount = 0, attackMoving = 0, armyN = 0, atkN = 0;
+                int workers = 0, gathering = 0, waiting = 0, idle = 0, armyCount = 0, attackMoving = 0, armyN = 0, atkN = 0;
                 // Units by definition for each group.
                 CountMap done = new CountMap(), building = new CountMap(), army = new CountMap();
                 // HQ description and position of this player's HQ (first one), and position of the nearest enemy HQ. Unit: tiles.
@@ -350,6 +350,10 @@ namespace Rts.Tools.BalanceHarness
                             else
                             {
                                 gathering++;
+                                if (unit.GatherState == GatherState.Waiting)
+                                {
+                                    waiting++;
+                                }
                             }
                         }
                         else
@@ -398,6 +402,7 @@ namespace Rts.Tools.BalanceHarness
                     + " +income=" + trace.IncomeCommon.ToString(CultureInfo.InvariantCulture) + "/" + trace.IncomeRare.ToString(CultureInfo.InvariantCulture)
                     + " supply=" + player.SupplyUsed.ToString(CultureInfo.InvariantCulture) + "/" + player.SupplyCap.ToString(CultureInfo.InvariantCulture)
                     + " workers=" + workers.ToString(CultureInfo.InvariantCulture) + " gather=" + gathering.ToString(CultureInfo.InvariantCulture)
+                    + " waiting=" + waiting.ToString(CultureInfo.InvariantCulture)
                     + " idle=" + idle.ToString(CultureInfo.InvariantCulture)
                     + " done=" + done.Describe() + " building=" + building.Describe() + " army=" + army.Describe()
                     + " trained=" + trace.Trained.Describe() + " lost=" + trace.Lost.Describe()

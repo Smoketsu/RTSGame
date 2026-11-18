@@ -125,6 +125,12 @@ namespace Rts.Sim.Units
         /// <summary>Ticks left at the field before the next load is taken. Unit: ticks. Range: 0 (not gathering) up to gather_seconds_per_trip in ticks. Hashed.</summary>
         public int GatherTicksRemaining { get; private set; }
 
+        /// <summary>Tick this worker started waiting at its full field; -1 unless <see cref="GatherState"/> is Waiting. Unit: ticks. Range: -1, or 0 to the current tick. Hashed.</summary>
+        public int GatherQueuedTick { get; private set; }
+
+        /// <summary>Gather slots granted to this worker in its lifetime; breaks queue ties in favour of the worker with fewest grants. Never reset (not by leaving Waiting, not by any order). Unit: grants (count). Range: 0 to int.MaxValue. Hashed.</summary>
+        public int GatherSlotGrants { get; private set; }
+
         /// <summary>Units waiting to be produced here, head first (the head is in production). Range: 0 to max_queue_length (tuning/economy.json) unit IDs. Hashed.</summary>
         public IReadOnlyList<string> ProductionQueue => _productionQueue;
 
@@ -209,6 +215,8 @@ namespace Rts.Sim.Units
             CarriedAmount = 0;
             CarriedKind = ResourceKind.Common;
             GatherTicksRemaining = 0;
+            GatherQueuedTick = -1;
+            GatherSlotGrants = 0;
             ProductionTicksRemaining = 0;
             ConstructionTicksRemaining = 0;
             BuildState = BuildOrderState.None;
@@ -371,9 +379,31 @@ namespace Rts.Sim.Units
         /// <param name="ticksRemaining">Ticks left at the field (state Gathering), else 0. Unit: ticks.</param>
         internal void SetGather(GatherState state, int fieldIndex, int ticksRemaining)
         {
+            if (state == GatherState.Waiting)
+            {
+                throw new System.ArgumentException("Only SetGatherWaiting may enter the Waiting state.", nameof(state));
+            }
             GatherState = state;
             GatherFieldIndex = state == GatherState.Idle ? -1 : fieldIndex;
             GatherTicksRemaining = ticksRemaining < 0 ? 0 : ticksRemaining;
+            GatherQueuedTick = -1;
+        }
+
+        /// <summary>Puts the worker in the queue at a full field. Internal: economy system only.</summary>
+        /// <param name="fieldIndex">Field waited at. Unit: field index. Range: 0 to field count - 1.</param>
+        /// <param name="tick">Current tick, the queue position. Unit: ticks. Range: 0 upward.</param>
+        internal void SetGatherWaiting(int fieldIndex, int tick)
+        {
+            GatherState = GatherState.Waiting;
+            GatherFieldIndex = fieldIndex;
+            GatherTicksRemaining = 0;
+            GatherQueuedTick = tick;
+        }
+
+        /// <summary>Counts one more slot grant. Internal: economy system only (step 7a).</summary>
+        internal void AddGatherSlotGrant()
+        {
+            GatherSlotGrants++;
         }
 
         /// <summary>Ends the gather order. Whatever is carried stays carried. Internal.</summary>
@@ -545,6 +575,8 @@ namespace Rts.Sim.Units
             hasher.Write(CarriedAmount);
             hasher.Write((byte)CarriedKind);
             hasher.Write(GatherTicksRemaining);
+            hasher.Write(GatherQueuedTick);
+            hasher.Write(GatherSlotGrants);
             hasher.Write(_productionQueue.Count);
             foreach (string queued in _productionQueue)
             {

@@ -16,5 +16,8 @@ namespace Rts.Sim.Economy
 
         /// <summary>Carrying a load to the nearest friendly drop-off.</summary>
         ToDropOff = 3,
+
+        /// <summary>At a full field, waiting beside it for a gather slot; first come first served (field_saturation.md). Stable value 4.</summary>
+        Waiting = 4,
     }
 }
