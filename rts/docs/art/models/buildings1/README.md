@@ -1,7 +1,7 @@
-<!-- rts/docs/art/models/buildings1/README.md: first Tripo 3D models of nine Skai and water buildings, one model each, for the developer to review. None is approved yet. -->
+<!-- rts/docs/art/models/buildings1/README.md: first Tripo 3D models of nine Skai and water buildings, one model each, all nine marked Keep by the developer on 18 Nov 2026. -->
 # Building models, batch 1 (18 Nov 2026)
 
-One Tripo model per building, made from the nine model sheets the developer marked Keep (`concept/turnarounds9/`). **None of these models is approved yet**; they are first attempts waiting for review. The Great Aerie (marked Revise) was not made. Each model was generated once and not retried; the notes come from a look at the preview image only, not from opening the `.glb`.
+One Tripo model per building, made from the nine model sheets the developer marked Keep (`concept/turnarounds9/`). **All nine were marked Keep by the developer on 18 Nov 2026** (no notes) and are the approved models. The Great Aerie (marked Revise) was not made. Each model was generated once and not retried; the notes come from a look at the preview image only, not from opening the `.glb`.
 
 | Building | Data ID | Model file | Source sheet | Tripo task id | Note on the preview |
 | --- | --- | --- | --- | --- | --- |
@@ -29,6 +29,6 @@ Each model also has its preview (`<name>_preview.webp`), its log (`<name>_log.tx
 
 ## Not done yet
 
-- Review by the developer; no model is approved.
+- Import into Unity (PC session). The Skai HQ has no model: it is being redesigned (concept rounds 24 and 25).
 - Rigging and Unity import untested; the models are smoother than the faceted drawings.
 - The Great Aerie needs a redesigned sheet first.
