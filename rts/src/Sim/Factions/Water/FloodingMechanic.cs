@@ -656,7 +656,7 @@ namespace Rts.Sim.Factions.Water
             _nextWaveTick[caster.Id] = tick + WaveCooldownTicks;
         }
 
-        /// <summary>Shoves every enemy non-air unit standing on an area tile (never a Rooted, Rooting or Uprooting HQ), ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>
+        /// <summary>Shoves every enemy non-air unit standing on an area tile (never a Rooted, Rooting or Uprooting HQ, nor any structure with a footprint, such as a gate), ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>
         private void PushEnemies(Simulation sim, TeamId casterTeam, SortedSet<int> area, int dirX, int dirY)
         {
             // The live terrain grid this method reads and (through SetWater) changes.
@@ -670,7 +670,7 @@ namespace Rts.Sim.Factions.Water
                 TeamId team = TeamOfOwner(sim, unit.Owner);
                 // Layer the unit currently moves on (a status or override may change it). Range: Ground, Water or Air.
                 MovementLayer layer = unit.EffectiveLayer;
-                if (!team.IsValid || team == casterTeam || layer == MovementLayer.Air || HqSystem.IsMovementLocked(unit) || !area.Contains(terrain.TileOf(unit.Position)))
+                if (!team.IsValid || team == casterTeam || layer == MovementLayer.Air || HqSystem.IsMovementLocked(unit) || unit.Definition.Economy.FootprintTiles > 0 || !area.Contains(terrain.TileOf(unit.Position)))
                 {
                     continue;
                 }

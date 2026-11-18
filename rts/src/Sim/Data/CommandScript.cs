@@ -289,6 +289,7 @@ namespace Rts.Sim.Data
             {
                 throw array.Fail("lists " + pairs.Count + " tiles; at most 255 are allowed");
             }
+            // Tiles of the line, in script order. Unit: tiles (column, row). Range: 0 to 255 entries.
             List<(int X, int Y)> tiles = new List<(int X, int Y)>(pairs.Count);
             foreach (JsonValue pair in pairs)
             {

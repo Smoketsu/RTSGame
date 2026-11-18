@@ -40,7 +40,7 @@ namespace Rts.Sim.Economy
             int sy = y0 < y1 ? 1 : -1;
             // Bresenham error term. Unit: tiles. Range: -2^21 to 2^21.
             int err = dx + dy;
-            // Current tile.
+            // Current tile (column x, row y). Unit: tiles. Range: between the line's end points, inclusive.
             int x = x0;
             int y = y0;
             while (true)

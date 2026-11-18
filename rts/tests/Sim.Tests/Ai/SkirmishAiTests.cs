@@ -188,6 +188,9 @@ namespace Rts.Sim.Tests.Ai
             /// <summary>build_structure commands naming a wall definition (is_wall), as "tick definition"; the AI never builds walls (walls_and_tech.md W-14).</summary>
             public List<string> WallBuilds { get; } = new List<string>();
 
+            /// <summary>build_structure commands naming a gate definition (is_gate) and every build_wall_line, as "tick definition"; the AI issues neither (walls_and_tech.md G-14, D-14).</summary>
+            public List<string> GateOrLineBuilds { get; } = new List<string>();
+
             /// <summary>Violations of the vision rule found while the AIs played.</summary>
             public List<string> VisionViolations { get; } = new List<string>();
 
@@ -235,6 +238,10 @@ namespace Rts.Sim.Tests.Ai
                         if (command is BuildStructureCommand build && sim.Content.Units.TryGetValue(build.DefinitionId, out UnitDefinition? built) && built.Economy.IsWall)
                         {
                             result.WallBuilds.Add(sim.Clock.Tick + " " + build.DefinitionId);
+                        }
+                        if ((command is BuildStructureCommand gateBuild && sim.Content.Units.TryGetValue(gateBuild.DefinitionId, out UnitDefinition? gateDef) && gateDef.Economy.IsGate) || command is BuildWallLineCommand)
+                        {
+                            result.GateOrLineBuilds.Add(sim.Clock.Tick + " " + command.GetType().Name);
                         }
                     }
                 }
@@ -941,6 +948,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(runs[0].LastTick, Is.LessThan(limit));
             Assert.That(runs[0].Rejections, Is.Empty);
             Assert.That(runs[0].WallBuilds, Is.Empty, "W-14: no build_structure names a wall definition");
+            Assert.That(runs[0].GateOrLineBuilds, Is.Empty, "G-14, D-14: no gate build_structure and no build_wall_line");
             Assert.That(runs[0].VisionViolations, Is.Empty);
         }
     }

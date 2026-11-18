@@ -1131,7 +1131,7 @@ namespace Rts.Sim.Tests.Factions
             }
             sim.Submit(new CastWaveCommand(5, P0, 0, new EntityId(1), StatusTestWorld.Centre(10, 5)));
             StatusTestWorld.StepThrough(sim, 5);
-            // Only the walker's pushes count: an enemy gate in the strip is a unit too and is shoved as well (existing PushEnemies behaviour for any enemy structure).
+            // Only the walker's pushes count; a gate in the strip is a structure and is never shoved (PushEnemies skips footprint units).
             return (StatusTestWorld.UnitOf(sim, 2).Position, StatusTestWorld.EventsOf<UnitPushedEvent>(sim).Count(e => e.Unit == new EntityId(2)));
         }
 
@@ -1148,6 +1148,28 @@ namespace Rts.Sim.Tests.Factions
             (FixVec2 passedPosition, int passedPushes) = WaveWithGate(P1);
             Assert.That(passedPosition, Is.EqualTo(openPosition));
             Assert.That(passedPushes, Is.EqualTo(1));
+        }
+
+        /// <summary>G-11b. A wave across an enemy gate never moves it: the gate stays on its tile with the Gate flag and GateTeam, and once it is removed the tile is clear and GateTileCount is 0.</summary>
+        [Test]
+        public void Gate_WavePush_NeverMovesAnEnemyGate()
+        {
+            Simulation sim = WaveMatch();
+            // Tile the gate stands on (an enemy of the caster, inside the wave strip).
+            int gateTile = sim.Terrain.IndexOf(6, 5);
+            StatusTestWorld.Spawn(sim, 0, 2, GateDefId, P1, StatusTestWorld.Centre(6, 5));
+            sim.Submit(new CastWaveCommand(5, P0, 0, new EntityId(1), StatusTestWorld.Centre(10, 5)));
+            StatusTestWorld.StepThrough(sim, 5);
+            // The gate unit (the only one on the tile besides none).
+            Unit gate = StatusTestWorld.UnitOf(sim, 3);
+            Assert.That(gate.Definition.Id, Is.EqualTo(GateDefId));
+            Assert.That(gate.Position, Is.EqualTo(StatusTestWorld.Centre(6, 5)));
+            Assert.That((sim.Terrain[gateTile].Blockers & TileBlockers.Gate) != 0, Is.True);
+            Assert.That(sim.Terrain[gateTile].GateTeam, Is.EqualTo(new TeamId(1)));
+            StatusTestWorld.Run(sim, 6, 3, s => s.RemoveUnit(new EntityId(3), "killed"));
+            StatusTestWorld.StepThrough(sim, 6);
+            Assert.That((sim.Terrain[gateTile].Blockers & TileBlockers.Gate) == 0, Is.True);
+            Assert.That(sim.Terrain.GateTileCount, Is.EqualTo(0));
         }
 
         // ------------------------------------------------------------------ walls_and_tech.md D-12

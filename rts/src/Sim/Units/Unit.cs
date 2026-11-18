@@ -164,7 +164,7 @@ namespace Rts.Sim.Units
         /// </summary>
         public IReadOnlyList<int> BuildQueue => _buildQueue;
 
-        /// <summary>Backing list of <see cref="BuildQueue"/>, head first.</summary>
+        /// <summary>Backing list of <see cref="BuildQueue"/>, head first. Unit: tile indices. Range: 0 to 255 entries, each 0 to map tile count - 1.</summary>
         private readonly List<int> _buildQueue = new List<int>();
 
         /// <summary>Dome shield pool left (P-003 row 6). Unit: health points (fixed-point). Range: 0 to the definition's dome pool; 0 for a unit without a dome. Hashed.</summary>

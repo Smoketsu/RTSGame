@@ -335,7 +335,7 @@ namespace Rts.Sim.Commands.Codec
             writer.WriteEntityId(command.Worker);
             writer.WriteString(command.DefinitionId);
             writer.WriteByte((byte)command.Tiles.Count);
-            // Tile being written. Unit: list position. Range: 0 to 254.
+            // Tile being written: x is its column and y its row. Unit: tiles. Range: any int (the receiver validates against the map).
             foreach ((int x, int y) in command.Tiles)
             {
                 writer.WriteInt32(x);
@@ -351,10 +351,13 @@ namespace Rts.Sim.Commands.Codec
             string definition = reader.ReadString();
             // Number of tiles that follow. Unit: tiles (count). Range: 0 to 255.
             int count = reader.ReadByte();
+            // Tiles read, in wire order. Unit: tiles (column, row). Range: 0 to 255 entries.
             List<(int X, int Y)> tiles = new List<(int X, int Y)>(count);
             for (int i = 0; i < count; i++)
             {
+                // Column of the tile. Unit: tiles. Range: any int (validated on apply).
                 int x = reader.ReadInt32();
+                // Row of the tile. Unit: tiles. Range: any int (validated on apply).
                 int y = reader.ReadInt32();
                 tiles.Add((x, y));
             }
