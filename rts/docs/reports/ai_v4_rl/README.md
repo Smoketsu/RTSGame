@@ -27,6 +27,41 @@ Distinct / decided per cell: skai_vs_skai 72/72 = 1.000, skai_vs_water 72/72 = 1
 
 Draws are the same as before (35 and 42), as the spec says. Skai pressure is exactly on the upper bar (0.650, not above it, so no warning); the Wilson half-width is about 0.19 to 0.20 at these counts.
 
+### Run 2: strength ladder (`aggressive_s3` baseline, `--non-regression`), 216 of 216 decided, 2743 s
+
+```
+WARNING opening skai/skai_standard: wins 16 of 24 mirror games against other openings (0.667, above 0.65).
+WARNING opening water/water_leviathan_tech: wins 14 of 19 mirror games against other openings (0.737, above 0.65).
+WARNING opening water/water_standard: wins 5 of 17 mirror games against other openings (0.294, below 0.35).
+LADDER candidate=aggressive_s4r baseline=aggressive_s3 decided=216 wins=115 fraction=0.532 distinct=214 mirror=77/144 cross=38/72 bar=0.450 PASS
+```
+
+No mirror-interval warning and no distinct-share warning. Distinct / decided: skai_vs_skai 72/72 = 1.000, skai_vs_water 70/72 = 0.972, water_vs_water 72/72 = 1.000. Determinism spot check: 2 games, 0 mismatches.
+
+| row | games | decided | distinct | candidate wins | baseline wins | candidate fraction | Wilson (distinct games) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| skai_vs_skai | 72 | 72 | 72 | 39 | 33 | 0.542 | [42.7, 65.2] |
+| skai_vs_water | 72 | 72 | 70 | 38 | 34 | 0.528 | [42.7, 65.4] |
+| water_vs_water | 72 | 72 | 72 | 38 | 34 | 0.528 | [41.4, 63.9] |
+| **mirror** | 144 | 144 | 144 | 77 | 67 | **0.535** | **[45.3, 61.4]** |
+| cross | 72 | 72 | 70 | 38 | 34 | 0.528 | [42.7, 65.4] |
+| cross, candidate as skai | 36 | 36 | 36 | 36 | 0 | 1.000 | [90.4, 100.0] |
+| cross, candidate as water | 36 | 36 | 34 | 2 | 34 | 0.056 | [1.6, 19.1] |
+| all | 216 | 216 | 214 | 115 | 101 | 0.532 | [47.1, 60.3] |
+
+| faction | opening | draws | use share | games | wins | win fraction | Wilson interval | cross games | cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| skai | skai_air | 23 | 0.213 | 17 | 10 | 0.588 | [36.0, 78.4] | 6 | 6 |
+| skai | skai_fast_expand | 28 | 0.259 | 19 | 7 | 0.368 | [19.1, 59.0] | 9 | 9 |
+| skai | skai_standard | 35 | 0.324 | 24 | 16 | 0.667 | [46.7, 82.0] | 11 | 11 |
+| skai | skai_windrunner_pressure | 22 | 0.204 | 12 | 6 | 0.500 | [25.4, 74.6] | 10 | 10 |
+| water | water_fast_expand | 30 | 0.278 | 22 | 11 | 0.500 | [30.7, 69.3] | 8 | 0 |
+| water | water_grasper_pressure | 22 | 0.204 | 14 | 8 | 0.571 | [32.6, 78.6] | 8 | 0 |
+| water | water_leviathan_tech | 28 | 0.259 | 19 | 14 | 0.737 | [51.2, 88.2] | 9 | 2 |
+| water | water_standard | 28 | 0.259 | 17 | 5 | 0.294 | [13.3, 53.1] | 11 | 0 |
+
+(The "draws" column of the opening tables is the number of times the opening was drawn, not drawn games.)
+
 ## After the weight scale (commit 2142640; before package L-R, superseded by the section above)
 
 Composition weights of `aggressive_s4r` multiplied by 10 (jitter band 0.25 now moves every weight both ways). Same commands, seeds and game counts as the sections below; `--jobs 4`; output under `rts/build/ladder_w10_*` (git-ignored). Step 1 checks: harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `dotnet test -c Release`: Replay 27, Net 33, Sim 873 passed, 0 failed. Neutrality evidence: test `R10_WeightScaleIsNeutralWithoutJitter` (jitter 0, x1 and x10 text give equal end tick, state hash and play signature); `R11_ScaledWeightsMoveBothWays`. No existing pin changed.
