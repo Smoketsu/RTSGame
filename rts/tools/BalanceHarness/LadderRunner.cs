@@ -169,6 +169,8 @@ namespace Rts.Tools.BalanceHarness
         public double MirrorWinFraction => MirrorGames > 0 ? (double)MirrorWins / MirrorGames : 0;
 
         /// <summary>Creates an empty row.</summary>
+        /// <param name="faction">Faction ID the opening belongs to. Range: a faction ID of the records.</param>
+        /// <param name="opening">Opening ID. Range: a non-empty opening ID (1 to 48 lower-case letters, digits or underscores).</param>
         public OpeningRow(string faction, string opening)
         {
             Faction = faction;
@@ -183,28 +185,36 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="records">Ladder game records.</param>
         public static List<OpeningRow> OpeningRows(IReadOnlyList<GameRecord> records)
         {
+            // Opening rows keyed by "faction/opening", in ordinal key order. Unit: rows. Range: 0 upward, one per distinct faction and opening seen.
             SortedDictionary<string, OpeningRow> rows = new SortedDictionary<string, OpeningRow>(StringComparer.Ordinal);
             // Draws of each faction over all records (the use share's denominator). Unit: draws.
             SortedDictionary<string, int> factionDraws = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            // One ladder game record, in the order given. Range: any record of the ladder.
             foreach (GameRecord record in records)
             {
                 // Slot number. Range: 0 to 1.
                 for (int slot = 0; slot < 2; slot++)
                 {
+                    // Faction ID the slot played in this game. Range: a faction ID of the record.
                     string faction = slot == 0 ? record.Slot0Faction : record.Slot1Faction;
+                    // Opening ID the slot played; empty when the slot had none (skipped below). Range: an opening ID or "".
                     string opening = slot == 0 ? record.Opening0 : record.Opening1;
+                    // Opening ID of the other slot, compared with opening for mirror games. Range: an opening ID or "".
                     string other = slot == 0 ? record.Opening1 : record.Opening0;
                     if (opening.Length == 0)
                     {
                         continue;
                     }
+                    // Row key "faction/opening" of this slot's row. Range: non-empty text.
                     string key = faction + "/" + opening;
+                    // The row for this key, created on first use. Range: a row of rows.
                     if (!rows.TryGetValue(key, out OpeningRow? row))
                     {
                         row = new OpeningRow(faction, opening);
                         rows.Add(key, row);
                     }
                     row.Draws++;
+                    // Draws of this faction so far, plus this one. Unit: draws. Range: 1 upward.
                     factionDraws[faction] = (factionDraws.TryGetValue(faction, out int drawn) ? drawn : 0) + 1;
                     if (record.Result == GameRecord.Undecided)
                     {
@@ -232,6 +242,7 @@ namespace Rts.Tools.BalanceHarness
                     }
                 }
             }
+            // One row, in key order, whose use share is set from the faction's draws. Range: a row of rows.
             foreach (OpeningRow row in rows.Values)
             {
                 row.UseShare = (double)row.Draws / factionDraws[row.Faction];
@@ -244,7 +255,9 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="settings">The thresholds (opening_max_use_fraction and the three mirror keys).</param>
         public static List<string> OpeningWarnings(IReadOnlyList<OpeningRow> rows, AiEvalSettings settings)
         {
+            // WARNING lines for the rows, one text line each, in row order. Unit: lines. Range: 0 upward (empty when none).
             List<string> warnings = new List<string>();
+            // One opening row being checked. Range: a row of rows.
             foreach (OpeningRow row in rows)
             {
                 if (row.UseShare > settings.OpeningMaxUseFraction + HarnessStats.BandTolerance)
@@ -280,11 +293,14 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="z">Wilson z-score. Range: 1 to 4.</param>
         public static List<string> MirrorWarnings(IReadOnlyList<GameRecord> records, double upperMin, double z)
         {
+            // WARNING lines for the mirror row, one text line each. Unit: lines. Range: 0 or 1 entries.
             List<string> warnings = new List<string>();
+            // The "mirror" tally of the records; null when the row has no game. Range: a tally or null.
             if (!MirrorCross(records).TryGetValue("mirror", out LadderTally? mirror) || mirror.Distinct == 0)
             {
                 return warnings;
             }
+            // Wilson score interval of the candidate's win fraction over distinct mirror games. Unit: fraction (Low and High). Range: 0 to 1 each.
             WinRate rate = HarnessStats.Wilson(mirror.DistinctWins, 0, mirror.Distinct - mirror.DistinctWins, z);
             if (rate.High < upperMin - HarnessStats.BandTolerance)
             {
@@ -296,6 +312,9 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Appends the "## Openings" section of ladder.md (skirmish_ai_v4_rl.md H.2); nothing when there are no rows.</summary>
+        /// <param name="sb">The report text being built; the section is appended to it. Range: any StringBuilder.</param>
+        /// <param name="rows">The rows from <see cref="OpeningRows"/>. Range: 0 upward entries.</param>
+        /// <param name="z">Wilson z-score for the interval column. Range: 1 to 4.</param>
         private static void AppendOpenings(StringBuilder sb, IReadOnlyList<OpeningRow> rows, double z)
         {
             if (rows.Count == 0)
@@ -305,8 +324,10 @@ namespace Rts.Tools.BalanceHarness
             sb.Append("\n## Openings\n\n");
             sb.Append("| faction | opening | draws | use share | mirror games vs other openings (decided) | distinct | wins | win fraction | Wilson interval (distinct games) | cross games (decided) | cross wins |\n");
             sb.Append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |\n");
+            // One opening row, written as one table line. Range: a row of rows.
             foreach (OpeningRow row in rows)
             {
+                // Wilson score interval of this row's mirror wins over distinct games. Unit: fraction (Low and High). Range: 0 to 1 each.
                 WinRate rate = HarnessStats.Wilson(row.MirrorWinSignatures.Count, 0, row.MirrorSignatures.Count - row.MirrorWinSignatures.Count, z);
                 sb.Append("| ").Append(row.Faction).Append(" | ").Append(row.Opening).Append(" | ").Append(row.Draws.ToString(CultureInfo.InvariantCulture)).Append(" | ")
                     .Append(row.UseShare.ToString("0.000", CultureInfo.InvariantCulture)).Append(" | ").Append(row.MirrorGames.ToString(CultureInfo.InvariantCulture)).Append(" | ")

@@ -144,6 +144,7 @@ namespace Rts.Ai
         {
             // The generator of this player's variety stream.
             DeterministicRandom rng = new DeterministicRandom(seed);
+            // The variety record this player's match-start draws fill in: the drawn opening, the handover tick, the two plans and the expansion offset.
             AiVariety variety = new AiVariety(rng, plan);
             // Build order of both plans: the opening's whole-game build order, or the plan's own.
             IReadOnlyList<AiBuildStep> buildOrder = plan.BuildOrder;
@@ -153,13 +154,16 @@ namespace Rts.Ai
             {
                 // Sum of the opening weights. Unit: weight. Range: 1 to 1600 (validated above 0).
                 int total = 0;
+                // One opening of the plan, in file order. Range: a validated opening of the plan.
                 foreach (AiOpening candidate in plan.Openings)
                 {
                     total += candidate.Weight;
                 }
-                // The draw, 0 to total - 1, and the running weight sum while walking the openings in file order.
+                // The draw: a uniform integer from 0 to total - 1 that picks the opening. Unit: weight. Range: 0 to total - 1.
                 int draw = rng.NextInt(total);
+                // Weight sum of the openings walked so far, in file order. Unit: weight. Range: 0 to total.
                 int running = 0;
+                // One opening being tested against the draw, in file order. Range: a validated opening of the plan.
                 foreach (AiOpening candidate in plan.Openings)
                 {
                     running += candidate.Weight;

@@ -364,6 +364,8 @@ namespace Rts.Ai
         }
 
         /// <summary>A clock value in seconds plus the variety's expansion offset, clamped to 0 to 1800; unchanged without variety.</summary>
+        /// <param name="seconds">The clock value to offset: expand_at_seconds or early_expansion_seconds of the opening or the plan. Unit: seconds. Range: 0 to 1800.</param>
+        /// <param name="memory">The controller's memory; its variety, when set, supplies the offset in whole seconds. Range: any AiMemory.</param>
         private static Fix64 OffsetSeconds(Fix64 seconds, AiMemory memory)
         {
             return memory.Variety == null ? seconds

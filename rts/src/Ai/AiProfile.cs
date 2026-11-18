@@ -1041,7 +1041,7 @@ namespace Rts.Ai
         }
 
         /// <summary>Validates a build order array (the plan's or an opening's): each step names a structure of the faction.</summary>
-        /// <param name="owner">The array node, for error messages.</param>
+        /// <param name="owner">The array node the steps came from. Unused: the method body never reads it; kept so the signature stays as it is. Range: any JSON array node.</param>
         /// <param name="items">The array's elements.</param>
         /// <param name="faction">The faction the structures must belong to.</param>
         /// <param name="content">Units to check IDs against.</param>
@@ -1049,6 +1049,7 @@ namespace Rts.Ai
         {
             // Build order steps in file order.
             List<AiBuildStep> steps = new List<AiBuildStep>();
+            // One build order step object, in file order. Range: any JSON object with structure, count and at_supply_used.
             foreach (JsonValue stepNode in items)
             {
                 stepNode.RejectUnknownKeys("structure", "count", "at_supply_used");
@@ -1075,6 +1076,7 @@ namespace Rts.Ai
             SortedDictionary<string, int> composition = new SortedDictionary<string, int>(StringComparer.Ordinal);
             // Sum of all weights; must end above 0. Unit: weight. Range: 0 to 100 per unit.
             int totalWeight = 0;
+            // One unit ID and its JSON weight, in file order. Range: the ID is a unit of the faction; the weight is checked as 0 to 100.
             foreach (KeyValuePair<string, JsonValue> pair in compositionNode.Members)
             {
                 // Definition of the composition unit.
@@ -1111,12 +1113,15 @@ namespace Rts.Ai
             SortedSet<string> ids = new SortedSet<string>(StringComparer.Ordinal);
             // Sum of the weights. Unit: weight. Range: 0 to 1600.
             int totalWeight = 0;
+            // JSON node of the "openings" key, for the count and weight errors. Range: an array (checked by RequireArray).
             JsonValue openingsNode = node.Require("openings");
+            // Elements of the openings array, in file order. Unit: openings. Range: 0 to 16 (more is rejected below).
             IReadOnlyList<JsonValue> items = node.RequireArray("openings");
             if (items.Count > 16)
             {
                 throw openingsNode.Fail("holds " + items.Count + " openings; at most 16 are allowed");
             }
+            // One opening object, in file order. Range: an object with the nine opening keys.
             foreach (JsonValue item in items)
             {
                 item.RejectUnknownKeys("id", "weight", "build_order", "composition", "handover_seconds", "expand_at_seconds", "early_expansion_seconds",
@@ -1134,20 +1139,26 @@ namespace Rts.Ai
                 // Weight of this opening. Unit: weight. Range: 0 to 100.
                 int weight = item.RequireInt("weight", 0, 100);
                 totalWeight += weight;
+                // JSON node of this opening's build_order, for error messages. Range: an array (checked by RequireArray).
                 JsonValue orderNode = item.Require("build_order");
+                // Elements of this opening's build_order. Unit: steps. Range: 1 to 20 (checked below).
                 IReadOnlyList<JsonValue> orderItems = item.RequireArray("build_order");
                 if (orderItems.Count < 1 || orderItems.Count > 20)
                 {
                     throw orderNode.Fail("must hold 1 to 20 steps (found " + orderItems.Count + ")");
                 }
+                // Build order steps of this opening, parsed and checked against the faction. Unit: steps. Range: 1 to 20.
                 List<AiBuildStep> steps = ParseSteps(orderNode, orderItems, faction, content);
+                // JSON node of this opening's composition object. Range: a JSON object.
                 JsonValue compositionNode = item.Require("composition");
+                // Army weights of this opening by unit ID, in ordinal order. Unit: weight. Range: 0 to 100 each, sum above 0.
                 SortedDictionary<string, int> composition = ParseComposition(compositionNode, faction, content);
                 // Structures the build order builds, up to and including each step (for the requires check).
                 SortedSet<string> built = new SortedSet<string>(StringComparer.Ordinal);
                 // Index of the step being checked. Range: 0 to steps - 1.
                 for (int i = 0; i < steps.Count; i++)
                 {
+                    // A structure ID the step's structure requires (Economy.Requires). Range: a structure ID of the faction.
                     foreach (string required in content.Units[steps[i].StructureId].Economy.Requires)
                     {
                         if (!built.Contains(required))
@@ -1157,12 +1168,14 @@ namespace Rts.Ai
                     }
                     built.Add(steps[i].StructureId);
                 }
+                // One composition entry (unit ID and weight), in ordinal order. Range: weight 0 to 100.
                 foreach (KeyValuePair<string, int> pair in composition)
                 {
                     if (pair.Value <= 0)
                     {
                         continue;
                     }
+                    // A structure ID the unit requires (Economy.Requires). Range: a structure ID of the faction.
                     foreach (string required in content.Units[pair.Key].Economy.Requires)
                     {
                         if (!built.Contains(required))
