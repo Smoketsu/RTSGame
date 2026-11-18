@@ -41,6 +41,9 @@ namespace Rts.Ai
         /// <summary>The profile's plan for the player's faction; set by <see cref="OnMatchStart"/>. Null before.</summary>
         public AiFactionPlan? Plan { get; private set; }
 
+        /// <summary>ID of the opening drawn at match start (skirmish_ai_v4_rl.md L.3), or "" when the profile has none. For the harness and traces.</summary>
+        public string OpeningId => Memory.Variety == null ? string.Empty : Memory.Variety.OpeningId;
+
         /// <summary>Ticks between decisions: max(1, think_interval_seconds in ticks). Unit: ticks. Range: 1 upward; 0 before OnMatchStart.</summary>
         public int ThinkTicks { get; private set; }
 

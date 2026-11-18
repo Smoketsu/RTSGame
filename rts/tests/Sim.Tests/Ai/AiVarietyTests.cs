@@ -294,14 +294,14 @@ namespace Rts.Sim.Tests.Ai
             AiVariety variety = AiVariety.ForTest(s3.RequireFaction("skai"), 1);
             variety.SetOffsetsForTest(-20, Fix64.Parse("0.15"));
             AiMemory memory = new AiMemory { Variety = variety };
-            Assert.That(AiBrain.ExpandAtSeconds(s3, memory), Is.EqualTo(Fix64.FromInt(220)));
+            Assert.That(AiBrain.ExpandAtSeconds(s3, memory, 0), Is.EqualTo(Fix64.FromInt(220)));
             Assert.That(AiBrain.AttackMinAdvantage(s3, memory), Is.EqualTo(Fix64.Parse("1.3") + Fix64.Parse("0.15")));
             // A profile whose clock is 10 s gives 0, not -10.
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s3.json")).Replace("\r\n", "\n").Replace("\"expand_at_seconds\": 240,", "\"expand_at_seconds\": 10,");
             AiProfile early = AiProfile.Parse(text, "ai/aggressive_s3.json", Data.Content);
-            Assert.That(AiBrain.ExpandAtSeconds(early, memory), Is.EqualTo(Fix64.Zero));
+            Assert.That(AiBrain.ExpandAtSeconds(early, memory, 0), Is.EqualTo(Fix64.Zero));
             AiMemory none = new AiMemory();
-            Assert.That(AiBrain.ExpandAtSeconds(s3, none), Is.EqualTo(Fix64.FromInt(240)));
+            Assert.That(AiBrain.ExpandAtSeconds(s3, none, 0), Is.EqualTo(Fix64.FromInt(240)));
             Assert.That(AiBrain.AttackMinAdvantage(s3, none), Is.EqualTo(Fix64.Parse("1.3")));
         }
 

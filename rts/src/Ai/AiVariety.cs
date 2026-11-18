@@ -1,11 +1,12 @@
 // rts/src/Ai/AiVariety.cs
 // The skirmish AI's variety stream (skirmish_ai_v4_rl.md package R): a second seeded generator, separate from the controller's own one
-// (SkirmishAiController.Rng, whose draw sequence must not change), from which the AI draws its match-start variation (a jittered base
-// composition and an expansion clock offset) and, each time the army starts massing, an offset of the predicted-advantage bar.
+// (SkirmishAiController.Rng, whose draw sequence must not change), from which the AI draws its match-start variation (an opening of its
+// faction plan, a jittered base composition and an expansion clock offset) and, each time the army starts massing, an offset of the
+// predicted-advantage bar (package L, the opening library, is the first draw and the handover of the opening's values to the plan's).
 // Part of Rts.Ai. It is created by SkirmishAiController.OnMatchStart only when the profile asks for variety (AiVariety.IsNeeded), is held by
 // AiMemory.Variety, is not simulation state and is never hashed. Pure integer arithmetic (Fix64 for ratios), no clock, no System.Random: the
-// same (match seed, player, profile) gives the same draws in the same order (R.2): composition band, then expansion offset at creation;
-// then one advantage offset per DrawAttackAdvantageOffset call.
+// same (match seed, player, profile) gives the same draws in the same order (R.2): opening, opening composition band, main composition band,
+// expansion offset at creation; then one advantage offset per DrawAttackAdvantageOffset call.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -33,6 +34,19 @@ namespace Rts.Ai
 
         /// <summary>The variety generator (PCG32). Not the simulation's and not the controller's.</summary>
         private readonly DeterministicRandom _rng;
+
+        /// <summary>The opening drawn at match start; null when the plan has no openings.</summary>
+        public AiOpening? Opening { get; private set; }
+
+        /// <summary>ID of the drawn opening, or "" when there is none. For records and traces.</summary>
+        public string OpeningId => Opening == null ? string.Empty : Opening.Id;
+
+        /// <summary>True while the opening's composition and timing values apply: there is an opening and <paramref name="tick"/> is before the handover.</summary>
+        /// <param name="tick">The tick being decided. Unit: ticks. Range: 0 upward.</param>
+        public bool InOpening(int tick)
+        {
+            return Opening != null && tick < HandoverTick;
+        }
 
         /// <summary>The plan the brain sees from tick <see cref="HandoverTick"/> on (and before it when there is no opening): the profile's plan with its composition jittered.</summary>
         public AiFactionPlan MainPlan { get; private set; }
@@ -97,7 +111,7 @@ namespace Rts.Ai
         /// <param name="plan">The player's faction plan.</param>
         public static bool IsNeeded(AiProfile profile, AiFactionPlan plan)
         {
-            return profile.CompositionJitterFraction > Fix64.Zero || profile.ExpandJitterSeconds > 0 || profile.AttackAdvantageJitter > Fix64.Zero;
+            return plan.Openings.Count > 0 || profile.CompositionJitterFraction > Fix64.Zero || profile.ExpandJitterSeconds > 0 || profile.AttackAdvantageJitter > Fix64.Zero;
         }
 
         /// <summary>
@@ -118,8 +132,9 @@ namespace Rts.Ai
         }
 
         /// <summary>
-        /// Draws the match-start values in the fixed order of R.2 (composition band when composition_jitter_fraction is above 0, then the
-        /// expansion offset when expand_jitter_seconds is above 0) from a generator seeded with <paramref name="seed"/>.
+        /// Draws the match-start values in the fixed order of R.2 from a generator seeded with <paramref name="seed"/>: the opening (by weight,
+        /// when the plan has openings), the opening's composition band and the plan's composition band (when composition_jitter_fraction is
+        /// above 0), then the expansion offset (when expand_jitter_seconds is above 0).
         /// </summary>
         /// <param name="profile">The profile.</param>
         /// <param name="plan">The player's faction plan.</param>
@@ -130,11 +145,40 @@ namespace Rts.Ai
             // The generator of this player's variety stream.
             DeterministicRandom rng = new DeterministicRandom(seed);
             AiVariety variety = new AiVariety(rng, plan);
-            if (profile.CompositionJitterFraction > Fix64.Zero)
+            // Build order of both plans: the opening's whole-game build order, or the plan's own.
+            IReadOnlyList<AiBuildStep> buildOrder = plan.BuildOrder;
+            // The opening's composition (after its band), when an opening was drawn.
+            IReadOnlyDictionary<string, int>? openingComposition = null;
+            if (plan.Openings.Count > 0)
             {
-                variety.MainPlan = plan.WithOrders(plan.BuildOrder, JitterComposition(plan.Composition, profile, rng));
-                variety.OpeningPlan = variety.MainPlan;
+                // Sum of the opening weights. Unit: weight. Range: 1 to 1600 (validated above 0).
+                int total = 0;
+                foreach (AiOpening candidate in plan.Openings)
+                {
+                    total += candidate.Weight;
+                }
+                // The draw, 0 to total - 1, and the running weight sum while walking the openings in file order.
+                int draw = rng.NextInt(total);
+                int running = 0;
+                foreach (AiOpening candidate in plan.Openings)
+                {
+                    running += candidate.Weight;
+                    if (running > draw)
+                    {
+                        variety.Opening = candidate;
+                        break;
+                    }
+                }
+                buildOrder = variety.Opening!.BuildOrder;
+                openingComposition = profile.CompositionJitterFraction > Fix64.Zero
+                    ? JitterComposition(variety.Opening.Composition, profile, rng) : variety.Opening.Composition;
+                variety.HandoverTick = variety.Opening.HandoverSeconds * ticksPerSecond;
             }
+            // The plan's own composition after its band (draw 3), or unchanged.
+            IReadOnlyDictionary<string, int> mainComposition = profile.CompositionJitterFraction > Fix64.Zero
+                ? JitterComposition(plan.Composition, profile, rng) : plan.Composition;
+            variety.MainPlan = plan.WithOrders(buildOrder, mainComposition);
+            variety.OpeningPlan = openingComposition == null ? variety.MainPlan : plan.WithOrders(buildOrder, openingComposition);
             if (profile.ExpandJitterSeconds > 0)
             {
                 variety.ExpandOffsetSeconds = rng.NextIntInclusive(-profile.ExpandJitterSeconds, profile.ExpandJitterSeconds);

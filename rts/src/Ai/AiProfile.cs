@@ -48,6 +48,10 @@
 //     harass_max_seconds and rare_bank_return_cap (hysteresis of the rare-worker cap).
 //   * skirmish_ai_v4_rl.md package R (seeded variety): composition_jitter_fraction, expand_jitter_seconds and attack_advantage_jitter
 //     (every profile file carries them; 0 = off, which plays exactly as before; see AiVariety).
+//   * skirmish_ai_v4_rl.md package L (opening library): each faction plan carries "openings" (0 to 16 entries, [] = none), each with id, weight,
+//     build_order, composition, handover_seconds, expand_at_seconds, early_expansion_seconds, attack_army_supply and attack_min_supply; one is
+//     drawn at match start (AiVariety). Validated here: unique IDs, a weight sum above 0, and that every unit with a requires list has its
+//     required structures in the opening's build order.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -78,6 +82,52 @@ namespace Rts.Ai
             StructureId = structureId;
             Count = count;
             AtSupplyUsed = atSupplyUsed;
+        }
+    }
+
+    /// <summary>One opening of a faction plan (skirmish_ai_v4_rl.md L.2): a build order for the whole game and an army mix and timing values until the handover.</summary>
+    public sealed class AiOpening
+    {
+        /// <summary>Name in reports and records. Range: lower-case letters, digits and underscores, 1 to 48 characters; unique within the plan.</summary>
+        public string Id { get; }
+
+        /// <summary>Chance of being drawn = weight / sum of the plan's weights; 0 keeps the opening in the file without drawing it. Unit: weight. Range: 0 to 100.</summary>
+        public int Weight { get; }
+
+        /// <summary>Replaces the plan's build order for the whole game. Range: 1 to 20 steps.</summary>
+        public IReadOnlyList<AiBuildStep> BuildOrder { get; }
+
+        /// <summary>The base army mix until the handover. Unit: weight by unit ID, ordinal order. Range: 0 to 100 each, at least one above 0.</summary>
+        public IReadOnlyDictionary<string, int> Composition { get; }
+
+        /// <summary>Clock time at which this opening's composition and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600.</summary>
+        public int HandoverSeconds { get; }
+
+        /// <summary>Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800.</summary>
+        public Fix64 ExpandAtSeconds { get; }
+
+        /// <summary>Replaces early_expansion_seconds until the handover. Unit: seconds. Range: 0 to 1800.</summary>
+        public Fix64 EarlyExpansionSeconds { get; }
+
+        /// <summary>Replaces attack_army_supply until the handover (the fallback attack threshold). Unit: supply. Range: 1 to 200.</summary>
+        public int AttackArmySupply { get; }
+
+        /// <summary>Replaces attack_min_supply until the handover. Unit: supply. Range: 1 to 200.</summary>
+        public int AttackMinSupply { get; }
+
+        /// <summary>Stores the opening; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
+        public AiOpening(string id, int weight, IReadOnlyList<AiBuildStep> buildOrder, IReadOnlyDictionary<string, int> composition, int handoverSeconds,
+            Fix64 expandAtSeconds, Fix64 earlyExpansionSeconds, int attackArmySupply, int attackMinSupply)
+        {
+            Id = id;
+            Weight = weight;
+            BuildOrder = buildOrder;
+            Composition = composition;
+            HandoverSeconds = handoverSeconds;
+            ExpandAtSeconds = expandAtSeconds;
+            EarlyExpansionSeconds = earlyExpansionSeconds;
+            AttackArmySupply = attackArmySupply;
+            AttackMinSupply = attackMinSupply;
         }
     }
 
@@ -127,11 +177,16 @@ namespace Rts.Ai
         /// </summary>
         public string ScoutUnitId { get; }
 
+        /// <summary>The openings one of which is drawn at match start (skirmish_ai_v4_rl.md package L), in file order. Range: 0 to 16 entries; empty = no openings.</summary>
+        public IReadOnlyList<AiOpening> Openings { get; }
+
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
             IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
-            IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null, string? scoutUnitId = null)
+            IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null, string? scoutUnitId = null,
+            IReadOnlyList<AiOpening>? openings = null)
         {
+            Openings = openings ?? Array.Empty<AiOpening>();
             ScoutUnitId = scoutUnitId ?? string.Empty;
             DropOffBuildingId = dropOffBuildingId ?? string.Empty;
             CyclePreference = cyclePreference ?? Array.Empty<string>();
@@ -151,7 +206,7 @@ namespace Rts.Ai
         public AiFactionPlan WithOrders(IReadOnlyList<AiBuildStep> buildOrder, IReadOnlyDictionary<string, int> composition)
         {
             return new AiFactionPlan(FactionId, WorkerUnitId, SupplyBuildingId, buildOrder, composition, AttackTideMin, AttackTideMax,
-                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId);
+                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings);
         }
     }
 
@@ -889,7 +944,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit");
+                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -907,47 +962,11 @@ namespace Rts.Ai
                 throw node.Require("supply_building").Fail("must be a structure with provides_supply above 0 (found '" + supply + "')");
             }
             // Build order steps in file order.
-            List<AiBuildStep> steps = new List<AiBuildStep>();
-            foreach (JsonValue stepNode in node.RequireArray("build_order"))
-            {
-                stepNode.RejectUnknownKeys("structure", "count", "at_supply_used");
-                // Structure ID of this step.
-                string structure = stepNode.RequireNonEmptyString("structure");
-                // Definition of the step's structure.
-                UnitDefinition structureDefinition = RequireUnit(stepNode.Require("structure"), structure, faction.Id, content);
-                if (structureDefinition.Economy.FootprintTiles <= 0)
-                {
-                    throw stepNode.Require("structure").Fail("must be a structure (footprint above 0; found '" + structure + "')");
-                }
-                steps.Add(new AiBuildStep(structure, stepNode.RequireInt("count", 1, 20), stepNode.RequireInt("at_supply_used", 0, 200)));
-            }
+            List<AiBuildStep> steps = ParseSteps(node.Require("build_order"), node.RequireArray("build_order"), faction, content);
             // The composition object: unit ID to weight.
             JsonValue compositionNode = node.Require("composition");
             // Weights by unit ID in ordinal order.
-            SortedDictionary<string, int> composition = new SortedDictionary<string, int>(StringComparer.Ordinal);
-            // Sum of all weights; must end above 0. Unit: weight. Range: 0 to 100 per unit.
-            int totalWeight = 0;
-            foreach (KeyValuePair<string, JsonValue> pair in compositionNode.Members)
-            {
-                // Definition of the composition unit.
-                UnitDefinition unit = RequireUnit(pair.Value, pair.Key, faction.Id, content);
-                if (unit.Economy.FootprintTiles > 0 || unit.Hq != null || unit.Economy.CanGather)
-                {
-                    throw pair.Value.Fail("must be an army unit (mobile, not the HQ, not a worker; found '" + pair.Key + "')");
-                }
-                if (!IsTrainedByFaction(pair.Key, faction.Id, content))
-                {
-                    throw pair.Value.Fail("is not in the trains list of any " + faction.Id + " structure");
-                }
-                // Weight of this unit in the mix. Unit: weight. Range: 0 to 100.
-                int weight = pair.Value.AsInt(0, 100);
-                composition.Add(pair.Key, weight);
-                totalWeight += weight;
-            }
-            if (totalWeight <= 0)
-            {
-                throw compositionNode.Fail("must give at least one unit a weight above 0");
-            }
+            SortedDictionary<string, int> composition = ParseComposition(compositionNode, faction, content);
             // Tide window bounds. Unit: fraction. Range: 0 to 1, min at most max.
             Fix64 tideMin = node.RequireFix64("attack_tide_min", "0", "1");
             // Upper bound of the tide window. Unit: fraction. Range: 0 to 1.
@@ -1018,7 +1037,162 @@ namespace Rts.Ai
                 }
             }
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId);
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content));
+        }
+
+        /// <summary>Validates a build order array (the plan's or an opening's): each step names a structure of the faction.</summary>
+        /// <param name="owner">The array node, for error messages.</param>
+        /// <param name="items">The array's elements.</param>
+        /// <param name="faction">The faction the structures must belong to.</param>
+        /// <param name="content">Units to check IDs against.</param>
+        private static List<AiBuildStep> ParseSteps(JsonValue owner, IReadOnlyList<JsonValue> items, FactionDefinition faction, ContentCatalog content)
+        {
+            // Build order steps in file order.
+            List<AiBuildStep> steps = new List<AiBuildStep>();
+            foreach (JsonValue stepNode in items)
+            {
+                stepNode.RejectUnknownKeys("structure", "count", "at_supply_used");
+                // Structure ID of this step.
+                string structure = stepNode.RequireNonEmptyString("structure");
+                // Definition of the step's structure.
+                UnitDefinition structureDefinition = RequireUnit(stepNode.Require("structure"), structure, faction.Id, content);
+                if (structureDefinition.Economy.FootprintTiles <= 0)
+                {
+                    throw stepNode.Require("structure").Fail("must be a structure (footprint above 0; found '" + structure + "')");
+                }
+                steps.Add(new AiBuildStep(structure, stepNode.RequireInt("count", 1, 20), stepNode.RequireInt("at_supply_used", 0, 200)));
+            }
+            return steps;
+        }
+
+        /// <summary>Validates a composition object (the plan's or an opening's): army units of the faction, weights 0 to 100, at least one above 0.</summary>
+        /// <param name="compositionNode">The composition object.</param>
+        /// <param name="faction">The faction the units must belong to.</param>
+        /// <param name="content">Units to check IDs against.</param>
+        private static SortedDictionary<string, int> ParseComposition(JsonValue compositionNode, FactionDefinition faction, ContentCatalog content)
+        {
+            // Weights by unit ID in ordinal order.
+            SortedDictionary<string, int> composition = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            // Sum of all weights; must end above 0. Unit: weight. Range: 0 to 100 per unit.
+            int totalWeight = 0;
+            foreach (KeyValuePair<string, JsonValue> pair in compositionNode.Members)
+            {
+                // Definition of the composition unit.
+                UnitDefinition unit = RequireUnit(pair.Value, pair.Key, faction.Id, content);
+                if (unit.Economy.FootprintTiles > 0 || unit.Hq != null || unit.Economy.CanGather)
+                {
+                    throw pair.Value.Fail("must be an army unit (mobile, not the HQ, not a worker; found '" + pair.Key + "')");
+                }
+                if (!IsTrainedByFaction(pair.Key, faction.Id, content))
+                {
+                    throw pair.Value.Fail("is not in the trains list of any " + faction.Id + " structure");
+                }
+                // Weight of this unit in the mix. Unit: weight. Range: 0 to 100.
+                int weight = pair.Value.AsInt(0, 100);
+                composition.Add(pair.Key, weight);
+                totalWeight += weight;
+            }
+            if (totalWeight <= 0)
+            {
+                throw compositionNode.Fail("must give at least one unit a weight above 0");
+            }
+            return composition;
+        }
+
+        /// <summary>Validates the "openings" array of a faction plan (skirmish_ai_v4_rl.md L.2).</summary>
+        /// <param name="node">The faction plan object.</param>
+        /// <param name="faction">The plan's faction.</param>
+        /// <param name="content">Units to check IDs against.</param>
+        private static List<AiOpening> ParseOpenings(JsonValue node, FactionDefinition faction, ContentCatalog content)
+        {
+            // The openings in file order.
+            List<AiOpening> openings = new List<AiOpening>();
+            // IDs already used in this plan, to reject repeats.
+            SortedSet<string> ids = new SortedSet<string>(StringComparer.Ordinal);
+            // Sum of the weights. Unit: weight. Range: 0 to 1600.
+            int totalWeight = 0;
+            JsonValue openingsNode = node.Require("openings");
+            IReadOnlyList<JsonValue> items = node.RequireArray("openings");
+            if (items.Count > 16)
+            {
+                throw openingsNode.Fail("holds " + items.Count + " openings; at most 16 are allowed");
+            }
+            foreach (JsonValue item in items)
+            {
+                item.RejectUnknownKeys("id", "weight", "build_order", "composition", "handover_seconds", "expand_at_seconds", "early_expansion_seconds",
+                    "attack_army_supply", "attack_min_supply");
+                // The opening's ID.
+                string id = item.RequireNonEmptyString("id");
+                if (id.Length > 48 || !IsOpeningId(id))
+                {
+                    throw item.Require("id").Fail("must be 1 to 48 lower-case letters, digits or underscores (found '" + id + "')");
+                }
+                if (!ids.Add(id))
+                {
+                    throw item.Require("id").Fail("is used twice in this plan ('" + id + "')");
+                }
+                // Weight of this opening. Unit: weight. Range: 0 to 100.
+                int weight = item.RequireInt("weight", 0, 100);
+                totalWeight += weight;
+                JsonValue orderNode = item.Require("build_order");
+                IReadOnlyList<JsonValue> orderItems = item.RequireArray("build_order");
+                if (orderItems.Count < 1 || orderItems.Count > 20)
+                {
+                    throw orderNode.Fail("must hold 1 to 20 steps (found " + orderItems.Count + ")");
+                }
+                List<AiBuildStep> steps = ParseSteps(orderNode, orderItems, faction, content);
+                JsonValue compositionNode = item.Require("composition");
+                SortedDictionary<string, int> composition = ParseComposition(compositionNode, faction, content);
+                // Structures the build order builds, up to and including each step (for the requires check).
+                SortedSet<string> built = new SortedSet<string>(StringComparer.Ordinal);
+                // Index of the step being checked. Range: 0 to steps - 1.
+                for (int i = 0; i < steps.Count; i++)
+                {
+                    foreach (string required in content.Units[steps[i].StructureId].Economy.Requires)
+                    {
+                        if (!built.Contains(required))
+                        {
+                            throw orderNode.Fail("step " + i + " builds '" + steps[i].StructureId + "', which requires '" + required + "' in an earlier step");
+                        }
+                    }
+                    built.Add(steps[i].StructureId);
+                }
+                foreach (KeyValuePair<string, int> pair in composition)
+                {
+                    if (pair.Value <= 0)
+                    {
+                        continue;
+                    }
+                    foreach (string required in content.Units[pair.Key].Economy.Requires)
+                    {
+                        if (!built.Contains(required))
+                        {
+                            throw compositionNode.Require(pair.Key).Fail("requires '" + required + "', which this opening's build_order never builds");
+                        }
+                    }
+                }
+                openings.Add(new AiOpening(id, weight, steps.AsReadOnly(), composition, item.RequireInt("handover_seconds", 0, 3600),
+                    item.RequireFix64("expand_at_seconds", "0", "1800"), item.RequireFix64("early_expansion_seconds", "0", "1800"),
+                    item.RequireInt("attack_army_supply", 1, 200), item.RequireInt("attack_min_supply", 1, 200)));
+            }
+            if (openings.Count > 0 && totalWeight <= 0)
+            {
+                throw openingsNode.Fail("must give at least one opening a weight above 0");
+            }
+            return openings;
+        }
+
+        /// <summary>True when <paramref name="id"/> holds only lower-case ASCII letters, digits and underscores.</summary>
+        private static bool IsOpeningId(string id)
+        {
+            foreach (char c in id)
+            {
+                if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>True when <paramref name="ids"/> holds <paramref name="id"/> (ordinal comparison).</summary>

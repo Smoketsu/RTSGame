@@ -80,7 +80,7 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>A plan object for the in-code test faction (TestWorld.Catalog): worker, barracks, runners.</summary>
         private const string TestFactionPlan = "{ \"test\": { \"worker_unit\": \"test.worker\", \"supply_building\": \"test.barracks\", "
             + "\"build_order\": [ { \"structure\": \"test.barracks\", \"count\": 2, \"at_supply_used\": 0 } ], \"composition\": { \"test.runner\": 1 }, "
-            + "\"attack_tide_min\": 0, \"attack_tide_max\": 1, \"attack_tide_override_supply\": 20, \"cycle_preference\": [] } }";
+            + "\"attack_tide_min\": 0, \"attack_tide_max\": 1, \"attack_tide_override_supply\": 20, \"cycle_preference\": [], \"openings\": [] } }";
 
         /// <summary>The aggressive profile with no jitter and no staging, so thresholds and targets are exact.</summary>
         private static AiProfile ExactAggressive(params string[] extra)

@@ -128,6 +128,9 @@
 // ties to the lower ID or index; the random draws are the attack threshold jitter from the controller's own generator and, only when a profile
 // key of package R is above 0, the variety stream of AiVariety (a second generator in AiMemory.Variety: match-start composition band and
 // expansion offset, then an attack-advantage offset after each threshold draw).
+// Package L (opening library): a faction plan may list openings; AiVariety draws one at match start and PlanAt(tick) gives the brain the
+// opening's build order (whole game) and composition (until its handover_seconds); ExpandAtSeconds, EarlyExpansionSeconds, AttackArmySupply and
+// AttackMinSupply read the opening's value until the handover and the profile's after it.
 // Package R (skirmish_ai_v4_rl.md, keys composition_jitter_fraction, expand_jitter_seconds, attack_advantage_jitter, all 0 in old profiles):
 // Decide first swaps in memory.Variety.PlanAt(tick) (the jittered plan); rule E reads ExpandAtSeconds / EarlyExpansionSeconds (clock plus
 // the drawn offset, clamped to 0 to 1800) and the predicted attack reads AttackMinAdvantage (plus the drawn offset, clamped to 0 to 100).
@@ -307,7 +310,7 @@ namespace Rts.Ai
             memory.Stance = AiStance.Massing;
             memory.HasAttackTarget = false;
             memory.AttackGroup.Clear();
-            memory.AttackThreshold = profile.AttackArmySupply + rng.NextInt(profile.AttackSupplyJitter + 1);
+            memory.AttackThreshold = AttackArmySupply(profile, memory, tick) + rng.NextInt(profile.AttackSupplyJitter + 1);
             // Package R draw 5, after the old draw so the old stream is untouched: a new offset of the predicted-advantage bar for this attack.
             memory.Variety?.DrawAttackAdvantageOffset(profile);
         }
@@ -318,17 +321,37 @@ namespace Rts.Ai
         /// </summary>
         /// <param name="profile">The profile.</param>
         /// <param name="memory">The controller's memory.</param>
-        internal static Fix64 ExpandAtSeconds(AiProfile profile, AiMemory memory)
+        /// <param name="tick">The tick being decided (the opening's value applies before its handover). Unit: ticks. Range: 0 upward.</param>
+        internal static Fix64 ExpandAtSeconds(AiProfile profile, AiMemory memory, int tick)
         {
-            return OffsetSeconds(profile.ExpandAtSeconds, memory);
+            return OffsetSeconds(memory.Variety != null && memory.Variety.InOpening(tick) ? memory.Variety.Opening!.ExpandAtSeconds : profile.ExpandAtSeconds, memory);
         }
 
         /// <summary>Rule E's early-expansion clock (early_expansion_seconds) with the variety offset, clamped to 0 to 1800; the profile value without variety.</summary>
         /// <param name="profile">The profile.</param>
         /// <param name="memory">The controller's memory.</param>
-        internal static Fix64 EarlyExpansionSeconds(AiProfile profile, AiMemory memory)
+        /// <param name="tick">The tick being decided (the opening's value applies before its handover). Unit: ticks. Range: 0 upward.</param>
+        internal static Fix64 EarlyExpansionSeconds(AiProfile profile, AiMemory memory, int tick)
         {
-            return OffsetSeconds(profile.EarlyExpansionSeconds, memory);
+            return OffsetSeconds(memory.Variety != null && memory.Variety.InOpening(tick) ? memory.Variety.Opening!.EarlyExpansionSeconds : profile.EarlyExpansionSeconds, memory);
+        }
+
+        /// <summary>The effective attack_army_supply (the fallback attack threshold before jitter): the opening's value before its handover, else the profile's.</summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The controller's memory.</param>
+        /// <param name="tick">The tick being decided. Unit: ticks. Range: 0 upward.</param>
+        internal static int AttackArmySupply(AiProfile profile, AiMemory memory, int tick)
+        {
+            return memory.Variety != null && memory.Variety.InOpening(tick) ? memory.Variety.Opening!.AttackArmySupply : profile.AttackArmySupply;
+        }
+
+        /// <summary>The effective attack_min_supply: the opening's value before its handover, else the profile's.</summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="memory">The controller's memory.</param>
+        /// <param name="tick">The tick being decided. Unit: ticks. Range: 0 upward.</param>
+        internal static int AttackMinSupply(AiProfile profile, AiMemory memory, int tick)
+        {
+            return memory.Variety != null && memory.Variety.InOpening(tick) ? memory.Variety.Opening!.AttackMinSupply : profile.AttackMinSupply;
         }
 
         /// <summary>The effective attack_min_advantage: the profile value plus the variety offset, clamped to 0 to 100; the profile value without variety.</summary>
@@ -2121,7 +2144,7 @@ namespace Rts.Ai
                     return;
                 }
                 // Clock time from which the next depot is due. Unit: seconds.
-                Fix64 dueSeconds = ExpandAtSeconds(_profile, _memory) + _profile.ExpandIntervalSeconds * _memory.DepotsPlaced;
+                Fix64 dueSeconds = ExpandAtSeconds(_profile, _memory, _view.Tick) + _profile.ExpandIntervalSeconds * _memory.DepotsPlaced;
                 // Known amount left in the served fields. Unit: resource units. Range: 0 upward.
                 int servedKnown = 0;
                 // Start amount of the served fields. Unit: resource units. Range: 0 upward.
@@ -2138,11 +2161,11 @@ namespace Rts.Ai
                 // C2.5: while no rare field is served, the first rare depot is due at early_expansion_seconds (the other gates stay).
                 if (earlyGate)
                 {
-                    dueSeconds = Fix64.Min(dueSeconds, EarlyExpansionSeconds(_profile, _memory));
+                    dueSeconds = Fix64.Min(dueSeconds, EarlyExpansionSeconds(_profile, _memory, _view.Tick));
                 }
                 // True once the early gate has opened (its time has come), so the depot it allows goes to a rare site even when the mix's rare
                 // share is below rare_need_weight_share (C2 review item 1). Unit: boolean.
-                bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(EarlyExpansionSeconds(_profile, _memory));
+                bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(EarlyExpansionSeconds(_profile, _memory, _view.Tick));
                 // Rule RS: a needed rare resource puts rare sites first in the target order.
                 bool rarePriority = RarePriority() || earlyLift;
                 if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
