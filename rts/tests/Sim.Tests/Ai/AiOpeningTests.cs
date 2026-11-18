@@ -18,6 +18,7 @@ using Rts.Sim.Factions;
 using Rts.Sim.Teams;
 using Rts.Sim.Tests.Data;
 using Rts.Sim.Units;
+using Rts.Tools.BalanceHarness;
 
 namespace Rts.Sim.Tests.Ai
 {
@@ -181,10 +182,10 @@ namespace Rts.Sim.Tests.Ai
                     }
                     else
                     {
-                        // Opening IDs and weights of L.5 in file order.
+                        // Opening IDs and weights of L.5 (rush rows renamed by L-R) in file order.
                         string expected = pair.Key == "skai"
-                            ? "skai_standard=30,skai_windrunner_rush=20,skai_fast_expand=25,skai_air=25"
-                            : "water_standard=30,water_grasper_rush=20,water_fast_expand=25,water_leviathan_tech=25";
+                            ? "skai_standard=30,skai_windrunner_pressure=20,skai_fast_expand=25,skai_air=25"
+                            : "water_standard=30,water_grasper_pressure=20,water_fast_expand=25,water_leviathan_tech=25";
                         Assert.That(string.Join(",", System.Linq.Enumerable.Select(pair.Value.Openings, o => o.Id + "=" + o.Weight)), Is.EqualTo(expected), pair.Key);
                     }
                 }
@@ -194,6 +195,133 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(edited.RequireFaction("skai").Openings[1].Id, Is.EqualTo("two"));
             Assert.That(edited.RequireFaction("skai").Openings[0].Weight, Is.EqualTo(3));
             Assert.That(edited.RequireFaction("water").Openings.Count, Is.EqualTo(0));
+        }
+
+        /// <summary>The shipped aggressive_s4r text with its eight opening weights replaced, in file order (skai 4, then water 4), and the profile id changed.</summary>
+        /// <param name="skai">Skai weights in file order (standard, pressure, fast expand, air). Unit: weight. Range: 0 to 100.</param>
+        /// <param name="water">Water weights in file order (standard, pressure, fast expand, tech). Unit: weight. Range: 0 to 100.</param>
+        /// <param name="id">The profile id to write (the harness needs it equal to the key). Unit: text ID.</param>
+        private static string S4rWithWeights(int[] skai, int[] water, string id)
+        {
+            // Shipped file text.
+            string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s4r.json")).Replace("\r\n", "\n");
+            // The eight weights in file order.
+            int[] all = new int[8];
+            Array.Copy(skai, 0, all, 0, 4);
+            Array.Copy(water, 0, all, 4, 4);
+            // Index of the next weight to write. Unit: counter. Range: 0 to 8.
+            int next = 0;
+            text = System.Text.RegularExpressions.Regex.Replace(text, "\"weight\": \\d+,", m => "\"weight\": " + all[next++] + ",");
+            Assert.That(next, Is.EqualTo(8));
+            Assert.That(text, Does.Contain("\"id\": \"aggressive_s4r\","));
+            return text.Replace("\"id\": \"aggressive_s4r\",", "\"id\": \"" + id + "\",");
+        }
+
+        /// <summary>L-R-1: each pressure opening of the shipped aggressive_s4r has exactly the L-R.2 values (literals).</summary>
+        [Test]
+        public void LR1_PressureOpeningValues()
+        {
+            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s4r");
+            // Faction, opening id, roost-like structure, tech structure, main unit, second unit. Unit: text IDs.
+            string[][] rows =
+            {
+                new[] { "skai", "skai_windrunner_pressure", "skai.roost", "skai.windspire", "skai.windrunner", "skai.talon_archer" },
+                new[] { "water", "water_grasper_pressure", "water.tidepool", "water.shell_forge", "water.grasper", "water.reef_runner" },
+            };
+            foreach (string[] row in rows)
+            {
+                AiOpening o = System.Linq.Enumerable.Single(profile.RequireFaction(row[0]).Openings, x => x.Id == row[1]);
+                Assert.That(o.Weight, Is.EqualTo(20), row[1]);
+                Assert.That(o.BuildOrder.Count, Is.EqualTo(4), row[1]);
+                // Expected steps: (structure, count, at supply used).
+                (string, int, int)[] steps = { (row[2], 1, 0), (row[2], 2, 5), (row[2], 3, 8), (row[3], 1, 16) };
+                for (int i = 0; i < 4; i++)
+                {
+                    Assert.That((o.BuildOrder[i].StructureId, o.BuildOrder[i].Count, o.BuildOrder[i].AtSupplyUsed), Is.EqualTo(steps[i]), row[1] + " step " + i);
+                }
+                Assert.That(o.Composition.Count, Is.EqualTo(2), row[1]);
+                Assert.That(o.Composition[row[4]], Is.EqualTo(60), row[1]);
+                Assert.That(o.Composition[row[5]], Is.EqualTo(10), row[1]);
+                Assert.That(o.HandoverSeconds, Is.EqualTo(300), row[1]);
+                Assert.That(o.ExpandAtSeconds, Is.EqualTo(Fix64.FromInt(300)), row[1]);
+                Assert.That(o.EarlyExpansionSeconds, Is.EqualTo(Fix64.Zero), row[1]);
+                Assert.That(o.AttackArmySupply, Is.EqualTo(6), row[1]);
+                Assert.That(o.AttackMinSupply, Is.EqualTo(8), row[1]);
+            }
+        }
+
+        /// <summary>L-R-2: with only the pressure opening drawable, seeds 1 to 50 give that opening and effective clocks of 0 to 20 (early expansion) and 280 to 320 (expand at).</summary>
+        [Test]
+        public void LR2_EffectiveClocks()
+        {
+            // Faction, expected opening id. Unit: text.
+            string[][] rows = { new[] { "skai", "skai_windrunner_pressure" }, new[] { "water", "water_grasper_pressure" } };
+            // Weights that leave only the pressure opening drawable. Unit: weight.
+            int[] only = { 0, 100, 0, 0 };
+            AiProfile profile = AiProfile.Parse(S4rWithWeights(only, only, "aggressive_s4r"), "ai/aggressive_s4r.json", Data.Content);
+            foreach (string[] row in rows)
+            {
+                // Seed. Range: 1 to 50.
+                for (ulong seed = 1; seed <= 50; seed++)
+                {
+                    AiMemory memory = new AiMemory { Variety = AiVariety.Create(profile, profile.RequireFaction(row[0]), seed, TicksPerSecond) };
+                    Assert.That(memory.Variety.OpeningId, Is.EqualTo(row[1]), row[0] + " seed " + seed);
+                    // Effective clocks at tick 0. Unit: seconds.
+                    Fix64 early = AiBrain.EarlyExpansionSeconds(profile, memory, 0);
+                    Assert.That(early >= Fix64.Zero && early <= Fix64.FromInt(20), Is.True, row[0] + " early " + early + " seed " + seed);
+                    Fix64 expand = AiBrain.ExpandAtSeconds(profile, memory, 0);
+                    Assert.That(expand >= Fix64.FromInt(280) && expand <= Fix64.FromInt(320), Is.True, row[0] + " expand " + expand + " seed " + seed);
+                }
+            }
+        }
+
+        /// <summary>L-R-3: a forced pressure opening against a forced standard one, both factions: first depot before 90 s, 12 or more workers at 180 s, first attack before 180 s and before the standard side's.</summary>
+        [Test]
+        public void LR3_PressureExpandsAtOnceAndAttacksFirst()
+        {
+            // Profile set with lr_pressure (weights 0,100,0,0) and lr_standard (100,0,0,0) added.
+            SortedDictionary<string, JsonValue> profiles = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, JsonValue> pair in Data.AiProfiles)
+            {
+                profiles[pair.Key] = pair.Value;
+            }
+            profiles["lr_pressure"] = JsonReader.Parse(S4rWithWeights(new[] { 0, 100, 0, 0 }, new[] { 0, 100, 0, 0 }, "lr_pressure"), "ai/lr_pressure.json");
+            profiles["lr_standard"] = JsonReader.Parse(S4rWithWeights(new[] { 100, 0, 0, 0 }, new[] { 100, 0, 0, 0 }, "lr_standard"), "ai/lr_standard.json");
+            DataSet data = new DataSet(Data.Content, Data.Tuning, Data.Maps, Data.Cycles, profiles);
+            // Matchup and the depot id the pressure side builds. Unit: text.
+            string[][] rows = { new[] { "skai_vs_skai", "perch_depot" }, new[] { "water_vs_water", "pearl_depot" } };
+            foreach (string[] row in rows)
+            {
+                StringWriter writer = new StringWriter();
+                GameRunner.Play(data, "prototype_1v1", row[0], 0, SeedDerivation.GameSeed(20261117, "prototype_1v1", row[0], 0), "lr_pressure", "lr_standard", 300, new GameTrace(writer, 30));
+                // Trace text of the game.
+                string trace = writer.ToString().Replace("\r\n", "\n");
+                // Slot 0's "structure sites" line (the first in the text).
+                string sites = System.Linq.Enumerable.First(trace.Split('\n'), l => l.StartsWith("  structure sites:", StringComparison.Ordinal));
+                System.Text.RegularExpressions.Match depot = System.Text.RegularExpressions.Regex.Match(sites, "tick (\\d+) [a-z]+\\." + row[1]);
+                Assert.That(depot.Success, Is.True, row[0] + " no depot placed by slot 0");
+                Assert.That(int.Parse(depot.Groups[1].Value), Is.LessThan(1800), row[0] + " first depot tick");
+                System.Text.RegularExpressions.Match workers = System.Text.RegularExpressions.Regex.Match(trace, "t=180s P0 [^\\n]*? workers=(\\d+)");
+                Assert.That(workers.Success, Is.True, row[0] + " no t=180s P0 line");
+                Assert.That(int.Parse(workers.Groups[1].Value), Is.GreaterThanOrEqualTo(12), row[0] + " workers at 180 s");
+                // First Massing -> Attack second of slot 0 and slot 1; int.MaxValue when none. Unit: seconds.
+                int[] first = { int.MaxValue, int.MaxValue };
+                // Slot whose "totals" block is being read. Range: -1 (none yet), 0 or 1.
+                int slot = -1;
+                foreach (string line in trace.Split('\n'))
+                {
+                    if (line.EndsWith(" totals", StringComparison.Ordinal) && line.StartsWith("P", StringComparison.Ordinal))
+                    {
+                        slot = line[1] - '0';
+                    }
+                    else if (slot >= 0 && first[slot] == int.MaxValue && line.Contains("Massing -> Attack"))
+                    {
+                        first[slot] = int.Parse(System.Text.RegularExpressions.Regex.Match(line, "\\((\\d+)s\\)").Groups[1].Value);
+                    }
+                }
+                Assert.That(first[0], Is.LessThan(180), row[0] + " first attack of the pressure side");
+                Assert.That(first[0] < first[1] || first[1] == int.MaxValue, Is.True, row[0] + " pressure attacks first: " + first[0] + " against " + first[1]);
+            }
         }
 
         /// <summary>L-2: each validation error names the file and the field path.</summary>
