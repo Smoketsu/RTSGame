@@ -15,6 +15,7 @@ One Tripo model per building, made from the nine model sheets the developer mark
 | Water defence (Coral Turret) | `coral_turret` | `water_coral_turret.glb` | `water_coral_turret_sheet.jpg` | `e09dbb20-e3a0-4400-b56e-9fcbdd45ab2c` | Spiked ring and base fine, but the cannon is short and points up at the viewer, merged into the mount; the side view's long angled barrel was lost. |
 | Water drop-off (Pearl Depot) | `pearl_depot` | `water_pearl_depot.glb` | `water_pearl_depot_sheet.jpg` | `303a0b62-e531-493d-87f7-679e7b32b8bc` | Good match: coral canopies, door, stairs and rails. The stairs smoothed into a ramp. |
 | Skai HQ, Rooted (Great Aerie) | `great_aerie` (`rts/data/units/skai/great_aerie.json`) | `skai_great_aerie_rooted.glb` | `turnarounds10/skai_great_aerie_rooted_sheet.jpg` | `54b105d6-53c7-4011-bfa5-3532ea82b559` | Good match: island rock on four taloned legs, trunk with hangar door and ramp, five feathered canopies with pods, twin turret, fans. Canopy feathers are soft, the roots over the rim fused into thick spikes, the ground patch is pale and the colours slightly washed out. Not approved yet. |
+| Skai HQ, Uprooted (Great Aerie) | `great_aerie` (`rts/data/units/skai/great_aerie.json`) | `skai_great_aerie_uprooted.glb` | `turnarounds10/skai_great_aerie_uprooted_sheet.jpg` | `cc05a657-6dab-4cb6-90ed-679c0d96d666` | Good match: floating rock tapering to a point, three turbines, trunk with hangar, five canopies with pods, twin turret. The tip is stubby and its yellow end is faint, canopy feathers are soft, the roots on the rim are lumpy, colours slightly washed out. Not approved yet. |
 
 Each model also has its preview (`<name>_preview.webp`), its log (`<name>_log.txt`, with the task id and balance) and the three cropped views (`<name>_front.png`, `_left.png`, `_back.png`). The data IDs are the files under `rts/data/units/skai` and `rts/data/units/water`; the sheet names use placeholder building names that differ from some data IDs.
 
@@ -27,6 +28,7 @@ Each model also has its preview (`<name>_preview.webp`), its log (`<name>_log.tx
 ## Credits
 
 - Balance before: 1,680. Balance after: 690. Spent: 990 (9 x 110).
+- Great Aerie, Rooted and Uprooted (18 Nov 2026, second batch): balance before 690, after 470. Spent: 220 (2 x 110).
 
 ## Not done yet
 
