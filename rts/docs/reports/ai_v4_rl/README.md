@@ -28,7 +28,42 @@ Distinct / decided per cell: skai_vs_skai 72/72 = 1.000, skai_vs_water 72/72 = 1
 | water | water_leviathan_tech | 62 | 0.287 | 31 | 22 | 0.710 | [53.4, 83.9] | 17 | 2 |
 | water | water_standard | 60 | 0.278 | 32 | 18 | 0.563 | [39.3, 71.8] | 20 | 0 |
 
-(Strength ladder, response scenarios and gate verdict follow in later commits.)
+### Strength ladder (`aggressive_s3` baseline, `--non-regression`), 216 of 216 decided, 2368 s
+
+```
+WARNING opening skai/skai_standard: wins 16 of 24 mirror games against other openings (0.667, above 0.65).
+WARNING opening skai/skai_windrunner_rush: wins 0 of 12 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_grasper_rush: wins 0 of 14 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_leviathan_tech: wins 14 of 19 mirror games against other openings (0.737, above 0.65).
+WARNING opening water/water_standard: wins 5 of 17 mirror games against other openings (0.294, below 0.35).
+LADDER candidate=aggressive_s4r baseline=aggressive_s3 decided=216 wins=101 fraction=0.468 distinct=213 mirror=63/144 cross=38/72 bar=0.450 PASS
+```
+
+No mirror-interval warning and no distinct-share warning. Distinct / decided: skai_vs_skai 71/72 = 0.986, skai_vs_water 70/72 = 0.972, water_vs_water 72/72 = 1.000.
+
+| row | games | decided | distinct | candidate wins | baseline wins | candidate fraction | Wilson (distinct games) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| skai_vs_skai | 72 | 72 | 71 | 33 | 39 | 0.458 | [35.4, 58.0] |
+| skai_vs_water | 72 | 72 | 70 | 38 | 34 | 0.528 | [42.7, 65.4] |
+| water_vs_water | 72 | 72 | 72 | 30 | 42 | 0.417 | [31.0, 53.2] |
+| **mirror** | 144 | 144 | 143 | 63 | 81 | **0.438** | **[36.2, 52.2]** |
+| cross | 72 | 72 | 70 | 38 | 34 | 0.528 | [42.7, 65.4] |
+| cross, candidate as skai | 36 | 36 | 36 | 36 | 0 | 1.000 | [90.4, 100.0] |
+| cross, candidate as water | 36 | 36 | 34 | 2 | 34 | 0.056 | [1.6, 19.1] |
+| all | 216 | 216 | 213 | 101 | 115 | 0.468 | [40.8, 54.1] |
+
+| faction | opening | draws | use share | games | wins | win fraction | Wilson interval | cross games | cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| skai | skai_air | 23 | 0.213 | 17 | 10 | 0.588 | [36.0, 78.4] | 6 | 6 |
+| skai | skai_fast_expand | 28 | 0.259 | 19 | 7 | 0.368 | [19.1, 59.0] | 9 | 9 |
+| skai | skai_standard | 35 | 0.324 | 24 | 16 | 0.667 | [46.7, 82.0] | 11 | 11 |
+| skai | skai_windrunner_rush | 22 | 0.204 | 12 | 0 | 0.000 | [0.0, 25.9] | 10 | 10 |
+| water | water_fast_expand | 30 | 0.278 | 22 | 11 | 0.500 | [30.7, 69.3] | 8 | 0 |
+| water | water_grasper_rush | 22 | 0.204 | 14 | 0 | 0.000 | [0.0, 21.5] | 8 | 0 |
+| water | water_leviathan_tech | 28 | 0.259 | 19 | 14 | 0.737 | [51.2, 88.2] | 9 | 2 |
+| water | water_standard | 28 | 0.259 | 17 | 5 | 0.294 | [13.3, 53.1] | 11 | 0 |
+
+(Response scenarios and gate verdict follow in a later commit.)
 
 ---
 
