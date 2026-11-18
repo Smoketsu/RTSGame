@@ -1,7 +1,7 @@
 // rts/tools/BalanceHarness/GameRecord.cs
 // The immutable result records of the batch harness and their JSON-line form (spec: rts/docs/specs/balance_harness.md section 3): GameRecord for
 // one AI-versus-AI game and HqFloorRecord for one HQ floor trial. A worker process writes one line per record to stdout; the coordinator reads
-// them back through Rts.Sim.Data.JsonReader and writes the same lines to results.jsonl and hq_floor.jsonl. Part of Rts.Tools.BalanceHarness.
+// them back through Rts.Sim.Data.JsonReader (skirmish_ai_v4_rl.md H.1: every game record also carries the opening each AI drew, opening0 and opening1, "" when its profile has none) and writes the same lines to results.jsonl and hq_floor.jsonl. Part of Rts.Tools.BalanceHarness.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -85,6 +85,12 @@ namespace Rts.Tools.BalanceHarness
         /// </summary>
         public ulong PlaySignature { get; }
 
+        /// <summary>ID of the opening slot 0's AI drew (skirmish_ai_v4_rl.md H.1), or "" when its profile has no openings. Range: an opening ID of the profile, or empty.</summary>
+        public string Opening0 { get; }
+
+        /// <summary>ID of the opening slot 1's AI drew, or "" when its profile has no openings. Range: an opening ID of the profile, or empty.</summary>
+        public string Opening1 { get; }
+
         /// <summary>Content digest of the data the game ran on (same for every game of one data set). Range: any ulong, written as 16 hex digits.</summary>
         public ulong ContentDigest { get; }
 
@@ -93,8 +99,10 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Bundles the values.</summary>
         public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string slot0Profile, string slot1Profile, string result,
-            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills)
+            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "")
         {
+            Opening0 = opening0;
+            Opening1 = opening1;
             Map = map;
             Matchup = matchup;
             Game = game;
@@ -124,6 +132,7 @@ namespace Rts.Tools.BalanceHarness
                 .Append(",\"end_tick\":").Append(EndTick.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"state_hash\":").Append(Quote(StateHash.ToString("x16", CultureInfo.InvariantCulture)))
                 .Append(",\"play_signature\":").Append(Quote(PlaySignature.ToString("x16", CultureInfo.InvariantCulture)))
+                .Append(",\"opening0\":").Append(Quote(Opening0)).Append(",\"opening1\":").Append(Quote(Opening1))
                 .Append(",\"content_digest\":").Append(Quote(ContentDigest.ToString("x16", CultureInfo.InvariantCulture)))
                 .Append(",\"hq_kills\":[");
             for (int i = 0; i < HqKills.Count; i++)
@@ -164,7 +173,8 @@ namespace Rts.Tools.BalanceHarness
                     root.RequireNonEmptyString("profile_slot0"), root.RequireNonEmptyString("profile_slot1"), result, root.RequireInt("end_tick", 0, int.MaxValue),
                     ulong.Parse(root.RequireString("state_hash"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
                     ulong.Parse(root.RequireString("play_signature"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
-                    ulong.Parse(root.RequireString("content_digest"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), kills);
+                    ulong.Parse(root.RequireString("content_digest"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), kills,
+                    root.RequireString("opening0"), root.RequireString("opening1"));
             }
             catch (Exception ex) when (ex is DataValidationException || ex is FormatException || ex is OverflowException)
             {

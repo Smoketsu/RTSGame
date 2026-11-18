@@ -55,6 +55,7 @@ The harness holds no simulation state between games. Per game it produces one **
 | `result` | `"slot0"`, `"slot1"`, `"draw"` or `"undecided"`. |
 | `end_tick` | Last tick stepped. |
 | `state_hash` | `STATE_HASH` after the last tick, 16 hex digits. |
+| `opening0`, `opening1` | The opening each slot's AI drew (skirmish_ai_v4_rl.md H.1), written after `play_signature`; empty text when the slot's profile has no openings. |
 | `hq_kills` | List of `{ "faction", "first_damage_tick", "death_tick" }` for every HQ that died. |
 
 Plus one **HQ floor record** per trial: `attacker_faction`, `unit`, `count`, `defender_hq`, `hq_state` (`rooted` or `uprooted`), `first_damage_tick`, `death_tick` (or -1), `ttk_ticks` (or -1 for survived).

@@ -3,6 +3,9 @@
 // matchup, in both seats, and the candidate passes when it wins enough of the decided games. The coordinator splits the cells into chunks and runs them in the same worker
 // processes as --batch (WorkerPool, BatchRunner's chunk and record helpers, SeedDerivation with ladder_base_seed), sorts the records, re-runs a few games in-process as a
 // determinism spot check, and writes ladder.jsonl and ladder.md. Exit codes: 0 pass, 1 error, 2 bar missed or too few decided games, 3 spot check failed.
+// skirmish_ai_v4_rl.md H.2: when some record has an opening, the report gets a "## Openings" section (one row per faction and opening) and WARNING lines for an
+// opening drawn too often or winning too many or too few mirror games, and with --non-regression a warning when the mirror row's Wilson upper bound over distinct games is low;
+// none of them changes the exit code.
 // Tool-side only: double is used for the fractions and the Wilson interval, nothing here feeds back into a simulation. Part of Rts.Tools.BalanceHarness.
 using System;
 using System.Collections.Generic;
@@ -129,9 +132,191 @@ namespace Rts.Tools.BalanceHarness
         }
     }
 
+    /// <summary>One row of the opening report (skirmish_ai_v4_rl.md H.2): the games of one opening of one faction.</summary>
+    public sealed class OpeningRow
+    {
+        /// <summary>Faction the opening belongs to. Range: a faction ID.</summary>
+        public string Faction { get; }
+
+        /// <summary>Opening ID. Range: a non-empty opening ID.</summary>
+        public string Opening { get; }
+
+        /// <summary>Slots of any record that drew the opening. Unit: draws. Range: 0 upward.</summary>
+        public int Draws { get; set; }
+
+        /// <summary>Draws divided by all draws of the faction. Unit: fraction. Range: 0 to 1.</summary>
+        public double UseShare { get; set; }
+
+        /// <summary>Decided mirror games in which a slot plays the opening and the other slot plays a different one ("" counts as different); a game counts once for each slot. Unit: games. Range: 0 upward.</summary>
+        public int MirrorGames { get; set; }
+
+        /// <summary>Mirror games (as above) the opening's slot won. Unit: games. Range: 0 to MirrorGames.</summary>
+        public int MirrorWins { get; set; }
+
+        /// <summary>Distinct play signatures among the mirror games. Unit: games. Range: 0 to MirrorGames.</summary>
+        public SortedSet<ulong> MirrorSignatures { get; } = new SortedSet<ulong>();
+
+        /// <summary>Distinct play signatures among the mirror games the opening won. Unit: games. Range: 0 to MirrorSignatures.Count.</summary>
+        public SortedSet<ulong> MirrorWinSignatures { get; } = new SortedSet<ulong>();
+
+        /// <summary>Decided cross-faction games in which the faction plays the opening. Unit: games. Range: 0 upward.</summary>
+        public int CrossGames { get; set; }
+
+        /// <summary>Cross-faction games (as above) the opening's slot won. Unit: games. Range: 0 to CrossGames.</summary>
+        public int CrossWins { get; set; }
+
+        /// <summary>Win fraction over mirror games against other openings; 0 with no game. Unit: fraction. Range: 0 to 1.</summary>
+        public double MirrorWinFraction => MirrorGames > 0 ? (double)MirrorWins / MirrorGames : 0;
+
+        /// <summary>Creates an empty row.</summary>
+        public OpeningRow(string faction, string opening)
+        {
+            Faction = faction;
+            Opening = opening;
+        }
+    }
+
     /// <summary>The ladder coordinator.</summary>
     public static class LadderRunner
     {
+        /// <summary>The opening rows (skirmish_ai_v4_rl.md H.2) in (faction, opening) ordinal order; empty when no record has an opening.</summary>
+        /// <param name="records">Ladder game records.</param>
+        public static List<OpeningRow> OpeningRows(IReadOnlyList<GameRecord> records)
+        {
+            SortedDictionary<string, OpeningRow> rows = new SortedDictionary<string, OpeningRow>(StringComparer.Ordinal);
+            // Draws of each faction over all records (the use share's denominator). Unit: draws.
+            SortedDictionary<string, int> factionDraws = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            foreach (GameRecord record in records)
+            {
+                // Slot number. Range: 0 to 1.
+                for (int slot = 0; slot < 2; slot++)
+                {
+                    string faction = slot == 0 ? record.Slot0Faction : record.Slot1Faction;
+                    string opening = slot == 0 ? record.Opening0 : record.Opening1;
+                    string other = slot == 0 ? record.Opening1 : record.Opening0;
+                    if (opening.Length == 0)
+                    {
+                        continue;
+                    }
+                    string key = faction + "/" + opening;
+                    if (!rows.TryGetValue(key, out OpeningRow? row))
+                    {
+                        row = new OpeningRow(faction, opening);
+                        rows.Add(key, row);
+                    }
+                    row.Draws++;
+                    factionDraws[faction] = (factionDraws.TryGetValue(faction, out int drawn) ? drawn : 0) + 1;
+                    if (record.Result == GameRecord.Undecided)
+                    {
+                        continue;
+                    }
+                    // True when this slot won the game.
+                    bool won = (record.Result == GameRecord.Slot0 ? 0 : record.Result == GameRecord.Slot1 ? 1 : -1) == slot;
+                    if (record.Slot0Faction == record.Slot1Faction)
+                    {
+                        if (other != opening)
+                        {
+                            row.MirrorGames++;
+                            row.MirrorSignatures.Add(record.PlaySignature);
+                            if (won)
+                            {
+                                row.MirrorWins++;
+                                row.MirrorWinSignatures.Add(record.PlaySignature);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        row.CrossGames++;
+                        row.CrossWins += won ? 1 : 0;
+                    }
+                }
+            }
+            foreach (OpeningRow row in rows.Values)
+            {
+                row.UseShare = (double)row.Draws / factionDraws[row.Faction];
+            }
+            return new List<OpeningRow>(rows.Values);
+        }
+
+        /// <summary>The opening WARNING lines of skirmish_ai_v4_rl.md H.2; empty when none. Never changes an exit code.</summary>
+        /// <param name="rows">The rows from <see cref="OpeningRows"/>.</param>
+        /// <param name="settings">The thresholds (opening_max_use_fraction and the three mirror keys).</param>
+        public static List<string> OpeningWarnings(IReadOnlyList<OpeningRow> rows, AiEvalSettings settings)
+        {
+            List<string> warnings = new List<string>();
+            foreach (OpeningRow row in rows)
+            {
+                if (row.UseShare > settings.OpeningMaxUseFraction + HarnessStats.BandTolerance)
+                {
+                    warnings.Add("WARNING opening " + row.Faction + "/" + row.Opening + ": drawn in " + row.UseShare.ToString("0.000", CultureInfo.InvariantCulture) + " of " + row.Faction
+                        + " draws (above " + settings.OpeningMaxUseFraction.ToString("0.00", CultureInfo.InvariantCulture) + ").");
+                }
+                if (row.MirrorGames < settings.OpeningMinGames)
+                {
+                    continue;
+                }
+                // The text "wins w of n mirror games against other openings (fraction, " shared by both limits.
+                string head = "WARNING opening " + row.Faction + "/" + row.Opening + ": wins " + row.MirrorWins.ToString(CultureInfo.InvariantCulture) + " of "
+                    + row.MirrorGames.ToString(CultureInfo.InvariantCulture) + " mirror games against other openings (" + row.MirrorWinFraction.ToString("0.000", CultureInfo.InvariantCulture) + ", ";
+                if (row.MirrorWinFraction > settings.OpeningMaxMirrorWinFraction + HarnessStats.BandTolerance)
+                {
+                    warnings.Add(head + "above " + settings.OpeningMaxMirrorWinFraction.ToString("0.00", CultureInfo.InvariantCulture) + ").");
+                }
+                else if (row.MirrorWinFraction < settings.OpeningMinMirrorWinFraction - HarnessStats.BandTolerance)
+                {
+                    warnings.Add(head + "below " + settings.OpeningMinMirrorWinFraction.ToString("0.00", CultureInfo.InvariantCulture) + ").");
+                }
+            }
+            return warnings;
+        }
+
+        /// <summary>
+        /// The --non-regression mirror WARNING of skirmish_ai_v4_rl.md H.2 (empty when the mirror row has no game or its Wilson upper bound over distinct games reaches
+        /// <paramref name="upperMin"/>). Never changes an exit code.
+        /// </summary>
+        /// <param name="records">Ladder game records.</param>
+        /// <param name="upperMin">ladder_mirror_upper_min. Unit: fraction. Range: 0 to 1.</param>
+        /// <param name="z">Wilson z-score. Range: 1 to 4.</param>
+        public static List<string> MirrorWarnings(IReadOnlyList<GameRecord> records, double upperMin, double z)
+        {
+            List<string> warnings = new List<string>();
+            if (!MirrorCross(records).TryGetValue("mirror", out LadderTally? mirror) || mirror.Distinct == 0)
+            {
+                return warnings;
+            }
+            WinRate rate = HarnessStats.Wilson(mirror.DistinctWins, 0, mirror.Distinct - mirror.DistinctWins, z);
+            if (rate.High < upperMin - HarnessStats.BandTolerance)
+            {
+                warnings.Add("WARNING mirror: candidate wins " + mirror.DistinctWins.ToString(CultureInfo.InvariantCulture) + " of " + mirror.Distinct.ToString(CultureInfo.InvariantCulture)
+                    + " distinct mirror games, Wilson upper bound " + rate.High.ToString("0.000", CultureInfo.InvariantCulture) + " below " + upperMin.ToString("0.00", CultureInfo.InvariantCulture)
+                    + "; the candidate may be weaker than the baseline.");
+            }
+            return warnings;
+        }
+
+        /// <summary>Appends the "## Openings" section of ladder.md (skirmish_ai_v4_rl.md H.2); nothing when there are no rows.</summary>
+        private static void AppendOpenings(StringBuilder sb, IReadOnlyList<OpeningRow> rows, double z)
+        {
+            if (rows.Count == 0)
+            {
+                return;
+            }
+            sb.Append("\n## Openings\n\n");
+            sb.Append("| faction | opening | draws | use share | mirror games vs other openings (decided) | distinct | wins | win fraction | Wilson interval (distinct games) | cross games (decided) | cross wins |\n");
+            sb.Append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |\n");
+            foreach (OpeningRow row in rows)
+            {
+                WinRate rate = HarnessStats.Wilson(row.MirrorWinSignatures.Count, 0, row.MirrorSignatures.Count - row.MirrorWinSignatures.Count, z);
+                sb.Append("| ").Append(row.Faction).Append(" | ").Append(row.Opening).Append(" | ").Append(row.Draws.ToString(CultureInfo.InvariantCulture)).Append(" | ")
+                    .Append(row.UseShare.ToString("0.000", CultureInfo.InvariantCulture)).Append(" | ").Append(row.MirrorGames.ToString(CultureInfo.InvariantCulture)).Append(" | ")
+                    .Append(row.MirrorSignatures.Count.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(row.MirrorWins.ToString(CultureInfo.InvariantCulture)).Append(" | ")
+                    .Append(row.MirrorGames > 0 ? row.MirrorWinFraction.ToString("0.000", CultureInfo.InvariantCulture) : "-").Append(" | ")
+                    .Append(rate.Games > 0 ? "[" + HarnessStats.Percent(rate.Low) + ", " + HarnessStats.Percent(rate.High) + "]" : "-").Append(" | ")
+                    .Append(row.CrossGames.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(row.CrossWins.ToString(CultureInfo.InvariantCulture)).Append(" |\n");
+            }
+        }
+
         /// <summary>Tallies for the rows "mirror", "cross" and "cross, candidate as &lt;faction&gt;" (skirmish_ai_v4.md S.3), keys in ordinal order; a row with no game is absent.</summary>
         /// <param name="records">Ladder game records.</param>
         public static SortedDictionary<string, LadderTally> MirrorCross(IReadOnlyList<GameRecord> records)
@@ -299,6 +484,13 @@ namespace Rts.Tools.BalanceHarness
             // Distinct, mirror and cross text of the LADDER line, and the distinct-share warnings (reported only, never gating).
             string stats = StatsText(records);
             List<string> warnings = DistinctWarnings(records, HarnessStats.ToDouble(data.Tuning.HarnessBatch.MinDistinctFraction));
+            // Opening rows and their warnings (skirmish_ai_v4_rl.md H.2), then the mirror warning with --non-regression.
+            List<OpeningRow> openingRows = OpeningRows(records);
+            warnings.AddRange(OpeningWarnings(openingRows, settings));
+            if (options.NonRegression)
+            {
+                warnings.AddRange(MirrorWarnings(records, settings.LadderMirrorUpperMin, HarnessStats.ToDouble(data.Tuning.HarnessBatch.ConfidenceZ)));
+            }
 
             // Output folder: --out, or the ladder subfolder of the default batch folder.
             string outDirectory = options.OutDirectory == BatchOptions.DefaultOutDirectory ? Path.Combine(BatchOptions.DefaultOutDirectory, "ladder") : options.OutDirectory;
@@ -310,7 +502,7 @@ namespace Rts.Tools.BalanceHarness
             }
             File.WriteAllText(Path.Combine(outDirectory, "ladder.jsonl"), lines.ToString(), new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(outDirectory, "ladder.md"),
-                BuildReport(data, options, records, verdict, stats, warnings, baseSeed, games, maxSeconds, verify, mismatches), new UTF8Encoding(false));
+                BuildReport(data, options, records, verdict, stats, warnings, openingRows, baseSeed, games, maxSeconds, verify, mismatches), new UTF8Encoding(false));
             // Warnings first so the LADDER line stays the last stdout line.
             foreach (string warning in warnings)
             {
@@ -323,7 +515,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Builds ladder.md: the settings, the verdict and the tables per cell, per map, per seat and overall.</summary>
-        private static string BuildReport(DataSet data, BatchOptions options, IReadOnlyList<GameRecord> records, LadderVerdict verdict, string stats, IReadOnlyList<string> warnings, ulong baseSeed, int games,
+        private static string BuildReport(DataSet data, BatchOptions options, IReadOnlyList<GameRecord> records, LadderVerdict verdict, string stats, IReadOnlyList<string> warnings, IReadOnlyList<OpeningRow> openingRows, ulong baseSeed, int games,
             int maxSeconds, int verify, int mismatches)
         {
             // Confidence z-score of the Wilson interval (tuning/harness_batch.json). Range: 1 to 4.
@@ -355,6 +547,7 @@ namespace Rts.Tools.BalanceHarness
             AppendTable(sb, "candidate seat", records, r => "slot " + LadderTally.CandidateSlot(r.Game).ToString(CultureInfo.InvariantCulture), z);
             sb.Append("\n## Mirror and cross-faction\n\n");
             AppendRows(sb, "row", MirrorCross(records), z);
+            AppendOpenings(sb, openingRows, z);
             sb.Append("\n## Overall\n\n");
             AppendTable(sb, "all", records, r => "all games", z);
             return sb.ToString();

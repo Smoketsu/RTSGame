@@ -109,6 +109,21 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Candidate share needed with --non-regression. Unit: fraction. Range: 0 to 1.</summary>
         public double LadderNonRegressionFractionMin { get; private set; }
 
+        /// <summary>skirmish_ai_v4_rl.md H.3: an opening drawn in more than this share of its faction's draws gets a warning. Unit: fraction. Range: 0 to 1.</summary>
+        public double OpeningMaxUseFraction { get; private set; }
+
+        /// <summary>H.3: an opening whose mirror win fraction against other openings is above this gets a warning (needs OpeningMinGames games). Unit: fraction. Range: 0 to 1.</summary>
+        public double OpeningMaxMirrorWinFraction { get; private set; }
+
+        /// <summary>H.3: an opening whose mirror win fraction against other openings is below this gets a warning (needs OpeningMinGames games). Unit: fraction. Range: 0 to 1.</summary>
+        public double OpeningMinMirrorWinFraction { get; private set; }
+
+        /// <summary>H.3: decided mirror games against other openings an opening needs before its win fraction is judged. Unit: games. Range: 1 to 1000.</summary>
+        public int OpeningMinGames { get; private set; }
+
+        /// <summary>H.3: with --non-regression, the Wilson upper bound over distinct mirror games the candidate must reach, or a warning is printed. Unit: fraction. Range: 0 to 1.</summary>
+        public double LadderMirrorUpperMin { get; private set; }
+
         /// <summary>Games re-run in-process for the determinism spot check. Unit: games. Range: 0 to 16.</summary>
         public int LadderVerifyGames { get; private set; }
 
@@ -134,7 +149,8 @@ namespace Rts.Tools.BalanceHarness
         {
             JsonValue root = JsonReader.Parse(text, SourceName);
             root.RejectUnknownKeys("ladder_base_seed", "ladder_games_per_cell", "ladder_maps", "ladder_matchups", "ladder_max_game_seconds", "ladder_min_decided",
-                "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "response_tests");
+                "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "opening_max_use_fraction", "opening_max_mirror_win_fraction",
+                "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests");
             AiEvalSettings settings = new AiEvalSettings();
             settings.LadderBaseSeed = (ulong)root.RequireInt("ladder_base_seed", 0, int.MaxValue);
             // Games per cell, checked for the multiple-of-4 rule (the seat rule needs whole blocks of four games).
@@ -151,6 +167,11 @@ namespace Rts.Tools.BalanceHarness
             settings.LadderCandidateWinFractionMin = HarnessStats.ToDouble(root.RequireFix64("ladder_candidate_win_fraction_min", "0", "1"));
             settings.LadderNonRegressionFractionMin = HarnessStats.ToDouble(root.RequireFix64("ladder_non_regression_fraction_min", "0", "1"));
             settings.LadderVerifyGames = root.RequireInt("ladder_verify_games", 0, 16);
+            settings.OpeningMaxUseFraction = HarnessStats.ToDouble(root.RequireFix64("opening_max_use_fraction", "0", "1"));
+            settings.OpeningMaxMirrorWinFraction = HarnessStats.ToDouble(root.RequireFix64("opening_max_mirror_win_fraction", "0", "1"));
+            settings.OpeningMinMirrorWinFraction = HarnessStats.ToDouble(root.RequireFix64("opening_min_mirror_win_fraction", "0", "1"));
+            settings.OpeningMinGames = root.RequireInt("opening_min_games", 1, 1000);
+            settings.LadderMirrorUpperMin = HarnessStats.ToDouble(root.RequireFix64("ladder_mirror_upper_min", "0", "1"));
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");
