@@ -70,6 +70,24 @@ Run 1's command on `fe89236` (a `git archive` of that commit built in Release un
 - Games where neither seat drew a rush or pressure opening: **147 compared, 0 differing**.
 - Games where a seat drew the rush or pressure opening: 69, **69 differing**, as expected.
 
+### Run 4: response scenarios (`--response --profile aggressive_s4r`, report only)
+
+```
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=165.2 model_air_known_s=85.0 p2=PASS aa_units=20 p3=PASS hq_alive=true
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=89.0 p2=PASS aa_units=5 p3=PASS hq_alive=true
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.065 share=0.396 base_share=0.462 armour=armoured p2=PASS hq_alive=true
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.036 share=0.272 base_share=0.308 armour=armoured p2=PASS hq_alive=true
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=1.407 killed=38 lost=27 hq_alive=true
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=1.058 killed=55 lost=52 hq_alive=true
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=7
+RESPONSE response_worker_raid_water.json raid FAIL p1=PASS static_defence_near_raided_base=true p2=FAIL max_workers_lost_in_wave=7
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=38 first_structure_kill_s=484.6 p2=PASS won_by_s=589.6
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=9 first_structure_kill_s=381.6 p2=PASS won_by_s=464.4
+RESPONSE_SUMMARY passed=5 of=10
+```
+
+`passed=5 of=10`, the same five pass and the same five fail as in the weight-scale section, and every printed number equals that section's (the response scripts do not draw the changed openings: they run the profile against fixed opponents; the numbers are the same as before to the digit).
+
 ## After the weight scale (commit 2142640; before package L-R, superseded by the section above)
 
 Composition weights of `aggressive_s4r` multiplied by 10 (jitter band 0.25 now moves every weight both ways). Same commands, seeds and game counts as the sections below; `--jobs 4`; output under `rts/build/ladder_w10_*` (git-ignored). Step 1 checks: harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `dotnet test -c Release`: Replay 27, Net 33, Sim 873 passed, 0 failed. Neutrality evidence: test `R10_WeightScaleIsNeutralWithoutJitter` (jitter 0, x1 and x10 text give equal end tick, state hash and play signature); `R11_ScaledWeightsMoveBothWays`. No existing pin changed.
