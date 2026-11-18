@@ -86,7 +86,61 @@ RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first
 RESPONSE_SUMMARY passed=5 of=10
 ```
 
-`passed=5 of=10`, the same five pass and the same five fail as in the weight-scale section, and every printed number equals that section's (the response scripts do not draw the changed openings: they run the profile against fixed opponents; the numbers are the same as before to the digit).
+`passed=5 of=10`, the same five pass and the same five fail as in the weight-scale section. The numbers that section quotes (share_gain -0.065, trade_ratio 1.058, max_workers_lost_in_wave 7, supply_lost_before_first_kill 38) are equal; the other lines were not compared one by one.
+
+### Run 5: forced traces (L-R-A4)
+
+Method of the rush report's section 1: scratch copy of the data under `rts/build/lr/data` (git-ignored) with `ai/f_<opening>.json` = `aggressive_s4r` text with that opening's weight 100 and the rest of its faction 0 (the other faction forced to its `*_standard`; unused in mirror games), `--trace` with `--seed 20261117 --max-game-seconds 2400`, mirror matchups, games 0 to 3 (seat of profile A = `(g / 2) % 2`, so games 0 and 1 put the pressure opening in slot 0, games 2 and 3 in slot 1). Each pressure opening against each of the other three openings of its faction: 24 games. "Attacks started before 420 s" counts the trace's stance changes into Attack before 420 s (any previous stance). Scripts were scratch and are not committed.
+
+| faction | pressure opening vs | game | pressure seat | first depot (s) | workers at 180 s | first attack (s) | opponent first attack (s) | attacks started before 420 s | result |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| skai | skai_standard | 0 | 0 | 53.8 | 14 | 158 | 176 | 8 | pressure wins |
+| skai | skai_standard | 1 | 0 | 53.8 | 14 | 154 | 194 | 9 | opponent wins |
+| skai | skai_standard | 2 | 1 | 52.4 | 13 | 147 | 195 | 9 | pressure wins |
+| skai | skai_standard | 3 | 1 | 52.4 | 13 | 147 | 195 | 8 | pressure wins |
+| skai | skai_fast_expand | 0 | 0 | 53.8 | 14 | 158 | 235 | 8 | opponent wins |
+| skai | skai_fast_expand | 1 | 0 | 53.8 | 14 | 154 | 234 | 6 | pressure wins |
+| skai | skai_fast_expand | 2 | 1 | 52.4 | 14 | 147 | 268 | 7 | pressure wins |
+| skai | skai_fast_expand | 3 | 1 | 52.4 | 14 | 147 | 267 | 7 | pressure wins |
+| skai | skai_air | 0 | 0 | 53.8 | 14 | 158 | 216 | 5 | opponent wins |
+| skai | skai_air | 1 | 0 | 53.8 | 14 | 154 | 222 | 8 | opponent wins |
+| skai | skai_air | 2 | 1 | 52.4 | 13 | 147 | 232 | 8 | pressure wins |
+| skai | skai_air | 3 | 1 | 52.4 | 13 | 147 | 232 | 8 | pressure wins |
+| water | water_standard | 0 | 0 | 53.0 | 14 | 158 | 177 | 6 | pressure wins |
+| water | water_standard | 1 | 0 | 53.0 | 14 | 158 | 177 | 6 | pressure wins |
+| water | water_standard | 2 | 1 | 55.0 | 14 | 159 | 174 | 4 | pressure wins |
+| water | water_standard | 3 | 1 | 55.0 | 14 | 165 | 174 | 6 | pressure wins |
+| water | water_fast_expand | 0 | 0 | 53.0 | 14 | 158 | 209 | 6 | opponent wins |
+| water | water_fast_expand | 1 | 0 | 53.0 | 14 | 158 | 209 | 5 | opponent wins |
+| water | water_fast_expand | 2 | 1 | 55.0 | 14 | 159 | 205 | 7 | opponent wins |
+| water | water_fast_expand | 3 | 1 | 55.0 | 14 | 159 | 205 | 6 | opponent wins |
+| water | water_leviathan_tech | 0 | 0 | 53.0 | 14 | 158 | 213 | 6 | opponent wins |
+| water | water_leviathan_tech | 1 | 0 | 53.0 | 14 | 158 | 208 | 6 | opponent wins |
+| water | water_leviathan_tech | 2 | 1 | 55.0 | 14 | 159 | 234 | 6 | opponent wins |
+| water | water_leviathan_tech | 3 | 1 | 55.0 | 14 | 165 | 193 | 5 | opponent wins |
+
+| per faction | median first attack, pressure (12 games) | median first attack, pressure (4 games vs standard) | median first attack, `*_standard` side (same 4 games) | median workers at 180 s (12 games) | pressure games won |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| skai | 150.5 s | 150.5 s | 194.5 s | 14 (min 13) | 8 of 12 (standard 3 of 4, fast_expand 3 of 4, air 2 of 4) |
+| water | 158.5 s | 158.5 s | 175.5 s | 14 (min 14) | 4 of 12 (standard 4 of 4, fast_expand 0 of 4, leviathan_tech 0 of 4) |
+
+First depot 52.4 to 53.8 s (Skai) and 53.0 to 55.0 s (Water), against 52 to 54 s in the spec's measured line.
+
+### Gate verdict after package L-R
+
+| item | requirement | result | verdict |
+| --- | --- | --- | --- |
+| L-R-A1 | L-R-1 to L-R-4 green, suite green, no warnings | Replay 27, Net 33, Sim 876 passed, 0 failed (Release), build without warnings; no pin re-pinned, R-9 still 8 | **PASS** |
+| L-R-A2 | pressure openings: at least 10 decided mirror games, win fraction 0.35 to 0.65; strength ladder not below 0.35 with at least 10 games | self-ladder skai 13 of 20 = 0.650 [43.3, 81.9] (on the upper bar, not above it, no warning), water 7 of 18 = 0.389 [20.3, 61.4]; strength ladder skai 6 of 12 = 0.500, water 8 of 14 = 0.571 | **PASS** (Skai exactly on the bar) |
+| L-R-A3 | goal items 1 and 2 still PASS | self-ladder distinct per decided game 1.000 / 1.000 / 1.000 (at least 0.8); strength `LADDER` 0.532 PASS, mirror 77/144, Wilson upper 0.614 (at least 0.50) | **PASS** |
+| L-R-A4 | pressure median first attack at most 180 s and earlier than the `*_standard` side's; median workers at 180 s at least 12 | Skai 150.5 s against 194.5 s, 14 workers; Water 158.5 s against 175.5 s, 14 workers | **PASS** (both factions) |
+| L-R-A5 | games with no pressure draw bit-identical | 147 compared, 0 differing | **PASS** |
+
+L-R has not failed (L.6): A2 passes for both openings, A3 does not regress, A5 shows no difference, A4 passes. Nothing was tuned.
+
+Not part of L-R's pass, reported with the same bars. Self-ladder win fractions: skai_air 0.545, skai_fast_expand 0.450, skai_standard 0.393, skai_windrunner_pressure 0.650, water_fast_expand 0.440, water_grasper_pressure 0.389, water_leviathan_tech 0.677 (above 0.65, the one warning), water_standard 0.438. Strength ladder: skai_standard 0.667 and water_leviathan_tech 0.737 above 0.65, water_standard 0.294 below 0.35. So **goal item 3 as a whole is still not met** (`water_leviathan_tech` is outside the band in both ladders, `skai_standard` and `water_standard` in the strength ladder), and the gate for making `aggressive_s4r` the baseline (Q-10) stays open. About 20 mirror games per opening give a Wilson half-width of about 0.2, so the Skai 0.650 and the Water leviathan 0.677 are weak evidence either way. Rock-paper-scissors (Q-LR-3): the Water pressure line beat `water_standard` 4 of 4 and lost 0 of 8 to fast_expand and leviathan_tech in the forced games, as in the rush report; its mirror fraction is inside the band.
+
+---
 
 ## After the weight scale (commit 2142640; before package L-R, superseded by the section above)
 
