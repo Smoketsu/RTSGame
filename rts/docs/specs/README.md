@@ -120,3 +120,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [walls_and_tech.md](walls_and_tech.md) | W: worker-built walls (`is_wall`, new `TileBlockers.BuiltWall`: blocks ground and water movement and flood flow, keeps water already there, hidden in fog for the AI, Quake damages it), Wind Baffle and Coral Wall. T: `requires` list on any definition (`missing_prerequisite` on train and build orders only), Storm Spire gates the Thunderhead, Reef Workshop the Leviathan, AI rule T2. G: gates (`is_gate`, `TileBlockers.Gate` with a hashed `GateTeam` per tile, per-team flow fields while any gate stands). D: drag to place (`build_wall_line` command with a tile list, per-worker hashed tile queue paid up front, `WallLine.Rasterise`, `BuildLineTileSkippedEvent`). F: flood-bound water flyer, option only, **not approved for build**. All numbers placeholders; no new step; W, T and G add no command | P-005; G and D developer request | worker construction, combat mechanics (built); build W, then T (built), then G, then D, sim-reviewer after each |
+
+## Field saturation (developer decision, 18 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [field_saturation.md](field_saturation.md) | SAT: gather slots per field (`gather_slots_per_common_field` 3, `gather_slots_per_rare_field` 2), `GatherState.Waiting` with a hashed first-come queue tick; every hash moves. SAT-M: re-baseline. AI-E: worker caps, depots and rare cap from the slots (`aggressive_s5`). AI-P: producers at expansions, static defence by threat. AI-H: harass speed relative to the enemy's chasers. AI-HQ: relocation to the best field cluster | developer decision 18 Nov 2026 | economy (built); build SAT, SAT-M, then L-R and the AI packages in the order of its section 10 |
