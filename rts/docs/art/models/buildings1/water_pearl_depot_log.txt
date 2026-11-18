@@ -1,0 +1,5 @@
+balance_before 800.0
+task 303a0b62-e531-493d-87f7-679e7b32b8bc
+credits_consumed 110.0
+balance_after 690.0
+elapsed_s 53
