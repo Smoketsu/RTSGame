@@ -20,6 +20,16 @@
   "ladder_non_regression_fraction_min": 0.45,
   // Games re-run in-process after the ladder to compare final hashes (determinism spot check); 0 turns it off. Unit: games. Range: 0 to 16. Source: skirmish_ai_v3.md A.2; placeholder.
   "ladder_verify_games": 2,
+  // An opening drawn in more than this share of its faction's draws gets a WARNING in the ladder report (reported only, never changes the exit code). Unit: fraction. Range: 0 to 1. Source: P-005 option L; skirmish_ai_v4_rl.md H.3.
+  "opening_max_use_fraction": 0.40,
+  // An opening that wins more than this share of its mirror games against other openings gets a WARNING (needs opening_min_games such games). Unit: fraction. Range: 0 to 1. Source: P-005 option L; skirmish_ai_v4_rl.md H.3.
+  "opening_max_mirror_win_fraction": 0.65,
+  // An opening that wins less than this share of its mirror games against other openings gets a WARNING (needs opening_min_games such games). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v4_rl.md H.3; placeholder.
+  "opening_min_mirror_win_fraction": 0.35,
+  // Decided mirror games against other openings an opening needs before its win fraction is judged. Unit: games. Range: 1 to 1000. Source: skirmish_ai_v4_rl.md H.3; placeholder.
+  "opening_min_games": 10,
+  // With --non-regression: the Wilson upper bound over distinct mirror games the candidate must reach; below it the report prints a WARNING that the candidate may be weaker than the baseline (never changes the exit code). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v4_rl.md H.3; placeholder.
+  "ladder_mirror_upper_min": 0.50,
   // Response tests, one per scenario script and AI-under-test faction. script: file in this folder; check: air_answer, armoured_answer, trade, raid or turtle; the other keys are that check's parameters (seconds are game seconds, fractions and ratios as named). Unit: objects. Range: 1 to 64 entries. Source: skirmish_ai_v3.md A.4; placeholder.
   "response_tests": [
     { "script": "response_roc_rush_skai.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },

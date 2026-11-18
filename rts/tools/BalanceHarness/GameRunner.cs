@@ -89,6 +89,9 @@ namespace Rts.Tools.BalanceHarness
                 controllers.Add(new SkirmishAiController(player.Id, AiProfile.FromDataSet(data, player.Id.Value == 0 ? profileSlot0 : profileSlot1)));
             }
             AiHost.StartAll(sim, controllers);
+            // IDs of the openings the two AIs drew (skirmish_ai_v4_rl.md H.1), "" for a profile without openings.
+            string opening0 = ((SkirmishAiController)controllers[0]).OpeningId;
+            string opening1 = ((SkirmishAiController)controllers[1]).OpeningId;
             trace?.Begin(sim, mapId + " " + matchupId + " game " + game + " seed " + seed + " profile " + profileSlot0 + " (P0) / " + profileSlot1 + " (P1) cap " + maxGameSeconds + " s; P0 "
                 + players[0].FactionId + ", P1 " + players[1].FactionId);
 
@@ -169,7 +172,7 @@ namespace Rts.Tools.BalanceHarness
             signature.Write(Math.Max(lastTick, 0));
             signature.Write(result);
             return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, game, 0), FactionInSlot(matchupId, game, 1), profileSlot0, profileSlot1, result,
-                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills);
+                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills, opening0, opening1);
         }
 
         /// <summary>Damage and death ticks of one HQ unit while a game runs.</summary>

@@ -6,7 +6,9 @@
 // ((tick + player) % ThinkTicks == 0, staggered per player) builds an AiWorldView, runs AiBrain and submits the intents through
 // AiCommandWriter. It never calls Step, never mutates the simulation, never draws from sim.Rng (locked between steps anyway),
 // and keeps no static state, so two AIs in one process share nothing. Its generator is a DeterministicRandom (PCG32, the same
-// class the simulation uses) seeded matchSeed ^ (0x9E3779B97F4A7C15 * (player + 1)).
+// class the simulation uses) seeded matchSeed ^ (0x9E3779B97F4A7C15 * (player + 1)); its draw sequence is never changed. Package R
+// (skirmish_ai_v4_rl.md) adds a second generator, AiVariety (held by Memory.Variety, seeded by AiVariety.SeedFor), created only when the
+// profile has a jitter key above 0; profiles without one play bit-identically to before.
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
@@ -38,6 +40,9 @@ namespace Rts.Ai
 
         /// <summary>The profile's plan for the player's faction; set by <see cref="OnMatchStart"/>. Null before.</summary>
         public AiFactionPlan? Plan { get; private set; }
+
+        /// <summary>ID of the opening drawn at match start (skirmish_ai_v4_rl.md L.3), or "" when the profile has none. For the harness and traces.</summary>
+        public string OpeningId => Memory.Variety == null ? string.Empty : Memory.Variety.OpeningId;
 
         /// <summary>Ticks between decisions: max(1, think_interval_seconds in ticks). Unit: ticks. Range: 1 upward; 0 before OnMatchStart.</summary>
         public int ThinkTicks { get; private set; }
@@ -83,6 +88,10 @@ namespace Rts.Ai
             }
             Rng = new DeterministicRandom(SeedFor(sim.Settings.Seed, Player));
             Plan = Profile.RequireFaction(self.FactionId);
+            // Package R: the variety stream, a second generator seeded apart from Rng, only when the profile asks for variety (null otherwise).
+            Memory.Variety = AiVariety.IsNeeded(Profile, Plan)
+                ? AiVariety.Create(Profile, Plan, AiVariety.SeedFor(sim.Settings.Seed, Player), sim.Clock.TicksPerSecond)
+                : null;
             ThinkTicks = Math.Max(1, sim.Clock.SecondsToTicks(Profile.ThinkIntervalSeconds));
         }
 

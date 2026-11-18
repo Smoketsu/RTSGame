@@ -260,6 +260,12 @@
   "harass_max_seconds": 90,
   // C2.3 hysteresis: once the rare bank reached rare_bank_soft_cap, rare fields stay closed until the bank falls below this; 0 means the same as the cap (no hysteresis). Unit: resource units (rare). Range: 0 to rare_bank_soft_cap (when that is above 0). Source: skirmish_ai_v3.md C2.3 (review fix); placeholder.
   "rare_bank_return_cap": 0,
+  // Package R: each base composition weight moves by up to this share at match start (one draw per unit from the variety stream; a weight above 0 stays at least 1 and at most 100); 0 turns it off. Unit: fraction. Range: 0 to 0.5. Source: skirmish_ai_v4_rl.md R.4; placeholder.
+  "composition_jitter_fraction": 0,
+  // Package R: the first depot clocks (expand_at_seconds and early_expansion_seconds) move by a whole number of seconds drawn from minus to plus this at match start; 0 turns it off. Unit: seconds (integer). Range: 0 to 120. Source: skirmish_ai_v4_rl.md R.4; placeholder.
+  "expand_jitter_seconds": 0,
+  // Package R: attack_min_advantage moves by an offset drawn from minus to plus this, in steps of 0.01, each time the army starts massing (the attack still needs a predicted win); 0 turns it off. Unit: ratio. Range: 0 to 0.5. Source: skirmish_ai_v4_rl.md R.4; placeholder.
+  "attack_advantage_jitter": 0,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {
@@ -286,6 +292,8 @@
       "attack_tide_max": 1,
       // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
       "attack_tide_override_supply": 20,
+      // Openings, one of which is drawn by weight at match start (each: id, weight 0 to 100, build_order replacing the plan's for the whole game, composition and the four timing keys until handover_seconds); [] = none, the plan plays as written. Unit: array of openings. Range: 0 to 16 entries; weights sum above 0 when not empty. Source: skirmish_ai_v4_rl.md L.2; placeholder.
+      "openings": [],
       // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
       "cycle_preference": ["windstorm", "core_surge", "quake"]
     }

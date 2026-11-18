@@ -2,7 +2,7 @@
 // The per-controller memory of the skirmish AI (spec section 3): stance, attack threshold, regroup timer, build attempts,
 // the attack group, the last threat tick, last-seen enemy structures (with their health) and army, cleared spawns, recent hits on own units, the
 // known amount left in every resource field, the depots placed, the fields with no depot site and the HQ relocation state (skirmish_ai_v2.md
-// package B), the scout (route, losses, timers), the enemy model of skirmish_ai_v3.md package B, the raid log of package C (rule SD), the harass, defend and fallen-back groups of package D, and the command sequence counter. Part of
+// package B), the scout (route, losses, timers), the enemy model of skirmish_ai_v3.md package B, the raid log of package C (rule SD), the harass, defend and fallen-back groups of package D, the variety stream of skirmish_ai_v4_rl.md package R, and the command sequence counter. Part of
 // Rts.Ai. This is NOT simulation state and is never hashed: it lives in the controller instance (no static fields), and it is
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
@@ -282,5 +282,11 @@ namespace Rts.Ai
 
         /// <summary>Rule G (C2.3 hysteresis): true while the rare-worker cap is in force (set when the rare bank reaches rare_bank_soft_cap, cleared when it falls below rare_bank_return_cap). Unit: boolean. Range: true or false; false at the start.</summary>
         public bool RareCapActive { get; set; }
+
+        /// <summary>
+        /// The variety stream and its drawn values (skirmish_ai_v4_rl.md R.1); null when the profile asks for no variety (and for an
+        /// AiMemory built by hand), in which case every rule reads the profile and plan unchanged. Set by SkirmishAiController.OnMatchStart.
+        /// </summary>
+        public AiVariety? Variety { get; set; }
     }
 }
