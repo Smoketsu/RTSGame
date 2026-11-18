@@ -112,9 +112,6 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Games re-run in-process for the determinism spot check. Unit: games. Range: 0 to 16.</summary>
         public int LadderVerifyGames { get; private set; }
 
-        /// <summary>Smallest share of distinct games among a cell's decided games before the ladder warns (skirmish_ai_v4.md S.2, P-005 bar item 3). Unit: fraction. Range: 0 to 1.</summary>
-        public double LadderMinDistinctFraction { get; private set; }
-
         /// <summary>The response scenarios in file order. Range: 1 to 64 entries.</summary>
         public IReadOnlyList<ResponseTest> ResponseTests { get; private set; } = Array.Empty<ResponseTest>();
 
@@ -137,7 +134,7 @@ namespace Rts.Tools.BalanceHarness
         {
             JsonValue root = JsonReader.Parse(text, SourceName);
             root.RejectUnknownKeys("ladder_base_seed", "ladder_games_per_cell", "ladder_maps", "ladder_matchups", "ladder_max_game_seconds", "ladder_min_decided",
-                "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "ladder_min_distinct_fraction", "response_tests");
+                "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "response_tests");
             AiEvalSettings settings = new AiEvalSettings();
             settings.LadderBaseSeed = (ulong)root.RequireInt("ladder_base_seed", 0, int.MaxValue);
             // Games per cell, checked for the multiple-of-4 rule (the seat rule needs whole blocks of four games).
@@ -154,7 +151,6 @@ namespace Rts.Tools.BalanceHarness
             settings.LadderCandidateWinFractionMin = HarnessStats.ToDouble(root.RequireFix64("ladder_candidate_win_fraction_min", "0", "1"));
             settings.LadderNonRegressionFractionMin = HarnessStats.ToDouble(root.RequireFix64("ladder_non_regression_fraction_min", "0", "1"));
             settings.LadderVerifyGames = root.RequireInt("ladder_verify_games", 0, 16);
-            settings.LadderMinDistinctFraction = HarnessStats.ToDouble(root.RequireFix64("ladder_min_distinct_fraction", "0", "1"));
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");

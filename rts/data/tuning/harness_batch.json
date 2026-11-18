@@ -33,5 +33,7 @@
   // Games per (map, matchup) re-run in fresh processes to check determinism; 0 turns the check off. Unit: games (count). Range: 0 to 10. Source: PLACEHOLDER.
   "verify_games_per_cell": 2,
   // Games per worker process call. Unit: games (count). Range: 1 to 500. Source: PLACEHOLDER.
-  "chunk_games": 25
+  "chunk_games": 25,
+  // Smallest share of distinct games (distinct play signatures) among a cell's decided games; below it the harness prints a warning and never changes its exit code. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v4.md S.2 and P-005 bar item 3; placeholder.
+  "min_distinct_fraction": 0.8
 }

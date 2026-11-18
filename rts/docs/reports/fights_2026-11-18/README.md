@@ -4,11 +4,11 @@
 - Ran on: commit 51c048f (`origin/main`) plus the filled `rts/data/scripts/fights/matchups.json` of this commit (the file is outside the content digest).
 - Command: `dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --fights` (after `dotnet build rts/RtsGame.sln -c Release`).
 - Wall time: 22.1 s for the final run (23.2 s for the first run, before the matchups file was filled), 4 cores, Release. Far below the 5 minute limit.
-- Data digest: tuning d522ef6d82fa09f1, content 1949943b73b01967.
+- Data digest: tuning d522ef6d82fa09f1, content b0014f3f65365bb8.
 - Files: `fights.md` (report), `fights.jsonl` (one record per fight), `hq_floor.jsonl` (60 HQ floor trials).
 
 ```
-FIGHTS fights=780 decided=765 draws=0 stalemates=13 unresolved=2 mismatched=0 checks_passed=2 of=8
+FIGHTS fights=780 decided=765 draws=0 stalemates=13 unresolved=2 mismatched=0 checks_passed=2 of=8 dome_absorbed=12
 ```
 
 Not the expected 4 of 8: filling the matchups file made two checks stricter, see "Why 2 of 8". With the file empty the sweep gave 3 of 8 (rule 3 passed only because it had no counters to test).
@@ -36,21 +36,21 @@ All are on the Shellback except one. A `no_damage` stalemate counts only damage 
 
 | Case | Finding | Reason |
 | --- | --- | --- |
-| flat/750/skai.roc_rider/water.shellback | stalemate | no_damage |
-| flat/750/water.shellback/skai.roc_rider | stalemate | no_damage |
-| flat/750/water.shellback/skai_ai_mix | stalemate | no_damage |
-| flat/750/skai_ai_mix/water.shellback | stalemate | no_damage |
-| flat/1500/skai.roc_rider/water.shellback | stalemate | no_damage |
+| flat/750/skai.roc_rider/water.shellback | stalemate | dome_absorbed |
+| flat/750/water.shellback/skai.roc_rider | stalemate | dome_absorbed |
+| flat/750/water.shellback/skai_ai_mix | stalemate | dome_absorbed |
+| flat/750/skai_ai_mix/water.shellback | stalemate | dome_absorbed |
+| flat/1500/skai.roc_rider/water.shellback | stalemate | dome_absorbed |
 | flat/1500/water.shellback/skai.roc_rider | unresolved | time_cap (180 s) |
-| flat/1500/water.shellback/skai_ai_mix | stalemate | no_damage |
-| flat/1500/skai_ai_mix/water.shellback | stalemate | no_damage |
-| high_ground/1500/skai.stormcaller/water.shellback | stalemate | no_damage |
-| high_ground/1500/water.spoutling/water.shellback | stalemate | no_damage |
+| flat/1500/water.shellback/skai_ai_mix | stalemate | dome_absorbed |
+| flat/1500/skai_ai_mix/water.shellback | stalemate | dome_absorbed |
+| high_ground/1500/skai.stormcaller/water.shellback | stalemate | dome_absorbed |
+| high_ground/1500/water.spoutling/water.shellback | stalemate | dome_absorbed |
 | flooded/1500/skai_ai_mix/water.grasper | stalemate | no_damage (no Shellback; ends at 159.9 s with 0.245 and 0.067 of value left) |
-| choke/1500/skai.roc_rider/water.shellback | stalemate | no_damage |
+| choke/1500/skai.roc_rider/water.shellback | stalemate | dome_absorbed |
 | choke/1500/water.shellback/skai.roc_rider | unresolved | time_cap (180 s) |
-| choke/1500/skai_ai_mix/water.shellback | stalemate | no_damage |
-| choke/1500/water.shellback/skai_ai_mix | stalemate | no_damage |
+| choke/1500/skai_ai_mix/water.shellback | stalemate | dome_absorbed |
+| choke/1500/water.shellback/skai_ai_mix | stalemate | dome_absorbed |
 
 (That is 13 stalemates and 2 unresolved: the table lists 15 fights.)
 

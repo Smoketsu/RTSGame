@@ -298,7 +298,7 @@ namespace Rts.Tools.BalanceHarness
             LadderVerdict verdict = new LadderVerdict(total.Decided, total.CandidateWins, settings.LadderMinDecided, bar);
             // Distinct, mirror and cross text of the LADDER line, and the distinct-share warnings (reported only, never gating).
             string stats = StatsText(records);
-            List<string> warnings = DistinctWarnings(records, settings.LadderMinDistinctFraction);
+            List<string> warnings = DistinctWarnings(records, HarnessStats.ToDouble(data.Tuning.HarnessBatch.MinDistinctFraction));
 
             // Output folder: --out, or the ladder subfolder of the default batch folder.
             string outDirectory = options.OutDirectory == BatchOptions.DefaultOutDirectory ? Path.Combine(BatchOptions.DefaultOutDirectory, "ladder") : options.OutDirectory;
@@ -354,7 +354,7 @@ namespace Rts.Tools.BalanceHarness
             sb.Append("\n## Per seat\n\n");
             AppendTable(sb, "candidate seat", records, r => "slot " + LadderTally.CandidateSlot(r.Game).ToString(CultureInfo.InvariantCulture), z);
             sb.Append("\n## Mirror and cross-faction\n\n");
-            AppendRows(sb, "games", MirrorCross(records), z);
+            AppendRows(sb, "row", MirrorCross(records), z);
             sb.Append("\n## Overall\n\n");
             AppendTable(sb, "all", records, r => "all games", z);
             return sb.ToString();

@@ -62,13 +62,16 @@ namespace Rts.Sim.Data
         /// <summary>Games per worker process call. Unit: games (count). Range: 1 to 500. Source: PLACEHOLDER.</summary>
         public int ChunkGames { get; }
 
+        /// <summary>Smallest share of distinct games among a cell's decided games before the harness warns. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v4.md S.2.</summary>
+        public Fix64 MinDistinctFraction { get; }
+
         /// <summary>Reads and validates every key of the file. Unknown keys, missing keys, wrong types and out-of-range values throw <see cref="DataValidationException"/> naming the file and key.</summary>
         /// <param name="root">The parsed file (root must be an object).</param>
         public HarnessBatchTuning(JsonValue root)
         {
             root.RejectUnknownKeys("ci_games_per_matchup_per_map", "base_seed", "matchups", "maps", "ai_profile", "max_game_seconds",
                 "win_rate_band_min", "win_rate_band_max", "confidence_z", "max_undecided_fraction", "median_cap_matchup",
-                "hq_floor_max_test_seconds", "hq_arena_size_tiles", "hq_floor_standoff_tiles", "verify_games_per_cell", "chunk_games");
+                "hq_floor_max_test_seconds", "hq_arena_size_tiles", "hq_floor_standoff_tiles", "verify_games_per_cell", "chunk_games", "min_distinct_fraction");
             CiGamesPerMatchupPerMap = root.RequireInt("ci_games_per_matchup_per_map", 1, 500);
             BaseSeed = root.RequireInt("base_seed", 0, int.MaxValue);
             Matchups = ReadIds(root, "matchups", 1, 64);
@@ -85,6 +88,7 @@ namespace Rts.Sim.Data
             HqFloorStandoffTiles = root.RequireInt("hq_floor_standoff_tiles", 0, 16);
             VerifyGamesPerCell = root.RequireInt("verify_games_per_cell", 0, 10);
             ChunkGames = root.RequireInt("chunk_games", 1, 500);
+            MinDistinctFraction = root.RequireFix64("min_distinct_fraction", "0", "1");
         }
 
         /// <summary>Reads a required array of non-empty strings with a length in [min, max].</summary>
