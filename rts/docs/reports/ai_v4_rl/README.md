@@ -62,6 +62,14 @@ No mirror-interval warning and no distinct-share warning. Distinct / decided: sk
 
 (The "draws" column of the opening tables is the number of times the opening was drawn, not drawn games.)
 
+### Run 3: scope check (L-R-A5)
+
+Run 1's command on `fe89236` (a `git archive` of that commit built in Release under `rts/build/before_src`, git-ignored), output `rts/build/ladder_lr_self_before`, 2582 s. It reproduces the earlier report's self-ladder line exactly (`decided=216 wins=102 ... mirror=64/144 cross=38/72`, the same four warnings), so the baseline is the one on record. Comparison of `ladder.jsonl` by (map, matchup, game), fields `play_signature` and `state_hash`:
+
+- Same opening at every seat of every game apart from the rename (0 mismatches over 432 seat records): the draws did not move.
+- Games where neither seat drew a rush or pressure opening: **147 compared, 0 differing**.
+- Games where a seat drew the rush or pressure opening: 69, **69 differing**, as expected.
+
 ## After the weight scale (commit 2142640; before package L-R, superseded by the section above)
 
 Composition weights of `aggressive_s4r` multiplied by 10 (jitter band 0.25 now moves every weight both ways). Same commands, seeds and game counts as the sections below; `--jobs 4`; output under `rts/build/ladder_w10_*` (git-ignored). Step 1 checks: harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `dotnet test -c Release`: Replay 27, Net 33, Sim 873 passed, 0 failed. Neutrality evidence: test `R10_WeightScaleIsNeutralWithoutJitter` (jitter 0, x1 and x10 text give equal end tick, state hash and play signature); `R11_ScaledWeightsMoveBothWays`. No existing pin changed.
