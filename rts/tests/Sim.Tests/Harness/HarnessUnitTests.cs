@@ -172,9 +172,10 @@ namespace Rts.Sim.Tests.Harness
             // Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: requires in the content digest, two tech building files): smoke 2c679e2fc3c0a732 is now 9c985e8fc052ce36 and economy_smoke b27e696890ec03ba is now 57e92601f6755ea6; outcomes unchanged (undecided, ticks 599 and 1499).
             // Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files): smoke 9c985e8fc052ce36 is now 722a561a7c2ad335 and economy_smoke 57e92601f6755ea6 is now ea7a4a9d577c9b83; outcomes unchanged (undecided, ticks 599 and 1499).
             // Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest): smoke 722a561a7c2ad335 is now c423332711029434 and economy_smoke ea7a4a9d577c9b83 is now ce62b175ea751ba6; outcomes unchanged (undecided, ticks 599 and 1499).
-            Assert.That(output, Does.Contain("STATE_HASH=c423332711029434\n"));
+            // Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Smoke c423332711029434 is now b6011e19d6265e5d and economy_smoke ce62b175ea751ba6 is now 706626f97350b663; outcomes unchanged (undecided, ticks 599 and 1499).
+            Assert.That(output, Does.Contain("STATE_HASH=b6011e19d6265e5d\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=ce62b175ea751ba6\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=706626f97350b663\n"));
         }
 
         /// <summary>The shipped data set.</summary>

@@ -734,7 +734,8 @@ namespace Rts.Sim.Tests.Economy
             // Re-pinned for combat mechanics package 4 (specs/combat_mechanics.md: grounding_ability in the content digest and Unit.GroundingReadyTick in the unit hash, the Stormcaller carries the ability): old value d951951064e0b735, outcome unchanged (undecided, tick 1499).
             // Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files): old value 57e92601f6755ea6, outcome unchanged (undecided, tick 1499).
             // Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest): old value ea7a4a9d577c9b83, outcome unchanged (undecided, tick 1499).
-            Assert.That(first, Does.Contain("STATE_HASH=ce62b175ea751ba6\n"));
+            // Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value ce62b175ea751ba6, outcome unchanged (undecided, tick 1499).
+            Assert.That(first, Does.Contain("STATE_HASH=706626f97350b663\n"));
         }
     }
 }

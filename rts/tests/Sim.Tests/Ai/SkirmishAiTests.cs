@@ -862,8 +862,9 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: requires in the content digest, two tech building files, the Thunderhead and Leviathan carry requires). Old value 0x6afcdd53a683b20f; outcome unchanged (winner 1, tick 7613; this script trains no gated unit).
         /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files). Old value 0xacd32f73604e2bd3; outcome unchanged (winner 1, tick 7613; the AI never builds gates).
         /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest). Old value 0x849c8691d566adde; outcome unchanged (winner 1, tick 7613; the AI never issues build_wall_line).
+        /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value 0x38e1f3919c6d0aeb; the outcome is unchanged (OUTCOME winner=1 tick=7613, the scripted AI never crowds a field).
         /// </summary>
-        private const ulong V2ReferenceHash = 0x38e1f3919c6d0aebUL;
+        private const ulong V2ReferenceHash = 0xd016e3d25fb28d6aUL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -891,11 +892,12 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for tech prerequisites (specs/walls_and_tech.md package T: requires in the content digest, two tech building files, the Thunderhead and Leviathan carry requires). Old hash 10177cc3d3df74e9; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files). Old hash a8211dfa11746641; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest). Old hash b68b2102f6713a46; the end tick (20151) and the winner (slot 0) do not move.
+        /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old end tick 20151 and hash 015496c40671ead9; new end tick 13219 and hash dd13f646a7502e2f; the winner is still slot 0 (decided).
         /// </summary>
-        private const int BlindTraceEndTick = 20151;
+        private const int BlindTraceEndTick = 13219;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "015496c40671ead9";
+        private const string BlindTraceHash = "dd13f646a7502e2f";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

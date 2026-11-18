@@ -93,7 +93,7 @@ The report never depends on `--jobs`. The single-run mode above is unchanged.
 ## Trace mode
 
 `--trace` plays the one AI-versus-AI game a batch would play for a map, matchup, base seed and game index (same seed derivation, AI profile and cap),
-and writes a readable timeline: every 30 game-seconds one line per player (bank, income, supply, workers, structures, army, trained and lost,
+and writes a readable timeline: every 30 game-seconds one line per player (bank, income, supply, workers (`gather=` counts every worker in a gather loop; `waiting=` is how many of those queue at a full field, specs/field_saturation.md), structures, army, trained and lost,
 HQ, commands by kind, rejected commands by reason, attack state, army distance to the enemy HQ), then a summary with totals, first ticks, stance
 changes and each player's last 20 commands. Build orders are reported as ordered (spend on acceptance), placed (the structure appeared) and cancelled by reason (`new_order`, `worker_lost`, `site_blocked`, `site_occupied`, `unreachable`; refunds come off the spent total). It only reads events and state, so the final state hash equals the untraced game's.
 
