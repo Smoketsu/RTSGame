@@ -260,7 +260,7 @@
   "harass_max_seconds": 90,
   // C2.3 hysteresis: once the rare bank reached rare_bank_soft_cap, rare fields stay closed until the bank falls below this; 0 means the same as the cap (no hysteresis). Unit: resource units (rare). Range: 0 to rare_bank_soft_cap (when that is above 0). Source: skirmish_ai_v3.md C2.3 (review fix); placeholder.
   "rare_bank_return_cap": 200,
-  // Package R: each base composition weight moves by up to this share at match start (one draw per unit from the variety stream; a weight above 0 stays at least 1 and at most 100); 0 turns it off. Unit: fraction. Range: 0 to 0.5. Source: skirmish_ai_v4_rl.md R.4; placeholder.
+  // Package R: each base composition weight moves by up to this share at match start (one draw per unit from the variety stream; a weight above 0 stays at least 1 and at most 100); 0 turns it off. The composition weights of this profile are 10 to 60 (ten times the s3 ratios) so that a 0.25 band moves every weight both ways (10 spans 8 to 13); counter-mix and rule P use only ratios of weights, so the scale does not change play with this key at 0. Unit: fraction. Range: 0 to 0.5. Source: skirmish_ai_v4_rl.md R.4; placeholder.
   "composition_jitter_fraction": 0.25,
   // Package R: the first depot clocks (expand_at_seconds and early_expansion_seconds) move by a whole number of seconds drawn from minus to plus this at match start; 0 turns it off. Unit: seconds (integer). Range: 0 to 120. Source: skirmish_ai_v4_rl.md R.4; placeholder.
   "expand_jitter_seconds": 20,
@@ -285,7 +285,7 @@
         { "structure": "skai.roost", "count": 3, "at_supply_used": 14 }
       ],
       // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Skai Riders / Unit concepts; placeholder (the Roc Rider costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
-      "composition": { "skai.windrunner": 3, "skai.talon_archer": 2, "skai.roc_rider": 1, "skai.stormcaller": 1 },
+      "composition": { "skai.windrunner": 30, "skai.talon_archer": 20, "skai.roc_rider": 10, "skai.stormcaller": 10 },
       // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (Skai strike at low tide); placeholder.
       "attack_tide_min": 0,
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups (Skai strike at low tide); placeholder.
@@ -308,7 +308,7 @@
             { "structure": "skai.roost", "count": 3, "at_supply_used": 14 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "skai.windrunner": 3, "skai.talon_archer": 2, "skai.roc_rider": 1, "skai.stormcaller": 1 },
+          "composition": { "skai.windrunner": 30, "skai.talon_archer": 20, "skai.roc_rider": 10, "skai.stormcaller": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 300,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -334,7 +334,7 @@
             { "structure": "skai.windspire", "count": 1, "at_supply_used": 16 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "skai.windrunner": 6, "skai.talon_archer": 1 },
+          "composition": { "skai.windrunner": 60, "skai.talon_archer": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 300,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -359,7 +359,7 @@
             { "structure": "skai.roost", "count": 2, "at_supply_used": 12 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "skai.talon_archer": 3, "skai.windrunner": 2, "skai.roc_rider": 1 },
+          "composition": { "skai.talon_archer": 30, "skai.windrunner": 20, "skai.roc_rider": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 420,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -385,7 +385,7 @@
             { "structure": "skai.windspire", "count": 1, "at_supply_used": 14 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "skai.roc_rider": 3, "skai.thunderhead": 1, "skai.windrunner": 1 },
+          "composition": { "skai.roc_rider": 30, "skai.thunderhead": 10, "skai.windrunner": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 420,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -418,7 +418,7 @@
         { "structure": "water.tidepool", "count": 3, "at_supply_used": 14 }
       ],
       // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; placeholder (the Ink Lobber costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
-      "composition": { "water.grasper": 3, "water.shellback": 1, "water.ink_lobber": 1, "water.spoutling": 1 },
+      "composition": { "water.grasper": 30, "water.shellback": 10, "water.ink_lobber": 10, "water.spoutling": 10 },
       // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (the water player times attacks for high tide); placeholder.
       "attack_tide_min": 0,
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups; placeholder.
@@ -441,7 +441,7 @@
             { "structure": "water.tidepool", "count": 3, "at_supply_used": 14 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.grasper": 3, "water.shellback": 1, "water.ink_lobber": 1, "water.spoutling": 1 },
+          "composition": { "water.grasper": 30, "water.shellback": 10, "water.ink_lobber": 10, "water.spoutling": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 300,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -467,7 +467,7 @@
             { "structure": "water.shell_forge", "count": 1, "at_supply_used": 16 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.grasper": 6, "water.reef_runner": 1 },
+          "composition": { "water.grasper": 60, "water.reef_runner": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 300,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -492,7 +492,7 @@
             { "structure": "water.tidepool", "count": 2, "at_supply_used": 12 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.grasper": 2, "water.shellback": 2, "water.ink_lobber": 1, "water.spoutling": 1 },
+          "composition": { "water.grasper": 20, "water.shellback": 20, "water.ink_lobber": 10, "water.spoutling": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 420,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -518,7 +518,7 @@
             { "structure": "water.tidepool", "count": 2, "at_supply_used": 16 }
           ],
           // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.ink_lobber": 2, "water.shellback": 2, "water.leviathan": 1, "water.spoutling": 1 },
+          "composition": { "water.ink_lobber": 20, "water.shellback": 20, "water.leviathan": 10, "water.spoutling": 10 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 480,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
