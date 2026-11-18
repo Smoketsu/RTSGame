@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Harness honest statistics (18 Nov 2026, `docs/specs/skirmish_ai_v4.md` package S), harness only, no state hash change. `play_signature` per game record (hash of every AI command, ignores the seed); ladder and batch reports count distinct games, compute Wilson intervals over them and warn below `min_distinct_fraction` (new key in `tuning/harness_batch.json`, outside the content digest; new `HarnessBatchTuning.MinDistinctFraction`, fraction 0 to 1); the ladder prints mirror and cross-faction rows (cross split by the candidate's faction) and `distinct=`, `mirror=`, `cross=` on its LADDER line; `--fights` classifies stalemates with dome-absorbed shots as `dome_absorbed` (12 of the 13 stalemates; report `docs/reports/fights_2026-11-18/` regenerated on current data). Measured: `aggressive_s3` against itself yields 20 distinct games of 216.
+
 - Art (18 Nov 2026): the developer marked both Skai HQ models Keep. All Skai and water buildings and both HQs now have approved models (`docs/art/models/buildings1/`, eleven files); `CONCEPT_BRIEF.md` records the island-and-tree HQ as the current Great Aerie design and marks the disc design superseded.
 
 - Art (18 Nov 2026): the developer marked both Skai HQ sheets Keep; models generated with Tripo (`docs/art/models/buildings1/skai_great_aerie_rooted.glb`, `skai_great_aerie_uprooted.glb`; 220 credits, 470 left), awaiting marks.

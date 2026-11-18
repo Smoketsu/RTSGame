@@ -1,7 +1,7 @@
 <!-- fights.md: written by the balance harness --fights (rts/tools/BalanceHarness/FightCoordinator.cs); not a source file. -->
 # Equal-value fights
 
-- Data digest: tuning d522ef6d82fa09f1, content b0014f3f65365bb8.
+- Data digest: tuning 8af17d045a9c63e6, content 9cb28f0929df518c.
 - Base seed 20261118; fight seed = SeedDerivation.GameSeed(base seed, "fights", fight ID, 0).
 - Value: cost_common + cost_rare per unit; an army is the recipe repeated k = max(1, (2V + rv) / (2 rv)) times.
 - Control: plain attack-move at the enemy front rank, idle units re-target every 2 s; no strategic AI, no HQ.
