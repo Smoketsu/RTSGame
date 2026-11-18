@@ -1,4 +1,4 @@
-<!-- rts/docs/specs/skirmish_ai_v4.md: build spec for the P-005 part 2 work on the skirmish AI as a balance tool (developer decisions of 18 Nov 2026): raid response and economy bug fixes (package F), honest statistics in the balance harness (S), use of the built combat mechanics and abilities (A, five steps), and an outline of seeded randomness and an opening library (R+L, to be specified later). Extends skirmish_ai_v3.md and the rules in the header of rts/src/Ai/AiBrain.cs. Part of rts/docs/specs (index: README.md). -->
+<!-- rts/docs/specs/skirmish_ai_v4.md: build spec for the P-005 part 2 work on the skirmish AI as a balance tool (developer decisions of 18 Nov 2026): raid response and economy bug fixes (package F), honest statistics in the balance harness (S), use of the built combat mechanics and abilities (A, five steps), and points to skirmish_ai_v4_rl.md for seeded randomness and an opening library (R+L). Extends skirmish_ai_v3.md and the rules in the header of rts/src/Ai/AiBrain.cs. Part of rts/docs/specs (index: README.md). -->
 # Spec: Skirmish AI v4 (an AI whose games can count as balance data)
 
 ## 0. Goal, sources and ground rules
@@ -41,7 +41,7 @@ The **current baseline** for every `--ladder` in this spec is `aggressive_s3` (t
 | F (raid response, economy bugs) | nothing new | S | `sim-reviewer` on `rts/src/Ai` |
 | S (honest statistics) | nothing new | F | `sim-reviewer` on the harness diff (it reads hashes and events) |
 | A1 to A5 (mechanics) | F (profile `aggressive_s4f`), S (distinct counts in the gate reports) | nothing | `sim-reviewer` on `rts/src/Ai` and the harness diff after each step |
-| R+L | S, A | - | outline only (section R+L) |
+| R+L | S | - | specified in skirmish_ai_v4_rl.md |
 
 P-005 section 2.4 orders the work F and S, then R+L, then A. This spec puts A before R+L because R+L is not specified yet and A is (Q-1). Each package ends with `dotnet build` (no warnings) and `dotnet test` green, a `sim-reviewer` pass, and its gate run (section E). A Sonnet builder builds each package; a task that fails twice moves up a tier with its failing test.
 
@@ -375,11 +375,9 @@ Existing tests and files affected: every profile under `rts/data/ai` (new keys);
 
 ---
 
-## R+L. Randomness and an opening library (outline only; to be specified after S and A)
+## R+L. Randomness and an opening library
 
-- **R (seeded variety).** All draws from the controller's own generator, at fixed points in `Decide` in a fixed order, so a game stays a pure function of the seed. Candidates: the opening choice (from L); a timing offset on the first attack and on expansion (`*_jitter_seconds` keys); a jitter on `attack_min_advantage` under predictor attacks (today the only jitter is skipped once the enemy is known); random choice among equal-score targets instead of the lowest ID. Measured by S: at least `min_distinct_fraction` (0.8) distinct games per ladder cell (bar item 3), and no ladder bar may pass only because of the draws (compare with draws off).
-- **L (openings as data).** An `openings` list per faction plan in the profile (rush, fast expand, air, defensive, tower; later a Tidecaller flood opening and a Downdraft opening, which is why L follows A), each a build order plus composition override plus expansion timing, sampled at match start by weight and adjusted by scouting (P-004 stage 4). P-005's metrics: no opening used in more than 40 percent of games; none wins more than 65 percent in the mirror.
-- Open for the later spec: how many openings per faction, whether the human benchmark (P-005 decision 12) waits for L.
+Specified in [skirmish_ai_v4_rl.md](skirmish_ai_v4_rl.md) (18 Nov 2026): package R (a second seeded generator per AI, the base army mix within a band, the expansion clock and the attack edge jittered), package L (named openings per faction plan, drawn by weight at match start, handing over to the existing rules), package H (opening columns and warnings in the ladder report), the gate (variety, not weaker, no dominant or dud opening) and how package F's options are re-measured. The developer's P-005 order puts R+L before package A (coordinator, 18 Nov 2026), which answers Q-1 below the other way round from its default.
 
 ---
 
@@ -400,7 +398,7 @@ Existing tests and files affected: every profile under `rts/data/ai` (new keys);
 
 - Fixing `armoured_answer` Skai and `turtle` Skai (Q-11). Water `armoured_answer` stays uncounted.
 - Any `rts/src/Sim` change, any combat or unit data retune, any change to the developer's ladder bar (65 percent) or to `harness_batch.json` `ai_profile`.
-- Package R and L beyond the outline; exploiters and a league (P-005 decision 13); the human benchmark (decision 12).
+- Packages R and L (specified in skirmish_ai_v4_rl.md); exploiters and a league (P-005 decision 13); the human benchmark (decision 12).
 - Unity input or presentation for casts (PC session).
 - walls_and_tech.md Q-W1 (units walking to the nearest reachable point): A4 assumes the built rule.
 
