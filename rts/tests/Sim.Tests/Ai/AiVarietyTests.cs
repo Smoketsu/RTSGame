@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Rts.Ai;
 using Rts.Sim;
@@ -303,6 +304,58 @@ namespace Rts.Sim.Tests.Ai
             AiMemory none = new AiMemory();
             Assert.That(AiBrain.ExpandAtSeconds(s3, none, 0), Is.EqualTo(Fix64.FromInt(240)));
             Assert.That(AiBrain.AttackMinAdvantage(s3, none), Is.EqualTo(Fix64.Parse("1.3")));
+        }
+
+        /// <summary>The shipped aggressive_s4r text with composition_jitter_fraction forced to 0 and, when <paramref name="divideByTen"/>, every composition weight divided by 10 (the x1 weights the file had before the scale).</summary>
+        /// <param name="divideByTen">True to build the x1 text. Unit: boolean.</param>
+        private static string S4rNoJitterText(bool divideByTen)
+        {
+            // The file text being edited.
+            string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s4r.json")).Replace("\r\n", "\n");
+            Assert.That(text, Does.Contain("\"composition_jitter_fraction\": 0.25,"));
+            text = text.Replace("\"composition_jitter_fraction\": 0.25,", "\"composition_jitter_fraction\": 0,");
+            return divideByTen ? Regex.Replace(text, "\"composition\": \\{[^}]*\\}", block => Regex.Replace(block.Value, "(\"[a-z_.]+\": )(\\d+)", m => m.Groups[1].Value + (int.Parse(m.Groups[2].Value) / 10).ToString(System.Globalization.CultureInfo.InvariantCulture))) : text;
+        }
+
+        /// <summary>A copy of the shipped data whose aggressive_s4r profile is <paramref name="text"/>.</summary>
+        /// <param name="text">Profile file text.</param>
+        private static DataSet WithS4r(string text)
+        {
+            // Profile roots with aggressive_s4r replaced.
+            SortedDictionary<string, Rts.Sim.Data.JsonValue> profiles = new SortedDictionary<string, Rts.Sim.Data.JsonValue>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, Rts.Sim.Data.JsonValue> pair in Data.AiProfiles)
+            {
+                profiles[pair.Key] = pair.Value;
+            }
+            profiles["aggressive_s4r"] = Rts.Sim.Data.JsonReader.Parse(text, "ai/aggressive_s4r.json");
+            return new DataSet(Data.Content, Data.Tuning, Data.Maps, Data.Cycles, profiles);
+        }
+
+        /// <summary>R-10: with the jitter key at 0, composition weights x1 and x10 give the same end tick, state hash and play signature (the scale is behaviour-neutral).</summary>
+        [Test]
+        public void R10_WeightScaleIsNeutralWithoutJitter()
+        {
+            // Text of the x1 profile; it must differ from the x10 text or the test proves nothing.
+            string x1 = S4rNoJitterText(true);
+            // Text of the x10 profile (the shipped weights).
+            string x10 = S4rNoJitterText(false);
+            Assert.That(x1, Is.Not.EqualTo(x10));
+            Assert.That(x1, Does.Contain("\"skai.windrunner\": 3,"));
+            GameRecord a = GameRunner.Play(WithS4r(x1), "prototype_1v1", "skai_vs_skai", 0, 20261117, "aggressive_s4r", "aggressive_s4r", 900);
+            GameRecord b = GameRunner.Play(WithS4r(x10), "prototype_1v1", "skai_vs_skai", 0, 20261117, "aggressive_s4r", "aggressive_s4r", 900);
+            Assert.That(b.EndTick, Is.EqualTo(a.EndTick));
+            Assert.That(b.StateHash, Is.EqualTo(a.StateHash));
+            Assert.That(b.PlaySignature, Is.EqualTo(a.PlaySignature));
+        }
+
+        /// <summary>R-11: with the x10 weights and the 0.25 band (steps -25 to 25) a weight moves both down and up: 10 spans 8 to 13 and 30 spans 23 to 38.</summary>
+        [Test]
+        public void R11_ScaledWeightsMoveBothWays()
+        {
+            Assert.That(AiVariety.Jitter(10, -25), Is.EqualTo(8));
+            Assert.That(AiVariety.Jitter(10, 25), Is.EqualTo(13));
+            Assert.That(AiVariety.Jitter(30, -25), Is.EqualTo(23));
+            Assert.That(AiVariety.Jitter(30, 25), Is.EqualTo(38));
         }
 
         /// <summary>R-8: the same seed twice gives the same play signature and state hash.</summary>
