@@ -1,6 +1,96 @@
 <!-- rts/docs/reports/ai_v4_rl/README.md: L-M measurement report of skirmish AI v4 packages R and L (specs/skirmish_ai_v4_rl.md section E): self-ladder, strength ladder against aggressive_s3, response scenarios, per-opening traces, and the gate verdict item by item. Measured on branch review/ai-v4-rl, 18 Nov 2026, prototype_1v1 only. A record of the AI, not a balance reading (P-005 decision 11). -->
 # AI v4 R and L: measurement report
 
+## Current result (after the reservation fix, commit 7f37605)
+
+**Verdict in one line: gate item 1 (variety) PASSES; item 2 (not weaker) PASSES (0.463 against 0.45, mirror upper bound 0.513 against 0.50); item 3 (no dominant, no dud opening) still FAILS on the win-fraction halves (use-share half passes).** Nothing was tuned: no opening weight, build order, jitter, threshold, bar, scenario or game count was changed; the only change is the fix below. Same commands, seeds and game counts as section 1 (the tail of the old report, kept below).
+
+**The fix.** In `rts/src/Ai/AiBrain.cs` rule R, a reservation in one resource no longer blocks a purchase that costs none of that resource: `CanPay`, `TryBuild` and the army-production candidate filter skip the rare check when the rare cost is 0 (and the common check when the common cost is 0). It is unconditional (no profile key): every old pin stayed green without re-pinning (harness smoke `c423332711029434`, economy_smoke `ce62b175ea751ba6`, `V2ReferenceHash`, `BlindTraceHash`, `GoldenFinalHash`, R-0 pin, whole AI project). Test L-10 was renamed `L10_RareReservationDoesNotBlockRareFreePurchases` and now asserts the Perch Depot is bought while the Storm Spire waits for rare (it failed before the fix). Nothing under `rts/src/Sim` changed.
+
+### Forced traces now (`rts/build/force/<opening>`, seed 20261117, game 0, slot 0, 30 s samples)
+
+| opening | Tech building (before) | Tech building (now) | First army (before) | First army (now) |
+| --- | --- | --- | --- | --- |
+| water_leviathan_tech | Reef Workshop 630 s | Reef Workshop 240 s (Pearl Depot 90 s) | none until 540 s, first attack 660 s | Reef Runner 90 s, Grasper/Shellback 150 s, first Leviathan 360 s, supply 15 / 24 / 50 / 61 at 120 / 150 / 240 / 300 s |
+| skai_air | Storm Spire 210 s | Storm Spire 210 s (Perch Depot 90 s, was 300 s) | Windrunners from 60 s, paused 60 to 180 s | Windrunner 60 s, Talon Archer 150 s, first Roc Rider 210 s, first Thunderhead 300 s, supply 16 / 32 / 57 at 120 / 180 / 300 s |
+
+### Self-ladder (`aggressive_s4r` against itself), 215 of 216 decided, 2339 s
+
+```
+WARNING opening skai/skai_standard: wins 19 of 28 mirror games against other openings (0.679, above 0.65).
+WARNING opening skai/skai_windrunner_rush: wins 0 of 20 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_grasper_rush: wins 0 of 18 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_leviathan_tech: wins 26 of 31 mirror games against other openings (0.839, above 0.65).
+LADDER candidate=aggressive_s4r baseline=aggressive_s4r decided=215 wins=99 fraction=0.460 distinct=212 mirror=63/143 cross=36/72 bar=0.650 FAIL
+```
+
+Distinct / decided per cell (from `ladder.jsonl`; no distinct-share warning): skai_vs_skai 71/71 = 1.000, skai_vs_water 70/72 = 0.972, water_vs_water 71/72 = 0.986.
+
+| faction | opening | draws | use share | mirror games | wins | win fraction | Wilson interval | cross games | cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| skai | skai_air | 57 | 0.264 | 22 | 13 | 0.591 | [38.7, 76.7] | 19 | 19 |
+| skai | skai_fast_expand | 48 | 0.222 | 20 | 13 | 0.650 | [43.3, 81.9] | 16 | 16 |
+| skai | skai_standard | 76 | 0.352 | 28 | 19 | 0.679 | [49.3, 82.1] | 24 | 22 |
+| skai | skai_windrunner_rush | 35 | 0.162 | 20 | 0 | 0.000 | [0.0, 16.1] | 13 | 13 |
+| water | water_fast_expand | 52 | 0.241 | 25 | 14 | 0.560 | [37.1, 73.3] | 15 | 0 |
+| water | water_grasper_rush | 42 | 0.194 | 18 | 0 | 0.000 | [0.0, 17.6] | 20 | 0 |
+| water | water_leviathan_tech | 62 | 0.287 | 31 | 26 | 0.839 | [66.4, 92.7] | 17 | 2 |
+| water | water_standard | 60 | 0.278 | 32 | 13 | 0.406 | [26.4, 59.2] | 20 | 0 |
+
+### Strength ladder (`aggressive_s3` baseline, `--non-regression`), 216 of 216 decided, 2363 s
+
+```
+WARNING opening skai/skai_windrunner_rush: wins 0 of 12 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_fast_expand: wins 15 of 22 mirror games against other openings (0.682, above 0.65).
+WARNING opening water/water_grasper_rush: wins 0 of 14 mirror games against other openings (0.000, below 0.35).
+WARNING opening water/water_standard: wins 5 of 17 mirror games against other openings (0.294, below 0.35).
+LADDER candidate=aggressive_s4r baseline=aggressive_s3 decided=216 wins=100 fraction=0.463 distinct=194 mirror=63/144 cross=37/72 bar=0.450 PASS
+```
+
+No mirror-interval warning and no distinct-share warning. Distinct / decided: skai_vs_skai 67/72 = 0.931, skai_vs_water 63/72 = 0.875, water_vs_water 64/72 = 0.889.
+
+| row | games | decided | distinct | candidate wins | baseline wins | candidate fraction | Wilson (distinct games) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| skai_vs_skai | 72 | 72 | 67 | 34 | 38 | 0.472 | [36.3, 59.5] |
+| skai_vs_water | 72 | 72 | 63 | 37 | 35 | 0.514 | [44.9, 68.6] |
+| water_vs_water | 72 | 72 | 64 | 29 | 43 | 0.403 | [26.7, 49.7] |
+| **mirror** | 144 | 144 | 131 | 63 | 81 | **0.438** | **[34.6, 51.3]** |
+| cross | 72 | 72 | 63 | 37 | 35 | 0.514 | [44.9, 68.6] |
+| cross, candidate as skai | 36 | 36 | 35 | 36 | 0 | 1.000 | [90.1, 100.0] |
+| cross, candidate as water | 36 | 36 | 28 | 1 | 35 | 0.028 | [0.6, 17.7] |
+| all | 216 | 216 | 194 | 100 | 116 | 0.463 | [40.5, 54.4] |
+
+| faction | opening | draws | use share | games | wins | win fraction | Wilson interval | cross games | cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| skai | skai_air | 23 | 0.213 | 17 | 8 | 0.471 | [23.1, 66.8] | 6 | 6 |
+| skai | skai_fast_expand | 28 | 0.259 | 19 | 11 | 0.579 | [33.7, 75.4] | 9 | 9 |
+| skai | skai_standard | 35 | 0.324 | 24 | 15 | 0.625 | [47.3, 83.6] | 11 | 11 |
+| skai | skai_windrunner_rush | 22 | 0.204 | 12 | 0 | 0.000 | [0.0, 25.9] | 10 | 10 |
+| water | water_fast_expand | 30 | 0.278 | 22 | 15 | 0.682 | [45.4, 82.8] | 8 | 0 |
+| water | water_grasper_rush | 22 | 0.204 | 14 | 0 | 0.000 | [0.0, 21.5] | 8 | 0 |
+| water | water_leviathan_tech | 28 | 0.259 | 19 | 9 | 0.474 | [16.3, 61.2] | 9 | 1 |
+| water | water_standard | 28 | 0.259 | 17 | 5 | 0.294 | [15.2, 58.3] | 11 | 0 |
+
+### Response scenarios
+
+`aggressive_s4r`: `RESPONSE_SUMMARY passed=5 of=10`, the same five pass and five fail as before. Only `response_mass_windrunner_water` and `response_worker_raid_water` numbers moved (trade_ratio 1.233, killed 53, lost 43; max_workers_lost_in_wave 7); every verdict is unchanged. (The `aggressive_s3` response run was not repeated: the fix does not change that profile.)
+
+### Gate verdict (current)
+
+| item | result | verdict |
+| --- | --- | --- |
+| 1 Variety | 1.000, 0.972, 0.986 distinct per decided game, no warning | **PASS** |
+| 2 Not weaker | fraction 0.463 >= 0.45; mirror 63/144 decided, Wilson upper bound 0.513 >= 0.50 | **PASS** (both halves) |
+| 3 Openings, self-ladder | use shares 0.162 to 0.352, none above 0.40: pass. Win fractions outside 0.35 to 0.65: skai_standard 0.679, skai_windrunner_rush 0.000, water_grasper_rush 0.000, water_leviathan_tech 0.839 | use share PASS; win fractions **FAIL (4 of 8)** |
+| 3 Openings, strength ladder "below" half | skai_windrunner_rush 0.000, water_grasper_rush 0.000, water_standard 0.294 below 0.35 | **FAIL** |
+
+Reading: the fix lifted skai_air (0.000 to 0.591) and water_leviathan_tech (0.065 to 0.839, now over the top bar), and moved the ladder past the 0.45 bar. The two rush openings still lose every mirror game on merit (no rare step, so the fix does not touch them); `water_leviathan_tech` is now dominant. Per spec the weights may be set to 0 once for failing openings; that was not done.
+
+---
+
+# Before the reservation fix (measured on 7ca4f20; kept unchanged for the record)
+
+
 **Verdict in one line: gate item 1 (variety) PASSES; item 2 (not weaker) FAILS (0.384 against the 0.45 bar, mirror upper bound 0.464 against 0.50); item 3 (no dominant, no dud opening) FAILS on the "below" and "above" halves (the use-share half passes).** Nothing was tuned after seeing results: no threshold, scenario, bar, jitter or opening weight was changed. The most important finding is not a tuning matter: two of the eight openings (`skai_air`, `water_leviathan_tech`) are crippled by a reservation rule in the existing brain (section 5).
 
 ## 1. Commands (from the repository root, `dotnet build rts/RtsGame.sln -c Release` first; 4 cores)
