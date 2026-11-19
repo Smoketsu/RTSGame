@@ -127,3 +127,65 @@ Games 0 to 3 of each matchup (12 games, seed 20261117, the harness setup), once 
 Producers: with AI-P on, depot producers (roost, tidepool, shell forge) were ordered at 132 s, 265 s and then 395 to 511 s (median 424.5 s, 19 orders; the other two of the 21 are windspires, supply buildings, which the rule leaves at their sites). So forward production is about 6 percent of producer orders; the HQ ring still takes the rest. The ablation also shows 20 producer orders nearest a depot (median 416 s): there the label only says the HQ-ring tile is nearer a depot than the HQ, so that number is the baseline rate of that coincidence, not forward production. Producers at depots in `aggressive_s5` are therefore barely above that baseline in these 12 games (21 against 20).
 
 Defences: SD-4 changes the picture much more than P1. `aggressive_s5` orders 303 defences (290 at a depot) against the ablation's 125 (93), the first one 2 minutes earlier (135 s against 257 s), and depot defences are ordered from 224 s (first quartile), median 323 s, last 825 s. The count includes retries and the cap is 6 per base, so it is orders, not towers standing. More towers early and a longer game (641.7 s against 580.7 s over these games) go with the lost ladder.
+
+## Self-ladder (`aggressive_s5` against itself), 216 of 216 decided, 4704.6 s
+
+`dotnet run --no-build -c Release --project rts/tools/BalanceHarness -- --data rts/data --ladder --profile-a aggressive_s5 --profile-b aggressive_s5 --jobs 4 --out rts/build/ladder_p_self` (rerun from the start after the kill; it shared the machine with the trace runs, hence the longer time). Records: 216, all `aggressive_s5` in both seats. Determinism spot check 2 games, 0 mismatches.
+
+```
+WARNING opening skai/skai_air: wins 15 of 22 mirror games against other openings (0.682, above 0.65).
+WARNING opening skai/skai_fast_expand: wins 14 of 20 mirror games against other openings (0.700, above 0.65).
+WARNING opening skai/skai_windrunner_pressure: wins 4 of 20 mirror games against other openings (0.200, below 0.35).
+WARNING opening water/water_fast_expand: wins 7 of 25 mirror games against other openings (0.280, below 0.35).
+WARNING opening water/water_leviathan_tech: wins 25 of 31 mirror games against other openings (0.806, above 0.65).
+WARNING opening water/water_standard: wins 11 of 32 mirror games against other openings (0.344, below 0.35).
+LADDER candidate=aggressive_s5 baseline=aggressive_s5 decided=216 wins=107 fraction=0.495 distinct=216 mirror=71/144 cross=36/72 bar=0.650 FAIL
+```
+
+(The FAIL is meaningless in a self-ladder.)
+
+| cell | decided | distinct games | distinct / decided | slot-A wins | Wilson |
+| --- | ---: | ---: | ---: | ---: | --- |
+| skai_vs_skai | 72 | 72 | 1.000 | 36 | [38.7, 61.3] |
+| skai_vs_water | 72 | 72 | 1.000 | 36 | [38.7, 61.3] |
+| water_vs_water | 72 | 72 | 1.000 | 35 | [37.4, 59.9] |
+
+Rows: mirror 71/144 = 0.493 [41.3, 57.4]; cross 36/72 (Skai side 36 of 36, Water side 0 of 36); all 107/216 = 0.495 [42.9, 56.2]; candidate seat 0 / seat 1 63 and 44 wins (0.583 / 0.407). Undecided 0, draws 0. Median game length: all 628.1 s (min 454.6, max 1272.7); skai_vs_skai 626.7 s; skai_vs_water 592.2 s; water_vs_water 677.1 s.
+
+Openings (mirror win fraction; draws counts as in the table above): skai_air 15/22 = **0.682**, skai_fast_expand 14/20 = **0.700**, skai_standard 12/28 = 0.429, skai_windrunner_pressure 4/20 = **0.200**, water_fast_expand 7/25 = **0.280**, water_grasper_pressure 10/18 = 0.556, water_leviathan_tech 25/31 = **0.806**, water_standard 11/32 = **0.344**. Six of eight are outside 0.35 to 0.65 (AI-E after the fixes: three; SAT-M: two). Report-only item.
+
+## Smokes
+
+`dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data` prints `STATE_HASH=e88b3b972175571d`; with `--script rts/data/scripts/economy_smoke.json` it prints `STATE_HASH=12259d6626becbc0`. Both as required.
+
+## Acceptance table (spec section 9 row AI-P and tests P-0 to P-6)
+
+| Item | Bar | Result | Verdict |
+| --- | --- | --- | --- |
+| Ladder `aggressive_s5` vs `abl_s5_no_p`, `--non-regression` | fraction >= 0.450 | 80/216 = 0.370 | **FAIL** |
+| Mirror row Wilson upper bound | >= 0.50 | 44/144, upper bound 0.385 | **FAIL** |
+| Self-ladder distinct games per decided game, every cell | >= 0.8 | 1.000, 1.000, 1.000 | PASS |
+| Openings in mirrors 0.35 to 0.65 (report only) | report | vs ablation: 2 of 8 outside; self-ladder: 6 of 8 outside | reported |
+| Response passes, not fewer than `abl_s5_no_p` | >= baseline | 6 of 10 against 5 of 10 | PASS |
+| Response gate "6 of 9" (spec section 9 text) | 6 | 6 passed (the harness runs 10 scenarios) | met, mismatch of 9 against 10 not reconciled |
+| Count of producers outside the HQ ring and of SD-4 defences per game | report | 21 and 290 orders in 24 player-games (ablation 20 and 93); see traces | reported |
+| P-0 shipped values, parser ranges | pass | in the suite, 919 of 919 | PASS |
+| P-1 producer at the base with fewest producers | pass | in the suite | PASS |
+| P-2 switch off keeps HQ ring sites | pass | in the suite | PASS |
+| P-3 exposed base and SD-4 (literal numbers on `ThreatDefenceHolds`) | pass | in the suite | PASS |
+| P-4 effective cap | pass | in the suite | PASS |
+| P-5 hysteresis | pass | in the suite | PASS |
+| P-6 ablation plays the pre-AI-P game | pass | `P6_AblationPlaysThePreAiPGame` exists and passes; hashes in the test | PASS (provenance at `97f4d97` not re-derived) |
+| Both smokes | `e88b3b972175571d`, `12259d6626becbc0` | both printed | PASS |
+| Old profiles unchanged | no value change | diff shows only the six added keys at old values; `abl_s5_no_p` hashes match P-6 | PASS |
+| AI pins from SAT hold without re-pinning | no re-pin | suite passes with no pin edited by AI-P (only profile-list tests and E-6 changed) | PASS as far as the suite shows |
+
+**The package fails its gate** on the ladder and on the mirror interval. By spec section 9 the next step is: "as above with the P switches", that is, set the AI-P switches in `aggressive_s5` to the old values (the code stays) and let the developer decide. I did not do that and changed nothing in the data. Where the loss comes from is outside this report: in the traces SD-4 builds about three times as many defences, and about two minutes earlier, as the ablation, while the producers move to depots only slightly more than by coincidence; the two effects are not separated here (no ablation with only one of the two switches was run).
+
+## Not checked
+
+- No ablation with only P1 or only P2 on, so the loss is not attributed to one rule.
+- The hashes of P-6 were not reproduced on `97f4d97`.
+- Producer and defence figures are orders from 12 games per profile, not standing structures.
+- The response gate count (9 in the spec, 10 printed) is not reconciled.
+- The full suite was not rerun after the resume (tree unchanged since `d96d3d9`).
