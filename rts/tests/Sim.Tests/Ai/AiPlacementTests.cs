@@ -234,7 +234,7 @@ namespace Rts.Sim.Tests.Ai
             {
                 // Profile ID of the file.
                 string id = Path.GetFileNameWithoutExtension(file);
-                if (id == "aggressive_s5")
+                if (id == "aggressive_s5" || id == "abl_s5_p1_only" || id == "abl_s5_p2_only")
                 {
                     continue;
                 }

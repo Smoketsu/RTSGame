@@ -176,7 +176,7 @@ namespace Rts.Sim.Tests.Ai
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
                 foreach (KeyValuePair<string, AiFactionPlan> pair in profile.Factions)
                 {
-                    if (id != "aggressive_s4r" && id != "aggressive_s5" && id != "abl_s5_no_e" && id != "abl_s5_no_p")
+                    if (id != "aggressive_s4r" && id != "aggressive_s5" && id != "abl_s5_no_e" && id != "abl_s5_no_p" && id != "abl_s5_p1_only" && id != "abl_s5_p2_only")
                     {
                         Assert.That(pair.Value.Openings.Count, Is.EqualTo(0), id + "/" + pair.Key);
                     }
