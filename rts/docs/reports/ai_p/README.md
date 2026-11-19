@@ -1,4 +1,6 @@
 <!-- rts/docs/reports/ai_p/README.md -->
+**Outcome (19 Nov 2026): the AI-P gate failed, so every AI-P switch is off on `aggressive_s5` (`use_forward_producers`, `use_threat_defence`, the four `threat_defence_*` keys and `static_defence_max_per_base` at the `abl_s5_no_p` values); the code merges inert and `aggressive_s5` plays bit for bit as before AI-P. The developer decides what happens next.**
+
 # AI-P: producers at expansions, static defence by threat
 
 Package AI-P of `rts/docs/specs/field_saturation.md`: rule P1 (`use_forward_producers`), rule P2 (`use_threat_defence`, step SD-4 with hysteresis) and the ablation `abl_s5_no_p`. This report was written by a second builder that resumed after a container restart killed the first one, which left no report; every number below is read from the surviving output files (kept in `rts/build/`, git-ignored) or measured again here. Nothing was tuned and no code was changed to make an item pass.

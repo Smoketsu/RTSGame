@@ -114,11 +114,38 @@ namespace Rts.Sim.Tests.Ai
             return Parse(EditedText(oldNewPairs));
         }
 
-        /// <summary>The text of aggressive_s5.json with the edits applied.</summary>
+        /// <summary>
+        /// The AI-P switch-on edits (old/new pairs): aggressive_s5 was switched off on 19 Nov 2026 after the AI-P gate failed, so the tests that
+        /// need AI-P on start from the shipped text with the values it had when AI-P was on (rts/docs/reports/ai_p/README.md, "New profile keys").
+        /// </summary>
+        private static readonly string[] AiPOn =
+        {
+            "\"use_forward_producers\": false,", "\"use_forward_producers\": true,",
+            "\"use_threat_defence\": false,", "\"use_threat_defence\": true,",
+            "\"threat_defence_min_enemy_supply\": 0,", "\"threat_defence_min_enemy_supply\": 8,",
+            "\"threat_defence_min_enemy_advantage\": 0,", "\"threat_defence_min_enemy_advantage\": 1,",
+            "\"threat_defence_max_value_share\": 0,", "\"threat_defence_max_value_share\": 0.4,",
+            "\"threat_defence_release_fraction\": 1,", "\"threat_defence_release_fraction\": 0.75,",
+            "\"static_defence_max_per_base\": 2,", "\"static_defence_max_per_base\": 6,",
+        };
+
+        /// <summary>The AI-P-on profile (aggressive_s5 text with the AI-P switch-on edits). Unit: profile.</summary>
+        private static AiProfile OnProfile()
+        {
+            return Edited();
+        }
+
+        /// <summary>The text of aggressive_s5.json with the AI-P switch-on edits and then the given edits applied.</summary>
         private static string EditedText(params string[] oldNewPairs)
         {
             // The file text being edited.
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5.json"));
+            // Index into the switch-on pairs. Range: even numbers from 0.
+            for (int j = 0; j < AiPOn.Length; j += 2)
+            {
+                Assert.That(text.Contains(AiPOn[j]), Is.True, AiPOn[j]);
+                text = text.Replace(AiPOn[j], AiPOn[j + 1]);
+            }
             // Index into the old/new pairs. Range: even numbers from 0.
             for (int i = 0; i < oldNewPairs.Length; i += 2)
             {
@@ -218,11 +245,20 @@ namespace Rts.Sim.Tests.Ai
             return sim;
         }
 
-        /// <summary>P-0: aggressive_s5 carries the AI-P keys on (and static_defence_max_per_base 6), every other profile carries them at the old values.</summary>
+        /// <summary>P-0: every profile except the two diagnostic ones (aggressive_s5 included, switched off on 19 Nov 2026) carries the AI-P keys at the old values; the diagnostics and the switch-on edits carry the on values.</summary>
         [Test]
         public void P0_ShippedValues()
         {
-            AiProfile s5 = AiProfile.FromDataSet(Data, "aggressive_s5");
+            // The diagnostic profiles of the AI-P report keep their own (partly on) values.
+            AiProfile p1 = AiProfile.FromDataSet(Data, "abl_s5_p1_only");
+            Assert.That(p1.UseForwardProducers, Is.True);
+            Assert.That(p1.UseThreatDefence, Is.False);
+            AiProfile p2 = AiProfile.FromDataSet(Data, "abl_s5_p2_only");
+            Assert.That(p2.UseForwardProducers, Is.False);
+            Assert.That(p2.UseThreatDefence, Is.True);
+            Assert.That(p2.StaticDefenceMaxPerBase, Is.EqualTo(6));
+            // The AI-P-on edits parse to the values AI-P shipped with.
+            AiProfile s5 = OnProfile();
             Assert.That(s5.UseForwardProducers, Is.True);
             Assert.That(s5.UseThreatDefence, Is.True);
             Assert.That(s5.ThreatDefenceMinEnemySupply, Is.EqualTo(8));
@@ -234,7 +270,7 @@ namespace Rts.Sim.Tests.Ai
             {
                 // Profile ID of the file.
                 string id = Path.GetFileNameWithoutExtension(file);
-                if (id == "aggressive_s5" || id == "abl_s5_p1_only" || id == "abl_s5_p2_only")
+                if (id == "abl_s5_p1_only" || id == "abl_s5_p2_only")
                 {
                     continue;
                 }
@@ -245,8 +281,9 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(old.ThreatDefenceMaxValueShare, Is.EqualTo(Fix64.Zero), id);
                 Assert.That(old.ThreatDefenceReleaseFraction, Is.EqualTo(Fix64.One), id);
             }
-            // The ablation differs from aggressive_s5 only in the AI-P keys and static_defence_max_per_base (2).
+            // aggressive_s5 is switched off (19 Nov 2026) and so, like the ablation, has static_defence_max_per_base 2.
             Assert.That(AiProfile.FromDataSet(Data, "abl_s5_no_p").StaticDefenceMaxPerBase, Is.EqualTo(2));
+            Assert.That(AiProfile.FromDataSet(Data, "aggressive_s5").StaticDefenceMaxPerBase, Is.EqualTo(2));
         }
 
         /// <summary>P-0: the parser rejects out-of-range, wrongly typed and missing values of the six keys, and use_threat_defence without use_static_defence, naming the file and the key.</summary>
@@ -295,7 +332,7 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void P1_ProducerGoesToTheBaseWithFewest()
         {
-            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile profile = OnProfile();
             Simulation sim = Game();
             EntityId depot = HqWithProducersAndDepot(sim, false);
             // The depot's tile. Unit: tiles.
@@ -364,10 +401,9 @@ namespace Rts.Sim.Tests.Ai
             }
             sim.Step();
             SetStock(sim, P0, 3000, 3000);
-            // Site of the producer build one think under the profile decides, or null.
-            (int X, int Y)? Site(string profileId)
+            // Site of the producer build one think under the given profile decides, or null.
+            (int X, int Y)? Site(AiProfile profile)
             {
-                AiProfile profile = AiProfile.FromDataSet(Data, profileId);
                 foreach (AiIntent intent in AiBrain.Decide(AiWorldView.Build(sim, P0), profile, profile.RequireFaction("skai"), new AiMemory(), new DeterministicRandom(1)))
                 {
                     if (intent.Kind == AiIntentKind.Build && Data.Content.Units[intent.DefinitionId].Economy.Trains.Count > 0)
@@ -377,8 +413,8 @@ namespace Rts.Sim.Tests.Ai
                 }
                 return null;
             }
-            (int X, int Y)? on = Site("aggressive_s5");
-            (int X, int Y)? off = Site("abl_s5_no_p");
+            (int X, int Y)? on = Site(OnProfile());
+            (int X, int Y)? off = Site(AiProfile.FromDataSet(Data, "abl_s5_no_p"));
             Assert.That(on, Is.Not.Null, "rule X fires with the switch on");
             Assert.That(off, Is.Not.Null, "rule X fires with the switch off");
             Assert.That(Chebyshev(on!.Value.X, on.Value.Y, 31, 10), Is.LessThanOrEqualTo(10), "on the depot's rings: " + on);
@@ -394,7 +430,7 @@ namespace Rts.Sim.Tests.Ai
             AiBrain.PlacementProbe off = Probe(sim, AiProfile.FromDataSet(Data, "abl_s5_no_p"));
             Assert.That(off.ProducerSite, Is.Not.Null);
             Assert.That(off.ProducerSite, Is.EqualTo(off.HqRingSite));
-            AiBrain.PlacementProbe on = Probe(sim, AiProfile.FromDataSet(Data, "aggressive_s5"));
+            AiBrain.PlacementProbe on = Probe(sim, OnProfile());
             Assert.That(on.HqRingSite, Is.EqualTo(off.HqRingSite), "the ring search itself is unchanged by the key");
             Assert.That(on.ProducerSite, Is.Not.EqualTo(off.ProducerSite));
         }
@@ -436,7 +472,7 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void P3_TriggerRuleLiterals()
         {
-            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile profile = OnProfile();
             Assert.That(AiBrain.ThreatDefenceHolds(profile, false, Fix64.FromInt(10), Fix64.Parse("1.5")), Is.True);
             Assert.That(AiBrain.ThreatDefenceHolds(profile, false, Fix64.FromInt(7), Fix64.Parse("1.5")), Is.False);
             Assert.That(AiBrain.ThreatDefenceHolds(profile, false, Fix64.FromInt(10), Fix64.Parse("0.9")), Is.False);
@@ -488,7 +524,7 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void P5_TriggerHasHysteresis()
         {
-            AiProfile band = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile band = OnProfile();
             AiProfile none = Edited("\"threat_defence_release_fraction\": 0.75,", "\"threat_defence_release_fraction\": 1,");
             // Number of changes of the armed state over the thinks, for the profile. Unit: changes. Range: 0 to 20.
             int Changes(AiProfile profile)
@@ -528,7 +564,7 @@ namespace Rts.Sim.Tests.Ai
             {
                 hq = unit.Owner == P0 && unit.Definition.Hq != null ? unit.Id : hq;
             }
-            AiProfile band = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile band = OnProfile();
             AiProfile none = Edited("\"threat_defence_release_fraction\": 0.75,", "\"threat_defence_release_fraction\": 1,");
             // Exposed base with the previous one remembered as the HQ (or None) and the last seen enemy army at x. Unit: ID.
             EntityId Exposed(AiProfile profile, int x, EntityId previous)
@@ -567,6 +603,9 @@ namespace Rts.Sim.Tests.Ai
                 ulong seed = SeedDerivation.GameSeed(20261117UL, "prototype_1v1", matchup, game);
                 GameRecord record = GameRunner.Play(Data, "prototype_1v1", matchup, game, seed, "abl_s5_no_p", "abl_s5_no_p", 2400);
                 Assert.That(record.StateHash, Is.EqualTo(hash), matchup + " game " + game);
+                // aggressive_s5 is switched off (19 Nov 2026) and plays the same games.
+                GameRecord shipped = GameRunner.Play(Data, "prototype_1v1", matchup, game, seed, "aggressive_s5", "aggressive_s5", 2400);
+                Assert.That(shipped.StateHash, Is.EqualTo(hash), "aggressive_s5 " + matchup + " game " + game);
             }
         }
     }
