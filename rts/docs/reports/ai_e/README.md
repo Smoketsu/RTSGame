@@ -82,7 +82,7 @@ Openings (mirror win fraction, first build in brackets; draws unchanged): skai_a
 
 - Build: 0 warnings. Smokes: `e88b3b972175571d` and `12259d6626becbc0`.
 - `abl_s5_no_e` against `aggressive_s4r`: same full-game state hash `e289ebedbf0ddc26` (water_vs_water game 2); the 180 s hash test E-7 passes.
-- Full `dotnet test rts/RtsGame.sln -c Release`: see the summary lines in the commit that follows this section.
+- Full `dotnet test rts/RtsGame.sln -c Release`: Sim 906 of 906 passed, Net 33 of 33, Replay 27 of 27.
 
 ### Acceptance after the review fixes
 
