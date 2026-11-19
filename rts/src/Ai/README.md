@@ -106,3 +106,8 @@ determinism review.
   speed: the count-weighted mean speed of the enemy model's armed types that can hit its layer, else the mean over the enemy factions'
   armed mobile definitions, else it qualifies. The flyer exemption and `harass_min_speed_tiles_per_second` then do not apply.
   `aggressive_s5` has 1.2; `abl_s5_no_h` is the same file with AI-H off. `AiWorldView.EnemyFactionIds` lists the enemy factions.
+- HQ cluster relocation (rts/docs/specs/field_saturation.md package AI-HQ rule HQ-C): the root keys `use_cluster_relocation` and `relocate_gain_ratio`
+  (old values false and 1). When on, a Rooted HQ whose home is at or below `relocate_when_home_remaining_fraction` moves to the safe common-anchored
+  cluster with the most live gather slots if it has at least `relocate_gain_ratio` times home's; depot-served clusters need no "cheaper option" test;
+  never in the Defend stance; `AiMemory.ClusterLeftFields` is a one-way latch against moving back. `aggressive_s5` has true, 2 and fraction 0.35;
+  `abl_s5_no_hq` is the same file with AI-HQ off.

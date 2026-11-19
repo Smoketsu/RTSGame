@@ -178,6 +178,13 @@ namespace Rts.Ai
         /// </summary>
         public SortedSet<int> FailedRelocationFields { get; } = new SortedSet<int>();
 
+        /// <summary>
+        /// AI-HQ one-way latch: the fields of every home the HQ has left by a cluster relocation (every field within field_max_distance_tiles of the
+        /// HQ when it uprooted). A cluster relocation never targets one of them again, so the HQ cannot be ordered back and forth. Ascending.
+        /// Range: each 0 to field count - 1; empty at the start and always empty while use_cluster_relocation is false.
+        /// </summary>
+        public SortedSet<int> ClusterLeftFields { get; } = new SortedSet<int>();
+
         /// <summary>True while the HQ is moving to a new field (rule H). Unit: boolean. Range: true or false; false at the start.</summary>
         public bool RelocationActive { get; set; }
 

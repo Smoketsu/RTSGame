@@ -56,6 +56,8 @@
 //     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).
 //   * field_saturation.md package AI-H (faction-fair harass speed): harass_speed_ratio (every profile file carries it; the old value 0 keeps the
 //     fixed harass_min_speed_tiles_per_second and the flyer exemption).
+//   * field_saturation.md package AI-HQ (HQ mobility, rule HQ-C): use_cluster_relocation and relocate_gain_ratio (every profile file carries
+//     them; the old values false and 1 keep the old relocation rule; aggressive_s5 also sets relocate_when_home_remaining_fraction to 0.35).
 //   * skirmish_ai_v4_rl.md package L (opening library): each faction plan carries "openings" (0 to 16 entries, [] = none), each with id, weight,
 //     build_order, composition, handover_seconds, expand_at_seconds, early_expansion_seconds, attack_army_supply and attack_min_supply; one is
 //     drawn at match start (AiVariety). Validated here: unique IDs, a weight sum above 0, and that every unit with a requires list has its
@@ -666,6 +668,12 @@ namespace Rts.Ai
         /// <summary>AI-H: a unit may harass when its speed is at least this multiple of the chaser speed (<see cref="AiIntel.ChaserSpeed"/>); 0 keeps the fixed-speed rule and the flyer exemption. Unit: ratio. Range: 0 to 4.</summary>
         public Fix64 HarassSpeedRatio { get; }
 
+        /// <summary>AI-HQ rule HQ-C: the HQ relocates to the best safe cluster of fields once home is nearly empty and the cluster has <see cref="RelocateGainRatio"/> times home's live gather slots; false keeps the old relocation rule. Unit: boolean. Range: true or false.</summary>
+        public bool UseClusterRelocation { get; }
+
+        /// <summary>AI-HQ rule HQ-C: the best cluster's live gather slots must be at least this multiple of home's. Unit: ratio. Range: 1 to 10.</summary>
+        public Fix64 RelocateGainRatio { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -847,6 +855,8 @@ namespace Rts.Ai
             ThreatDefenceMaxValueShare = root.RequireFix64("threat_defence_max_value_share", "0", "2");
             ThreatDefenceReleaseFraction = root.RequireFix64("threat_defence_release_fraction", "0", "1");
             HarassSpeedRatio = root.RequireFix64("harass_speed_ratio", "0", "4");
+            UseClusterRelocation = root.RequireBool("use_cluster_relocation");
+            RelocateGainRatio = root.RequireFix64("relocate_gain_ratio", "1", "10");
             if (UseThreatDefence && !UseStaticDefence)
             {
                 throw root.Require("use_threat_defence").Fail("requires use_static_defence to be true as well");
@@ -941,7 +951,8 @@ namespace Rts.Ai
                 "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter",
                 "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
                 "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
-                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "factions");
+                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_cluster_relocation",
+                "relocate_gain_ratio", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.

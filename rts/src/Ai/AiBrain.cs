@@ -15,6 +15,11 @@
 //      common for a depot), no threat is seen and the cooldown has passed. A relocation re-targets when its field runs out, its
 //      destination turns unsafe or relocate_timeout_seconds pass; rooting ends it (cooldown, statistics). An Uprooted HQ with no
 //      relocation (for example after a script) starts one.
+//   1a. HQ cluster relocation (field_saturation.md package AI-HQ rule HQ-C, only with use_cluster_relocation): the trigger above becomes: home
+//      remaining <= relocate_when_home_remaining_fraction and the best candidate cluster (most live gather slots, then nearest, then lower field
+//      index; common anchor field) has live slots >= relocate_gain_ratio x home's (live = known remaining >= expand_min_field_remaining within
+//      field_max_distance_tiles of the stand-off point or the HQ). A field served by an own complete depot may be the target and then the
+//      "cheaper option" test is skipped; never while the army stance is Defend; a home left this way is never a target again (latch).
 //   1b. Cycle (planetary_cycles.md section 5; the spec numbers it rule 9): when the AI's team holds the Core, the next cycle is not
 //      locked yet, no pick of the own team or a script is pending and the AI is its team's pick captain (lowest-ID player still in the
 //      match, so two AI teammates never overwrite each other), pick the first cycle of the faction's cycle_preference that is
@@ -1143,11 +1148,12 @@ namespace Rts.Ai
                 {
                     return;
                 }
-                // Depot the plan builds, or null when it builds none.
-                UnitDefinition? depot = _plan.DropOffBuildingId.Length > 0 ? _view.Content.Units[_plan.DropOffBuildingId] : null;
-                // True when a depot is a cheaper way to reach new fields than moving the HQ.
-                bool cheaperOption = depot != null && _liveDepots < _profile.MaxLiveDepots && (_income || _common >= depot.CostCommon);
-                if (cheaperOption)
+                if (_profile.UseClusterRelocation)
+                {
+                    TriggerClusterRelocation();
+                    return;
+                }
+                if (CheaperOptionExists())
                 {
                     return;
                 }
@@ -1161,18 +1167,117 @@ namespace Rts.Ai
                 Emit(AiIntent.UprootHq(_hq.Id));
             }
 
-            /// <summary>
-            /// Fields a relocation may head for, in target order from the HQ position: not within field_max_distance_tiles of an own depot
-            /// (a drop-off structure, complete or not) and not a home field (within field_max_distance_tiles of the HQ position, so a
-            /// relocating HQ never picks the base it is leaving, nor, after a re-target, the fields around where it stands).
-            /// </summary>
-            private List<AiFieldView> RelocationCandidates()
+            /// <summary>True when a depot is a cheaper way to reach new fields than moving the HQ (the plan builds one, the live-depot cap allows it, and it is affordable or income exists).</summary>
+            private bool CheaperOptionExists()
             {
-                // Positions of the own depots (drop-off structures, not the HQ).
+                // Depot the plan builds, or null when it builds none.
+                UnitDefinition? depot = _plan.DropOffBuildingId.Length > 0 ? _view.Content.Units[_plan.DropOffBuildingId] : null;
+                return depot != null && _liveDepots < _profile.MaxLiveDepots && (_income || _common >= depot.CostCommon);
+            }
+
+            /// <summary>
+            /// AI-HQ rule HQ-C (use_cluster_relocation): called with home at or below relocate_when_home_remaining_fraction, no threat and the cooldown
+            /// over. Picks the best candidate cluster (most live gather slots, then nearest to the HQ, then lower field index; the anchor field is common,
+            /// moving to a rare field is deferred), and uproots when its live slots are at least relocate_gain_ratio times home's (any candidate with
+            /// slots when home has none). The cheaper-option test is skipped when an own complete depot already serves the anchor field. Never while
+            /// the army stance is Defend. The fields of the home it leaves go into the one-way latch <see cref="AiMemory.ClusterLeftFields"/>.
+            /// </summary>
+            private void TriggerClusterRelocation()
+            {
+                if (_memory.Stance == AiStance.Defend)
+                {
+                    return;
+                }
+                // Live gather slots at home. Unit: workers. Range: 0 upward.
+                int homeSlots = LiveSlotsAround(_hq.Position);
+                // Best candidate anchor so far, or null. Unit: field. Range: any common field.
+                AiFieldView? best = null;
+                // Live slots of the best candidate. Unit: workers. Range: 1 upward once best is set.
+                int bestSlots = 0;
+                // Squared distance of the best candidate from the HQ. Unit: squared tiles. Range: 0 upward.
+                Fix64 bestSquared = Fix64.Zero;
+                foreach (AiFieldView field in RelocationCandidates(true))
+                {
+                    if (field.Kind != ResourceKind.Common)
+                    {
+                        continue;
+                    }
+                    // Live slots around where the HQ would stand. Unit: workers. Range: 0 upward.
+                    int slots = LiveSlotsAround(DestinationFor(field));
+                    // Squared distance of this candidate from the HQ. Unit: squared tiles. Range: 0 upward.
+                    Fix64 squared = (field.Centre - _hq.Position).LengthSquared();
+                    if (best == null || slots > bestSlots || (slots == bestSlots && (squared < bestSquared || (squared == bestSquared && field.Index < best.Index))))
+                    {
+                        best = field;
+                        bestSlots = slots;
+                        bestSquared = squared;
+                    }
+                }
+                if (best == null || bestSlots <= 0 || Fix64.FromInt(bestSlots) < _profile.RelocateGainRatio * Fix64.FromInt(homeSlots))
+                {
+                    return;
+                }
+                if (!IsNearAny(OwnDepotPositions(true), best.Centre) && CheaperOptionExists())
+                {
+                    return;
+                }
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    if ((field.Centre - _hq.Position).LengthSquared() <= ReachSquared)
+                    {
+                        _memory.ClusterLeftFields.Add(field.Index);
+                    }
+                }
+                BeginRelocation(best);
+                Emit(AiIntent.UprootHq(_hq.Id));
+            }
+
+            /// <summary>
+            /// AI-HQ: live gather slots around <paramref name="point"/>: the sum of the gather slots (common or rare, from the Sim tuning) of every
+            /// field within field_max_distance_tiles of it whose known remaining is at least expand_min_field_remaining. Unit: workers. Range: 0 upward.
+            /// </summary>
+            private int LiveSlotsAround(FixVec2 point)
+            {
+                // Slots counted so far. Unit: workers. Range: 0 upward.
+                int slots = 0;
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    if (Known(field) >= _profile.ExpandMinFieldRemaining && (field.Centre - point).LengthSquared() <= ReachSquared)
+                    {
+                        slots += field.Kind == ResourceKind.Rare ? _view.GatherSlotsRare : _view.GatherSlotsCommon;
+                    }
+                }
+                return slots;
+            }
+
+            /// <summary>Positions of the own depots (drop-off structures, not the HQ); with <paramref name="completeOnly"/> those under construction are left out.</summary>
+            private List<FixVec2> OwnDepotPositions(bool completeOnly)
+            {
+                // Positions found. Unit: tiles.
                 List<FixVec2> depots = new List<FixVec2>();
                 foreach (AiUnitView unit in _planned)
                 {
-                    if (unit.IsStructure && unit.Definition.Economy.IsDropOff)
+                    if (unit.IsStructure && unit.Definition.Economy.IsDropOff && !(completeOnly && unit.IsUnderConstruction))
+                    {
+                        depots.Add(unit.Position);
+                    }
+                }
+                return depots;
+            }
+
+            /// <summary>
+            /// Fields a relocation may head for, in target order from the HQ position: not within field_max_distance_tiles of an own depot
+            /// (a drop-off structure, complete or not; with <paramref name="allowCompleteDepots"/> only one under construction) and not a field of a home
+            /// left by a cluster relocation (AI-HQ latch) and not a home field (within field_max_distance_tiles of the HQ position, so a
+            /// relocating HQ never picks the base it is leaving, nor, after a re-target, the fields around where it stands).
+            /// </summary>
+            private List<AiFieldView> RelocationCandidates(bool allowCompleteDepots = false)
+            {
+                // Positions of the own depots that rule out a field: all, or (AI-HQ) only those still under construction.
+                List<FixVec2> depots = new List<FixVec2>();
+                foreach (AiUnitView unit in _planned)
+                {
+                    if (unit.IsStructure && unit.Definition.Economy.IsDropOff && !(allowCompleteDepots && !unit.IsUnderConstruction))
                     {
                         depots.Add(unit.Position);
                     }
@@ -1182,7 +1287,7 @@ namespace Rts.Ai
                 foreach (AiFieldView field in TargetOrder(_hq.Position))
                 {
                     if (IsNearAny(depots, field.Centre) || (field.Centre - _hq.Position).LengthSquared() <= ReachSquared
-                        || _memory.FailedRelocationFields.Contains(field.Index) || SurroundingsNearlyEmpty(field))
+                        || _memory.FailedRelocationFields.Contains(field.Index) || _memory.ClusterLeftFields.Contains(field.Index) || SurroundingsNearlyEmpty(field))
                     {
                         continue;
                     }
