@@ -215,3 +215,61 @@ LADDER candidate=abl_s5_p1_only baseline=abl_s5_no_p decided=216 wins=116 fracti
 | all | 216 | 116 | 0.537 | [47.0, 60.2] |
 
 Per cell wins (of 72): skai_vs_skai 41 (0.569), skai_vs_water 36 (0.500), water_vs_water 39 (0.542). Median game length: all 555.5 s; skai_vs_skai 567.8 s; skai_vs_water 512.0 s; water_vs_water 610.8 s.
+
+### P2 only: `abl_s5_p2_only` against `abl_s5_no_p`, 216 of 216 decided, 4048.9 s
+
+(Machine shared with the trace runs only at its start.) Output `rts/build/ladder_p2_only/`.
+
+```
+WARNING opening water/water_fast_expand: wins 4 of 25 mirror games against other openings (0.160, below 0.35).
+WARNING opening water/water_leviathan_tech: wins 21 of 31 mirror games against other openings (0.677, above 0.65).
+WARNING mirror: candidate wins 45 of 144 distinct mirror games, Wilson upper bound 0.392 below 0.50; the candidate may be weaker than the baseline.
+LADDER candidate=abl_s5_p2_only baseline=abl_s5_no_p decided=216 wins=81 fraction=0.375 distinct=216 mirror=45/144 cross=36/72 bar=0.450 FAIL
+```
+
+| row | decided | candidate wins | fraction | Wilson |
+| --- | ---: | ---: | ---: | --- |
+| mirror | 144 | 45 | 0.313 | [24.2, 39.2] |
+| cross | 72 | 36 | 0.500 | [38.7, 61.3] |
+| cross, candidate as skai / water | 36 / 36 | 36 / 0 | 1.000 / 0.000 | [90.4, 100.0] / [0.0, 9.6] |
+| all | 216 | 81 | 0.375 | [31.3, 44.1] |
+
+Per cell wins (of 72): skai_vs_skai 15 (0.208), skai_vs_water 36 (0.500), water_vs_water 30 (0.417). Median game length: all 581.1 s; skai_vs_skai 562.4 s; skai_vs_water 541.1 s; water_vs_water 635.7 s.
+
+### Comparison (ladders against `abl_s5_no_p`, 216 games each)
+
+| candidate | wins | fraction | mirror | skai_vs_skai | skai_vs_water | water_vs_water | median length (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `aggressive_s5` (full AI-P) | 80 | 0.370 | 44/144 (0.306) | 13 | 36 | 31 | 580.0 |
+| `abl_s5_p1_only` | 116 | 0.537 | 80/144 (0.556) | 41 | 36 | 39 | 555.5 |
+| `abl_s5_p2_only` | 81 | 0.375 | 45/144 (0.313) | 15 | 36 | 30 | 581.1 |
+
+### Traces (`AiPlacementMeasure`, 12 games per profile, seed 20261117, games 0 to 3 per matchup, both seats the same profile; 24 player-games)
+
+The helper now also prints, per game and player, the total cost of static defence orders and the army supply and army value at 300 s and 480 s (army = finished, mobile, non-worker, non-HQ units; value = common plus rare cost; -1 when the game had ended). Measured in a copy of the tree (so the running ladder's binaries stayed untouched); logs are not committed. Defence orders include retries and every defence costs 100 (30300 / 303), so cost is orders times 100.
+
+| per 24 player-games | `aggressive_s5` | `abl_s5_p1_only` | `abl_s5_p2_only` | `abl_s5_no_p` |
+| --- | ---: | ---: | ---: | ---: |
+| static defence orders (HQ / depot) | 303 (13 / 290) | 108 (27 / 81) | 314 (13 / 301) | 125 (32 / 93) |
+| total defence order cost | 30300 | 10800 | 31400 | 12500 |
+| defence cost per player-game | 1262 | 450 | 1308 | 521 |
+| median first defence order | 135.0 s | 257.2 s | 135.0 s | 257.2 s |
+| army supply at 300 s (mean, 24 players) | 28.8 | 27.6 | 29.5 | 27.7 |
+| army supply at 480 s (mean, players still in game: 20 / 20 / 22 / 20) | 43.3 | 42.5 | 44.0 | 47.5 |
+| army value at 480 s (mean, same players) | 2744 | 2674 | 2788 | 3011 |
+| defence cost per player-game as share of mean army value at 480 s | 0.46 | 0.17 | 0.47 | 0.17 |
+| mean game length of these games | 641.7 s | 567.7 s | 690.1 s | 580.7 s |
+
+The last share is a rough ratio of two different means (order cost over the whole game against army value standing at 480 s), not a per-game share of total spend.
+
+### Reading
+
+The loss sits in P2 (static defence by threat with cap 6), not in P1. P2 alone scores 81 of 216 (0.375), the full package 80 of 216 (0.370): the same, within one game, and the same cells lose (skai mirror 15 and 13 wins of 72, water mirror 30 and 31). P1 alone scores 116 of 216 (0.537), above 0.50 and above the 0.45 bar, mirror 80 of 144 (0.556). The trace agrees: with P2 on, defence orders are about 2.5 times the ablation's (303 and 314 against 125, with P1 alone at 108 and no earlier first defence), at 135 s against 257 s, costing about 1260 to 1310 per player-game, 0.46 of the army value standing at 480 s (0.17 off). Army supply at 480 s is 43 to 44 with P2 and 47.5 without; at 300 s it is the same for all four (27.6 to 29.5), so the army gap opens after 300 s, and the games with P2 run longer (641.7 s and 690.1 s against 580.7 s and 567.7 s). The numbers show no interaction between P1 and P2 that matters: the full package equals P2 alone, and P1 alone is not worse than the ablation (it is nominally better, 0.537, Wilson [47.0, 60.2], which includes 0.50; one ladder, so I do not claim P1 helps).
+
+### Not checked
+
+- One ladder per profile, seed 20261117 only: the Wilson interval of P1 alone includes 0.50, so "P1 is neutral" fits as well as "P1 helps".
+- The cause inside P2 is not separated: the four threshold keys and `static_defence_max_per_base` 6 were switched together (the cap raised from 2 to 6 may alone account for the extra defences); no run of the cap alone or of a threshold alone.
+- Traces are orders, not standing towers, from 12 games per profile; the army supply is a point value at two ticks, over players still in game (20 or 22 of 24 at 480 s, survivorship differs by profile); no kill or loss statistics were taken.
+- The ladder command line of the earlier AI-P ladder is not recorded in this report; baseline in `--profile-a` and candidate in `--profile-b` was inferred from the harness usage and header (the new `ladder.md` headers confirm candidate and baseline).
+- The profile-list tests were run on the AI classes (`FullyQualifiedName~Ai`: 234 of 235 passed on the first run, the failing `P0_ShippedValues` was fixed by skipping the two diagnostics and `AiPlacementTests` then passed 13 of 13); I did not rerun the whole solution.
