@@ -102,7 +102,7 @@ Both complete (`response_s5.log`, `response_nop.log`; the run ended with `done`)
 
 ## Tests
 
-Full `dotnet test rts/RtsGame.sln -c Release` of the head tree (`rts/build/fulltest2.log`, 07:29, after the last commit `d96d3d9`): Sim **919 of 919 passed**, Replay 27 of 27 (Net summary line was not in the saved tail; see "not checked"). The earlier run `fulltest.log` (06:09, before `a213506`) had 4 failures (`R6_NoVarietyForOldProfiles` among them: the profile lists lacked `abl_s5_no_p`); `a213506` fixed them and the rerun passed.
+Full `dotnet test rts/RtsGame.sln -c Release` of the head tree (`rts/build/fulltest2.log`, 07:29, after the last commit `d96d3d9`): Sim **919 of 919 passed**, Net 33 of 33, Replay 27 of 27 (919 + 33 + 27 = 979). The earlier run `fulltest.log` (06:09, before `a213506`) had 4 failures (`DProfiles_SwitchesAndValidation`, `L1_ShippedProfilesParse`, `E6_MirrorRun_CapsHold_AndFirstDepotIsOnTime`, `R6_NoVarietyForOldProfiles`); `a213506` addressed them (profile lists, E-6 on the ablation) and the rerun passed. I did not rerun the full suite again after the resume: the tree is unchanged since `d96d3d9` apart from this report.
 
 ## Spec deviations found in the tests
 
@@ -110,3 +110,20 @@ Full `dotnet test rts/RtsGame.sln -c Release` of the head tree (`rts/build/fullt
 - P-1: the depot sits at tile (31, 10) so no producer is within `base_radius_tiles`.
 - P-5 and key `threat_defence_release_fraction` and test P-6 were added beyond the spec's original rows (the spec now lists them).
 - AI-E test E-6 now plays `abl_s5_no_p`: with AI-P on, the same seed-1234 game trips its cap check for two thinks at 544 s.
+
+## Placement traces (`AiPlacementMeasure`, explicit test of `d96d3d9`)
+
+Games 0 to 3 of each matchup (12 games, seed 20261117, the harness setup), once with `aggressive_s5` in both seats and once with `abl_s5_no_p` in both seats (`rts/build/place/*.log`; command `P_PROFILE=<id> P_GAMES=4 dotnet test rts/tests/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~AiPlacementMeasure" --logger "console;verbosity=detailed"`). The helper prints build **orders** (not completed structures: an order that fails and is retried counts again), each with the base (the Rooted HQ or a complete depot) its tile stands nearest to. The helper's final state hashes agree with the P-6 hashes for the ablation games it shares (`235626745316a81d` skai_vs_skai 3, `ae4f362f8bdc9885` skai_vs_water 2, `b171e5cd2bf0bfeb` water_vs_water 2), so it replays the harness game. The ORDER lines are printed twice in the log; counts below use the per-game `GAME` lines. 24 player-games per profile.
+
+| per 24 player-games | `aggressive_s5` | `abl_s5_no_p` |
+| --- | ---: | ---: |
+| producer orders nearest the HQ | 321 | 286 |
+| producer orders nearest a depot | 21 | 20 |
+| static defence orders nearest the HQ | 13 | 32 |
+| static defence orders nearest a depot | 290 | 93 |
+| median tick of a player's first static defence order | 135.0 s | 257.2 s |
+| mean game length of these 12 games | 641.7 s | 580.7 s |
+
+Producers: with AI-P on, depot producers (roost, tidepool, shell forge) were ordered at 132 s, 265 s and then 395 to 511 s (median 424.5 s, 19 orders; the other two of the 21 are windspires, supply buildings, which the rule leaves at their sites). So forward production is about 6 percent of producer orders; the HQ ring still takes the rest. The ablation also shows 20 producer orders nearest a depot (median 416 s): there the label only says the HQ-ring tile is nearer a depot than the HQ, so that number is the baseline rate of that coincidence, not forward production. Producers at depots in `aggressive_s5` are therefore barely above that baseline in these 12 games (21 against 20).
+
+Defences: SD-4 changes the picture much more than P1. `aggressive_s5` orders 303 defences (290 at a depot) against the ablation's 125 (93), the first one 2 minutes earlier (135 s against 257 s), and depot defences are ordered from 224 s (first quartile), median 323 s, last 825 s. The count includes retries and the cap is 6 per base, so it is orders, not towers standing. More towers early and a longer game (641.7 s against 580.7 s over these games) go with the lost ladder.
