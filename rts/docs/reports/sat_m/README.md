@@ -145,7 +145,7 @@ The 14-worker row is SAT-15's own case: 1638 / 894 = 1.83 times, against the pas
 
 ## Run 6: how much the unchanged AI over-stacks fields (`waiting=` in traces)
 
-Traces of the ladder games for `prototype_1v1`, base seed 20261117, games 0 to 3 of each matchup, `aggressive_s4r` in both seats, `--max-game-seconds 2400`, 12 traces (each trace's result line equals the ladder's; for example game 0 of skai_vs_skai has state hash `b89fea77924ef994`). Command, per matchup and game g: `--trace --map prototype_1v1 --matchup <m> --game g --seed 20261117 --max-game-seconds 2400 --profile-a aggressive_s4r --profile-b aggressive_s4r --out ...`. Cells are workers / waiting / completed depots (`skai.perch_depot` or the Water depot) at the 30 s sample; `-` means the game was already over.
+Traces of the ladder games for `prototype_1v1`, base seed 20261117, games 0 to 3 of each matchup, `aggressive_s4r` in both seats, `--max-game-seconds 2400`, 12 traces (the result line of game 0 of each matchup was compared with the ladder: same state hash, for example `b89fea77924ef994` for skai_vs_skai; the result lines of games 1 to 3 were not kept or compared). Command, per matchup and game g: `--trace --map prototype_1v1 --matchup <m> --game g --seed 20261117 --max-game-seconds 2400 --profile-a aggressive_s4r --profile-b aggressive_s4r --out ...`. Cells are workers / waiting / completed depots (`skai.perch_depot` or the Water depot) at the 30 s sample; `-` means the game was already over.
 
 | game | 180 s P0 | 180 s P1 | 300 s P0 | 300 s P1 | 480 s P0 | 480 s P1 | most waiting at one sample (P0, P1) | samples with waiting > 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -163,3 +163,75 @@ Traces of the ladder games for `prototype_1v1`, base seed 20261117, games 0 to 3
 | water_vs_water 3 | 14/0/1 | 14/0/1 | 14/1/1 | 14/0/1 | 17/1/2 | 19/0/2 | 3, 1 | 15 of 42 |
 
 Reading (a measurement, nothing tuned): at 180 s no player waits at all, and every player has 14 workers and one depot; at 300 s waiting is 0 to 2 per player; at 480 s (long games only) 17 to 19 workers on 2 depots wait 0 to 3. The largest queue in any sample is 7 workers (water_vs_water game 2, P1). The AI holds about 14 workers to 300 s and has 1 depot to 300 s, so the over-stacking the spec expected is modest in these 12 games: about a third of the player-samples show any waiting. The pre-saturation `waiting=` column did not exist, so there is no before value. Trace files are in `rts/build/sat_trace` (git-ignored).
+
+## Run 2: strength ladder (`aggressive_s3` baseline, `--non-regression`), 216 of 216 decided, 2832.2 s
+
+Command: `dotnet run --no-build -c Release --project rts/tools/BalanceHarness -- --data rts/data --ladder --profile-a aggressive_s3 --profile-b aggressive_s4r --non-regression --jobs 4 --out rts/build/ladder_sat_vs_s3`. Determinism spot check: 2 games, 0 mismatches.
+
+```
+WARNING opening water/water_leviathan_tech: wins 14 of 19 mirror games against other openings (0.737, above 0.65).
+LADDER candidate=aggressive_s4r baseline=aggressive_s3 decided=216 wins=122 fraction=0.565 distinct=213 mirror=83/144 cross=39/72 bar=0.450 PASS
+```
+
+Before (L-R section):
+
+```
+WARNING opening skai/skai_standard: wins 16 of 24 mirror games against other openings (0.667, above 0.65).
+WARNING opening water/water_leviathan_tech: wins 14 of 19 mirror games against other openings (0.737, above 0.65).
+WARNING opening water/water_standard: wins 5 of 17 mirror games against other openings (0.294, below 0.35).
+LADDER candidate=aggressive_s4r baseline=aggressive_s3 decided=216 wins=115 fraction=0.532 distinct=214 mirror=77/144 cross=38/72 bar=0.450 PASS
+```
+
+No mirror-interval warning and no distinct-share warning (the printed output has only the one opening warning). Undecided: 0 (before 0); draws 0. Results: slot0 106, slot1 110. Median game length: all 746.8 s (min 341.0, max 1482.7); skai_vs_skai 833.4 s; skai_vs_water 412.7 s; water_vs_water 861.0 s; no game at the cap. No before value (see run 1).
+
+Distinct games per cell, computed from play signatures of decided games (not the `distinct fraction` column of `ladder.md`, which is a win share):
+
+| cell | decided | distinct | distinct / decided | before | candidate wins / decided (before) | Wilson, distinct games |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| skai_vs_skai | 72 | 72 | 1.000 | 1.000 | 37/72 (39/72) | [40.1, 62.6] |
+| skai_vs_water | 72 | 69 | 0.958 | 70/72 = 0.972 | 39/72 (38/72) | [42.0, 64.9] |
+| water_vs_water | 72 | 72 | 1.000 | 1.000 | 46/72 (38/72) | [52.4, 74.0] |
+
+Mirror, cross and other rows (before in the last column):
+
+| row | decided | distinct | candidate wins | baseline wins | candidate fraction | Wilson (distinct games) | before |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| mirror | 144 | 144 | 83 | 61 | **0.576** | **[49.5, 65.4]** | 77/144 = 0.535, [45.3, 61.4] |
+| cross | 72 | 69 | 39 | 33 | 0.542 | [42.0, 64.9] | 38/72 = 0.528, [42.7, 65.4] |
+| cross, candidate as skai | 36 | 34 | 36 | 0 | 1.000 | [89.8, 100.0] | 36/36 |
+| cross, candidate as water | 36 | 35 | 3 | 33 | 0.083 | [3.0, 22.4] | 2/36 = 0.056 |
+| all | 216 | 213 | 122 | 94 | 0.565 | [49.6, 62.8] | 115/216 = 0.532, [47.1, 60.3] |
+| candidate in slot 0 | 108 | 106 | 60 | 48 | 0.556 | [45.2, 63.9] | not recorded |
+| candidate in slot 1 | 108 | 107 | 62 | 46 | 0.574 | [48.5, 66.9] | not recorded |
+
+Openings of the candidate (draws = times drawn; mirror = decided games against other openings of the same faction; no distinct loss within them):
+
+| faction | opening | draws | use share | mirror games | wins | win fraction | Wilson | before (wins/games, fraction) | cross games | cross wins | before cross wins |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |
+| skai | skai_air | 23 | 0.213 | 17 | 9 | 0.529 | [31.0, 73.8] | 10/17, 0.588 | 6 | 6 | 6 |
+| skai | skai_fast_expand | 28 | 0.259 | 19 | 9 | 0.474 | [27.3, 68.3] | 7/19, 0.368 | 9 | 9 | 9 |
+| skai | skai_standard | 35 | 0.324 | 24 | 14 | 0.583 | [38.8, 75.5] | 16/24, 0.667 | 11 | 11 | 11 |
+| skai | skai_windrunner_pressure | 22 | 0.204 | 12 | 5 | 0.417 | [19.3, 68.0] | 6/12, 0.500 | 10 | 10 | 10 |
+| water | water_fast_expand | 30 | 0.278 | 22 | 14 | 0.636 | [43.0, 80.3] | 11/22, 0.500 | 8 | 0 | 0 |
+| water | water_grasper_pressure | 22 | 0.204 | 14 | 9 | 0.643 | [38.8, 83.7] | 8/14, 0.571 | 8 | 0 | 0 |
+| water | water_leviathan_tech | 28 | 0.259 | 19 | 14 | **0.737** | [51.2, 88.2] | 14/19, 0.737 | 9 | 3 | 2 |
+| water | water_standard | 28 | 0.259 | 17 | 9 | 0.529 | [31.0, 73.8] | 5/17, 0.294 | 11 | 0 | 0 |
+
+## Gate items against the earlier gates (measured only; nothing tuned)
+
+| gate | bar | now | before | verdict now |
+| --- | --- | --- | --- | --- |
+| LADDER fraction (strength) | >= 0.45 | 0.565 (122/216) | 0.532 | PASS |
+| mirror Wilson upper bound (strength) | >= 0.50 | 0.654 | 0.614 | PASS |
+| variety, self-ladder cells | distinct / decided >= 0.8 | 1.000, 1.000, 1.000 | 1.000 each | PASS |
+| variety, strength-ladder cells | >= 0.8, no S.2 warning | 1.000, 0.958, 1.000, no warning | 1.000, 0.972, 1.000 | PASS |
+| opening use share (self) | none above 0.40 | 0.162 to 0.352 | same | PASS |
+| opening win fractions 0.35 to 0.65, self-ladder (report only) | all in band | 2 of 8 outside: water_grasper_pressure 0.167, water_leviathan_tech 0.742 | 1 of 8 outside (leviathan 0.677; skai pressure on the bar at 0.650) | FAIL (more openings outside) |
+| L-R-A2 pressure openings, self-ladder | 0.35 to 0.65 with >= 10 mirror games | skai pressure 0.550 (20 games) PASS; water grasper pressure 0.167 (18 games) FAIL | 0.650 and 0.389 PASS | FAIL for water_grasper_pressure |
+| L-R-A2 pressure openings, strength ladder | not below 0.35 with >= 10 games | 0.417 (12 games), 0.643 (14 games) | 0.500, 0.571 | PASS |
+| strength-ladder openings outside 0.35 to 0.65 (report only) | none | water_leviathan_tech 0.737 above (before: skai_standard 0.667 and leviathan 0.737 above, water_standard 0.294 below) | 3 warnings | 1 warning |
+| response scenarios | package fails if fewer passes than baseline; gate 6 of 9 | 5 of 10, same five pass, for both profiles | 5 of 10 | not below baseline (the 6 of 9 level was not reached before either) |
+| fights | matchup table identical | identical (780 of 780 outcomes) | n/a | PASS |
+| L-R-A4 (pressure first attack, forced traces), L-R-A5 (bit-identical no-pressure games) | | not re-measured: A4 needs the forced-profile scratch data and A5 is a code-change check | PASS | not measured |
+
+Not done in SAT-M: determinism spot checks are the harness's own (2 games per ladder, 0 mismatches); the SAT-15 test passes its own bar (run 5) but its row for 2 bases at 14 workers uses the shipped data. No pre-saturation median game length (no surviving `ladder.jsonl` of the earlier run) and no before value for seat split.
