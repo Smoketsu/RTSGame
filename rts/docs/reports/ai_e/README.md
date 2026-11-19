@@ -3,6 +3,48 @@
 
 Package AI-E of `rts/docs/specs/field_saturation.md`: worker caps from gather slots plus walk cover, the rare cap yielding to saturation, depots at 80 percent saturation, up to 4 live depots, a threat blocks a depot only from 4 supply. Branch `review/ai-e`, built on `origin/main` at 0fc7fa5. `prototype_1v1`, `-c Release`, `--jobs 4`, base seed 20261117, 72 games per cell. Baseline: `aggressive_s4r`; `abl_s5_no_e` (aggressive_s5 with only AI-E at its old values) plays it bit-identically (same state hash `e289ebedbf0ddc26` for water_vs_water game 2 over the whole game, and the 180 s hash test E-7), so the ladder baseline is `aggressive_s4r` as the spec's section 9 says. No threshold, weight, scenario or bar was changed after seeing results. `rts/build` is git-ignored; the numbers below were copied out of it as each run finished.
 
+## After the review fixes
+
+Review of the first build found a flip-flop (finding 1): with `rare_cap_yields_to_saturation` on, a common worker's death closed the rare field, rule G4 force-drained the rare workers onto a full common field, the common field then ran over its cap, the rare cap reopened and rebalancing sent a worker back. Fixed in `AiBrain.Rebalance`: with the yielding cap on, a closed rare field's workers move only to a served field below its cap; they are no longer forced onto a full common field, and new workers are kept off the closed field as before. Old profiles (switch off) keep the forced move, so they play as before (`abl_s5_no_e` against `aggressive_s4r` was re-checked, see below). The rest of the review items are tests, comments and the parser tests (listed in the commit). The first numbers are kept unchanged below under "First build"; this section has the numbers after the fixes.
+
+**Flip count (finding 1).** Reproduced in a targeted test, ruled out in a whole game:
+- Test `E8_KillingACommonWorkerDoesNotFlipRareWorkers` (saturated `aggressive_s5` economy on greybox_1v1, rare bank 5000, both common fields at their cap, two rare workers, one common worker removed, 10 thinks): before the fix it failed with a rare worker going common then back to rare (field-kind trails `CR` and `C`: 1 flip, 2 rare-to-common moves); after the fix it passes (0 flips, at most 1 rare-to-common move, the worker that fills the gap).
+- Test `E9_MirrorRun_CountsRareCommonFlips` (two `aggressive_s5` Skai AIs, 600 s, prototype_1v1, seed 1234; counts a worker whose field kind changes and changes back within 3 thinks): 0 flips and 0 kind changes of any kind before the fix, and 0 and 0 after. So the loop needs a worker death with the other common fields exactly full, and does not occur in that game; the ladder numbers move only through other games' details (below).
+
+### Run 1 again: strength ladder (`aggressive_s5` against `aggressive_s4r`, `--non-regression`), 216 of 216 decided, 2867.4 s
+
+Same command as run 1 below with `--out rts/build/ladder_e2_vs_s4r`.
+
+```
+WARNING opening water/water_grasper_pressure: wins 12 of 18 mirror games against other openings (0.667, above 0.65).
+WARNING opening water/water_standard: wins 10 of 32 mirror games against other openings (0.313, below 0.35).
+LADDER candidate=aggressive_s5 baseline=aggressive_s4r decided=216 wins=167 fraction=0.773 distinct=216 mirror=130/144 cross=37/72 bar=0.450 PASS
+```
+
+Determinism spot check 2 games, 0 mismatches. Beside the first build (first build in brackets):
+
+| cell | decided | distinct | distinct / decided | candidate wins / decided | fraction | Wilson |
+| --- | ---: | ---: | ---: | --- | ---: | --- |
+| skai_vs_skai | 72 | 72 | 1.000 | 67/72 (67/72) | 0.931 | [84.8, 97.0] |
+| skai_vs_water | 72 | 72 | 1.000 | 37/72 (37/72) | 0.514 | [40.1, 62.6] |
+| water_vs_water | 72 | 72 | 1.000 | 63/72 (60/72) | 0.875 | [77.9, 93.3] |
+
+| row | decided | candidate wins (first build) | fraction | Wilson |
+| --- | ---: | --- | ---: | --- |
+| mirror | 144 | 130 (127) | 0.903 | [84.3, 94.1] |
+| cross | 72 | 37 (37) | 0.514 | [40.1, 62.6] |
+| cross, candidate as skai / water | 36 / 36 | 36 / 1 (36 / 1) | 1.000 / 0.028 | [90.4, 100.0] / [0.5, 14.2] |
+| all | 216 | 167 (164) | 0.773 | [71.3, 82.4] |
+| slot 0 / slot 1 | 108 / 108 | 83 / 84 | 0.769 / 0.778 | [68.1, 83.8] / [69.1, 84.6] |
+
+Median game length: all 620.1 s (first build 619.3 s; min 350.5, max 1162.8); skai_vs_skai 633.0 s; skai_vs_water 480.2 s; water_vs_water 680.5 s. Undecided 0, draws 0.
+
+Openings of the candidate (win fraction in mirror games, first build in brackets; draws unchanged 57, 48, 76, 35, 52, 42, 62, 60): skai_air 9/22 = 0.409 (0.409), skai_fast_expand 13/20 = 0.650 (0.650), skai_standard 11/28 = 0.393 (0.393), skai_windrunner_pressure 12/20 = 0.600 (0.600), water_fast_expand 16/25 = 0.640 (0.600), water_grasper_pressure 12/18 = **0.667** (0.500), water_leviathan_tech 15/31 = 0.484 (0.613), water_standard 10/32 = **0.313** (0.313).
+
+<!-- AFTER_END -->
+
+## First build (before the review fixes)
+
 ## Run 1: strength ladder (`aggressive_s5` candidate against `aggressive_s4r`, `--non-regression`), 216 of 216 decided, 2990.4 s
 
 ```
