@@ -49,4 +49,29 @@ Openings (all seats of both profiles, mirror games against other openings, as th
 
 Three of eight openings are outside 0.35 to 0.65 (report only; the AI-H ladder had two: the same two Skai ones). The cross cell splits by faction as in every earlier ladder (the Skai side wins all 36, the Water side none), so cross 36/72 is not information about AI-HQ.
 
-SELF_PLACEHOLDER
+## Self-ladder (`aggressive_s5` against itself), 216 of 216 decided, 4188.1 s
+
+Command: `dotnet run --no-build -c Release --project rts/tools/BalanceHarness -- --data rts/data --ladder --profile-a aggressive_s5 --profile-b aggressive_s5 --jobs 4 --out rts/build/ladder_hq_self`.
+
+```
+WARNING opening skai/skai_air: wins 3 of 22 mirror games against other openings (0.136, below 0.35).
+WARNING opening skai/skai_standard: wins 22 of 28 mirror games against other openings (0.786, above 0.65).
+WARNING opening water/water_fast_expand: wins 6 of 25 mirror games against other openings (0.240, below 0.35).
+WARNING opening water/water_leviathan_tech: wins 26 of 31 mirror games against other openings (0.839, above 0.65).
+WARNING opening water/water_standard: wins 11 of 32 mirror games against other openings (0.344, below 0.35).
+LADDER candidate=aggressive_s5 baseline=aggressive_s5 decided=216 wins=109 fraction=0.505 distinct=216 mirror=73/144 cross=36/72 bar=0.650 FAIL
+```
+
+(The `FAIL` and the 0.650 bar are meaningless in a self-ladder; "wins" counts the seat the harness names the candidate seat.)
+
+| cell | decided | distinct games | distinct / decided (bar 0.8) | seat-A wins | Wilson |
+| --- | ---: | ---: | ---: | ---: | --- |
+| skai_vs_skai | 72 | 72 | 1.000 | 38 | [41.4, 63.9] |
+| skai_vs_water | 72 | 72 | 1.000 | 36 | [38.7, 61.3] |
+| water_vs_water | 72 | 72 | 1.000 | 35 | [37.4, 59.9] |
+
+Rows: mirror 73/144 = 0.507 [42.6, 58.7]; cross 36/72 (Skai side 36 of 36, Water side 0 of 36); all 109/216 = 0.505 [43.8, 57.1]. Undecided 0, draws 0. Median game length: all 614.7 s (min 388.1, max 1240.1); skai_vs_skai 645.4 s; skai_vs_water 509.6 s; water_vs_water 686.4 s.
+
+Openings in mirrors (all seats, mirror games against other openings; report only): skai_air 3/22 = **0.136**, skai_fast_expand 7/20 = 0.350, skai_standard 22/28 = **0.786**, skai_windrunner_pressure 13/20 = 0.650, water_fast_expand 6/25 = **0.240**, water_grasper_pressure 10/18 = 0.556, water_leviathan_tech 26/31 = **0.839**, water_standard 11/32 = **0.344**. Four of eight are outside 0.35 to 0.65 (AI-H self-ladder: two). Draw counts and use shares equal those of the strength ladder (same seeds).
+
+RESPONSE_PLACEHOLDER
