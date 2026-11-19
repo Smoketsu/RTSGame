@@ -277,7 +277,7 @@ namespace Rts.Sim.Tests.Ai
                 Simulation sim = Greybox(faction);
                 SkirmishAiController controller = new SkirmishAiController(P0, profile);
                 controller.OnMatchStart(sim);
-                if (id == "aggressive_s4r" || id == "aggressive_s5" || id == "abl_s5_no_e")
+                if (id == "aggressive_s4r" || id == "aggressive_s5" || id == "abl_s5_no_e" || id == "abl_s5_no_p")
                 {
                     Assert.That(controller.Memory.Variety, Is.Not.Null, id);
                 }
