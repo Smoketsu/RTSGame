@@ -209,7 +209,7 @@ namespace Rts.Ai
         public bool IsActive { get; private set; }
 
         /// <summary>
-        /// AI-H: the distinct faction IDs of the players on other teams, ordinal order (public: the match setup names every faction). Unit: faction IDs.
+        /// AI-H: the distinct faction IDs of the active players on other teams, ordinal order (public: the match setup names every faction). Unit: faction IDs.
         /// Range: 0 or more entries; empty when the AI has no enemy. Settable inside Rts.Ai so tests can build other cases.
         /// </summary>
         public IReadOnlyList<string> EnemyFactionIds { get; internal set; } = Array.Empty<string>();
@@ -405,11 +405,11 @@ namespace Rts.Ai
             view.Team = self.Team;
             view.FactionId = self.FactionId;
             view.IsActive = self.IsActive;
-            // Faction IDs of the enemy players, ordinal order, no duplicates.
+            // Faction IDs of the enemy players still in the match (an eliminated player fields nothing), ordinal order, no duplicates.
             SortedSet<string> enemyFactions = new SortedSet<string>(StringComparer.Ordinal);
             foreach (Player other in sim.Players.All)
             {
-                if (sim.Players.AreEnemies(player, other.Id))
+                if (other.IsActive && sim.Players.AreEnemies(player, other.Id))
                 {
                     enemyFactions.Add(other.FactionId);
                 }

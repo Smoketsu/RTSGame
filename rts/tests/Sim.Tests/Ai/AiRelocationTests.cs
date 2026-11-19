@@ -3,7 +3,7 @@
 // (HQ-0), the five spec rows HQ-1 to HQ-5 with the spec's numbers, the one-way latch against moving back (HQ-6) and the ablation abl_s5_no_hq
 // playing the pre-AI-HQ aggressive_s5 bit for bit (HQ-7: full-game hashes recorded on aggressive_s5 at origin/main BEFORE any AI-HQ code).
 // Part of Rts.Sim.Tests. Real simulations on greybox_1v1 (P0's home fields are 0 and 1, start 3000 each; the common fields 6 (21, 10) and 7 (21, 4)
-// form the depot cluster at tile (21, 7); 10 (12, 49) with the rare field 4 and 11 (51, 14) with the rare field 5 are the other clusters),
+// form the 6-slot cluster at tile (21, 7); 8 (42, 53) and 9 (42, 59) lie beside the enemy producer; 10 (12, 49) with the rare field 4 and 11 (51, 14) with the rare field 5 are the other clusters),
 // AiBrain.Decide on the views.
 using System.Collections.Generic;
 using System.IO;
@@ -111,6 +111,25 @@ namespace Rts.Sim.Tests.Ai
             sim.Resources[field].Take(sim.Resources[field].Remaining - remaining);
         }
 
+        /// <summary>An AI memory that knows the given fields to be empty and every other field at its start amount (visible fields are updated at the first think).</summary>
+        private static AiMemory Knowing(Simulation sim, params int[] empty)
+        {
+            AiMemory memory = new AiMemory();
+            // Known amounts per field. Unit: resource units.
+            int[] known = new int[sim.Resources.Count];
+            // Field index. Range: 0 to field count - 1.
+            for (int i = 0; i < known.Length; i++)
+            {
+                known[i] = sim.Resources[i].Initial;
+            }
+            foreach (int field in empty)
+            {
+                known[field] = 0;
+            }
+            memory.KnownFieldRemaining = known;
+            return memory;
+        }
+
         /// <summary>Steps until the clock reaches <paramref name="tick"/>.</summary>
         private static void StepTo(Simulation sim, int tick)
         {
@@ -134,10 +153,10 @@ namespace Rts.Sim.Tests.Ai
             return AiProfile.Parse(text, "ai/" + baseId + ".json", Data.Content);
         }
 
-        /// <summary>The shipped profile with at most two live depots, so two depots are "at the cap" (HQ-1).</summary>
-        private static AiProfile TwoDepots(string baseId)
+        /// <summary>The shipped profile with at most <paramref name="cap"/> live depots, so that many depots are "at the cap" (HQ-1).</summary>
+        private static AiProfile DepotCap(string baseId, int cap)
         {
-            return Edited(baseId, "\"max_live_depots\": 4,", "\"max_live_depots\": 2,");
+            return Edited(baseId, "\"max_live_depots\": 4,", "\"max_live_depots\": " + cap + ",");
         }
 
         /// <summary>Decides for P0 and returns the intents of one kind.</summary>
@@ -156,17 +175,21 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>
-        /// The HQ-1 scene: home fields 0 and 1 hold <paramref name="homeKnown"/> in total (field 1 at 200, below expand_min_field_remaining, so
-        /// home has 3 live slots), two complete depots stand (tile (21, 7) serving fields 6 and 7, tile (9, 49) serving field 10 and the rare
-        /// field 4), the bank is 500. Fields 6 and 7 together hold 6 slots, the other clusters 5.
+        /// The scene: home fields 0 and 1 hold <paramref name="homeKnown"/> in total (field 1 at 200, below expand_min_field_remaining, so home has
+        /// 3 live slots), one complete depot stands at tile (9, 49) (serving field 10 and the rare field 4), with <paramref name="natural"/> a second
+        /// at tile (21, 7) (serving fields 6 and 7); the bank is 500. Served fields are no candidates. Fields 6 and 7 together hold 6 slots (new unless
+        /// the natural depot stands), fields 8 and 9 lie beside the enemy producer (unsafe), the other clusters hold 5.
         /// </summary>
-        private Simulation Scene(int homeKnown)
+        private Simulation Scene(int homeKnown, bool natural = false)
         {
             Simulation sim = Game();
             Leave(sim, 1, 200);
             Leave(sim, 0, homeKnown - 200);
-            SpawnAtTile(sim, "skai.perch_depot", P0, 21, 7);
             SpawnAtTile(sim, "skai.perch_depot", P0, 9, 49);
+            if (natural)
+            {
+                SpawnAtTile(sim, "skai.perch_depot", P0, 21, 7);
+            }
             StepTo(sim, 200);
             Assert.That(sim.Players.TryGet(P0, out Player? record), Is.True);
             record!.SetStock(500, 0);
@@ -207,18 +230,18 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Edited("aggressive_s5", "\"relocate_gain_ratio\": 2,", "\"relocate_gain_ratio\": 10,").RelocateGainRatio, Is.EqualTo(Fix64.FromInt(10)));
         }
 
-        /// <summary>HQ-1: home at 30 percent with 3 live slots, a safe depot cluster with 6, live depots at the cap (2): the relocation starts there.</summary>
+        /// <summary>HQ-1: home at 30 percent with 3 live slots, a safe cluster with 6 new live slots (fields 6 and 7, served by no depot), live depots at the cap (1 of 1): the relocation starts there.</summary>
         [Test]
         public void HQ1_ClusterWithTwiceTheSlotsIsChosenAtTheDepotCap()
         {
             Simulation sim = Scene(1800);
             AiMemory memory = new AiMemory();
-            List<AiIntent> uproot = Decide(sim, TwoDepots("aggressive_s5"), memory, AiIntentKind.UprootHq);
+            List<AiIntent> uproot = Decide(sim, DepotCap("aggressive_s5", 1), memory, AiIntentKind.UprootHq);
             Assert.That(uproot.Count, Is.EqualTo(1));
             Assert.That(uproot[0].Unit, Is.EqualTo(Hq(sim).Id));
             Assert.That(memory.RelocationActive, Is.True);
-            Assert.That(memory.RelocationField == 6 || memory.RelocationField == 7, Is.True, "the 6-slot depot cluster, not the 5-slot ones: " + memory.RelocationField);
-            Assert.That(memory.ClusterLeftFields, Does.Contain(0).And.Contain(1), "the home that is left is latched");
+            Assert.That(memory.RelocationField == 6 || memory.RelocationField == 7, Is.True, "the unserved 6-slot cluster, not the 5-slot ones: " + memory.RelocationField);
+            Assert.That(memory.ClusterLeftFields, Is.EqualTo(new[] { 1 }), "only the home field at or below 0.35 (field 1 at 200 of 3000; field 0 holds 1600) is latched");
         }
 
         /// <summary>HQ-2: home at 40 percent (above 0.35): no relocation, whatever the clusters hold.</summary>
@@ -226,7 +249,7 @@ namespace Rts.Sim.Tests.Ai
         public void HQ2_HomeAtFortyPercentStays()
         {
             Simulation sim = Scene(2400);
-            Assert.That(Decide(sim, TwoDepots("aggressive_s5"), new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
         }
 
         /// <summary>HQ-3: the best candidate has 5 slots, home 3, ratio 2 (5 below 6): none; at ratio 1.5 (5 at least 4.5) it starts.</summary>
@@ -234,12 +257,10 @@ namespace Rts.Sim.Tests.Ai
         public void HQ3_GainBelowTheRatioStays()
         {
             Simulation sim = Scene(1800);
-            // The depot cluster is dead, so the best live cluster is a 5-slot one.
-            Leave(sim, 6, 0);
-            Leave(sim, 7, 0);
-            Assert.That(Decide(sim, TwoDepots("aggressive_s5"), new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
-            AiProfile relaxed = Edited("aggressive_s5", "\"max_live_depots\": 4,", "\"max_live_depots\": 2,", "\"relocate_gain_ratio\": 2,", "\"relocate_gain_ratio\": 1.5,");
-            Assert.That(Decide(sim, relaxed, new AiMemory(), AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+            // The 6-slot cluster is known dead (the AI only learns what it sees), so the best new cluster is a 5-slot one.
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), Knowing(sim, 6, 7), AiIntentKind.UprootHq), Is.Empty);
+            AiProfile relaxed = Edited("aggressive_s5", "\"max_live_depots\": 4,", "\"max_live_depots\": 1,", "\"relocate_gain_ratio\": 2,", "\"relocate_gain_ratio\": 1.5,");
+            Assert.That(Decide(sim, relaxed, Knowing(sim, 6, 7), AiIntentKind.UprootHq).Count, Is.EqualTo(1));
         }
 
         /// <summary>HQ-4: army stance Defend: no relocation (the same scene as HQ-1 starts one in another stance).</summary>
@@ -247,8 +268,8 @@ namespace Rts.Sim.Tests.Ai
         public void HQ4_DefendStanceStays()
         {
             Simulation sim = Scene(1800);
-            Assert.That(Decide(sim, TwoDepots("aggressive_s5"), new AiMemory { Stance = AiStance.Defend, AttackThreshold = 10 }, AiIntentKind.UprootHq), Is.Empty);
-            Assert.That(Decide(sim, TwoDepots("aggressive_s5"), new AiMemory { Stance = AiStance.Massing, AttackThreshold = 10 }, AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), new AiMemory { Stance = AiStance.Defend, AttackThreshold = 10 }, AiIntentKind.UprootHq), Is.Empty);
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), new AiMemory { Stance = AiStance.Massing, AttackThreshold = 10 }, AiIntentKind.UprootHq).Count, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -258,16 +279,16 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void HQ5_SwitchOffKeepsTheOldRule()
         {
-            AiProfile off = TwoDepots("abl_s5_no_hq");
-            Assert.That(Decide(Scene(1800), off, new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
+            AiProfile off = DepotCap("abl_s5_no_hq", 2);
+            Assert.That(Decide(Scene(1800, true), off, new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
             AiMemory memory = new AiMemory();
-            Assert.That(Decide(Scene(300), off, memory, AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+            Assert.That(Decide(Scene(300, true), off, memory, AiIntentKind.UprootHq).Count, Is.EqualTo(1));
             Assert.That(memory.RelocationField, Is.EqualTo(11), "nearest safe field not served by a depot and not a home field");
             Assert.That(memory.ClusterLeftFields, Is.Empty, "no latch with the switch off");
         }
 
         /// <summary>
-        /// HQ-6: the latch. The fields of a home that was left are never a target again: with the depot cluster (fields 6 and 7) latched, the same
+        /// HQ-6: the latch. The fields of a home that was left are never a target again: with the 6-slot cluster (fields 6 and 7) latched, the same
         /// scene as HQ-1 has only 5-slot clusters left (below 2 x 3) and the HQ stays; without the latch it moves. The latch is filled by the move (HQ-1).
         /// </summary>
         [Test]
@@ -277,8 +298,100 @@ namespace Rts.Sim.Tests.Ai
             AiMemory latched = new AiMemory();
             latched.ClusterLeftFields.Add(6);
             latched.ClusterLeftFields.Add(7);
-            Assert.That(Decide(sim, TwoDepots("aggressive_s5"), latched, AiIntentKind.UprootHq), Is.Empty);
-            Assert.That(Decide(sim, TwoDepots("aggressive_s5"), new AiMemory(), AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), latched, AiIntentKind.UprootHq), Is.Empty);
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), new AiMemory(), AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// HQ-8: home fields just under the live threshold (2 x 290 left, expand_min_field_remaining 300): home has 0 live slots, so the cluster rule
+        /// does not run ("anything beats 0" is not a win) and the old rule decides: home is under 0.35, two live depots are the cap, field 11 is the
+        /// nearest unserved field. Nothing is latched.
+        /// </summary>
+        [Test]
+        public void HQ8_ExhaustedHomeFallsThroughToTheOldRule()
+        {
+            Simulation sim = Scene(1800, true);
+            Leave(sim, 0, 290);
+            Leave(sim, 1, 290);
+            AiMemory memory = new AiMemory();
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 2), memory, AiIntentKind.UprootHq).Count, Is.EqualTo(1));
+            Assert.That(memory.RelocationField, Is.EqualTo(11), "the old rule's nearest safe unserved field");
+            Assert.That(memory.ClusterLeftFields, Is.Empty);
+            // At 600 each home is live (6 slots) and the 6-slot cluster is no 2x gain: the cluster rule runs and stays.
+            Simulation live = Scene(1800);
+            Leave(live, 0, 600);
+            Leave(live, 1, 600);
+            Assert.That(Decide(live, DepotCap("aggressive_s5", 1), new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
+        }
+
+        /// <summary>HQ-9: an unsafe cluster is skipped: with a seen enemy structure beside fields 6 and 7 the HQ stays (the other clusters have 5 slots); without it the HQ-1 move happens.</summary>
+        [Test]
+        public void HQ9_UnsafeClusterIsSkipped()
+        {
+            Simulation sim = Scene(1800);
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), new AiMemory(), AiIntentKind.UprootHq).Count, Is.EqualTo(1), "safe: the move happens");
+            // A worker of ours sees an enemy producer 5 tiles from the cluster.
+            SpawnAtTile(sim, "skai.fledgling", P0, 22, 7);
+            SpawnAtTile(sim, "water.tidepool", P1, 26, 7);
+            StepTo(sim, sim.Clock.Tick + 40);
+            Assert.That(Decide(sim, DepotCap("aggressive_s5", 1), new AiMemory(), AiIntentKind.UprootHq), Is.Empty, "unsafe: skipped");
+        }
+
+        /// <summary>
+        /// HQ-10: the latch also holds in the fallback. An Uprooted HQ whose target is found empty, with no candidate left, may not root beside the
+        /// latched home fields and heads for the nearest live field that is not latched (field 6, served by a depot); with no latch it roots at home.
+        /// </summary>
+        [Test]
+        public void HQ10_FallbackRespectsTheLatch()
+        {
+            // Index into the field list. Range: 0 to 11.
+            foreach (bool latch in new[] { true, false })
+            {
+                Simulation sim = Game();
+                SpawnAtTile(sim, "skai.perch_depot", P0, 21, 7);
+                // Live fields known: home 0 and 1 and the depot-served field 6; the rest is known empty.
+                List<int> empty = new List<int>();
+                for (int field = 0; field < sim.Resources.Count; field++)
+                {
+                    if (field != 0 && field != 1 && field != 6)
+                    {
+                        empty.Add(field);
+                    }
+                }
+                StepTo(sim, 200);
+                sim.Submit(new UprootHqCommand(sim.Clock.Tick, P0, _sequence++, Hq(sim).Id));
+                for (int i = 0; i < 400 && Hq(sim).HqState != HqState.Uprooted; i++)
+                {
+                    sim.Step();
+                }
+                AiMemory memory = Knowing(sim, empty.ToArray());
+                memory.RelocationActive = true;
+                memory.RelocationField = 11;
+                memory.RelocationDestination = Hq(sim).Position;
+                memory.RelocationStartTick = sim.Clock.Tick;
+                if (latch)
+                {
+                    memory.ClusterLeftFields.Add(0);
+                    memory.ClusterLeftFields.Add(1);
+                }
+                List<AiIntent> roots = Decide(sim, DepotCap("aggressive_s5", 2), memory, AiIntentKind.RootHq);
+                if (latch)
+                {
+                    Assert.That(roots, Is.Empty, "the latched home fields do not let the HQ root where it stands");
+                    Assert.That(memory.RelocationField, Is.EqualTo(6), "it heads for the nearest live field that is not latched");
+                }
+                else
+                {
+                    Assert.That(roots.Count, Is.EqualTo(1), "without the latch the HQ roots at the live home fields beside it");
+                }
+            }
+        }
+
+        /// <summary>HQ-11: a cluster served by an own complete depot is no target even when it is the biggest: with the depot at (21, 7) the 6-slot cluster of fields 6 and 7 brings no new income and the HQ stays (5 is below 2 x 3).</summary>
+        [Test]
+        public void HQ11_DepotServedClusterBringsNoNewIncome()
+        {
+            Assert.That(Decide(Scene(1800, true), DepotCap("aggressive_s5", 2), new AiMemory(), AiIntentKind.UprootHq), Is.Empty);
         }
 
         /// <summary>

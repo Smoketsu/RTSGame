@@ -583,13 +583,15 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>
-        /// E-6: two abl_s5_no_hq Skai AIs (aggressive_s5 as it was written for E-6 before AI-HQ; with AI-HQ on, the same seed-1234 game trips the cap check for two thinks at 485 s, see reports/ai_hq/README.md) on prototype_1v1 for 600 s. Workers assigned to a served field exceed its cap by more than one for
-        /// more than one think in a row never; the first depot is placed no later than the clock gate (expand_at_seconds plus the jitter).
+        /// E-6: two aggressive_s5 Skai AIs on prototype_1v1 for 600 s. While a served field holds more than its cap + 1 and room
+        /// exists below the caps, the total excess over the caps falls each think by at least min(rebalance_workers_per_think, free room) (the
+        /// rebalance rate limit; the earlier "never two thinks in a row over cap + 1" was wrong when a planned depot opens room while a field holds 10
+        /// workers on cap 4: the rate limit drains 2 per think); the first depot is placed no later than the clock gate (expand_at_seconds plus the jitter).
         /// </summary>
         [Test]
         public void E6_MirrorRun_CapsHold_AndFirstDepotIsOnTime()
         {
-            AiProfile profile = AiProfile.FromDataSet(Data, "abl_s5_no_hq");
+            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s5");
             List<PlayerSetup> players = new List<PlayerSetup>
             {
                 new PlayerSetup(P0, new TeamId(0), "skai", "Skai A"),
@@ -620,8 +622,10 @@ namespace Rts.Sim.Tests.Ai
             int thinkTicks = (profile.ThinkIntervalSeconds * TicksPerSecond).RoundToInt();
             // Memory of the probe (field knowledge only).
             AiMemory probeMemory = new AiMemory();
-            // Consecutive thinks each field index has been more than one over its cap. Unit: thinks.
-            SortedDictionary<int, int> over = new SortedDictionary<int, int>();
+            // State of the previous check: whether the rebalance criterion is armed, and the total excess and free room then. Unit: workers.
+            bool armed = false;
+            int previousExcess = 0;
+            int previousFree = 0;
             // Tick of the first depot order of player 0, or -1. Unit: ticks.
             int firstDepot = -1;
             // First tick at which player 0's workers (queued included) reached expand_saturation_fraction of the wanted workers, or -1. Unit: ticks.
@@ -687,23 +691,35 @@ namespace Rts.Sim.Tests.Ai
                             Assert.That(at < 0 || probe.ServedCaps[at] > 0, Is.True, "gather order to closed field " + order.FieldIndex + " at tick " + sim.Clock.Tick);
                         }
                     }
-                    // True when some served field below its cap could take a worker; with none (the served fields are all full, for example after
-                    // the home fields ran dry) surplus workers have nowhere to go and the cap check does not apply. Unit: boolean.
-                    bool room = false;
-                    for (int k = 0; k < probe.Served.Count; k++)
-                    {
-                        room |= probe.ServedCaps[k] > 0 && assigned[probe.Served[k]] < probe.ServedCaps[k];
-                    }
+                    // Total excess over the caps and total free room below the caps of the served fields with a cap, and whether some such field is
+                    // more than one over its cap. Unit: workers. Range: 0 upward each.
+                    int excess = 0;
+                    int free = 0;
+                    bool anyOver = false;
                     // Index into the served list. Range: 0 to served count - 1.
                     for (int k = 0; k < probe.Served.Count; k++)
                     {
-                        // Field index of this served field.
-                        int field = probe.Served[k];
-                        // Thinks in a row this field has been over its cap + 1 up to the previous check (out value). Unit: thinks. Range: 0 upward.
-                        over.TryGetValue(field, out int run);
-                        over[field] = room && probe.ServedCaps[k] > 0 && assigned[field] > probe.ServedCaps[k] + 1 ? run + 1 : 0;
-                        Assert.That(over[field], Is.LessThanOrEqualTo(1), "field " + field + " over cap + 1 for two thinks at tick " + sim.Clock.Tick + "" + string.Join(",", probe.Served) + " caps " + string.Join(",", probe.ServedCaps) + " assigned " + string.Join(",", assigned) + " rare " + view.Rare);
+                        // Worker count and cap of this served field. Unit: workers.
+                        int count = assigned[probe.Served[k]];
+                        int cap = probe.ServedCaps[k];
+                        if (cap > 0)
+                        {
+                            excess += Math.Max(0, count - cap);
+                            free += Math.Max(0, cap - count);
+                            anyOver |= count > cap + 1;
+                        }
                     }
+                    // Rebalance rate limit: while a served field was above cap + 1 and room existed at the previous think, the total excess falls
+                    // by at least min(rebalance_workers_per_think, free room then) (workers are moved at most that many per think).
+                    if (armed)
+                    {
+                        Assert.That(excess, Is.LessThanOrEqualTo(previousExcess - Math.Min(profile.RebalanceWorkersPerThink, previousFree)),
+                            "excess " + excess + " did not fall by min(" + profile.RebalanceWorkersPerThink + ", " + previousFree + ") from " + previousExcess + " at tick " + sim.Clock.Tick
+                            + " served " + string.Join(",", probe.Served) + " caps " + string.Join(",", probe.ServedCaps));
+                    }
+                    armed = anyOver && free > 0;
+                    previousExcess = excess;
+                    previousFree = free;
                 }
                 sim.Step();
             }

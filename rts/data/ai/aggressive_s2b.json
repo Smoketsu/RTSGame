@@ -92,7 +92,7 @@
   "depot_ring_max_tiles": 6,
   // Most workers moved off an over-full field per think. Unit: workers. Range: 0 to 20. Source: skirmish_ai_v2.md B.1; placeholder.
   "rebalance_workers_per_think": 2,
-  // The HQ may relocate once its home fields hold this share or less of their start amount (and no cheaper option exists). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md B.1; placeholder.
+  // The HQ may relocate once its home fields hold this share or less of their start amount (and no cheaper option exists; with use_cluster_relocation the cluster rule of use_cluster_relocation decides instead). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v2.md B.1; placeholder.
   "relocate_when_home_remaining_fraction": 0.1,
   // Where the relocating HQ stops: this far from the target field centre toward its old position (capped at half the HQ root distance). Unit: tiles. Range: 0.5 to 32. Source: skirmish_ai_v2.md B.1; placeholder.
   "relocate_stand_off_tiles": 3,
@@ -292,7 +292,7 @@
   "threat_defence_release_fraction": 1,
   // AI-H: a unit may join the harass squad when its speed is at least this multiple of the chaser speed (the count-weighted mean speed of the enemy model's armed types that can hit its layer; the enemy faction's roster mean when the model has none; it qualifies when nothing can hit its layer); replaces the fixed harass_min_speed_tiles_per_second and the flyer exemption. 0 keeps that old rule. Unit: ratio. Range: 0 to 4. Source: field_saturation.md AI-H; placeholder.
   "harass_speed_ratio": 0,
-  // AI-HQ rule HQ-C on: the HQ relocates to the best safe cluster of fields when home is at or below relocate_when_home_remaining_fraction and the cluster has at least relocate_gain_ratio times home's live gather slots (the candidate may be served by an own depot, so the cheaper-option test is skipped there); never while the army stance is Defend; once left, a home is never a target again (one-way latch). Rare-only clusters are not targets (moving to a rare field is deferred). false keeps the old rule (home nearly empty and no cheaper option). Unit: boolean. Range: true or false. Source: field_saturation.md AI-HQ rule HQ-C; placeholder.
+  // AI-HQ rule HQ-C on: the HQ relocates to the best safe cluster of fields when home is at or below relocate_when_home_remaining_fraction and the cluster has at least relocate_gain_ratio times home's live gather slots (fields served by an own depot are not candidates and the cluster's slots count only fields no own depot serves, so a move brings new income; unsafe clusters are skipped; the cheaper-option test applies; when home has no live slot the old rule runs); never while the army stance is Defend; once left, the home fields at or below the fraction are never a target again (one-way latch). Rare-only clusters are not targets (moving to a rare field is deferred). false keeps the old rule (home nearly empty and no cheaper option). Unit: boolean. Range: true or false. Source: field_saturation.md AI-HQ rule HQ-C; placeholder.
   "use_cluster_relocation": false,
   // AI-HQ rule HQ-C: the best candidate cluster's live gather slots must be at least this multiple of home's live gather slots (live = field with known remaining at or above expand_min_field_remaining within field_max_distance_tiles of the stand-off point or the HQ); unused while use_cluster_relocation is false (then 1). Unit: ratio. Range: 1 to 10. Source: field_saturation.md AI-HQ rule HQ-C; placeholder.
   "relocate_gain_ratio": 1,

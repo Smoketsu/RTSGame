@@ -234,6 +234,7 @@ namespace Rts.Ai
             int rosterCount = 0;
             foreach (KeyValuePair<string, UnitDefinition> pair in view.Content.Units)
             {
+                // The unit definition being tested for the roster mean (an enemy-faction armed mobile army type that can hit the layer).
                 UnitDefinition type = pair.Value;
                 if (IsArmyType(type) && type.Weapon != null && type.Weapon.CanTarget(layer) && ContainsOrdinal(view.EnemyFactionIds, type.FactionId))
                 {
