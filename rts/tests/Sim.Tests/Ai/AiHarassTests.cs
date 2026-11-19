@@ -74,7 +74,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(AiProfile.FromDataSet(Data, "aggressive_s5").HarassSpeedRatio, Is.EqualTo(Fix64.Parse("1.2")));
             foreach (string id in Data.AiProfiles.Keys)
             {
-                if (id != "aggressive_s5")
+                if (id != "aggressive_s5" && id != "abl_s5_no_hq")
                 {
                     Assert.That(AiProfile.FromDataSet(Data, id).HarassSpeedRatio, Is.EqualTo(Fix64.Zero), id);
                 }
