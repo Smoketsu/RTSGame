@@ -3,7 +3,7 @@
 
 Package AI-HQ of `rts/docs/specs/field_saturation.md`: rule HQ-C, keys `use_cluster_relocation` (old profiles false, `aggressive_s5` true) and `relocate_gain_ratio` (old 1, `aggressive_s5` 2.0), `relocate_when_home_remaining_fraction` 0.35 in `aggressive_s5` (old 0.1), the ablation `abl_s5_no_hq`. Built on `origin/main` at `d89533a` (AI-E on, AI-P switched off, AI-H on), so `aggressive_s5` is the AI-E plus AI-H AI plus AI-HQ. Nothing was tuned. Every run is `prototype_1v1`, base seed 20261117 (the harness default), 72 games per cell, `-c Release`, built once; `rts/build/` is git-ignored, so the raw `ladder.jsonl` and `ladder.md` files are not committed.
 
-RESULT_PLACEHOLDER
+**Result in one line: the AI-HQ gate PASSES** on the strength ladder (111 of 216, 0.514 against the bar 0.450; mirror Wilson upper bound 60.1 against 50), on the self-ladder variety bar (1.000 distinct games per decided game in every cell, bar 0.8), on the response scenarios (6 of 10 against 5 of 10 for the ablation) and on HQ deaths after an uproot (2 within 60 s of an uproot against 6 for the ablation; 7 against 9 HQs lost while not Rooted). Two things to read before merging: with AI-HQ the HQ moves 104 times in 36 games (60 for the ablation) because a second move to a far cluster is common (31 of 72 player-games move twice or more), and the AI-E test E-6 no longer holds for `aggressive_s5` (see Tests). The strength ladder is a record of the AI, not a balance reading.
 
 ## Strength ladder: `aggressive_s5` against `abl_s5_no_hq` (`--non-regression`), 216 of 216 decided
 
@@ -121,4 +121,39 @@ Reading (counts only; causes not isolated):
 - HQ deaths after an uproot are not more than the ablation's: 7 against 9 HQs died not Rooted, 2 against 6 died within 60 s of an uproot began, although AI-HQ makes 104 moves against 60 (7 per 104 against 9 per 60).
 - The games differ from the ablation's in all 36 (the first move changes the game from about 7500 ticks on), so the ladder cells are the measure of strength; the traces only count moves.
 
-TESTS_PLACEHOLDER
+## Smokes
+
+`dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data` prints `STATE_HASH=e88b3b972175571d`; with `--script rts/data/scripts/economy_smoke.json` it prints `STATE_HASH=12259d6626becbc0`. Both as required.
+
+## Tests
+
+Full `dotnet test rts/RtsGame.sln -c Release` of the final tree (`rts/build/fulltest2.log`): Sim **934 of 934 passed** (21 m 50 s), Net 33 of 33, Replay 27 of 27 (934 + 33 + 27 = 994). Before the change the suite had 926 + 33 + 27 = 986 tests; the 8 new ones are in `AiRelocationTests`: HQ0, HQ1 to HQ7. Warnings are errors and the Release build had none. The first full run of the tree at `624b800` had two failures, both of tests that name the shipped profiles, and both were fixed in the test files (no Sim code, no pin edited): `H0_ShippedValuesAndParser` (AI-H) now expects `abl_s5_no_hq` to carry harass ratio 1.2 like `aggressive_s5`, and `E6_MirrorRun_CapsHold_AndFirstDepotIsOnTime` (AI-E) now plays `abl_s5_no_hq` (the `aggressive_s5` of before AI-HQ): with AI-HQ on, the same seed-1234 game trips E-6's cap check ("field 2 over cap + 1 for two thinks at tick 9700", caps 4,3,4,4,2,3,3 against assigned 0,0,8,4,...), the same kind of result as AI-P had (see `reports/ai_p/README.md`). The cause was not analysed beyond the fact that the HQ moves in that window (the assigned workers of a field exceed its cap while the HQ is uprooted and workers follow it, rule G3).
+
+## Proof that old profiles and the ablation are unchanged
+
+- Every profile under `rts/data/ai` (21 files after the ablation was added, 20 before) got two comment lines and `"use_cluster_relocation": false` and `"relocate_gain_ratio": 1` right after `harass_speed_ratio`; only `aggressive_s5` has `true`, `2` and, changed in place, `relocate_when_home_remaining_fraction` 0.35 (was 0.1). No other existing value was changed (test `HQ0_ShippedValuesAndParser` checks every file). `abl_s5_no_hq.json` is the old `aggressive_s5.json` (diff checked: only the first-line comment, the `id`, and the two added keys at the old values).
+- With the switch off the code path is the old one: `TriggerRelocation` calls the old checks in the old order, `RelocationCandidates(false)` is the old filter, the latch set is empty and tested only through `Contains`. Test HQ-5 checks the old choice (field 11) on a prepared view.
+- Before any code change `aggressive_s5` on `origin/main` (`d89533a`, AI-H merged) was run on three fixed games by the helper `AiHqMeasure` (the same loop as `GameRunner.Play`); seed 20261117, both seats `aggressive_s5`: skai_vs_water game 2 `ae4f362f8bdc9885`, skai_vs_skai game 3 `f6ee85b4dc84a331`, water_vs_water game 2 `b171e5cd2bf0bfeb`. Test `HQ7_AblationPlaysThePreAiHqGame` plays `abl_s5_no_hq` through `GameRunner.Play` and gets the same three hashes (passes, in the full run). (The skai_vs_skai hash differs from the one in the AI-H note, `235626745316a81d`, which was recorded before AI-H.)
+- The response scenarios of `abl_s5_no_hq` equal the AI-H report's `aggressive_s5` column, value for value.
+- The two smokes pass, and the pinned tests of old profiles (A-11, C2-11, the S3 self trace) hold: the full suite passes with no pin edited.
+
+## Acceptance table (spec section 9 row AI-HQ and tests HQ-1 to HQ-5)
+
+| Item | Bar | Result | Verdict |
+| --- | --- | --- | --- |
+| Ladder `aggressive_s5` vs `abl_s5_no_hq`, `--non-regression` | fraction >= 0.450 | 111/216 = 0.514 | PASS |
+| Mirror row Wilson upper bound | >= 0.50 | 75/144, upper bound 0.601 | PASS |
+| Self-ladder distinct games per decided game, every cell | >= 0.8 | 1.000, 1.000, 1.000 | PASS |
+| Openings in mirrors 0.35 to 0.65 (report only) | report | strength ladder 3 of 8 outside (skai_air 0.136, skai_standard 0.857, water_leviathan_tech 0.742); self-ladder 5 of 8 outside | reported |
+| Response passes, not fewer than `abl_s5_no_hq` | >= baseline | 6 of 10 against 5 of 10 | PASS |
+| HQ deaths within 60 s of an uproot, not more than the ablation | <= ablation | 2 against 6 (not Rooted at death: 7 against 9) | PASS |
+| HQ moves per game (report) | report | 2.89 against 1.67; first move median 381.6 s against 400.3 s; no return to an earlier stand point; 7 in-place uproot-and-reroot cycles | reported |
+| HQ-1 to HQ-5 with the spec's numbers, HQ-0, HQ-6, HQ-7 | pass | 8 of 8 | PASS |
+
+## What was not checked
+
+- Only 12 games per matchup were traced (36 games); the ladder games themselves (216 each) were not traced for HQ moves.
+- Whether the 7 in-place uproot-and-reroot cycles and the long second moves are good play, and why the AI-E cap check trips during a move, were not analysed.
+- The Defend-stance rule uses the stance of the previous think (the HQ step runs before the army step); not tested against a threat appearing in the same think.
+- The change in the turtle skai response scenario (26 to 16 supply lost before the first kill) was not traced to a cause.
+- No `Sim` code changed; the `sim-reviewer` pass on the `rts/src/Ai` diff is still to be requested by the coordinator.
