@@ -50,6 +50,13 @@
 //      construction, and either the clock reached expand_at_seconds + depots placed x expand_interval_seconds or the served fields hold
 //      less than expand_when_served_remaining_fraction of their start amount, build a depot at the best site beside the first field in
 //      target order that is not served (safe fields first, nearest the HQ first; unsafe ones only while starved).
+//   4a. Saturation economy (field_saturation.md package AI-E, only with the keys on; the old values reproduce rules G, E and W above):
+//      use_saturation_workers: a field's cap is its gather slots + ceil(slots x round-trip walk ticks / gather ticks per trip)
+//      + saturation_extra_workers_per_field (walk = distance to the nearest planned drop-off - 2 x interact range - its radius), and
+//      the worker target floor is the first target-order field's cap; max_workers is only a ceiling. rare_cap_yields_to_saturation:
+//      the rare soft cap closes rare fields only while a served common field has fewer workers than its cap. use_saturation_expansion:
+//      rule E also fires when the workers (queued included) reach expand_saturation_fraction x the uncapped target. A seen threat blocks
+//      a depot only from expand_block_threat_supply (0 = any threat blocks).
 //   4b. Train workers at the Rooted HQ while workers (queued included) < min(max_workers, workers_per_field x served common fields
 //      + rare_workers_per_field x served rare fields; at least workers_per_field while any field has resources), one at a time, if
 //      affordable and supply is free. Workers ignore structure reservations: they are the income, and a reservation that starved them
@@ -223,7 +230,30 @@ namespace Rts.Ai
             }
             // This think's working state; nothing is decided.
             Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
-            return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots, turn.StaticDefenceUnderConstructionNow, turn.StaticDefencesAtHq);
+            return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots, turn.StaticDefenceUnderConstructionNow, turn.StaticDefencesAtHq, turn.ServedCaps());
+        }
+
+        /// <summary>
+        /// AI-E E1.1 formula (test hook): walk = max(0, distance - 2 x interact - radius) one way; W = ceil(2 x walk x ticksPerSecond / speed) ticks;
+        /// cap = slots + ceil(slots x W / gatherTicks) + extra. Unit: workers. Range: slots to slots + a few dozen.
+        /// </summary>
+        /// <param name="slots">Gather slots of the field. Unit: workers. Range: 1 to 16.</param>
+        /// <param name="distance">Field centre to drop-off position. Unit: tiles. Range: 0 upward.</param>
+        /// <param name="radius">Drop-off footprint radius. Unit: tiles. Range: 0 upward.</param>
+        /// <param name="interact">Interact range. Unit: tiles. Range: above 0.</param>
+        /// <param name="speed">Worker speed. Unit: tiles per second. Range: 0 upward (0 counts as no walk time).</param>
+        /// <param name="ticksPerSecond">Simulation rate. Unit: ticks per second. Range: 1 upward.</param>
+        /// <param name="gatherTicks">Ticks one slot is held per load. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="extra">saturation_extra_workers_per_field. Unit: workers. Range: 0 to 4.</param>
+        internal static int SaturationCap(int slots, Fix64 distance, Fix64 radius, Fix64 interact, Fix64 speed, int ticksPerSecond, int gatherTicks, int extra)
+        {
+            // One-way walk beyond the interact ranges. Unit: tiles. Range: 0 upward.
+            Fix64 walk = Fix64.Max(Fix64.Zero, distance - interact * 2 - radius);
+            // Round-trip walk time. Unit: ticks. Range: 0 upward.
+            int walkTicks = speed > Fix64.Zero ? (walk * (2 * ticksPerSecond) / speed).CeilingToInt() : 0;
+            // Ticks one slot is held per load, at least 1. Unit: ticks.
+            int hold = Math.Max(1, gatherTicks);
+            return slots + (slots * walkTicks + hold - 1) / hold + extra;
         }
 
         /// <summary>The economy facts one think derives from a view (test hook, see <see cref="Probe"/>).</summary>
@@ -244,9 +274,13 @@ namespace Rts.Ai
             /// <summary>Own static defences, pending build orders included, within field_max_distance_tiles of the HQ. Unit: structures. Range: 0 upward.</summary>
             public int StaticDefencesAtHq { get; }
 
+            /// <summary>Worker cap of each served field, parallel to <see cref="Served"/> (AI-E). Unit: workers. Range: 0 upward.</summary>
+            public IReadOnlyList<int> ServedCaps { get; }
+
             /// <summary>Stores the probe result.</summary>
-            public EconomyProbe(IReadOnlyList<int> served, int wantedWorkers, int liveDepots, bool staticDefenceUnderConstruction, int staticDefencesAtHq)
+            public EconomyProbe(IReadOnlyList<int> served, int wantedWorkers, int liveDepots, bool staticDefenceUnderConstruction, int staticDefencesAtHq, IReadOnlyList<int> servedCaps)
             {
+                ServedCaps = servedCaps;
                 StaticDefenceUnderConstruction = staticDefenceUnderConstruction;
                 StaticDefencesAtHq = staticDefencesAtHq;
                 Served = served;
@@ -618,6 +652,18 @@ namespace Rts.Ai
             /// <summary>Positions of the planned drop-offs: complete drop-offs and the Rooted HQ, then depots under construction. Unit: tiles.</summary>
             private readonly List<FixVec2> _plannedDropOffs = new List<FixVec2>();
 
+            /// <summary>Footprint radius of each entry of <see cref="_plannedDropOffs"/>, same order (AI-E cap formula). Unit: tiles. Range: 0 to 4.</summary>
+            private readonly List<Fix64> _plannedDropOffRadii = new List<Fix64>();
+
+            /// <summary>Own workers gathering or heading to each field at the start of this think (the same count rule G uses), by field index. Unit: workers. Range: 0 upward.</summary>
+            private int[] _assignedAtStart = Array.Empty<int>();
+
+            /// <summary>AI-E E1.4: true when rare_cap_yields_to_saturation is on and every served common field holds at least its cap of workers, so rare fields stay open. Unit: boolean.</summary>
+            private bool _commonFull;
+
+            /// <summary>Saturation cap per field index, filled on first use within a think (AI-E E1.1). Unit: workers. Range: 1 upward.</summary>
+            private readonly SortedDictionary<int, int> _saturationCaps = new SortedDictionary<int, int>();
+
             /// <summary>True when a complete drop-off exists (a complete depot or the Rooted HQ).</summary>
             private bool _hasDropOff;
 
@@ -665,13 +711,59 @@ namespace Rts.Ai
             {
                 if (field.Kind == ResourceKind.Common)
                 {
-                    return _profile.WorkersPerField;
+                    return _profile.UseSaturationWorkers ? SaturationCapOf(field) : _profile.WorkersPerField;
                 }
-                return RareCapped ? 0 : _profile.RareWorkersPerField;
+                if (RareCapped)
+                {
+                    return 0;
+                }
+                return _profile.UseSaturationWorkers ? SaturationCapOf(field) : _profile.RareWorkersPerField;
+            }
+
+            /// <summary>
+            /// AI-E E1.1: the saturation cap of a field: its gather slots plus the workers that cover the walk to the nearest planned drop-off
+            /// (nearest by squared distance, ties to the lower ID; with none, field_max_distance_tiles away), plus saturation_extra_workers_per_field.
+            /// Unit: workers. Range: 1 upward.
+            /// </summary>
+            private int SaturationCapOf(AiFieldView field)
+            {
+                if (_saturationCaps.TryGetValue(field.Index, out int known))
+                {
+                    return known;
+                }
+                // Distance from the field to its nearest planned drop-off, capped at field_max_distance_tiles. Unit: tiles.
+                Fix64 distance = _profile.FieldMaxDistanceTiles;
+                // Footprint radius of that drop-off. Unit: tiles.
+                Fix64 radius = Fix64.Zero;
+                // Squared distance of the best drop-off so far. Unit: squared tiles.
+                Fix64 bestSquared = Fix64.Zero;
+                // True once a drop-off has been seen. Unit: boolean.
+                bool any = false;
+                // Index into the planned drop-offs. Range: 0 to count - 1.
+                for (int i = 0; i < _plannedDropOffs.Count; i++)
+                {
+                    // Squared distance of this drop-off. Unit: squared tiles.
+                    Fix64 squared = (_plannedDropOffs[i] - field.Centre).LengthSquared();
+                    if (!any || squared < bestSquared)
+                    {
+                        any = true;
+                        bestSquared = squared;
+                        distance = Fix64.Min((_plannedDropOffs[i] - field.Centre).Length(), _profile.FieldMaxDistanceTiles);
+                        radius = _plannedDropOffRadii[i];
+                    }
+                }
+                // Gather slots of this field's kind. Unit: workers.
+                int slots = field.Kind == ResourceKind.Rare ? _view.GatherSlotsRare : _view.GatherSlotsCommon;
+                // Worker speed of the plan's worker. Unit: tiles per second.
+                Fix64 speed = _view.Content.Units[_plan.WorkerUnitId].SpeedTilesPerSecond;
+                // Cap computed from the formula. Unit: workers.
+                int cap = AiBrain.SaturationCap(slots, distance, radius, _view.InteractRangeTiles, speed, _view.TicksPerSecond, _view.GatherTicksPerTrip, _profile.SaturationExtraWorkersPerField);
+                _saturationCaps[field.Index] = cap;
+                return cap;
             }
 
             /// <summary>True while rare_bank_soft_cap is on (above 0) and the rare bank is at or above it (C2.3): rare fields take no workers. Unit: boolean.</summary>
-            private bool RareCapped => _memory.RareCapActive;
+            private bool RareCapped => _memory.RareCapActive && !_commonFull;
 
             /// <summary>
             /// Updates the rare-worker cap state (C2.3 with its review hysteresis): on when the rare bank reaches rare_bank_soft_cap, off again when
@@ -745,10 +837,12 @@ namespace Rts.Ai
                     {
                         _hasDropOff = true;
                         _plannedDropOffs.Add(unit.Position);
+                        _plannedDropOffRadii.Add(unit.Definition.Radius);
                     }
                     else if (unit.IsStructure && unit.Definition.Economy.IsDropOff)
                     {
                         _plannedDropOffs.Add(unit.Position);
+                        _plannedDropOffRadii.Add(unit.Definition.Radius);
                         _memory.DepotsPlaced++;
                         if (unit.IsUnderConstruction)
                         {
@@ -779,6 +873,26 @@ namespace Rts.Ai
                     {
                         _homeRemaining += Known(field);
                         _homeStart += field.StartAmount;
+                    }
+                }
+                // AI-E E1.4: workers per field now, and whether every served common field is full (only with the rare switch on).
+                _assignedAtStart = new int[view.Fields.Count];
+                foreach (AiUnitView unit in view.OwnUnits)
+                {
+                    if (unit.IsWorker && unit.GatherFieldIndex >= 0 && unit.GatherFieldIndex < _assignedAtStart.Length)
+                    {
+                        _assignedAtStart[unit.GatherFieldIndex]++;
+                    }
+                }
+                if (profile.RareCapYieldsToSaturation)
+                {
+                    _commonFull = true;
+                    foreach (AiFieldView field in _served)
+                    {
+                        if (field.Kind == ResourceKind.Common && _assignedAtStart[field.Index] < CapOf(field))
+                        {
+                            _commonFull = false;
+                        }
                     }
                 }
                 ScanThreat();
@@ -2141,7 +2255,9 @@ namespace Rts.Ai
             /// <summary>Rule E (skirmish_ai_v2.md B.5): builds a depot beside the first unserved field in target order when one is due.</summary>
             public void Expand()
             {
-                if (_plan.DropOffBuildingId.Length == 0 || UnderThreat || _liveDepots >= _profile.MaxLiveDepots || _depotUnderConstruction)
+                // True while a seen threat blocks depots: any threat (expand_block_threat_supply 0) or one of at least that supply (AI-E E2.2).
+                bool blocked = _profile.ExpandBlockThreatSupply == 0 ? UnderThreat : _threatSupply >= _profile.ExpandBlockThreatSupply;
+                if (_plan.DropOffBuildingId.Length == 0 || blocked || _liveDepots >= _profile.MaxLiveDepots || _depotUnderConstruction)
                 {
                     return;
                 }
@@ -2170,7 +2286,15 @@ namespace Rts.Ai
                 bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(EarlyExpansionSeconds(_profile, _memory, _view.Tick));
                 // Rule RS: a needed rare resource puts rare sites first in the target order.
                 bool rarePriority = RarePriority() || earlyLift;
-                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low)
+                // AI-E E2.1: workers (queued included) at expand_saturation_fraction of the uncapped target. Unit: boolean.
+                bool saturated = false;
+                if (_profile.UseSaturationExpansion)
+                {
+                    // Workers wanted before the max_workers ceiling. Unit: workers.
+                    int uncapped = WantedWorkersUncapped();
+                    saturated = uncapped > 0 && Fix64.FromInt(WorkersIncludingQueued()) >= _profile.ExpandSaturationFraction * Fix64.FromInt(uncapped);
+                }
+                if (_view.Tick < _view.SecondsToTicks(dueSeconds) && !low && !saturated)
                 {
                     return;
                 }
@@ -2262,6 +2386,15 @@ namespace Rts.Ai
             /// </summary>
             public int WantedWorkers()
             {
+                return Math.Min(_profile.MaxWorkers, WantedWorkersUncapped());
+            }
+
+            /// <summary>
+            /// <see cref="WantedWorkers"/> before the max_workers ceiling: the sum of the served fields' caps, at least the cap of the first
+            /// field in target order (workers_per_field without use_saturation_workers) while any field has resources. Unit: workers.
+            /// </summary>
+            private int WantedWorkersUncapped()
+            {
                 // Sum of the caps of the served fields. Unit: workers.
                 int target = 0;
                 foreach (AiFieldView field in _served)
@@ -2270,9 +2403,39 @@ namespace Rts.Ai
                 }
                 if (_anyLive)
                 {
-                    target = Math.Max(target, _profile.WorkersPerField);
+                    // Floor: workers_per_field, or (AI-E E1.3) the cap of the first field in target order.
+                    int floor = _profile.WorkersPerField;
+                    if (_profile.UseSaturationWorkers)
+                    {
+                        // Fields in target order from the HQ.
+                        List<AiFieldView> order = TargetOrder(_hq.Position);
+                        floor = order.Count > 0 ? CapOf(order[0]) : floor;
+                    }
+                    target = Math.Max(target, floor);
                 }
-                return Math.Min(_profile.MaxWorkers, target);
+                return target;
+            }
+
+            /// <summary>Own workers alive plus workers queued anywhere. Unit: workers. Range: 0 upward.</summary>
+            private int WorkersIncludingQueued()
+            {
+                // Workers counted so far. Unit: workers.
+                int count = 0;
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsWorker)
+                    {
+                        count++;
+                    }
+                    foreach (string queued in unit.Queue)
+                    {
+                        if (string.Equals(queued, _plan.WorkerUnitId, StringComparison.Ordinal))
+                        {
+                            count++;
+                        }
+                    }
+                }
+                return count;
             }
 
             /// <summary>Indices of the served fields, ascending (test hook through <see cref="Probe"/>).</summary>
@@ -2285,6 +2448,18 @@ namespace Rts.Ai
                     indices.Add(field.Index);
                 }
                 return indices;
+            }
+
+            /// <summary>Worker cap of each served field in index order (test hook through <see cref="Probe"/>). Unit: workers.</summary>
+            public List<int> ServedCaps()
+            {
+                // Caps copied from the served list. Unit: workers.
+                List<int> caps = new List<int>();
+                foreach (AiFieldView field in _served)
+                {
+                    caps.Add(CapOf(field));
+                }
+                return caps;
             }
 
             /// <summary>True when an own static defence is under construction or ordered (test hook through <see cref="Probe"/>).</summary>
@@ -2307,21 +2482,7 @@ namespace Rts.Ai
                 // Workers wanted. Unit: workers.
                 int target = WantedWorkers();
                 // Workers alive plus workers queued anywhere. Unit: workers.
-                int count = 0;
-                foreach (AiUnitView unit in _view.OwnUnits)
-                {
-                    if (unit.IsWorker)
-                    {
-                        count++;
-                    }
-                    foreach (string queued in unit.Queue)
-                    {
-                        if (string.Equals(queued, _plan.WorkerUnitId, StringComparison.Ordinal))
-                        {
-                            count++;
-                        }
-                    }
-                }
+                int count = WorkersIncludingQueued();
                 if (count >= target)
                 {
                     return;

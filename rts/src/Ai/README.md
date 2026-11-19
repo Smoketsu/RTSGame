@@ -87,3 +87,10 @@ determinism review.
 - Profiles are loaded through the `ai/` route of `DataLoader` (`DataSet.AiProfiles`) and validated here; script player entries may
   name a profile with `"ai"`, and the harness has `--ai <slot>:<profile>`.
 - Tests live in `rts/tests/Sim.Tests/Ai/` (the existing NUnit project references `Rts.Ai`) rather than a separate `Ai.Tests` project.
+- Field saturation (rts/docs/specs/field_saturation.md package AI-E): the root keys `use_saturation_workers`,
+  `saturation_extra_workers_per_field`, `rare_cap_yields_to_saturation`, `use_saturation_expansion`, `expand_saturation_fraction` and
+  `expand_block_threat_supply` (every profile carries them; false, 0, false, false, 1, 0 play exactly as before). With them on, a field's
+  worker cap is its gather slots plus the workers that cover the walk to the nearest drop-off, the rare soft cap closes rare fields only
+  while a served common field is below its cap, a depot is also built at `expand_saturation_fraction` of the uncapped worker target, and a
+  seen threat blocks a depot only from `expand_block_threat_supply` supply. `aggressive_s5` has them on (max_workers 48, max_live_depots 4);
+  `abl_s5_no_e` is the same file with AI-E off. `AiWorldView` carries the gather slots, the trip length and the interact range.

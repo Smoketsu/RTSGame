@@ -266,6 +266,18 @@
   "expand_jitter_seconds": 0,
   // Package R: attack_min_advantage moves by an offset drawn from minus to plus this, in steps of 0.01, each time the army starts massing (the attack still needs a predicted win); 0 turns it off. Unit: ratio. Range: 0 to 0.5. Source: skirmish_ai_v4_rl.md R.4; placeholder.
   "attack_advantage_jitter": 0,
+  // AI-E E1: worker caps per field come from the field's gather slots plus the walk cover (slots + ceil(slots x round-trip walk ticks / gather ticks per trip) + extra) instead of workers_per_field and rare_workers_per_field; max_workers stays a ceiling. false keeps the fixed caps. Unit: boolean. Range: true or false. Source: field_saturation.md E1; placeholder.
+  "use_saturation_workers": false,
+  // AI-E E1.1: workers added to every saturation cap (only read when use_saturation_workers is true). Unit: workers. Range: 0 to 4. Source: field_saturation.md E1; placeholder.
+  "saturation_extra_workers_per_field": 0,
+  // AI-E E1.4: the rare bank soft cap closes rare fields only while some served common field has fewer workers than its cap; when every served common field is full the rare fields stay open. Unit: boolean. Range: true or false. Source: field_saturation.md E1; placeholder.
+  "rare_cap_yields_to_saturation": false,
+  // AI-E E2.1: rule E (depot) also fires when the own workers (queued included) reach expand_saturation_fraction of the workers wanted without the max_workers ceiling. false keeps the clock and remaining-share triggers only. Unit: boolean. Range: true or false. Source: field_saturation.md E2; placeholder.
+  "use_saturation_expansion": false,
+  // AI-E E2.1: share of the uncapped worker target at which a full base expands (only read when use_saturation_expansion is true). Unit: fraction. Range: 0 to 1. Source: field_saturation.md E2; placeholder.
+  "expand_saturation_fraction": 1,
+  // AI-E E2.2: a visible threat blocks a depot only while its supply is at least this; 0 means any seen threat blocks (the old rule). Unit: supply. Range: 0 to 200. Source: field_saturation.md E2; placeholder.
+  "expand_block_threat_supply": 0,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

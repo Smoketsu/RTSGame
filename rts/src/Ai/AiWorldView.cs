@@ -235,6 +235,18 @@ namespace Rts.Ai
         /// <summary>Largest production queue (tuning/economy.json max_queue_length). Unit: units. Range: 1 upward.</summary>
         public int MaxQueueLength { get; private set; }
 
+        /// <summary>Workers that gather one common field at once (tuning/economy.json gather_slots_per_common_field). Unit: workers. Range: 1 to 16.</summary>
+        public int GatherSlotsCommon { get; private set; }
+
+        /// <summary>Workers that gather one rare field at once (tuning/economy.json gather_slots_per_rare_field). Unit: workers. Range: 1 to 16.</summary>
+        public int GatherSlotsRare { get; private set; }
+
+        /// <summary>Ticks one gathering trip holds a slot (gather_seconds_per_trip at the match rate). Unit: ticks. Range: 1 upward.</summary>
+        public int GatherTicksPerTrip { get; private set; }
+
+        /// <summary>Distance within which a worker gathers or deposits: interact_range_tiles, never less than the arrival radius (as EconomySystem.InteractRange). Unit: tiles. Range: 0.5 to 4.</summary>
+        public Fix64 InteractRangeTiles { get; private set; }
+
         /// <summary>Largest HQ-to-field distance for rooting (tuning/hq.json). Unit: tiles. Range: 0.5 to 64.</summary>
         public Fix64 HqRootMaxDistanceTiles { get; private set; }
 
@@ -390,6 +402,10 @@ namespace Rts.Ai
             view.SupplyCapLimit = sim.Tuning.Supply.SupplyCap;
             view.StaticDefenceSupplyCost = sim.Tuning.Supply.StaticDefenceSupplyCost;
             view.MaxQueueLength = sim.Tuning.Economy.MaxQueueLength;
+            view.GatherSlotsCommon = sim.Tuning.Economy.GatherSlotsCommon;
+            view.GatherSlotsRare = sim.Tuning.Economy.GatherSlotsRare;
+            view.GatherTicksPerTrip = sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock);
+            view.InteractRangeTiles = Fix64.Max(sim.Tuning.Economy.InteractRangeTiles, sim.Tuning.Terrain.ArrivalRadiusTiles);
             view.HqRootMaxDistanceTiles = sim.Tuning.Hq.HqRootMaxDistanceToFieldTiles;
             // Tide cycle length. Unit: ticks. Range: 2 upward.
             int tideTicks = Math.Max(2, sim.Tuning.Match.TideCycleTicks(sim.Clock));

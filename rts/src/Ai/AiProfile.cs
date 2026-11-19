@@ -48,6 +48,9 @@
 //     harass_max_seconds and rare_bank_return_cap (hysteresis of the rare-worker cap).
 //   * skirmish_ai_v4_rl.md package R (seeded variety): composition_jitter_fraction, expand_jitter_seconds and attack_advantage_jitter
 //     (every profile file carries them; 0 = off, which plays exactly as before; see AiVariety).
+//   * field_saturation.md package AI-E (the economy follows gather slots): use_saturation_workers, saturation_extra_workers_per_field,
+//     rare_cap_yields_to_saturation, use_saturation_expansion, expand_saturation_fraction and expand_block_threat_supply (every profile
+//     file carries them; the old values false, 0, false, false, 1, 0 reproduce the earlier rules exactly).
 //   * skirmish_ai_v4_rl.md package L (opening library): each faction plan carries "openings" (0 to 16 entries, [] = none), each with id, weight,
 //     build_order, composition, handover_seconds, expand_at_seconds, early_expansion_seconds, attack_army_supply and attack_min_supply; one is
 //     drawn at match start (AiVariety). Validated here: unique IDs, a weight sum above 0, and that every unit with a requires list has its
@@ -619,6 +622,24 @@ namespace Rts.Ai
         /// <summary>R.4: attack_min_advantage moves by an offset drawn from minus to plus this, in steps of 0.01, each time the army starts massing; 0 = off. Unit: ratio. Range: 0 to 0.5.</summary>
         public Fix64 AttackAdvantageJitter { get; }
 
+        /// <summary>AI-E E1: worker caps per field come from the gather slots and the walk to the drop-off instead of workers_per_field / rare_workers_per_field (max_workers stays a ceiling). Unit: boolean.</summary>
+        public bool UseSaturationWorkers { get; }
+
+        /// <summary>AI-E E1.1: workers added to every saturation cap. Unit: workers. Range: 0 to 4.</summary>
+        public int SaturationExtraWorkersPerField { get; }
+
+        /// <summary>AI-E E1.4: the rare soft cap closes rare fields only while a served common field is below its cap. Unit: boolean.</summary>
+        public bool RareCapYieldsToSaturation { get; }
+
+        /// <summary>AI-E E2.1: rule E also fires when the workers reach expand_saturation_fraction of the workers wanted. Unit: boolean.</summary>
+        public bool UseSaturationExpansion { get; }
+
+        /// <summary>AI-E E2.1: share of the uncapped worker target at which a full base expands. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 ExpandSaturationFraction { get; }
+
+        /// <summary>AI-E E2.2: a visible threat blocks a depot only from this supply; 0 means any threat blocks. Unit: supply. Range: 0 to 200.</summary>
+        public int ExpandBlockThreatSupply { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -787,6 +808,12 @@ namespace Rts.Ai
             CompositionJitterFraction = root.RequireFix64("composition_jitter_fraction", "0", "0.5");
             ExpandJitterSeconds = root.RequireInt("expand_jitter_seconds", 0, 120);
             AttackAdvantageJitter = root.RequireFix64("attack_advantage_jitter", "0", "0.5");
+            UseSaturationWorkers = root.RequireBool("use_saturation_workers");
+            SaturationExtraWorkersPerField = root.RequireInt("saturation_extra_workers_per_field", 0, 4);
+            RareCapYieldsToSaturation = root.RequireBool("rare_cap_yields_to_saturation");
+            UseSaturationExpansion = root.RequireBool("use_saturation_expansion");
+            ExpandSaturationFraction = root.RequireFix64("expand_saturation_fraction", "0", "1");
+            ExpandBlockThreatSupply = root.RequireInt("expand_block_threat_supply", 0, 200);
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -874,7 +901,9 @@ namespace Rts.Ai
                 "defend_max_candidates", "fallback_health_fraction", "fallback_danger_tiles",
                 "fallback_max_commands_per_think", "kite_trigger_tiles", "kite_step_tiles", "kite_min_range_gap_tiles",
                 "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think", "use_focus_fire", "fallback_release_seconds",
-                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter", "factions");
+                "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter",
+                "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
+                "expand_saturation_fraction", "expand_block_threat_supply", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.
