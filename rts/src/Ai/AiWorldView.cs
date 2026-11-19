@@ -232,6 +232,12 @@ namespace Rts.Ai
         /// <summary>Supply any static defence costs (tuning/supply.json static_defence_supply_cost). Unit: supply. Range: 0 upward.</summary>
         public int StaticDefenceSupplyCost { get; private set; }
 
+        /// <summary>Most static defences the simulation allows near one base (tuning/supply.json static_defences_per_base_max; AI-P P2). Unit: structures. Range: 0 to 20.</summary>
+        public int StaticDefencesPerBaseMax { get; private set; }
+
+        /// <summary>Radius of a base around its drop-off (tuning/economy.json base_radius_tiles; AI-P P1 counts producers inside it). Unit: tiles. Range: 2 to 64.</summary>
+        public Fix64 BaseRadiusTiles { get; private set; }
+
         /// <summary>Largest production queue (tuning/economy.json max_queue_length). Unit: units. Range: 1 upward.</summary>
         public int MaxQueueLength { get; private set; }
 
@@ -401,6 +407,8 @@ namespace Rts.Ai
             view.SupplyCap = self.SupplyCap;
             view.SupplyCapLimit = sim.Tuning.Supply.SupplyCap;
             view.StaticDefenceSupplyCost = sim.Tuning.Supply.StaticDefenceSupplyCost;
+            view.StaticDefencesPerBaseMax = sim.Tuning.Supply.StaticDefencesPerBaseMax;
+            view.BaseRadiusTiles = sim.Tuning.Economy.BaseRadiusTiles;
             view.MaxQueueLength = sim.Tuning.Economy.MaxQueueLength;
             view.GatherSlotsCommon = sim.Tuning.Economy.GatherSlotsCommon;
             view.GatherSlotsRare = sim.Tuning.Economy.GatherSlotsRare;

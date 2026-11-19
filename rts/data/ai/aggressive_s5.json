@@ -1,7 +1,7 @@
-// rts/data/ai/aggressive_s5.json: the aggressive skirmish AI profile of field_saturation.md package AI-E: a copy of aggressive_s4r.json (packages R and L) with the saturation economy on (worker caps from gather slots, the rare cap yielding to saturation, a depot at 80 percent saturation, a threat blocks a depot only from 4 supply, max_workers 48 as a ceiling, up to 4 live depots). Part of rts/data/ai; read by Rts.Ai.AiProfile.
+// rts/data/ai/aggressive_s5.json: the aggressive skirmish AI profile of field_saturation.md package AI-E: a copy of aggressive_s4r.json (packages R and L) with the saturation economy on and package AI-P on (producers at the base with the fewest producers, static defence by threat, up to 6 defences per base; worker caps from gather slots, the rare cap yielding to saturation, a depot at 80 percent saturation, a threat blocks a depot only from 4 supply, max_workers 48 as a ceiling, up to 4 live depots). Part of rts/data/ai; read by Rts.Ai.AiProfile.
 {
   "$schema_version": 1,
-  "$doc": "Package AI-E candidate (aggressive_s4r plus the saturation economy of field_saturation.md E1 and E2). Every number is a placeholder.",
+  "$doc": "Package AI-E and AI-P candidate (aggressive_s4r plus the saturation economy of field_saturation.md E1 and E2, plus producers at expansions and static defence by threat, P1 and P2). Every number is a placeholder.",
   // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "aggressive_s5",
   // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
@@ -166,8 +166,8 @@
   "raided_gap_seconds": 20,
   // Rule SD: raids in the window that call for a static defence. Unit: raids. Range: 1 to 20. Source: skirmish_ai_v3.md C.6; placeholder.
   "static_defence_after_raids": 1,
-  // Rule SD: most own static defences near one base. Unit: structures. Range: 0 to 6, and not above supply.json static_defences_per_base_max. Source: skirmish_ai_v3.md C.6; placeholder.
-  "static_defence_max_per_base": 2,
+  // Rule SD: most own static defences near one base. Unit: structures. Range: 0 to 6, and not above supply.json static_defences_per_base_max. Source: skirmish_ai_v3.md C.6; 6 in aggressive_s5 (field_saturation.md P3, the Sim cap); placeholder.
+  "static_defence_max_per_base": 6,
   // Rule SD: innermost Chebyshev ring around the drop-off searched for a site. Unit: tiles. Range: 1 to 10. Source: skirmish_ai_v3.md C.6; placeholder.
   "static_defence_ring_min_tiles": 2,
   // Rule SD: outermost Chebyshev ring searched for a site. Unit: tiles. Range: static_defence_ring_min_tiles to 12. Source: skirmish_ai_v3.md C.6; placeholder.
@@ -278,6 +278,18 @@
   "expand_saturation_fraction": 0.8,
   // AI-E E2.2: a visible threat blocks a depot only while its supply is at least this; 0 means any seen threat blocks (the old rule). Unit: supply. Range: 0 to 200. Source: field_saturation.md E2; placeholder.
   "expand_block_threat_supply": 4,
+  // AI-P P1: an extra producer (rule X) and a tech producer (rule T) go to the own base (the Rooted HQ, or a complete depot with a live field in reach) with the fewest producers within base_radius_tiles of it, ties to the HQ then the lower ID, searched on the same build ring around that base; no good site there falls back to the HQ ring. false builds every producer on the HQ ring. Unit: boolean. Range: true or false. Source: field_saturation.md P1; placeholder.
+  "use_forward_producers": true,
+  // AI-P P2: rule SD step SD-4 builds one static defence at the base nearest the last seen enemy army (else nearest known enemy structure or uncleared enemy spawn) when the enemy model is large enough and the fight predictor favours it; the per-base cap is then min(static_defence_max_per_base, the Sim's static_defences_per_base_max). Needs use_static_defence. false keeps rule SD as it was. Unit: boolean. Range: true or false. Source: field_saturation.md P2; placeholder.
+  "use_threat_defence": true,
+  // AI-P P2: SD-4 needs the enemy model's army supply at least this. Unit: supply. Range: 0 to 200. Source: field_saturation.md P2; placeholder.
+  "threat_defence_min_enemy_supply": 8,
+  // AI-P P2: SD-4 needs the predicted enemy advantage (the predictor's ratio with the enemy model as side A against the own units near the base) at least this. Unit: ratio. Range: 0 to 100. Source: field_saturation.md P2; placeholder.
+  "threat_defence_min_enemy_advantage": 1,
+  // AI-P P2: SD-4 builds only while own static defences (complete or under construction) plus the new one are worth at most this share of the own army value (0 = no cap, as static_defence_max_value_share). Unit: fraction. Range: 0 to 2. Source: field_saturation.md P2; placeholder.
+  "threat_defence_max_value_share": 0.4,
+  // AI-P P2 hysteresis: once SD-4 has fired it stays armed while the enemy supply and the advantage are at least this fraction of their thresholds, and the exposed base changes only to one whose distance to the enemy is below this fraction of the current one's, so a value near a threshold does not flip the order each think; 1 means no band (the old behaviour). Unit: fraction. Range: 0 to 1. Source: field_saturation.md P2 (hysteresis rule); placeholder.
+  "threat_defence_release_fraction": 0.75,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

@@ -94,3 +94,10 @@ determinism review.
   while a served common field is below its cap, a depot is also built at `expand_saturation_fraction` of the uncapped worker target, and a
   seen threat blocks a depot only from `expand_block_threat_supply` supply. `aggressive_s5` has them on (max_workers 48, max_live_depots 4);
   `abl_s5_no_e` is the same file with AI-E off. `AiWorldView` carries the gather slots, the trip length and the interact range.
+- Placement and defence (rts/docs/specs/field_saturation.md package AI-P, `AiBrainPlacement.cs`): the root keys `use_forward_producers`,
+  `use_threat_defence`, `threat_defence_min_enemy_supply`, `threat_defence_min_enemy_advantage`, `threat_defence_max_value_share` and
+  `threat_defence_release_fraction` (every profile carries them; false, false, 0, 0, 0, 1 play exactly as before). With them on, the extra
+  and tech producers go to the own base (Rooted HQ or a complete depot with a live field) with the fewest producers, and rule SD builds a
+  defence at the base nearest the enemy when the enemy model and the fight predictor favour the enemy; the per-base cap is
+  min(profile, Sim). `aggressive_s5` has them on (static_defence_max_per_base 6); `abl_s5_no_p` is the same file with AI-P off.
+  `AiWorldView` carries `StaticDefencesPerBaseMax` and `BaseRadiusTiles`.

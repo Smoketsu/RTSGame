@@ -278,6 +278,18 @@
   "expand_saturation_fraction": 1,
   // AI-E E2.2: a visible threat blocks a depot only while its supply is at least this; 0 means any seen threat blocks (the old rule). Unit: supply. Range: 0 to 200. Source: field_saturation.md E2; placeholder.
   "expand_block_threat_supply": 0,
+  // AI-P P1: an extra producer (rule X) and a tech producer (rule T) go to the own base (the Rooted HQ, or a complete depot with a live field in reach) with the fewest producers within base_radius_tiles of it, ties to the HQ then the lower ID, searched on the same build ring around that base; no good site there falls back to the HQ ring. false builds every producer on the HQ ring. Unit: boolean. Range: true or false. Source: field_saturation.md P1; placeholder.
+  "use_forward_producers": false,
+  // AI-P P2: rule SD step SD-4 builds one static defence at the base nearest the last seen enemy army (else nearest known enemy structure or uncleared enemy spawn) when the enemy model is large enough and the fight predictor favours it; the per-base cap is then min(static_defence_max_per_base, the Sim's static_defences_per_base_max). Needs use_static_defence. false keeps rule SD as it was. Unit: boolean. Range: true or false. Source: field_saturation.md P2; placeholder.
+  "use_threat_defence": false,
+  // AI-P P2: SD-4 needs the enemy model's army supply at least this. Unit: supply. Range: 0 to 200. Source: field_saturation.md P2; placeholder.
+  "threat_defence_min_enemy_supply": 0,
+  // AI-P P2: SD-4 needs the predicted enemy advantage (the predictor's ratio with the enemy model as side A against the own units near the base) at least this. Unit: ratio. Range: 0 to 100. Source: field_saturation.md P2; placeholder.
+  "threat_defence_min_enemy_advantage": 0,
+  // AI-P P2: SD-4 builds only while own static defences (complete or under construction) plus the new one are worth at most this share of the own army value (0 = no cap, as static_defence_max_value_share). Unit: fraction. Range: 0 to 2. Source: field_saturation.md P2; placeholder.
+  "threat_defence_max_value_share": 0,
+  // AI-P P2 hysteresis: once SD-4 has fired it stays armed while the enemy supply and the advantage are at least this fraction of their thresholds, and the exposed base changes only to one whose distance to the enemy is below this fraction of the current one's, so a value near a threshold does not flip the order each think; 1 means no band (the old behaviour). Unit: fraction. Range: 0 to 1. Source: field_saturation.md P2 (hysteresis rule); placeholder.
+  "threat_defence_release_fraction": 1,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

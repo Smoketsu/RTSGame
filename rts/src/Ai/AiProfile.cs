@@ -51,6 +51,9 @@
 //   * field_saturation.md package AI-E (the economy follows gather slots): use_saturation_workers, saturation_extra_workers_per_field,
 //     rare_cap_yields_to_saturation, use_saturation_expansion, expand_saturation_fraction and expand_block_threat_supply (every profile
 //     file carries them; the old values false, 0, false, false, 1, 0 reproduce the earlier rules exactly).
+//   * field_saturation.md package AI-P (placement and defence): use_forward_producers, use_threat_defence, threat_defence_min_enemy_supply,
+//     threat_defence_min_enemy_advantage, threat_defence_max_value_share and threat_defence_release_fraction (every profile file carries
+//     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).
 //   * skirmish_ai_v4_rl.md package L (opening library): each faction plan carries "openings" (0 to 16 entries, [] = none), each with id, weight,
 //     build_order, composition, handover_seconds, expand_at_seconds, early_expansion_seconds, attack_army_supply and attack_min_supply; one is
 //     drawn at match start (AiVariety). Validated here: unique IDs, a weight sum above 0, and that every unit with a requires list has its
@@ -640,6 +643,24 @@ namespace Rts.Ai
         /// <summary>AI-E E2.2: a visible threat blocks a depot only from this supply; 0 means any threat blocks. Unit: supply. Range: 0 to 200.</summary>
         public int ExpandBlockThreatSupply { get; }
 
+        /// <summary>AI-P P1: extra and tech producers go to the own base with the fewest producers instead of the HQ ring. Unit: boolean.</summary>
+        public bool UseForwardProducers { get; }
+
+        /// <summary>AI-P P2: rule SD step SD-4 (static defence at the base the enemy model threatens) and the min(profile, Sim) per-base cap. Unit: boolean.</summary>
+        public bool UseThreatDefence { get; }
+
+        /// <summary>AI-P P2: enemy model army supply SD-4 needs. Unit: supply. Range: 0 to 200.</summary>
+        public int ThreatDefenceMinEnemySupply { get; }
+
+        /// <summary>AI-P P2: predicted enemy advantage (predictor ratio, enemy as side A) SD-4 needs. Unit: ratio. Range: 0 to 100.</summary>
+        public Fix64 ThreatDefenceMinEnemyAdvantage { get; }
+
+        /// <summary>AI-P P2: own static defences including the new one may be worth at most this share of the own army value; 0 means no cap. Unit: fraction. Range: 0 to 2.</summary>
+        public Fix64 ThreatDefenceMaxValueShare { get; }
+
+        /// <summary>AI-P P2 hysteresis: SD-4 stays armed while supply and advantage stay at this fraction of their thresholds, and the exposed base changes only to one this fraction closer to the enemy. 1 means no band. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 ThreatDefenceReleaseFraction { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -814,6 +835,16 @@ namespace Rts.Ai
             UseSaturationExpansion = root.RequireBool("use_saturation_expansion");
             ExpandSaturationFraction = root.RequireFix64("expand_saturation_fraction", "0", "1");
             ExpandBlockThreatSupply = root.RequireInt("expand_block_threat_supply", 0, 200);
+            UseForwardProducers = root.RequireBool("use_forward_producers");
+            UseThreatDefence = root.RequireBool("use_threat_defence");
+            ThreatDefenceMinEnemySupply = root.RequireInt("threat_defence_min_enemy_supply", 0, 200);
+            ThreatDefenceMinEnemyAdvantage = root.RequireFix64("threat_defence_min_enemy_advantage", "0", "100");
+            ThreatDefenceMaxValueShare = root.RequireFix64("threat_defence_max_value_share", "0", "2");
+            ThreatDefenceReleaseFraction = root.RequireFix64("threat_defence_release_fraction", "0", "1");
+            if (UseThreatDefence && !UseStaticDefence)
+            {
+                throw root.Require("use_threat_defence").Fail("requires use_static_defence to be true as well");
+            }
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -903,7 +934,8 @@ namespace Rts.Ai
                 "kite_speed_ratio_min", "kite_max_commands_per_think", "focus_switch_ratio", "focus_max_commands_per_think", "use_focus_fire", "fallback_release_seconds",
                 "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter",
                 "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
-                "expand_saturation_fraction", "expand_block_threat_supply", "factions");
+                "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
+                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.

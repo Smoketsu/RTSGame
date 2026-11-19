@@ -70,6 +70,12 @@ namespace Rts.Ai
     /// <summary>Everything one controller remembers between thinks. Mutable; owned by one controller.</summary>
     public sealed class AiMemory
     {
+        /// <summary>AI-P P2 hysteresis: true while rule SD step SD-4 is armed (it fired and its thresholds, relaxed by threat_defence_release_fraction, still hold).</summary>
+        public bool ThreatDefenceArmed { get; set; }
+
+        /// <summary>AI-P P2 hysteresis: ID of the base chosen as the exposed base at the last SD-4 evaluation, or <see cref="EntityId.None"/>. Range: an own drop-off ID or None.</summary>
+        public EntityId ExposedBase { get; set; } = EntityId.None;
+
         /// <summary>Current army stance.</summary>
         public AiStance Stance { get; set; } = AiStance.Massing;
 

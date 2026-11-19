@@ -57,6 +57,14 @@
 //      the rare soft cap closes rare fields only while a served common field has fewer workers than its cap. use_saturation_expansion:
 //      rule E also fires when the workers (queued included) reach expand_saturation_fraction x the uncapped target. A seen threat blocks
 //      a depot only from expand_block_threat_supply (0 = any threat blocks).
+//   4a'. Placement and defence (field_saturation.md package AI-P, AiBrainPlacement.cs, only with the keys on). use_forward_producers: rule X
+//      and rule T build the producer on the ring around the own base (Rooted HQ, or a complete depot with a live field in reach) with the
+//      fewest producers within base_radius_tiles (ties to the HQ, then the lower ID); no good site there: the HQ ring. use_threat_defence:
+//      rule SD step SD-4 after the raid and unanswered-layer steps builds one defence at the base nearest the last seen enemy army (else
+//      nearest a known enemy structure or uncleared spawn) when the enemy model holds threat_defence_min_enemy_supply and the predictor gives
+//      the enemy threat_defence_min_enemy_advantage against the own units, defences and Rooted HQ within defend_radius_tiles of it, within
+//      threat_defence_max_value_share of the army value; the per-base cap is min(static_defence_max_per_base, the Sim's cap). Both toggles
+//      have a release band (threat_defence_release_fraction). The old values reproduce the earlier rules exactly.
 //   4b. Train workers at the Rooted HQ while workers (queued included) < min(max_workers, workers_per_field x served common fields
 //      + rare_workers_per_field x served rare fields; at least workers_per_field while any field has resources), one at a time, if
 //      affordable and supply is free. Workers ignore structure reservations: they are the income, and a reservation that starved them
@@ -1483,9 +1491,13 @@ namespace Rts.Ai
             /// <summary>
             /// Places <paramref name="definition"/> if the retry time passed, it is affordable, a builder and a site exist; reserves its cost
             /// when only money is short and the player has income (rule R). With <paramref name="site"/> given the structure goes on that
-            /// tile (rule E's depot site), otherwise on the first good tile around the HQ. Returns true when a build intent was emitted.
+            /// tile (rule E's depot site), otherwise on the first good tile around the HQ (for a producer with use_forward_producers: around the
+            /// base with the fewest producers, AI-P P1). Returns true when a build intent was emitted.
             /// </summary>
-            private bool TryBuild(UnitDefinition definition, (int X, int Y)? site = null)
+            /// <param name="definition">The structure to build.</param>
+            /// <param name="site">Fixed site tile, or null to search.</param>
+            /// <param name="producer">True for the producers of rule X and rule T (AI-P P1 may search another base's ring).</param>
+            private bool TryBuild(UnitDefinition definition, (int X, int Y)? site = null, bool producer = false)
             {
                 if (!RequirementsMet(definition))
                 {
@@ -1526,7 +1538,7 @@ namespace Rts.Ai
                     x = site.Value.X;
                     y = site.Value.Y;
                 }
-                else if (!TryFindSite(out x, out y))
+                else if (!(producer && _profile.UseForwardProducers && TryFindProducerSite(out x, out y)) && !TryFindSite(out x, out y))
                 {
                     return false;
                 }
@@ -1581,10 +1593,19 @@ namespace Rts.Ai
             /// <summary>The first acceptable building site around the HQ (see rule 3 in the file header).</summary>
             private bool TryFindSite(out int siteX, out int siteY)
             {
-                // HQ tile and its height layer.
-                int hx = _hq.TileX;
-                // HQ tile row. Unit: tiles.
-                int hy = _hq.TileY;
+                return TryFindSiteAround(_hq.TileX, _hq.TileY, out siteX, out siteY);
+            }
+
+            /// <summary>
+            /// The first acceptable building site on the rings around the tile (<paramref name="hx"/>, <paramref name="hy"/>): rule 3's search with
+            /// that tile as the centre and its height layer as the base height (AI-P P1 passes a depot's tile, <see cref="TryFindSite"/> the HQ's).
+            /// </summary>
+            /// <param name="hx">Centre tile column. Unit: tiles. Range: 0 to map width - 1.</param>
+            /// <param name="hy">Centre tile row. Unit: tiles. Range: 0 to map height - 1.</param>
+            /// <param name="siteX">Receives the site tile column (0 when none). Unit: tiles.</param>
+            /// <param name="siteY">Receives the site tile row (0 when none). Unit: tiles.</param>
+            private bool TryFindSiteAround(int hx, int hy, out int siteX, out int siteY)
+            {
                 // Height layer of the HQ's tile; sites must match it. Range: 0 to 7.
                 byte baseHeight = _view.HeightAt(hx, hy);
                 // Scan direction per axis: +1 when the map centre lies at or beyond the HQ tile in that axis, else -1 (a point-symmetric map
@@ -1883,7 +1904,7 @@ namespace Rts.Ai
                 }
                 // The structure that trains the unit, or null when the faction has none.
                 UnitDefinition? structure = ProducerStructureFor(top);
-                return structure != null && TryBuild(structure);
+                return structure != null && TryBuild(structure, null, true);
             }
 
             /// <summary>Own drop-offs for rule SD: the Rooted HQ and every complete drop-off structure, ascending ID.</summary>
@@ -2163,9 +2184,10 @@ namespace Rts.Ai
             /// construction, anywhere) plus the one step 4 would build is at most that share of the value of the own complete army units
             /// (the scout included); also true when no defence fits (nothing would be built anyway).
             /// </summary>
-            private bool WithinValueCap()
+            /// <param name="share">The cap as a share of the army value (static_defence_max_value_share, or threat_defence_max_value_share for SD-4); 0 or less means no cap. Unit: fraction. Range: 0 to 10.</param>
+            private bool WithinValueCap(Fix64 share)
             {
-                if (_profile.StaticDefenceMaxValueShare <= Fix64.Zero)
+                if (share <= Fix64.Zero)
                 {
                     return true;
                 }
@@ -2189,7 +2211,7 @@ namespace Rts.Ai
                         army += AiCounter.Value(unit.Definition, _profile);
                     }
                 }
-                return defences + AiCounter.Value(next, _profile) <= _profile.StaticDefenceMaxValueShare * army;
+                return defences + AiCounter.Value(next, _profile) <= share * army;
             }
 
             /// <summary>Picks a defence for <paramref name="layers"/> and builds it at the best site around <paramref name="origin"/>.</summary>
@@ -2199,7 +2221,7 @@ namespace Rts.Ai
                 UnitDefinition? defence = PickDefence(layers);
                 if (defence != null && TryFindDefenceSite(origin, toward, out int x, out int y))
                 {
-                    TryBuild(defence, (x, y));
+                    _defenceOrdered |= TryBuild(defence, (x, y));
                 }
             }
 
@@ -2217,7 +2239,7 @@ namespace Rts.Ai
                 // Own drop-offs, ascending ID.
                 List<AiUnitView> dropOffs = DropOffs();
                 UpdateRaids(dropOffs);
-                if (_profile.StaticDefenceMaxPerBase == 0 || StaticDefenceUnderConstruction())
+                if (DefenceCap == 0 || StaticDefenceUnderConstruction())
                 {
                     return;
                 }
@@ -2235,9 +2257,9 @@ namespace Rts.Ai
                     {
                         raids += start >= windowStart ? 1 : 0;
                     }
-                    if (raids >= _profile.StaticDefenceAfterRaids && StaticDefencesNear(dropOff.Position) < _profile.StaticDefenceMaxPerBase)
+                    if (raids >= _profile.StaticDefenceAfterRaids && StaticDefencesNear(dropOff.Position) < DefenceCap)
                     {
-                        if (!WithinValueCap())
+                        if (!WithinValueCap(_profile.StaticDefenceMaxValueShare))
                         {
                             // C2.4 step 2: the defences would outweigh the army; no build this think (step 3 is still tried).
                             break;
@@ -2255,9 +2277,14 @@ namespace Rts.Ai
                         unanswered.Add(layer);
                     }
                 }
-                if (unanswered.Count > 0 && StaticDefencesNear(_hq.Position) < _profile.StaticDefenceMaxPerBase)
+                if (unanswered.Count > 0 && StaticDefencesNear(_hq.Position) < DefenceCap)
                 {
                     BuildDefence(_hq.Position, EnemySpawn(), unanswered);
+                }
+                // SD-4 (AI-P P2): only when no raid or unanswered-layer defence was ordered this think.
+                if (_profile.UseThreatDefence && !_defenceOrdered)
+                {
+                    ThreatDefence();
                 }
             }
 
@@ -2876,7 +2903,7 @@ namespace Rts.Ai
                 UnitDefinition? structure = ProducerStructureFor(needed);
                 if (structure != null)
                 {
-                    TryBuild(structure);
+                    TryBuild(structure, null, true);
                 }
             }
 
