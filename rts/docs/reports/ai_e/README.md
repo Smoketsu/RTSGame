@@ -41,6 +41,18 @@ Median game length: all 620.1 s (first build 619.3 s; min 350.5, max 1162.8); sk
 
 Openings of the candidate (win fraction in mirror games, first build in brackets; draws unchanged 57, 48, 76, 35, 52, 42, 62, 60): skai_air 9/22 = 0.409 (0.409), skai_fast_expand 13/20 = 0.650 (0.650), skai_standard 11/28 = 0.393 (0.393), skai_windrunner_pressure 12/20 = 0.600 (0.600), water_fast_expand 16/25 = 0.640 (0.600), water_grasper_pressure 12/18 = **0.667** (0.500), water_leviathan_tech 15/31 = 0.484 (0.613), water_standard 10/32 = **0.313** (0.313).
 
+### Run 3 again: traces after the fixes
+
+The same 12 traces (games 0 to 3 of each matchup, `aggressive_s5` in both seats); the `aggressive_s4r` figures are the ones of the first build's run (unchanged code). Per-trace lines in `trace_summary_after_fixes.txt`. First build in brackets.
+
+| sample | workers | waiting | completed depots | common income per 30 s |
+| --- | ---: | ---: | ---: | ---: |
+| 180 s | 17.0 (17.0) | 0.5, max 2 (0.5, 2) | 2.0 (2.0) | 740 (740) |
+| 300 s | 25.0 (25.0) | 1.0, max 3 (1.0, 3) | 3.0 (3.0) | 990 (990) |
+| 480 s | 24.5 (24.0) | 1.0, max 5 (1.5, 5) | 4.0 (4.0) | 910 (905) |
+
+`aggressive_s4r` for comparison (unchanged): 14.0 workers, 1.0 depots and 667.5 income at 180 s; 14.0, 1.0 and 662.5 at 300 s; 17.0, 2.0 and 885 at 480 s. First depot placed median 90 s, complete 120 s, second complete 180 s (as before; the traces differ from the first build only at the 480 s sample, in 8 of 24 player-lines, mostly by a few units of income; the 180 s and 300 s samples are identical).
+
 <!-- AFTER_END -->
 
 ## First build (before the review fixes)
