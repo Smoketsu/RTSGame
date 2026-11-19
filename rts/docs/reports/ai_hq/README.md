@@ -72,6 +72,26 @@ LADDER candidate=aggressive_s5 baseline=aggressive_s5 decided=216 wins=109 fract
 
 Rows: mirror 73/144 = 0.507 [42.6, 58.7]; cross 36/72 (Skai side 36 of 36, Water side 0 of 36); all 109/216 = 0.505 [43.8, 57.1]. Undecided 0, draws 0. Median game length: all 614.7 s (min 388.1, max 1240.1); skai_vs_skai 645.4 s; skai_vs_water 509.6 s; water_vs_water 686.4 s.
 
-Openings in mirrors (all seats, mirror games against other openings; report only): skai_air 3/22 = **0.136**, skai_fast_expand 7/20 = 0.350, skai_standard 22/28 = **0.786**, skai_windrunner_pressure 13/20 = 0.650, water_fast_expand 6/25 = **0.240**, water_grasper_pressure 10/18 = 0.556, water_leviathan_tech 26/31 = **0.839**, water_standard 11/32 = **0.344**. Four of eight are outside 0.35 to 0.65 (AI-H self-ladder: two). Draw counts and use shares equal those of the strength ladder (same seeds).
+Openings in mirrors (all seats, mirror games against other openings; report only): skai_air 3/22 = **0.136**, skai_fast_expand 7/20 = 0.350, skai_standard 22/28 = **0.786**, skai_windrunner_pressure 13/20 = 0.650, water_fast_expand 6/25 = **0.240**, water_grasper_pressure 10/18 = 0.556, water_leviathan_tech 26/31 = **0.839**, water_standard 11/32 = **0.344**. Five of eight are outside 0.35 to 0.65 (AI-H self-ladder: two). Draw counts and use shares equal those of the strength ladder (same seeds).
 
-RESPONSE_PLACEHOLDER
+## Response scenarios (`--response --profile <id>`)
+
+Commands: `dotnet run --no-build -c Release --project rts/tools/BalanceHarness -- --data rts/data --response --profile aggressive_s5` and the same with `--profile abl_s5_no_hq` (logs `rts/build/response_s5.log`, `response_nohq.log`; both ended with `RESPONSE_SUMMARY`).
+
+| scenario | `aggressive_s5` (AI-HQ on) | `abl_s5_no_hq` |
+| --- | --- | --- |
+| roc_rush skai | PASS (aa_units 19) | PASS (19) |
+| roc_rush water | PASS (4) | PASS (4) |
+| mass_pummeler skai | FAIL (share_gain -0.012) | FAIL (-0.012) |
+| mass_pummeler water | FAIL (-0.062) | FAIL (-0.062) |
+| mass_windrunner skai | PASS (trade_ratio 2.059, killed 35, lost 17) | PASS (1.944, 35, 18) |
+| mass_windrunner water | PASS (1.451, 74, 51) | PASS (1.529, 78, 51) |
+| worker_raid skai | FAIL (p1 pass; p2 fail: max_workers_lost_in_wave 7) | FAIL (p1 pass; p2 fail: 7) |
+| worker_raid water | FAIL (p1 fail; p2 pass: 2) | FAIL (p1 fail; p2 pass: 2) |
+| turtle skai | PASS (16 supply lost before the first kill; won by 613.2 s) | FAIL (26; 538.8 s) |
+| turtle water | PASS (8, 443.3 s) | PASS (8, 444.3 s) |
+| **passed** | **6 of 10** | **5 of 10** |
+
+`RESPONSE_SUMMARY passed=6 of=10` against `passed=5 of=10`. The gate "a package fails if it passes fewer than its baseline" holds (6 against 5). The harness prints 10 scenarios; the spec's gate text says "6 of 9" (not reconciled, as in the AI-P and AI-H reports). The `abl_s5_no_hq` column equals the AI-H report's `aggressive_s5` column except that turtle skai failed there too and mass_windrunner skai passed with 1.944. The scripted scenarios start from a prepared state; the one changed result (turtle skai) was not traced to an HQ move (which of the AI-HQ rules acted in it was not checked).
+
+TRACE_PLACEHOLDER
