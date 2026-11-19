@@ -189,3 +189,29 @@ Openings (mirror win fraction; draws counts as in the table above): skai_air 15/
 - Producer and defence figures are orders from 12 games per profile, not standing structures.
 - The response gate count (9 in the spec, 10 printed) is not reconciled.
 - The full suite was not rerun after the resume (tree unchanged since `d96d3d9`).
+
+## Which part loses
+
+Diagnostic question: does the loss against `abl_s5_no_p` come from P1 (forward producers) or from P2 (static defence by threat, with `static_defence_max_per_base` 6)? Two diagnostic profiles were added (data only, tests list them): `abl_s5_p1_only` (P1 on; P2 keys and `static_defence_max_per_base` 2 at the `abl_s5_no_p` values) and `abl_s5_p2_only` (P2 keys and cap 6 as in `aggressive_s5`; P1 off). Each is a copy of `aggressive_s5` differing only as stated. Nothing in a shipped profile, the code or any threshold was changed.
+
+Ladder command (the AI-P ladder's own command line is not recorded above; this is the form read from the harness usage and the `ladder.md` header: baseline is `--profile-a`, candidate `--profile-b`, seed default 20261117, map `prototype_1v1`, 72 games per cell, `--non-regression`): `dotnet run --no-build -c Release --project rts/tools/BalanceHarness -- --data rts/data --ladder --profile-a abl_s5_no_p --profile-b <diagnostic> --jobs 4 --non-regression --out rts/build/ladder_<p1_only|p2_only>`.
+
+### P1 only: `abl_s5_p1_only` against `abl_s5_no_p`, 216 of 216 decided, 4365.5 s
+
+(Machine shared with the trace runs.) Output `rts/build/ladder_p1_only/`. Determinism spot check 2 games, 0 mismatches.
+
+```
+WARNING opening skai/skai_air: wins 2 of 22 mirror games against other openings (0.091, below 0.35).
+WARNING opening skai/skai_fast_expand: wins 14 of 20 mirror games against other openings (0.700, above 0.65).
+WARNING opening skai/skai_standard: wins 19 of 28 mirror games against other openings (0.679, above 0.65).
+LADDER candidate=abl_s5_p1_only baseline=abl_s5_no_p decided=216 wins=116 fraction=0.537 distinct=216 mirror=80/144 cross=36/72 bar=0.450 PASS
+```
+
+| row | decided | candidate wins | fraction | Wilson |
+| --- | ---: | ---: | ---: | --- |
+| mirror | 144 | 80 | 0.556 | [47.4, 63.4] |
+| cross | 72 | 36 | 0.500 | [38.7, 61.3] |
+| cross, candidate as skai / water | 36 / 36 | 36 / 0 | 1.000 / 0.000 | [90.4, 100.0] / [0.0, 9.6] |
+| all | 216 | 116 | 0.537 | [47.0, 60.2] |
+
+Per cell wins (of 72): skai_vs_skai 41 (0.569), skai_vs_water 36 (0.500), water_vs_water 39 (0.542). Median game length: all 555.5 s; skai_vs_skai 567.8 s; skai_vs_water 512.0 s; water_vs_water 610.8 s.

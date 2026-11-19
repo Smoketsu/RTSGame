@@ -73,10 +73,35 @@ namespace Rts.Sim.Tests.Ai
             int[,] counts = new int[2, 4];
             // Tick of each player's first static defence order, or -1. Unit: ticks.
             int[] firstDefence = { -1, -1 };
+            // Army supply and army value (common plus rare cost) of each player's finished mobile non-worker units at 300 s and 480 s, -1 when the game ended earlier. Unit: supply, resource.
+            int[,] armySupply = { { -1, -1 }, { -1, -1 } };
+            int[,] armyValue = { { -1, -1 }, { -1, -1 } };
+            // Total cost (common plus rare) of every static defence order of each player, retries included. Unit: resource.
+            int[] defenceCost = { 0, 0 };
             // The match ends at the harness cap. Unit: ticks.
             int maxTicks = sim.Clock.SecondsToTicks(Fix64.FromInt(2400));
             for (int i = 0; i < maxTicks; i++)
             {
+                if (i == 300 * 20 || i == 480 * 20)
+                {
+                    // Column: 0 at 300 s, 1 at 480 s.
+                    int column = i == 300 * 20 ? 0 : 1;
+                    for (int p = 0; p < 2; p++)
+                    {
+                        armySupply[p, column] = 0;
+                        armyValue[p, column] = 0;
+                    }
+                    foreach (Unit unit in sim.Units.All)
+                    {
+                        UnitDefinition d = unit.Definition;
+                        if (unit.IsUnderConstruction || d.Economy.FootprintTiles > 0 || d.Hq != null || d.Economy.CanGather)
+                        {
+                            continue;
+                        }
+                        armySupply[unit.Owner.Value, column] += d.Supply;
+                        armyValue[unit.Owner.Value, column] += d.CostCommon + d.CostRare;
+                    }
+                }
                 AiHost.ThinkAll(sim, controllers);
                 foreach (IPlayerController controller in controllers)
                 {
@@ -116,6 +141,10 @@ namespace Rts.Sim.Tests.Ai
                         int player = build.Issuer.Value;
                         bool atDepot = nearest.StartsWith("depot", StringComparison.Ordinal);
                         counts[player, (defence ? 2 : 0) + (atDepot ? 1 : 0)]++;
+                        if (defence)
+                        {
+                            defenceCost[build.Issuer.Value] += definition.CostCommon + definition.CostRare;
+                        }
                         if (defence && firstDefence[player] < 0)
                         {
                             firstDefence[player] = sim.Clock.Tick;
@@ -132,7 +161,10 @@ namespace Rts.Sim.Tests.Ai
             TestContext.Out.WriteLine("GAME " + profileId + " " + matchup + " game " + game + " end_tick " + sim.Clock.Tick + " state_hash " + sim.ComputeStateHash().ToString("x16")
                 + " producers_hq_P0/P1 " + counts[0, 0] + "/" + counts[1, 0] + " producers_depot " + counts[0, 1] + "/" + counts[1, 1]
                 + " defences_hq " + counts[0, 2] + "/" + counts[1, 2] + " defences_depot " + counts[0, 3] + "/" + counts[1, 3]
-                + " first_defence_tick " + firstDefence[0] + "/" + firstDefence[1]);
+                + " first_defence_tick " + firstDefence[0] + "/" + firstDefence[1]
+                + " defence_cost " + defenceCost[0] + "/" + defenceCost[1]
+                + " army_supply_300 " + armySupply[0, 0] + "/" + armySupply[1, 0] + " army_supply_480 " + armySupply[0, 1] + "/" + armySupply[1, 1]
+                + " army_value_300 " + armyValue[0, 0] + "/" + armyValue[1, 0] + " army_value_480 " + armyValue[0, 1] + "/" + armyValue[1, 1]);
         }
     }
 }
