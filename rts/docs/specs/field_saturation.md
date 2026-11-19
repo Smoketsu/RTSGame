@@ -242,7 +242,7 @@ Comment line per key: `// <what>. Unit: . Range: . Source: field_saturation.md E
 | E-3 | Rare cap: rare bank above `rare_bank_soft_cap`, every served common field at cap: rare `CapOf` > 0. One common field below cap: rare `CapOf` = 0. With the switch off: today's result in both cases. |
 | E-4 | Saturation expansion: before `expand_at_seconds`, workers at 0.8 x wanted: a depot is ordered; at 0.7: not. Live depots at `max_live_depots`: not. |
 | E-5 | Threat gate: 3 supply of visible threat with `expand_block_threat_supply` 4: depot ordered; 4 supply: not; with 0: any threat blocks. |
-| E-6 | Greybox run, `aggressive_s5` mirror, 600 s: assigned workers on any served field never exceed its `cap_f` + 1 for more than one think; the first depot is placed by the clock gate or saturation, whichever is first. |
+| E-6 | Greybox run, `aggressive_s5` mirror, 600 s: assigned workers on any served field never exceed its `cap_f` + 1 for more than one think; the first depot is placed by the clock gate or saturation, whichever is first. As built (review fixes): the first depot is ordered no later than min(the think where the saturation trigger holds and the bank can pay, the clock gate) plus a walk and two thinks; a closed rare field (cap 0) keeps the workers it has and is never the target of a new gather order (rule G4 does not force them onto a full common field when `rare_cap_yields_to_saturation` is on); the cap check applies only while some served field below its cap could take a worker. |
 | E-7 | Old profiles: A-11, C2-11 and the S3 self trace hold their SAT values without re-pinning. |
 
 ---
