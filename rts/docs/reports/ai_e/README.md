@@ -53,7 +53,53 @@ The same 12 traces (games 0 to 3 of each matchup, `aggressive_s5` in both seats)
 
 `aggressive_s4r` for comparison (unchanged): 14.0 workers, 1.0 depots and 667.5 income at 180 s; 14.0, 1.0 and 662.5 at 300 s; 17.0, 2.0 and 885 at 480 s. First depot placed median 90 s, complete 120 s, second complete 180 s (as before; the traces differ from the first build only at the 480 s sample, in 8 of 24 player-lines, mostly by a few units of income; the 180 s and 300 s samples are identical).
 
-<!-- AFTER_END -->
+### Run 2 again: self-ladder (`aggressive_s5` against itself), 216 of 216 decided, 3092.5 s
+
+```
+WARNING opening skai/skai_air: wins 2 of 22 mirror games against other openings (0.091, below 0.35).
+WARNING opening skai/skai_fast_expand: wins 14 of 20 mirror games against other openings (0.700, above 0.65).
+WARNING opening skai/skai_standard: wins 19 of 28 mirror games against other openings (0.679, above 0.65).
+LADDER candidate=aggressive_s5 baseline=aggressive_s5 decided=216 wins=116 fraction=0.537 distinct=216 mirror=80/144 cross=36/72 bar=0.650 FAIL
+```
+
+(The FAIL is meaningless in a self-ladder.) Determinism spot check 2 games, 0 mismatches. First build in brackets.
+
+| cell | decided | distinct | distinct / decided | candidate wins / decided | Wilson |
+| --- | ---: | ---: | ---: | --- | --- |
+| skai_vs_skai | 72 | 72 | 1.000 (1.000) | 42/72 (41/72) | [46.8, 69.0] |
+| skai_vs_water | 72 | 72 | 1.000 (1.000) | 36/72 (36/72) | [38.7, 61.3] |
+| water_vs_water | 72 | 72 | 1.000 (1.000) | 38/72 (34/72) | [41.4, 63.9] |
+
+Rows: mirror 80/144 = 0.556 [47.4, 63.4] (75/144); cross 36/72 = 0.500 (36/72); all 116/216 = 0.537 [47.0, 60.2] (111/216); seat 0 / seat 1 59 and 57 candidate wins; slot wins 110 / 106. Undecided 0, draws 0. Median game length: all 559.2 s (563.2 s; min 388.1, max 1041.7); skai_vs_skai 536.4 s; skai_vs_water 513.4 s; water_vs_water 621.7 s. SAT-M `aggressive_s4r`: 736.4 s.
+
+Openings (mirror win fraction, first build in brackets; draws unchanged): skai_air 2/22 = **0.091** (0.091), skai_fast_expand 14/20 = **0.700** (0.750), skai_standard 19/28 = **0.679** (0.679), skai_windrunner_pressure 10/20 = 0.500 (0.450), water_fast_expand 11/25 = 0.440 (0.320), water_grasper_pressure 9/18 = 0.500 (0.556), water_leviathan_tech 17/31 = 0.548 (0.581), water_standard 16/32 = 0.500 (0.531). Three of eight outside 0.35 to 0.65 (first build: four); SAT-M had two.
+
+### Run 4 again: response scenarios (`--response --profile aggressive_s5`)
+
+`RESPONSE_SUMMARY passed=5 of=10`. Every line is identical to the first build's lines (same numbers, same five pass: both roc rushes, both mass-Windrunner trades, water turtle).
+
+### Checks after the fixes
+
+- Build: 0 warnings. Smokes: `e88b3b972175571d` and `12259d6626becbc0`.
+- `abl_s5_no_e` against `aggressive_s4r`: same full-game state hash `e289ebedbf0ddc26` (water_vs_water game 2); the 180 s hash test E-7 passes.
+- Full `dotnet test rts/RtsGame.sln -c Release`: see the summary lines in the commit that follows this section.
+
+### Acceptance after the review fixes
+
+| item | bar | first build | after the fixes | verdict |
+| --- | --- | --- | --- | --- |
+| ladder, `aggressive_s5` vs `aggressive_s4r` (`--non-regression`) | fraction >= 0.45 | 0.759 (164/216) | 0.773 (167/216) | PASS |
+| mirror-row Wilson upper bound | >= 0.50 | 0.925 | 0.941 (130/144 = 0.903) | PASS |
+| variety, self-ladder cells | distinct / decided >= 0.8 | 1.000 each | 1.000 each | PASS |
+| variety, strength-ladder cells | >= 0.8 | 1.000 each | 1.000 each | PASS |
+| opening use share | none above 0.40 | 0.162 to 0.352 | 0.162 to 0.352 | PASS |
+| response scenarios | not fewer than 5 of 10 | 5 of 10 | 5 of 10, same five, same lines | PASS |
+| median common income at 300 s not below `aggressive_s4r`'s 662.5 per 30 s | | 990 | 990 | PASS |
+| opening win fractions 0.35 to 0.65 in self-ladder mirrors (report only) | all in band | 4 of 8 outside | 3 of 8 outside (skai_air 0.091, skai_fast_expand 0.700, skai_standard 0.679) | report only; SAT-M had 2 of 8 |
+| opening win fractions in the strength ladder (report only) | all in band | 1 outside (water_standard 0.313) | 2 outside (water_grasper_pressure 0.667, water_standard 0.313) | report only |
+| L-R-A2 pressure openings, self-ladder | 0.35 to 0.65, at least 10 games | 0.450 and 0.556 | 0.500 and 0.500 | in band |
+
+No E switch was changed. The package still passes every section 9 "fails when" test.
 
 ## First build (before the review fixes)
 
