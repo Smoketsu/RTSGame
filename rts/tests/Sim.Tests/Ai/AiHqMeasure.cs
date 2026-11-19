@@ -1,6 +1,6 @@
 // rts/tests/Sim.Tests/Ai/AiHqMeasure.cs
 // Measurement helper for package AI-HQ (field_saturation.md section 9): replays harness games (the same setup and loop as GameRunner.Play) and
-// prints every HQ move (UPROOT with the tick, ROOT when it stands again), an HQ that dies (HQ_LOST, with whether it was not Rooted and how long
+// prints every HQ move (UPROOT with the tick and position in tiles, ROOT with the position when it stands again), an HQ that dies (HQ_LOST, with whether it was not Rooted and how long
 // after its last uproot), and one GAME line per game with the final state hash (equal to the harness game's). Explicit: never run with the suite;
 //   dotnet test rts/tests/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~AiHqMeasure" --logger "console;verbosity=detailed"
 // with the environment variables HQ_PROFILE (profile ID played in both seats, default aggressive_s5), HQ_GAMES (games per matchup, default 4) and
@@ -121,11 +121,11 @@ namespace Rts.Sim.Tests.Ai
                     {
                         uproots[p]++;
                         lastUproot[p] = sim.Clock.Tick;
-                        TestContext.Out.WriteLine("UPROOT " + head);
+                        TestContext.Out.WriteLine("UPROOT " + head + " at " + hq.Position.X + "," + hq.Position.Y);
                     }
                     else if (last[p].HasValue && last[p] != HqState.Rooted && hq.HqState == HqState.Rooted)
                     {
-                        TestContext.Out.WriteLine("ROOT " + head);
+                        TestContext.Out.WriteLine("ROOT " + head + " at " + hq.Position.X + "," + hq.Position.Y);
                     }
                     last[p] = hq.HqState;
                 }

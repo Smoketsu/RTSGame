@@ -92,6 +92,33 @@ Commands: `dotnet run --no-build -c Release --project rts/tools/BalanceHarness -
 | turtle water | PASS (8, 443.3 s) | PASS (8, 444.3 s) |
 | **passed** | **6 of 10** | **5 of 10** |
 
-`RESPONSE_SUMMARY passed=6 of=10` against `passed=5 of=10`. The gate "a package fails if it passes fewer than its baseline" holds (6 against 5). The harness prints 10 scenarios; the spec's gate text says "6 of 9" (not reconciled, as in the AI-P and AI-H reports). The `abl_s5_no_hq` column equals the AI-H report's `aggressive_s5` column except that turtle skai failed there too and mass_windrunner skai passed with 1.944. The scripted scenarios start from a prepared state; the one changed result (turtle skai) was not traced to an HQ move (which of the AI-HQ rules acted in it was not checked).
+`RESPONSE_SUMMARY passed=6 of=10` against `passed=5 of=10`. The gate "a package fails if it passes fewer than its baseline" holds (6 against 5). The harness prints 10 scenarios; the spec's gate text says "6 of 9" (not reconciled, as in the AI-P and AI-H reports). The `abl_s5_no_hq` column equals the AI-H report's `aggressive_s5` column in every scenario and value (as it should: the same AI before AI-HQ). The one changed result (turtle skai, 26 to 16 supply lost before the first kill) was not traced to an HQ move; which rule acted in it was not checked.
 
-TRACE_PLACEHOLDER
+## HQ moves per game (traces)
+
+Helper: `rts/tests/Sim.Tests/Ai/AiHqMeasure.cs` (explicit, never in the suite). It replays the harness game with the same setup and loop as `GameRunner.Play`, prints UPROOT (tick, position) when an HQ leaves the Rooted state, ROOT when it stands again, and HQ_LOST (state at death, seconds since its last uproot began) when an HQ dies, and one GAME line per game with the final state hash. Commands (one process per matchup, three at a time): `HQ_PROFILE=<id> HQ_GAMES=12 HQ_ONLY=<matchup:0,...,matchup:11> dotnet test rts/tests/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~AiHqMeasure" --logger "console;verbosity=detailed"` with `aggressive_s5` and `abl_s5_no_hq`, both seats the same profile; seed 20261117, games 0 to 11 of each of the three matchups (36 games, 72 player-games per profile; logs `rts/build/hqtrace/*.log`; the logger prints each line twice and they were de-duplicated). The `aggressive_s5` games were run twice (the second time with positions added to the helper); both runs gave the same counts. A move = one UPROOT. "HQ lost while moving" = the HQ died in state Uprooted, Uprooting or Rooting; "within 60 s of an uproot" = it died at most 60 s after its last uproot began (so also an HQ that had meanwhile rooted again).
+
+| per 36 games (72 player-games) | `aggressive_s5` (AI-HQ on) | `abl_s5_no_hq` |
+| --- | ---: | ---: |
+| games in which at least one HQ moved | 36 of 36 | 36 of 36 |
+| player-games in which the HQ moved at least once | 67 of 72 | 58 of 72 |
+| HQ moves (uproots) in total | 104 | 60 |
+| moves per game (mean) | 2.89 | 1.67 |
+| uproots per player-game 0 / 1 / 2 / 3 / 4 | 5 / 36 / 26 / 4 / 1 | 14 / 56 / 2 / 0 / 0 |
+| first move per player-game: earliest / median / latest | 371.0 s / 381.6 s / 580.0 s | 391.1 s / 400.3 s / 644.0 s |
+| all moves: median / latest | 418.8 s / 856.5 s | 400.6 s / 925.0 s |
+| moves by Skai / Water players | 57 / 47 | 33 / 27 |
+| moves by matchup skai_vs_skai / skai_vs_water / water_vs_water | 43 / 21 / 40 | 21 / 15 / 24 |
+| HQs lost (one per decided game) | 36 | 36 |
+| HQ lost while moving (not Rooted at death) | 7 | 9 |
+| HQ lost within 60 s of an uproot | 2 | 6 |
+| median game length of these 36 games | 602.6 s | 529.5 s |
+| games with the same final state hash as the other profile | 0 of 36 | 0 of 36 |
+
+Reading (counts only; causes not isolated):
+- The HQ already moved in every game before AI-HQ (the old rule at 10 percent fires at about 400 s on this map). With AI-HQ the first move comes about 20 s earlier (median 381.6 s against 400.3 s), and the HQ moves again: 31 of 72 player-games have two or more moves against 2 without (104 moves against 60). The first move goes to the nearby depot cluster (about 11 tiles); the second, from there, is often a long trip to a far cluster (for example from (23.5, 15.5) to (18.0, 76.2), about 90 s of travel).
+- No move went back: for every player-game the stand points (where the HQ rooted) were compared pairwise; no later stand point lies within 10 tiles of an earlier one except the 7 cases where the HQ uprooted and rooted again at the same position (a relocation whose target was gone after the 15 s uproot, so it rooted where it stood: 7 of the 104 moves; seen in `skai_vs_skai` games 1, 5 and 11, `water_vs_water` games 4, 5 and 11). The latch `AiMemory.ClusterLeftFields` is what excludes the left home; the HQ-6 test checks it directly.
+- HQ deaths after an uproot are not more than the ablation's: 7 against 9 HQs died not Rooted, 2 against 6 died within 60 s of an uproot began, although AI-HQ makes 104 moves against 60 (7 per 104 against 9 per 60).
+- The games differ from the ablation's in all 36 (the first move changes the game from about 7500 ticks on), so the ladder cells are the measure of strength; the traces only count moves.
+
+TESTS_PLACEHOLDER
