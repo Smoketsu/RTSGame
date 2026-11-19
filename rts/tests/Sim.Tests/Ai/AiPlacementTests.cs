@@ -603,9 +603,7 @@ namespace Rts.Sim.Tests.Ai
                 ulong seed = SeedDerivation.GameSeed(20261117UL, "prototype_1v1", matchup, game);
                 GameRecord record = GameRunner.Play(Data, "prototype_1v1", matchup, game, seed, "abl_s5_no_p", "abl_s5_no_p", 2400);
                 Assert.That(record.StateHash, Is.EqualTo(hash), matchup + " game " + game);
-                // aggressive_s5 is switched off (19 Nov 2026) and plays the same games.
-                GameRecord shipped = GameRunner.Play(Data, "prototype_1v1", matchup, game, seed, "aggressive_s5", "aggressive_s5", 2400);
-                Assert.That(shipped.StateHash, Is.EqualTo(hash), "aggressive_s5 " + matchup + " game " + game);
+                // aggressive_s5 played the same games until AI-H was switched on (19 Nov 2026); abl_s5_no_h is the pre-AI-H file, tested in AiHarassTests.
             }
         }
     }

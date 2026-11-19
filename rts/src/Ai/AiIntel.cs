@@ -199,6 +199,85 @@ namespace Rts.Ai
             return counts;
         }
 
+        /// <summary>
+        /// AI-H: the chaser speed for a unit on <paramref name="layer"/>: the count-weighted mean speed of the model's armed army types whose weapon
+        /// can target the layer; when the model has none, the plain mean over the enemy factions' armed mobile army definitions that can target it
+        /// (public unit data). Weapon.CanTarget answers the static layer list, so a weapon that hits air only from water counts as not hitting air.
+        /// </summary>
+        /// <param name="view">What the AI may know this think (the content and the enemy factions).</param>
+        /// <param name="model">The model counts M(t) from <see cref="ModelCounts"/>; may be empty.</param>
+        /// <param name="layer">The candidate's movement layer.</param>
+        /// <param name="speed">The chaser speed. Unit: tiles per second. Range: 0 to 100; zero when the result is false.</param>
+        /// <returns>True when some enemy unit can hit the layer; false when none can (the candidate then qualifies).</returns>
+        internal static bool ChaserSpeed(AiWorldView view, SortedDictionary<string, Fix64> model, MovementLayer layer, out Fix64 speed)
+        {
+            // Sum of count x speed over the model's types that hit the layer. Unit: units x tiles per second.
+            Fix64 weighted = Fix64.Zero;
+            // Sum of counts of those types. Unit: units. Range: 0 upward.
+            Fix64 weight = Fix64.Zero;
+            foreach (KeyValuePair<string, Fix64> pair in model)
+            {
+                if (view.Content.Units.TryGetValue(pair.Key, out UnitDefinition? type) && IsArmyType(type) && type.Weapon != null && type.Weapon.CanTarget(layer))
+                {
+                    weighted += pair.Value * type.SpeedTilesPerSecond;
+                    weight += pair.Value;
+                }
+            }
+            if (weight > Fix64.Zero)
+            {
+                speed = weighted / weight;
+                return true;
+            }
+            // Roster fallback: sum of speeds of the enemy factions' armed mobile definitions that hit the layer. Unit: tiles per second.
+            Fix64 rosterSum = Fix64.Zero;
+            // How many definitions that is. Unit: definitions. Range: 0 upward.
+            int rosterCount = 0;
+            foreach (KeyValuePair<string, UnitDefinition> pair in view.Content.Units)
+            {
+                UnitDefinition type = pair.Value;
+                if (IsArmyType(type) && type.Weapon != null && type.Weapon.CanTarget(layer) && ContainsOrdinal(view.EnemyFactionIds, type.FactionId))
+                {
+                    rosterSum += type.SpeedTilesPerSecond;
+                    rosterCount++;
+                }
+            }
+            speed = rosterCount > 0 ? rosterSum / Fix64.FromInt(rosterCount) : Fix64.Zero;
+            return rosterCount > 0;
+        }
+
+        /// <summary>
+        /// AI-H: may a unit of this layer and speed join the harass squad? With harass_speed_ratio 0 the old rule: air, or speed at least
+        /// harass_min_speed_tiles_per_second. Otherwise speed at least ratio x chaser speed, and always when no enemy unit can hit the layer.
+        /// </summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The profile.</param>
+        /// <param name="model">The model counts M(t).</param>
+        /// <param name="layer">The candidate's movement layer.</param>
+        /// <param name="speed">The candidate's speed. Unit: tiles per second. Range: 0 to 100.</param>
+        internal static bool MayHarass(AiWorldView view, AiProfile profile, SortedDictionary<string, Fix64> model, MovementLayer layer, Fix64 speed)
+        {
+            if (profile.HarassSpeedRatio <= Fix64.Zero)
+            {
+                return layer == MovementLayer.Air || speed >= profile.HarassMinSpeedTilesPerSecond;
+            }
+            return !ChaserSpeed(view, model, layer, out Fix64 chaser) || speed >= profile.HarassSpeedRatio * chaser;
+        }
+
+        /// <summary>True when the list holds the ID (ordinal comparison).</summary>
+        /// <param name="ids">The IDs to search. Unit: IDs.</param>
+        /// <param name="id">The ID to find.</param>
+        private static bool ContainsOrdinal(IReadOnlyList<string> ids, string id)
+        {
+            foreach (string item in ids)
+            {
+                if (string.Equals(item, id, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>Known enemy army supply S_E: the sum of M(t) x supply(t) over every type (B.3). Unit: supply. Range: 0 upward.</summary>
         /// <param name="view">What the AI may know this think.</param>
         /// <param name="profile">The profile.</param>

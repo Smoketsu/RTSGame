@@ -208,6 +208,12 @@ namespace Rts.Ai
         /// <summary>True while the player is Active (not defeated, surrendered or disconnected).</summary>
         public bool IsActive { get; private set; }
 
+        /// <summary>
+        /// AI-H: the distinct faction IDs of the players on other teams, ordinal order (public: the match setup names every faction). Unit: faction IDs.
+        /// Range: 0 or more entries; empty when the AI has no enemy. Settable inside Rts.Ai so tests can build other cases.
+        /// </summary>
+        public IReadOnlyList<string> EnemyFactionIds { get; internal set; } = Array.Empty<string>();
+
         /// <summary>The tick the commands will apply on (the simulation's current tick). Unit: ticks. Range: 0 upward.</summary>
         public int Tick { get; private set; }
 
@@ -399,6 +405,16 @@ namespace Rts.Ai
             view.Team = self.Team;
             view.FactionId = self.FactionId;
             view.IsActive = self.IsActive;
+            // Faction IDs of the enemy players, ordinal order, no duplicates.
+            SortedSet<string> enemyFactions = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (Player other in sim.Players.All)
+            {
+                if (sim.Players.AreEnemies(player, other.Id))
+                {
+                    enemyFactions.Add(other.FactionId);
+                }
+            }
+            view.EnemyFactionIds = new List<string>(enemyFactions).AsReadOnly();
             view.Tick = sim.Clock.Tick;
             view.TicksPerSecond = sim.Clock.TicksPerSecond;
             view.Common = self.Common;

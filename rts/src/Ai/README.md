@@ -101,3 +101,8 @@ determinism review.
   defence at the base nearest the enemy when the enemy model and the fight predictor favour the enemy; the per-base cap is
   min(profile, Sim). `aggressive_s5` has them on (static_defence_max_per_base 6); `abl_s5_no_p` is the same file with AI-P off.
   `AiWorldView` carries `StaticDefencesPerBaseMax` and `BaseRadiusTiles`.
+- Harass speed (rts/docs/specs/field_saturation.md package AI-H, `AiIntel.ChaserSpeed` and `MayHarass`): the root key `harass_speed_ratio`
+  (every profile carries it; 0 plays exactly as before). Above 0 a unit may harass when its speed is at least that ratio times the chaser
+  speed: the count-weighted mean speed of the enemy model's armed types that can hit its layer, else the mean over the enemy factions'
+  armed mobile definitions, else it qualifies. The flyer exemption and `harass_min_speed_tiles_per_second` then do not apply.
+  `aggressive_s5` has 1.2; `abl_s5_no_h` is the same file with AI-H off. `AiWorldView.EnemyFactionIds` lists the enemy factions.

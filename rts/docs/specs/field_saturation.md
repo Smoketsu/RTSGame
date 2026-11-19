@@ -299,6 +299,8 @@ Key: `harass_speed_ratio`, ratio, 0 to 4; old profiles 0; `aggressive_s5` 1.2. C
 
 Tests (`AiHarassTests.cs`): H-1 chaser speed from a model of 2 Shellbacks and 1 Pummeler that hit ground: mean (1.8 + 1.8 + 3) / 3 = 2.2; a 3.0 unit qualifies at 1.2, a 2.5 unit does not. H-2 empty model: roster mean. H-3 nothing hits air: a flyer qualifies. H-4 ratio 0: identical squad to today on the same view.
 
+Build notes (AI-H builder, 19 Nov 2026): the rule is `AiIntel.ChaserSpeed` and `AiIntel.MayHarass`; the enemy factions come from the new `AiWorldView.EnemyFactionIds` (players on other teams, from the match setup). Extra tests: **H-0** (shipped values, parser rejections, enemy factions in the view) and **H-5** (`abl_s5_no_h` plays three full games to the hashes recorded on `aggressive_s5` before any AI-H code: seed 20261117; skai_vs_water 2 `ae4f362f8bdc9885`, skai_vs_skai 3 `235626745316a81d`, water_vs_water 2 `b171e5cd2bf0bfeb`). **H-1**: "Pummeler" (speed 3.0) is the Water Grasper in the shipped data; the model is 2 `water.shellback` and 1 `water.grasper` on the Ground layer; the 3.0 and 2.5 candidates are passed as speeds. **H-3**: the shipped factions all have an anti-air unit, so "nothing hits air" is built by setting the view's enemy faction list to `neutral` (no armed mobile unit) or to nothing. A model that has armed types, none of which can hit the layer, falls to the roster mean (the spec's order), not to "qualifies". `Weapon.CanTarget` answers the static layer list, so the Shellback's and Reef Runner's "air only from water" does not count as hitting air.
+
 ---
 
 ## Package AI-HQ: what HQ mobility means

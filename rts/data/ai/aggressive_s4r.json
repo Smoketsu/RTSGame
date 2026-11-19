@@ -290,6 +290,8 @@
   "threat_defence_max_value_share": 0,
   // AI-P P2 hysteresis: once SD-4 has fired it stays armed while the enemy supply and the advantage are at least this fraction of their thresholds, and the exposed base changes only to one whose distance to the enemy is below this fraction of the current one's, so a value near a threshold does not flip the order each think; 1 means no band (the old behaviour). Unit: fraction. Range: 0 to 1. Source: field_saturation.md P2 (hysteresis rule); placeholder.
   "threat_defence_release_fraction": 1,
+  // AI-H: a unit may join the harass squad when its speed is at least this multiple of the chaser speed (the count-weighted mean speed of the enemy model's armed types that can hit its layer; the enemy faction's roster mean when the model has none; it qualifies when nothing can hit its layer); replaces the fixed harass_min_speed_tiles_per_second and the flyer exemption. 0 keeps that old rule. Unit: ratio. Range: 0 to 4. Source: field_saturation.md AI-H; placeholder.
+  "harass_speed_ratio": 0,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

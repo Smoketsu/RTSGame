@@ -433,7 +433,7 @@ namespace Rts.Ai
                     {
                         continue;
                     }
-                    if (unit.Layer == MovementLayer.Air || unit.Definition.SpeedTilesPerSecond >= _profile.HarassMinSpeedTilesPerSecond)
+                    if (AiIntel.MayHarass(_view, _profile, _model, unit.Layer, unit.Definition.SpeedTilesPerSecond))
                     {
                         squad.Add(unit);
                         supply += _view.SupplyOf(unit.Definition);

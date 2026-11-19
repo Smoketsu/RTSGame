@@ -65,6 +65,10 @@
 //      the enemy threat_defence_min_enemy_advantage against the own units, defences and Rooted HQ within defend_radius_tiles of it, within
 //      threat_defence_max_value_share of the army value; the per-base cap is min(static_defence_max_per_base, the Sim's cap). Both toggles
 //      have a release band (threat_defence_release_fraction). The old values reproduce the earlier rules exactly.
+//   4a''. Harass speed (field_saturation.md package AI-H, AiIntel.MayHarass, only with harass_speed_ratio above 0 and use_target_choice): a
+//      unit may join the harass squad when its speed is at least harass_speed_ratio x the chaser speed (count-weighted mean speed of the enemy
+//      model's armed types that can hit its layer; the plain mean over the enemy factions' armed mobile definitions when the model has none;
+//      it qualifies when nothing can hit its layer). It replaces the flyer exemption and harass_min_speed_tiles_per_second; 0 keeps them.
 //   4b. Train workers at the Rooted HQ while workers (queued included) < min(max_workers, workers_per_field x served common fields
 //      + rare_workers_per_field x served rare fields; at least workers_per_field while any field has resources), one at a time, if
 //      affordable and supply is free. Workers ignore structure reservations: they are the income, and a reservation that starved them
