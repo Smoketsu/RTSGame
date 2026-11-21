@@ -55,6 +55,48 @@ namespace Rts.Tools.BalanceHarness
             return (game / 2) % 2 == slot ? profileA : profileB;
         }
 
+        /// <summary>
+        /// AI profile slot <paramref name="slot"/> plays in game <paramref name="game"/> of a paired ladder (balance_measurement.md M.1.2): the candidate (B) when slot equals the
+        /// candidate's slot g % 2, else the baseline (A).
+        /// </summary>
+        /// <param name="game">Game index. Unit: games. Range: 0 upward.</param>
+        /// <param name="slot">Player slot. Range: 0 or 1.</param>
+        /// <param name="profileA">Baseline profile ID.</param>
+        /// <param name="profileB">Candidate profile ID.</param>
+        public static string PairedProfileInSlot(int game, int slot, string profileA, string profileB)
+        {
+            return slot == game % 2 ? profileB : profileA;
+        }
+
+        /// <summary>
+        /// Plays game <paramref name="game"/> of a ladder cell with the ladder's seat rule (unpaired: <see cref="LadderProfileInSlot"/>, seed of the game index, factions swap on odd games) or the paired
+        /// layout of M.1.2 (profile <see cref="PairedProfileInSlot"/>, seed and factions of pair g / 2, so both games of a pair share them). The one place ladder games are played: workers, the
+        /// determinism spot check and --trace all call it, so the seat rule cannot drift between them.
+        /// </summary>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="mapId">Map ID.</param>
+        /// <param name="matchupId">Matchup ID.</param>
+        /// <param name="game">Game index in the cell. Unit: games. Range: 0 upward.</param>
+        /// <param name="baseSeed">The ladder's base seed. Range: any ulong.</param>
+        /// <param name="profileA">Baseline profile ID.</param>
+        /// <param name="profileB">Candidate profile ID.</param>
+        /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
+        /// <param name="paired">True for the paired layout.</param>
+        /// <param name="seedXor">Value xor-ed into the seed (test fault only). Range: any ulong; 0 normally.</param>
+        /// <param name="trace">Optional read-only observer.</param>
+        public static GameRecord PlayLadder(DataSet data, string mapId, string matchupId, int game, ulong baseSeed, string profileA, string profileB, int maxGameSeconds, bool paired,
+            ulong seedXor = 0, GameTrace? trace = null)
+        {
+            // Index the seed derives from: the pair when paired, else the game.
+            int seedIndex = paired ? game / 2 : game;
+            ulong seed = SeedDerivation.GameSeed(baseSeed, mapId, matchupId, seedIndex) ^ seedXor;
+            if (!paired)
+            {
+                return Play(data, mapId, matchupId, game, seed, LadderProfileInSlot(game, 0, profileA, profileB), LadderProfileInSlot(game, 1, profileA, profileB), maxGameSeconds, trace);
+            }
+            return Play(data, mapId, matchupId, game, seed, PairedProfileInSlot(game, 0, profileA, profileB), PairedProfileInSlot(game, 1, profileA, profileB), maxGameSeconds, trace, game / 2, game % 2);
+        }
+
         /// <summary>Plays one game and returns its record.</summary>
         /// <param name="data">The loaded data set.</param>
         /// <param name="mapId">Map ID; the map must have two spawns.</param>
@@ -65,14 +107,19 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="profileSlot1">AI profile ID slot 1 plays.</param>
         /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
         /// <param name="trace">Optional read-only observer (--trace mode); null in batch games. It never changes the game.</param>
-        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string profileSlot0, string profileSlot1, int maxGameSeconds, GameTrace? trace = null)
+        /// <param name="pair">Pair index of a paired ladder game: the factions follow the pair (<see cref="FactionInSlot"/> of the pair, so both games of a pair match) and the record carries it. Unit: pairs. Range: -1 (unpaired, factions follow the game), or 0 upward.</param>
+        /// <param name="candidateSlot">Slot of the candidate in a paired game, written to the record. Range: -1 (unpaired), 0 or 1.</param>
+        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string profileSlot0, string profileSlot1, int maxGameSeconds, GameTrace? trace = null,
+            int pair = -1, int candidateSlot = -1)
         {
+            // Index the factions follow: the pair of a paired game, else the game itself.
+            int factionIndex = pair >= 0 ? pair : game;
             MapDefinition map = data.RequireMap(mapId);
             // Players of the game: slot 0 team 0, slot 1 team 1, named after their factions.
             List<PlayerSetup> players = new List<PlayerSetup>();
             for (int slot = 0; slot < 2; slot++)
             {
-                string faction = FactionInSlot(matchupId, game, slot);
+                string faction = FactionInSlot(matchupId, factionIndex, slot);
                 players.Add(new PlayerSetup(new PlayerId((byte)slot), new TeamId((byte)slot), faction, faction + " AI"));
             }
             Simulation sim = new Simulation(new SimulationConfig(data.CreateMatchSettings(seed), data.Content, players, BuiltInMechanics.CreateRegistry(),
@@ -171,8 +218,8 @@ namespace Rts.Tools.BalanceHarness
             }
             signature.Write(Math.Max(lastTick, 0));
             signature.Write(result);
-            return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, game, 0), FactionInSlot(matchupId, game, 1), profileSlot0, profileSlot1, result,
-                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills, opening0, opening1);
+            return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, factionIndex, 0), FactionInSlot(matchupId, factionIndex, 1), profileSlot0, profileSlot1, result,
+                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills, opening0, opening1, pair, candidateSlot);
         }
 
         /// <summary>Damage and death ticks of one HQ unit while a game runs.</summary>

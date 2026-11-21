@@ -1,0 +1,23 @@
+// rts/data/scripts/fights/predict.json: settings of the fight-predictor evaluation of the balance harness (--predict-fights); spec rts/docs/specs/balance_measurement.md C.8. Read by rts/tools/BalanceHarness/PredictSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every value is a placeholder (proposed for the developer to accept or change).
+{
+  "$schema_version": 1,
+  "$doc": "Which profile supplies the predictor numbers, the calibration bins, the row-size limits and the proposed thresholds of the SIMULATE, FIX_FORMULA or DEVELOPER_CHOICE decision rule.",
+  // Profile whose predictor_* numbers (PredictorSettings.From) the evaluation uses, and whose attack_min_advantage and retreat_max_advantage the report prints. Unit: profile ID. Range: a file name under rts/data/ai without .json. Source: balance_measurement.md C.8; placeholder.
+  "predictor_profile": "aggressive_s5",
+  // Lower edges of the calibration bins of the predicted margin; bin i covers [edge i, edge i+1), the last bin is open. Unit: ratio, decimal text, ascending. Range: 2 to 12 entries, 1 to 10000, the first is "1". Source: balance_measurement.md C.6; placeholder.
+  "margin_bin_edges": ["1", "1.1", "1.25", "1.5", "2", "3"],
+  // A table row with fewer decided fights than this is marked "small" and does not count in the calibration inversion test. Unit: decided fights. Range: 1 to 1000. Source: balance_measurement.md C.5; placeholder.
+  "min_fights_per_row": 10,
+  // A mechanic needs at least this many decided fights where it is present before its accuracy enters the decision rule. Unit: decided fights. Range: 1 to 1000. Source: balance_measurement.md C.7; placeholder.
+  "mechanic_min_fights": 20,
+  // SIMULATE when the headline accuracy is below this. Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
+  "simulate_below_accuracy": 0.75,
+  // SIMULATE when the accuracy on fights with no unmodelled mechanic present is below this. Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
+  "simulate_below_clean_accuracy": 0.85,
+  // SIMULATE when a calibration bin wins less often than a lower bin by more than this. Unit: fraction. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
+  "calibration_max_inversion": 0.10,
+  // FIX_FORMULA needs every judged mechanic's accuracy at or above this; below it the decision is DEVELOPER_CHOICE. Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
+  "fix_min_mechanic_accuracy": 0.70,
+  // Under FIX_FORMULA, the mechanics whose accuracy is below this are the ones to add to the formula. Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
+  "fix_min_accuracy": 0.85
+}

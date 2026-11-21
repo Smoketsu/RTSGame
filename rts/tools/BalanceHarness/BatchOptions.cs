@@ -14,9 +14,10 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Usage text printed with command-line errors.</summary>
         public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> --batch [--ci | --games N] [--jobs J] [--maps a,b] [--matchups x_vs_y,...] "
             + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]"
-            + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression]"
+            + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression | --paired]"
             + " | --data <data folder> --response --profile <id> [--only <script file name>]"
             + " | --data <data folder> --fights [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
+            + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--profile <id>] [--jobs J] [--seed S] [--out <dir>]"
             + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>]";
 
         /// <summary>Fault switch value that makes a re-run (verification) worker perturb the seed of its first game. Test use only.</summary>
@@ -73,8 +74,17 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>True when --fights was given: play the equal-value fight sweep (see <see cref="FightCoordinator"/>); with --worker, play a chunk of its fights.</summary>
         public bool Fights { get; private set; }
 
+        /// <summary>True when --predict-fights was given: score the fight predictor against measured fights (see <see cref="PredictRunner"/>).</summary>
+        public bool PredictFights { get; private set; }
+
+        /// <summary>Path from --from (--predict-fights: a fights.jsonl to evaluate instead of running the sweep), or empty. Range: any readable file path.</summary>
+        public string From { get; private set; } = string.Empty;
+
         /// <summary>True when --strict was given: a failed fight check exits 2.</summary>
         public bool Strict { get; private set; }
+
+        /// <summary>True when --paired was given (ladder, ladder workers and --trace with --profile-a/--profile-b): the paired layout of balance_measurement.md M.1.2.</summary>
+        public bool Paired { get; private set; }
 
         /// <summary>True when --non-regression was given: the ladder bar is ladder_non_regression_fraction_min instead of ladder_candidate_win_fraction_min.</summary>
         public bool NonRegression { get; private set; }
@@ -123,7 +133,8 @@ namespace Rts.Tools.BalanceHarness
         public static bool IsBatchMode(string[] args)
         {
             return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0 || Array.IndexOf(args, "--trace") >= 0
-                || Array.IndexOf(args, "--ladder") >= 0 || Array.IndexOf(args, "--response") >= 0 || Array.IndexOf(args, "--fights") >= 0;
+                || Array.IndexOf(args, "--ladder") >= 0 || Array.IndexOf(args, "--response") >= 0 || Array.IndexOf(args, "--fights") >= 0
+                || Array.IndexOf(args, "--predict-fights") >= 0;
         }
 
         /// <summary>Parses the arguments; throws <see cref="HarnessException"/> on anything unexpected.</summary>
@@ -157,11 +168,17 @@ namespace Rts.Tools.BalanceHarness
                     case "--fights":
                         options.Fights = true;
                         continue;
+                    case "--predict-fights":
+                        options.PredictFights = true;
+                        continue;
                     case "--strict":
                         options.Strict = true;
                         continue;
                     case "--non-regression":
                         options.NonRegression = true;
+                        continue;
+                    case "--paired":
+                        options.Paired = true;
                         continue;
                     case "--ci":
                         options.Ci = true;
@@ -192,6 +209,7 @@ namespace Rts.Tools.BalanceHarness
                     case "--profile-b":
                     case "--profile":
                     case "--only":
+                    case "--from":
                         break;
                     default:
                         throw new HarnessException("unknown argument '" + flag + "' in batch mode. " + Usage);
@@ -265,6 +283,9 @@ namespace Rts.Tools.BalanceHarness
                     case "--only":
                         options.Only = value;
                         break;
+                    case "--from":
+                        options.From = value;
+                        break;
                     default:
                         options.TestFault = value;
                         break;
@@ -281,6 +302,14 @@ namespace Rts.Tools.BalanceHarness
             if (options.Ladder && (options.ProfileA.Length == 0 || options.ProfileB.Length == 0))
             {
                 throw new HarnessException("--ladder needs --profile-a and --profile-b. " + Usage);
+            }
+            if (options.Paired && options.ProfileA.Length == 0)
+            {
+                throw new HarnessException("--paired needs --ladder (or --trace or a ladder worker) with --profile-a and --profile-b. " + Usage);
+            }
+            if (options.Paired && options.NonRegression)
+            {
+                throw new HarnessException("--paired and --non-regression cannot be combined: the pool gate is the non-regression test in paired mode. " + Usage);
             }
             if (options.Response && options.Profile.Length == 0)
             {
