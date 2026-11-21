@@ -16,8 +16,8 @@ namespace Rts.Tools.BalanceHarness
             + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]"
             + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression | --paired]"
             + " | --data <data folder> --response --profile <id> [--only <script file name>]"
-            + " | --data <data folder> --fights [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
-            + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--profile <id>] [--jobs J] [--seed S] [--out <dir>]"
+            + " | --data <data folder> --fights [--fight-settings <fights.json>] [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
+            + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--fight-settings <fights.json>] [--profile <id>] [--baseline-profile <id>] [--jobs J] [--seed S] [--out <dir>]"
             + " | --data <data folder> --pool --profile-b <candidate id> [--stage 1|2|all] [--pairs N] [--matchups x,y] [--maps a,b] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --behaviour --profile-a <baseline id> --profile-b <candidate id> [--checks id,id] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --balance [--profile <id>] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--from <balance.jsonl>] [--fights-from <fights.jsonl>] [--strict]"
@@ -109,6 +109,12 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Path from --fights-from (balance: a fights.jsonl to read the predictor accuracy from instead of running the sweep), or empty. Range: any readable file path.</summary>
         public string FightsFrom { get; private set; } = string.Empty;
+
+        /// <summary>Path from --fight-settings (--fights, --predict-fights and fight workers): the fight settings file to use instead of scripts/fights/fights.json inside --data, or empty. Range: any readable file path.</summary>
+        public string FightSettingsPath { get; private set; } = string.Empty;
+
+        /// <summary>Profile ID from --baseline-profile (--predict-fights): the profile whose predictions the bars compare with, or empty. Range: a file name under rts/data/ai without .json.</summary>
+        public string BaselineProfile { get; private set; } = string.Empty;
 
         /// <summary>True when --strict was given: a failed fight check exits 2.</summary>
         public bool Strict { get; private set; }
@@ -258,6 +264,8 @@ namespace Rts.Tools.BalanceHarness
                     case "--pairs":
                     case "--checks":
                     case "--fights-from":
+                    case "--fight-settings":
+                    case "--baseline-profile":
                         break;
                     default:
                         throw new HarnessException("unknown argument '" + flag + "' in batch mode. " + Usage);
@@ -356,6 +364,12 @@ namespace Rts.Tools.BalanceHarness
                         break;
                     case "--fights-from":
                         options.FightsFrom = value;
+                        break;
+                    case "--fight-settings":
+                        options.FightSettingsPath = value;
+                        break;
+                    case "--baseline-profile":
+                        options.BaselineProfile = value;
                         break;
                     default:
                         options.TestFault = value;

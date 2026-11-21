@@ -157,22 +157,22 @@ namespace Rts.Sim.Tests.Harness
             Dictionary<string, int> shellback = new Dictionary<string, int> { ["water.shellback"] = 1 };
             Dictionary<string, int> windrunner = new Dictionary<string, int> { ["skai.windrunner"] = 1 };
             // Drench needs an air unit on the other side.
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, roc, "seat0"), FightKinds.Flat, data), Does.Contain("drench"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, roc, spoutling, "seat0"), FightKinds.Flat, data), Does.Contain("drench"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, grasper, "seat0"), FightKinds.Flat, data), Does.Not.Contain("drench"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, spoutling, "seat0"), FightKinds.Flat, data), Does.Not.Contain("drench"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, lobber, grasper, "seat0"), FightKinds.Flat, data), Does.Contain("splash"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data), Does.Not.Contain("splash"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, windrunner, grasper, "seat0"), FightKinds.Flat, data), Does.Contain("momentum"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data), Does.Not.Contain("momentum"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flooded", 1, grasper, grasper, "seat0"), FightKinds.Flooded, data), Does.Contain("flooding"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data), Does.Not.Contain("flooding"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, shellback, grasper, "seat0"), FightKinds.Flat, data), Does.Contain("regeneration"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, lobber, grasper, "seat0"), FightKinds.Flat, data), Does.Contain("hit_delay"));
-            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data), Does.Not.Contain("hit_delay"), "the Grasper's weapon has no hit delay");
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, roc, "seat0"), FightKinds.Flat, data, 0), Does.Contain("drench"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, roc, spoutling, "seat0"), FightKinds.Flat, data, 0), Does.Contain("drench"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Not.Contain("drench"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, spoutling, "seat0"), FightKinds.Flat, data, 0), Does.Not.Contain("drench"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, lobber, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Contain("splash"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Not.Contain("splash"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, windrunner, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Contain("momentum"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Not.Contain("momentum"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flooded", 1, grasper, grasper, "seat0"), FightKinds.Flooded, data, 0), Does.Contain("flooding"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Not.Contain("flooding"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, shellback, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Contain("regeneration"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, lobber, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Contain("hit_delay"));
+            Assert.That(PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, grasper, grasper, "seat0"), FightKinds.Flat, data, 0), Does.Not.Contain("hit_delay"), "the Grasper's weapon has no hit delay");
             foreach (string kind in new[] { FightKinds.Flat, FightKinds.HighGround, FightKinds.Flooded, FightKinds.Choke })
             {
-                List<string> all = PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, roc, "seat0"), kind, data);
+                List<string> all = PredictEvaluator.MechanicsPresent(Record("f", "flat", 1, spoutling, roc, "seat0"), kind, data, 0);
                 Assert.That(all, Does.Not.Contain("windstorm_range"));
                 Assert.That(all, Does.Not.Contain("focus_fire"));
             }
@@ -192,7 +192,7 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(flooding.Only.Decided, Is.EqualTo(1));
             Assert.That(flooding.Only.Correct, Is.EqualTo(0));
             MechanicRow splash = e.Mechanics.Find(row => row.Id == "splash")!;
-            Assert.That(splash.Only.Decided, Is.EqualTo(0), "the lobber also has hit_delay, so splash is not alone");
+            Assert.That(splash.Only.Decided, Is.EqualTo(1), "with hit_delay_ignore_ticks 2 (fight_predictor_v2.md 5.4) the lobber's 2-tick hit delay no longer counts, so splash is alone");
             Assert.That(splash.Absent.Decided, Is.EqualTo(2));
         }
 

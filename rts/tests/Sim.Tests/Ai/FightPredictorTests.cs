@@ -163,7 +163,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(second.Advantage, Is.EqualTo(first.Advantage));
             // The source files of package C, relative to the data folder (rts/data -> rts/src/Ai).
             string aiFolder = Path.Combine(TestData.FindDataDirectory(), "..", "src", "Ai");
-            foreach (string name in new[] { "FightPredictor.cs", "AiCounter.cs", "AiBrain.cs", "AiIntel.cs", "AiProfile.cs", "AiBrainFight.cs", "AiFight.cs", "AiProximity.cs", "AiMemory.cs" })
+            foreach (string name in new[] { "FightPredictor.cs", "FightSim.cs", "FightContext.cs", "AiCounter.cs", "AiBrain.cs", "AiIntel.cs", "AiProfile.cs", "AiBrainFight.cs", "AiFight.cs", "AiProximity.cs", "AiMemory.cs" })
             {
                 string text = File.ReadAllText(Path.Combine(aiFolder, name));
                 Assert.That(Regex.IsMatch(text, @"\b(float|double|decimal)\b"), Is.False, name + " must not use floating point");

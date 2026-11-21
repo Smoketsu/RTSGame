@@ -31,7 +31,7 @@
 //     enemy_model_hold_seconds, enemy_model_decay_seconds, enemy_model_floor_fraction and enemy_model_implied_count, and the per-faction
 //     optional scout_unit.
 //   * skirmish_ai_v3.md package C (build the right army): the switches use_tech_on_demand, use_static_defence and use_rare_priority (each
-//     needs use_enemy_model; the first and the last also need use_counter_mix), the predictor_* keys (fight predictor), the counter_* keys
+//     needs use_enemy_model; the first and the last also need use_counter_mix), the predictor_* keys (fight predictor; fight_predictor_v2.md adds predictor_model and the predictor_sim_* keys of the lane simulation, read and range-checked in every profile), the counter_* keys
 //     and mix_resolution (counter-mix), tech_min_weight_share, raided_window_seconds, raided_gap_seconds, static_defence_after_raids,
 //     static_defence_max_per_base, static_defence_ring_min_tiles, static_defence_ring_max_tiles, unanswered_layer_min_supply and
 //     rare_need_weight_share.
@@ -450,6 +450,27 @@ namespace Rts.Ai
         /// <summary>Cap of the predicted advantage ratio. Unit: ratio. Range: 1 to 10000.</summary>
         public Fix64 PredictorMaxAdvantage { get; }
 
+        /// <summary>Which model the fight predictor uses: the closed-form formula or the lane simulation (fight_predictor_v2.md 4). Unit: enum. Range: Formula or Sim.</summary>
+        public PredictorModel PredictorModel { get; }
+
+        /// <summary>Lane simulation: length of one step. Unit: seconds. Range: 0.05 to 1.</summary>
+        public Fix64 PredictorSimStepSeconds { get; }
+
+        /// <summary>Lane simulation: longest fight simulated. Unit: seconds. Range: 10 to 600.</summary>
+        public Fix64 PredictorSimMaxSeconds { get; }
+
+        /// <summary>Lane simulation: time without damage that ends the fight as no winner. Unit: seconds. Range: 1 to 600.</summary>
+        public Fix64 PredictorSimIdleSeconds { get; }
+
+        /// <summary>Lane simulation: most units per side; larger armies are scaled down. Unit: units. Range: 4 to 500.</summary>
+        public int PredictorSimMaxUnitsPerSide { get; }
+
+        /// <summary>Lane simulation: units per square tile of a clump (bounds the victims of one blast). Unit: units per square tile. Range: 0.1 to 4.</summary>
+        public Fix64 PredictorSimSplashDensity { get; }
+
+        /// <summary>Lane simulation: tiles added to the longest weapon range for the default starting gap. Unit: tiles. Range: 0 to 32.</summary>
+        public Fix64 PredictorSimApproachTiles { get; }
+
         /// <summary>Weight of the counter share against the base composition at full confidence. Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 CounterWeight { get; }
 
@@ -766,6 +787,20 @@ namespace Rts.Ai
             PredictorRangeHeadstartMaxSeconds = root.RequireFix64("predictor_range_headstart_max_seconds", "0", "60");
             PredictorDomeWeight = root.RequireFix64("predictor_dome_weight", "0", "2");
             PredictorMaxAdvantage = root.RequireFix64("predictor_max_advantage", "1", "10000");
+            // The model key: "formula" or "sim"; anything else names the file and key (fight_predictor_v2.md 4.1). The sim keys are range-checked in every profile.
+            JsonValue modelNode = root.Require("predictor_model");
+            string modelText = modelNode.AsString();
+            if (modelText != "formula" && modelText != "sim")
+            {
+                throw modelNode.Fail("must be 'formula' or 'sim' (found '" + modelText + "')");
+            }
+            PredictorModel = modelText == "sim" ? PredictorModel.Sim : PredictorModel.Formula;
+            PredictorSimStepSeconds = root.RequireFix64("predictor_sim_step_seconds", "0.05", "1");
+            PredictorSimMaxSeconds = root.RequireFix64("predictor_sim_max_seconds", "10", "600");
+            PredictorSimIdleSeconds = root.RequireFix64("predictor_sim_idle_seconds", "1", "600");
+            PredictorSimMaxUnitsPerSide = root.RequireInt("predictor_sim_max_units_per_side", 4, 500);
+            PredictorSimSplashDensity = root.RequireFix64("predictor_sim_splash_density", "0.1", "4");
+            PredictorSimApproachTiles = root.RequireFix64("predictor_sim_approach_tiles", "0", "32");
             CounterWeight = root.RequireFix64("counter_weight", "0", "1");
             CounterFullConfidenceSupply = root.RequireFix64("counter_full_confidence_supply", "1", "200");
             CounterKeepFraction = root.RequireFix64("counter_keep_fraction", "0", "1");
@@ -929,7 +964,8 @@ namespace Rts.Ai
                 "scout_merge_tiles", "scout_air_max_cost", "enemy_model_hold_seconds", "enemy_model_decay_seconds",
                 "enemy_model_floor_fraction", "enemy_model_implied_count", "use_tech_on_demand", "use_static_defence", "use_rare_priority",
                 "predictor_max_seconds", "predictor_min_seconds", "predictor_range_weight", "predictor_range_headstart_max_seconds",
-                "predictor_dome_weight", "predictor_max_advantage", "counter_weight", "counter_full_confidence_supply", "counter_keep_fraction",
+                "predictor_dome_weight", "predictor_max_advantage", "predictor_model", "predictor_sim_step_seconds", "predictor_sim_max_seconds",
+                "predictor_sim_idle_seconds", "predictor_sim_max_units_per_side", "predictor_sim_splash_density", "predictor_sim_approach_tiles", "counter_weight", "counter_full_confidence_supply", "counter_keep_fraction",
                 "counter_rare_cost_weight", "counter_min_incoming_dps", "mix_resolution", "tech_min_weight_share", "raided_window_seconds",
                 "raided_gap_seconds", "static_defence_after_raids", "static_defence_max_per_base", "static_defence_ring_min_tiles",
                 "static_defence_ring_max_tiles", "unanswered_layer_min_supply", "rare_need_weight_share", "use_predictor_mix", "mix_eval_budget_common",

@@ -2,10 +2,11 @@
 // The fight predictor checked against measured fights (spec: rts/docs/specs/balance_measurement.md C.3 to C.7): turns one FightRecord into a prediction (FightPredictor.Predict on the
 // units of the record, entries in ordinal ID order), scores it (decided fights give the headline accuracy, no-winner fights are counted apart), builds the breakdown tables (unit pair, side,
 // terrain case, army value, unmodelled mechanic, calibration bins, seat order) and applies the proposed decision rule (SIMULATE, FIX_FORMULA or DEVELOPER_CHOICE).
-// Measurement only: FightPredictor, the fight sweep and its records are not changed. Every verdict is integer arithmetic (parts per 10 000, long products); Fix64 is used for the
+// Measurement only: FightPredictor, the fight sweep and its records are not changed. With extended records (fight_predictor_v2.md 5) it also predicts the snapshots (subset D), builds the contexts of start predictions, and counts hit_delay only above hit_delay_ignore_ticks. Every verdict is integer arithmetic (parts per 10 000, long products); Fix64 is used for the
 // predictor numbers and the margin bins, double only inside HarnessStats.Wilson for display. Part of Rts.Tools.BalanceHarness.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using Rts.Ai;
 using Rts.Sim.Core;
@@ -47,6 +48,40 @@ namespace Rts.Tools.BalanceHarness
         public string AccuracyText()
         {
             return PredictEvaluator.Ratio3(Correct, Decided);
+        }
+    }
+
+    /// <summary>Wall time of Predict calls for the stderr line of --predict-fights (fight_predictor_v2.md 5.4); never written to a file or stdout.</summary>
+    public sealed class PredictTiming
+    {
+        /// <summary>Calls timed. Unit: calls. Range: 0 upward.</summary>
+        public long Calls { get; private set; }
+
+        /// <summary>Sum of the call times. Unit: stopwatch ticks. Range: 0 upward.</summary>
+        public long TotalTicks { get; private set; }
+
+        /// <summary>Longest call. Unit: stopwatch ticks. Range: 0 upward.</summary>
+        public long MaxTicks { get; private set; }
+
+        /// <summary>Adds one call.</summary>
+        /// <param name="ticks">Time of the call. Unit: stopwatch ticks. Range: 0 upward.</param>
+        public void Add(long ticks)
+        {
+            Calls++;
+            TotalTicks += ticks;
+            MaxTicks = Math.Max(MaxTicks, ticks);
+        }
+
+        /// <summary>Mean call time in microseconds, in integers; 0 with no call. Unit: microseconds. Range: 0 upward.</summary>
+        public long MeanMicroseconds()
+        {
+            return Calls == 0 ? 0 : TotalTicks * 1000000 / Stopwatch.Frequency / Calls;
+        }
+
+        /// <summary>Longest call time in microseconds. Unit: microseconds. Range: 0 upward.</summary>
+        public long MaxMicroseconds()
+        {
+            return MaxTicks * 1000000 / Stopwatch.Frequency;
         }
     }
 
@@ -319,7 +354,101 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="s">The predictor numbers.</param>
         public static PredictedFight Predict(FightRecord record, string caseKind, DataSet data, PredictorSettings s)
         {
-            FightPrediction p = FightPredictor.Predict(Entries(record.Units0, data), Entries(record.Units1, data), AUphill(caseKind), data.Content.Combat, s);
+            return Predict(record, caseKind, data, s, null, null);
+        }
+
+        /// <summary>
+        /// Predicts and scores one record's start (fight_predictor_v2.md 5.4): the context carries the sweep's start distance as the gap and the water of the record's lane depth class;
+        /// the wall time of the Predict call alone goes to <paramref name="timing"/>.
+        /// </summary>
+        /// <param name="record">The measured fight.</param>
+        /// <param name="caseKind">Kind of the record's case.</param>
+        /// <param name="data">The loaded data set (units and damage table).</param>
+        /// <param name="s">The predictor numbers.</param>
+        /// <param name="fightSettings">The fight settings that played the fights (start distance), or null for the default gap.</param>
+        /// <param name="timing">Receives the wall time of the call, or null.</param>
+        public static PredictedFight Predict(FightRecord record, string caseKind, DataSet data, PredictorSettings s, FightSettings? fightSettings, PredictTiming? timing)
+        {
+            List<FightEntry> a = Entries(record.Units0, data);
+            List<FightEntry> b = Entries(record.Units1, data);
+            FightContext context = StartContext(record, caseKind, fightSettings);
+            // Stopwatch ticks around the call alone. Unit: stopwatch ticks.
+            long begin = Stopwatch.GetTimestamp();
+            FightPrediction p = FightPredictor.Predict(a, b, context, data.Content.Combat, s);
+            timing?.Add(Stopwatch.GetTimestamp() - begin);
+            string cls = Classify(p, s, out Fix64 margin);
+            return new PredictedFight(record, cls, margin, p.TimeAKillsB, p.TimeBKillsA);
+        }
+
+        /// <summary>The water of a record's lane: its lane_depth_class (1 shallow, 2 deep, 0 none); a record without one is Shallow in a flooded case and None otherwise (5.4).</summary>
+        /// <param name="record">The measured fight.</param>
+        /// <param name="caseKind">Kind of the record's case.</param>
+        public static FightWater WaterOf(FightRecord record, string caseKind)
+        {
+            // Depth class of the lane, or -1 when the record has none.
+            int depth = record.Extension == null ? -1 : record.Extension.LaneDepthClass;
+            if (depth < 0)
+            {
+                return caseKind == FightKinds.Flooded ? FightWater.Shallow : FightWater.None;
+            }
+            return depth == 0 ? FightWater.None : depth == 1 ? FightWater.Shallow : FightWater.Deep;
+        }
+
+        /// <summary>Context of a start prediction (5.4): AUphill as C.3, water of the lane, neutral water (-1), the sweep's start distance as the gap (-1 without settings).</summary>
+        /// <param name="record">The measured fight.</param>
+        /// <param name="caseKind">Kind of the record's case.</param>
+        /// <param name="fightSettings">The fight settings that played the fights, or null.</param>
+        public static FightContext StartContext(FightRecord record, string caseKind, FightSettings? fightSettings)
+        {
+            return new FightContext(AUphill(caseKind), WaterOf(record, caseKind), -1, fightSettings == null ? -Fix64.One : Fix64.FromInt(fightSettings.StartDistanceTiles));
+        }
+
+        /// <summary>Context of a snapshot prediction (5.4): as the start context but the armies are already engaged, so the gap is 0.</summary>
+        /// <param name="record">The measured fight.</param>
+        /// <param name="caseKind">Kind of the record's case.</param>
+        public static FightContext SnapshotContext(FightRecord record, string caseKind)
+        {
+            return new FightContext(AUphill(caseKind), WaterOf(record, caseKind), -1, Fix64.Zero);
+        }
+
+        /// <summary>Entries of one seat's snapshot: one per definition ID in ordinal order, the living count and their summed health (thousandths of a health point to Fix64).</summary>
+        /// <param name="snap">The snapshot map of the record.</param>
+        /// <param name="data">The loaded data set.</param>
+        public static List<FightEntry> SnapshotEntries(IReadOnlyDictionary<string, SnapGroup> snap, DataSet data)
+        {
+            List<FightEntry> entries = new List<FightEntry>();
+            foreach (KeyValuePair<string, SnapGroup> pair in snap)
+            {
+                if (!data.Content.Units.TryGetValue(pair.Key, out UnitDefinition? definition))
+                {
+                    throw new HarnessException("unknown unit '" + pair.Key + "' in the fight record (the records may come from other data)");
+                }
+                // Health in health points: whole part plus the thousandths. Unit: health points. Range: 0 upward.
+                Fix64 health = Fix64.FromInt((int)(pair.Value.HealthMilli / 1000)) + Fix64.FromFraction((int)(pair.Value.HealthMilli % 1000), 1000);
+                entries.Add(new FightEntry(definition, Fix64.FromInt(pair.Value.Count), health));
+            }
+            return entries;
+        }
+
+        /// <summary>Predicts one record's snapshot (subset D) and scores it against the measured result of the fight; null when the record has no snapshot.</summary>
+        /// <param name="record">The measured fight.</param>
+        /// <param name="caseKind">Kind of the record's case.</param>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="s">The predictor numbers.</param>
+        /// <param name="timing">Receives the wall time of the call, or null.</param>
+        public static PredictedFight? PredictSnapshot(FightRecord record, string caseKind, DataSet data, PredictorSettings s, PredictTiming? timing)
+        {
+            if (record.Extension == null || record.Extension.SnapTick < 0)
+            {
+                return null;
+            }
+            List<FightEntry> a = SnapshotEntries(record.Extension.Snap0, data);
+            List<FightEntry> b = SnapshotEntries(record.Extension.Snap1, data);
+            FightContext context = SnapshotContext(record, caseKind);
+            // Stopwatch ticks around the call alone. Unit: stopwatch ticks.
+            long begin = Stopwatch.GetTimestamp();
+            FightPrediction p = FightPredictor.Predict(a, b, context, data.Content.Combat, s);
+            timing?.Add(Stopwatch.GetTimestamp() - begin);
             string cls = Classify(p, s, out Fix64 margin);
             return new PredictedFight(record, cls, margin, p.TimeAKillsB, p.TimeBKillsA);
         }
@@ -328,7 +457,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="record">The fight.</param>
         /// <param name="caseKind">Kind of the fight's case.</param>
         /// <param name="data">The loaded data set.</param>
-        public static List<string> MechanicsPresent(FightRecord record, string caseKind, DataSet data)
+        /// <param name="hitDelayIgnoreTicks">hit_delay counts as present only for a weapon whose HitDelayTicks is above this (predict.json hit_delay_ignore_ticks; 0 is the original rule). Unit: ticks. Range: 0 to 20.</param>
+        public static List<string> MechanicsPresent(FightRecord record, string caseKind, DataSet data, int hitDelayIgnoreTicks)
         {
             // Definitions of each seat's units.
             List<UnitDefinition> side0 = Definitions(record.Units0, data);
@@ -342,7 +472,7 @@ namespace Rts.Tools.BalanceHarness
             foreach (UnitDefinition unit in side0.Concat2(side1))
             {
                 splash |= unit.Weapon != null && unit.Weapon.SplashRadiusTiles > Fix64.Zero;
-                hitDelay |= unit.Weapon != null && unit.Weapon.HitDelayTicks > 0;
+                hitDelay |= unit.Weapon != null && unit.Weapon.HitDelayTicks > hitDelayIgnoreTicks;
                 regeneration |= unit.ShieldDome != null;
                 momentum |= unit.SpeedTilesPerSecond > Fix64.Zero && data.Content.Factions.TryGetValue(unit.FactionId, out Rts.Sim.Factions.FactionDefinition? faction)
                     && faction.MechanicId == MomentumMechanic.MechanicId;
@@ -454,7 +584,7 @@ namespace Rts.Tools.BalanceHarness
                 FightRecord r = fight.Record;
                 // Terrain kind and mechanics of this fight.
                 string kind = settings.CaseById(r.Case).Kind;
-                List<string> present = MechanicsPresent(r, kind, data);
+                List<string> present = MechanicsPresent(r, kind, data, p.HitDelayIgnoreTicks);
                 e.Overall.Add(fight);
                 Tally(e.ByCase, r.Case).Add(fight);
                 Tally(e.ByValue, r.ArmyValue.ToString("D6", CultureInfo.InvariantCulture)).Add(fight);
@@ -506,8 +636,11 @@ namespace Rts.Tools.BalanceHarness
             foreach (PredictedFight fight in e.Fights)
             {
                 FightRecord r = fight.Record;
+                // The part of the fight ID after the two sides: empty for an equal-value fight, "/r<ratio in pt>" for an uneven one (the swapped fight has the same ratio).
+                string baseId = r.Case + "/" + r.ArmyValue.ToString(CultureInfo.InvariantCulture) + "/" + r.Seat0 + "/" + r.Seat1;
+                string ratioSuffix = r.Fight.StartsWith(baseId, StringComparison.Ordinal) ? r.Fight.Substring(baseId.Length) : string.Empty;
                 if (string.CompareOrdinal(r.Seat0, r.Seat1) >= 0 || fight.Kind != PredictedFight.KindDecided
-                    || !byId.TryGetValue(r.Case + "/" + r.ArmyValue.ToString(CultureInfo.InvariantCulture) + "/" + r.Seat1 + "/" + r.Seat0, out PredictedFight? swapped)
+                    || !byId.TryGetValue(r.Case + "/" + r.ArmyValue.ToString(CultureInfo.InvariantCulture) + "/" + r.Seat1 + "/" + r.Seat0 + ratioSuffix, out PredictedFight? swapped)
                     || swapped.Kind != PredictedFight.KindDecided)
                 {
                     continue;

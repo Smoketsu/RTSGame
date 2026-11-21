@@ -1,6 +1,8 @@
 // rts/src/Ai/FightPredictor.cs
 // The fight predictor of skirmish_ai_v3.md C.1: a static, pure function that says which of two groups of units wins a fight and how
 // fast, computed only from unit definitions (weapon, armour, layer, speed, shield dome) and the damage table (ContentCatalog.Combat).
+// Since fight_predictor_v2.md the profile key predictor_model picks the model: "formula" (this file, unchanged) or "sim" (the lane
+// simulation FightSim, which also reads the FightContext: water, water owner and starting gap); every caller goes through Predict.
 // Part of Rts.Ai. It names no faction or unit, uses Fix64 and integers only, walks entries in the order given (callers pass ordinal
 // definition-ID order; Group sorts that way), draws no random number and keeps no static state. Package C's counter-mix scores use
 // the same per-unit damage helpers (Dps, AverageDps). Not modelled on purpose: drench slow and grounding, splash, momentum, flooding,
@@ -87,7 +89,31 @@ namespace Rts.Ai
         /// <summary>Cap of the advantage ratio. Unit: ratio. Range: 1 to 10000.</summary>
         public Fix64 MaxAdvantage { get; }
 
-        /// <summary>Stores the settings.</summary>
+        /// <summary>Which model answers (fight_predictor_v2.md 4). Range: Formula or Sim; Formula for the six-argument constructor.</summary>
+        public PredictorModel Model { get; }
+
+        /// <summary>Lane simulation: step length. Unit: seconds. Range: 0.05 to 1; 0 under Formula.</summary>
+        public Fix64 SimStepSeconds { get; }
+
+        /// <summary>Lane simulation: longest fight simulated. Unit: seconds. Range: 10 to 600; 0 under Formula.</summary>
+        public Fix64 SimMaxSeconds { get; }
+
+        /// <summary>Lane simulation: time without damage that ends the fight. Unit: seconds. Range: 1 to 600; 0 under Formula.</summary>
+        public Fix64 SimIdleSeconds { get; }
+
+        /// <summary>Lane simulation: most units per side. Unit: units. Range: 4 to 500; 0 under Formula.</summary>
+        public int SimMaxUnitsPerSide { get; }
+
+        /// <summary>Lane simulation: units per square tile of a clump. Unit: units per square tile. Range: 0.1 to 4; 0 under Formula.</summary>
+        public Fix64 SimSplashDensity { get; }
+
+        /// <summary>Lane simulation: tiles added to the longest range for the default gap. Unit: tiles. Range: 0 to 32; 0 under Formula.</summary>
+        public Fix64 SimApproachTiles { get; }
+
+        /// <summary>The game data of the lane simulation. Range: required when <see cref="Model"/> is Sim, else null.</summary>
+        public FightSimRules? SimRules { get; }
+
+        /// <summary>Stores the settings of the formula model.</summary>
         /// <param name="maxSeconds">Longest time. Unit: seconds.</param>
         /// <param name="minSeconds">Shortest time. Unit: seconds.</param>
         /// <param name="rangeWeight">Range head start weight. Unit: fraction.</param>
@@ -95,21 +121,64 @@ namespace Rts.Ai
         /// <param name="domeWeight">Dome weight. Unit: fraction.</param>
         /// <param name="maxAdvantage">Advantage cap. Unit: ratio.</param>
         public PredictorSettings(Fix64 maxSeconds, Fix64 minSeconds, Fix64 rangeWeight, Fix64 rangeHeadstartMaxSeconds, Fix64 domeWeight, Fix64 maxAdvantage)
+            : this(maxSeconds, minSeconds, rangeWeight, rangeHeadstartMaxSeconds, domeWeight, maxAdvantage, PredictorModel.Formula, Fix64.Zero, Fix64.Zero, Fix64.Zero, 0, Fix64.Zero, Fix64.Zero, null)
         {
+        }
+
+        /// <summary>Stores the settings of either model.</summary>
+        /// <param name="maxSeconds">Longest time. Unit: seconds.</param>
+        /// <param name="minSeconds">Shortest time. Unit: seconds.</param>
+        /// <param name="rangeWeight">Range head start weight. Unit: fraction.</param>
+        /// <param name="rangeHeadstartMaxSeconds">Longest head start. Unit: seconds.</param>
+        /// <param name="domeWeight">Dome weight. Unit: fraction.</param>
+        /// <param name="maxAdvantage">Advantage cap. Unit: ratio.</param>
+        /// <param name="model">Which model answers.</param>
+        /// <param name="simStepSeconds">Lane step. Unit: seconds.</param>
+        /// <param name="simMaxSeconds">Longest simulated fight. Unit: seconds.</param>
+        /// <param name="simIdleSeconds">Idle window. Unit: seconds.</param>
+        /// <param name="simMaxUnitsPerSide">Unit cap per side. Unit: units.</param>
+        /// <param name="simSplashDensity">Clump density. Unit: units per square tile.</param>
+        /// <param name="simApproachTiles">Extra gap. Unit: tiles.</param>
+        /// <param name="simRules">Game data of the simulation; required for the Sim model.</param>
+        public PredictorSettings(Fix64 maxSeconds, Fix64 minSeconds, Fix64 rangeWeight, Fix64 rangeHeadstartMaxSeconds, Fix64 domeWeight, Fix64 maxAdvantage, PredictorModel model,
+            Fix64 simStepSeconds, Fix64 simMaxSeconds, Fix64 simIdleSeconds, int simMaxUnitsPerSide, Fix64 simSplashDensity, Fix64 simApproachTiles, FightSimRules? simRules)
+        {
+            if (model == PredictorModel.Sim && simRules == null)
+            {
+                throw new ArgumentException("The simulation model needs FightSimRules.", nameof(simRules));
+            }
             MaxSeconds = maxSeconds;
             MinSeconds = minSeconds;
             RangeWeight = rangeWeight;
             RangeHeadstartMaxSeconds = rangeHeadstartMaxSeconds;
             DomeWeight = domeWeight;
             MaxAdvantage = maxAdvantage;
+            Model = model;
+            SimStepSeconds = simStepSeconds;
+            SimMaxSeconds = simMaxSeconds;
+            SimIdleSeconds = simIdleSeconds;
+            SimMaxUnitsPerSide = simMaxUnitsPerSide;
+            SimSplashDensity = simSplashDensity;
+            SimApproachTiles = simApproachTiles;
+            SimRules = simRules;
         }
 
-        /// <summary>The settings a profile carries.</summary>
+        /// <summary>The settings a formula profile carries; throws for a profile with predictor_model sim (use the overload with the rules).</summary>
         /// <param name="profile">The profile.</param>
         public static PredictorSettings From(AiProfile profile)
         {
+            return From(profile, null);
+        }
+
+        /// <summary>The settings a profile carries; <paramref name="simRules"/> is required when the profile's predictor_model is sim and ignored otherwise.</summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="simRules">The lane simulation's game data (built once per match), or null.</param>
+        public static PredictorSettings From(AiProfile profile, FightSimRules? simRules)
+        {
             return new PredictorSettings(profile.PredictorMaxSeconds, profile.PredictorMinSeconds, profile.PredictorRangeWeight,
-                profile.PredictorRangeHeadstartMaxSeconds, profile.PredictorDomeWeight, profile.PredictorMaxAdvantage);
+                profile.PredictorRangeHeadstartMaxSeconds, profile.PredictorDomeWeight, profile.PredictorMaxAdvantage, profile.PredictorModel,
+                profile.PredictorSimStepSeconds, profile.PredictorSimMaxSeconds, profile.PredictorSimIdleSeconds, profile.PredictorSimMaxUnitsPerSide,
+                profile.PredictorSimSplashDensity, profile.PredictorSimApproachTiles, simRules);
         }
     }
 
@@ -127,6 +196,26 @@ namespace Rts.Ai
         /// <param name="settings">The predictor numbers.</param>
         public static FightPrediction Predict(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, bool aUphill, CombatRules rules, PredictorSettings settings)
         {
+            return Predict(a, b, FightContext.Dry(aUphill), rules, settings);
+        }
+
+        /// <summary>
+        /// As the overload above with the facts of <paramref name="context"/>. The formula uses only <see cref="FightContext.AUphill"/>; water, water side and gap are carried for the
+        /// lane simulation of fight_predictor_v2.md and ignored here.
+        /// </summary>
+        /// <param name="a">Side A.</param>
+        /// <param name="b">Side B.</param>
+        /// <param name="context">Uphill, water and gap of the fight.</param>
+        /// <param name="rules">The damage table (ContentCatalog.Combat).</param>
+        /// <param name="settings">The predictor numbers.</param>
+        public static FightPrediction Predict(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, in FightContext context, CombatRules rules, PredictorSettings settings)
+        {
+            if (settings.Model == PredictorModel.Sim)
+            {
+                return FightSim.Predict(a, b, context, settings.SimRules!, settings);
+            }
+            // True when side A shoots uphill.
+            bool aUphill = context.AUphill;
             // The two sides without empty entries, order kept.
             List<FightEntry> sideA = Live(a);
             List<FightEntry> sideB = Live(b);

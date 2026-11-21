@@ -1,7 +1,7 @@
 // rts/data/scripts/fights/predict.json: settings of the fight-predictor evaluation of the balance harness (--predict-fights); spec rts/docs/specs/balance_measurement.md C.8. Read by rts/tools/BalanceHarness/PredictSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every value is a placeholder (proposed for the developer to accept or change).
 {
   "$schema_version": 1,
-  "$doc": "Which profile supplies the predictor numbers, the calibration bins, the row-size limits and the proposed thresholds of the SIMULATE, FIX_FORMULA or DEVELOPER_CHOICE decision rule.",
+  "$doc": "Which profile supplies the predictor numbers, the calibration bins, the row-size limits and the proposed thresholds of the SIMULATE, FIX_FORMULA or DEVELOPER_CHOICE decision rule, the hit_delay correction and the bars B1 to B7 and C1 of fight_predictor_v2.md section 6.",
   // Profile whose predictor_* numbers (PredictorSettings.From) the evaluation uses, and whose attack_min_advantage and retreat_max_advantage the report prints. Unit: profile ID. Range: a file name under rts/data/ai without .json. Source: balance_measurement.md C.8; placeholder.
   "predictor_profile": "aggressive_s5",
   // Lower edges of the calibration bins of the predicted margin; bin i covers [edge i, edge i+1), the last bin is open. Unit: ratio, decimal text, ascending. Range: 2 to 12 entries, 1 to 10000, the first is "1". Source: balance_measurement.md C.6; placeholder.
@@ -19,5 +19,29 @@
   // FIX_FORMULA needs every judged mechanic's accuracy at or above this; below it the decision is DEVELOPER_CHOICE. Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
   "fix_min_mechanic_accuracy": 0.70,
   // Under FIX_FORMULA, the mechanics whose accuracy is below this are the ones to add to the formula. Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: balance_measurement.md C.7; proposed, placeholder.
-  "fix_min_accuracy": 0.85
+  "fix_min_accuracy": 0.85,
+  // The C.5 hit_delay mechanic counts as present only when some weapon's hit_delay_ticks is above this; the shipped weapons all have 2, so with 0 it was present in every fight and the clean row was empty. Unit: ticks. Range: 0 to 20. Source: fight_predictor_v2.md 5.4 (correction 2); placeholder.
+  "hit_delay_ignore_ticks": 2,
+  // Bar B1: least accuracy of the candidate on subset E (start predictions of equal-value fights). Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B1; placeholder.
+  "v2_min_accuracy": 0.80,
+  // Bar B1: least gain of the candidate's accuracy on subset E over the baseline's. Unit: fraction. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B1; placeholder.
+  "v2_min_gain": 0.05,
+  // Bar B3: upper edge (exclusive) of the attack-edge window of predicted margins, which starts at the candidate profile's attack_min_advantage. Unit: ratio. Range: 1 to 10. Source: fight_predictor_v2.md 6 B3; placeholder.
+  "v2_attack_edge_upper": 1.5,
+  // Bar B3: least share of the decided fights inside the attack-edge window that the predicted winner wins. Unit: fraction. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B3; placeholder.
+  "v2_attack_edge_min_share": 0.70,
+  // Bar B4: least share of no-winner fights (E and U) that are predicted none. Unit: fraction. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B4; placeholder.
+  "v2_min_no_winner_agree": 0.50,
+  // Bar B4: no-winner fights (E and U) needed before the agreement half is judged; fewer is UNJUDGED. Unit: fights. Range: 1 to 1000. Source: fight_predictor_v2.md 6 B4; placeholder.
+  "v2_min_no_winner_fights": 5,
+  // Bar B4: largest share of decided fights (E and U) predicted none. Unit: fraction. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B4; placeholder.
+  "v2_max_false_none": 0.02,
+  // Bar B5: least accuracy of every unordered pair of two single units in E that has enough decided fights. Unit: fraction. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B5; placeholder.
+  "v2_min_pair_accuracy": 0.40,
+  // Bar B5: decided fights a single-unit pair needs in E to be judged. Unit: fights. Range: 1 to 1000. Source: fight_predictor_v2.md 6 B5; placeholder.
+  "v2_pair_min_fights": 8,
+  // Bar B6: least accuracy of the candidate on subset D (snapshot predictions of damaged armies). Unit: fraction of decided fights. Range: 0 to 1 (at most 4 decimals). Source: fight_predictor_v2.md 6 B6; placeholder.
+  "v2_min_damaged_accuracy": 0.75,
+  // Bar C1: largest mean wall time per Predict call on the held-out set; read from stderr by the coordinator, not a code verdict. Unit: microseconds. Range: 1 to 100000. Source: fight_predictor_v2.md 6 C1; placeholder.
+  "v2_max_mean_call_microseconds": 1000
 }
