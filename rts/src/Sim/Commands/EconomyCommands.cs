@@ -262,7 +262,7 @@ namespace Rts.Sim.Commands
         /// <summary>
         /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker), then the site checks of
         /// <see cref="EconomyRules.BuildSiteProblem"/> (shared with the placement query), in order: unknown_definition, not_a_structure (no footprint), wrong_faction, missing_prerequisite (the owner lacks a complete building the definition requires), out_of_bounds, site_unexplored (the worker owner's team
-        /// has never seen the tile; checked before tile_blocked so a rejection reveals nothing), tile_blocked, tile_occupied (a ground
+        /// has never seen the tile; checked before tile_blocked so a rejection reveals nothing), tile_blocked, on_resource_field (a resource field, depleted or not, is on the tile), tile_occupied (a ground
         /// or water unit stands on the tile), site_pending (an own unit already has a build order for the tile), no_base (a static
         /// defence needs an own drop-off within base_radius_tiles of the site), static_defence_cap (static_defences_per_base_max of them,
         /// pending orders included, already stand within base_radius_tiles of that drop-off), insufficient_resources, supply_cap
@@ -508,7 +508,7 @@ namespace Rts.Sim.Commands
         /// <summary>
         /// Applies the command. Rejections, in order: unknown_unit, not_owner, cannot_build, unknown_definition, not_a_wall (the definition lacks
         /// is_wall), wrong_faction, missing_prerequisite, no_tiles, too_many_tiles (more than wall_line_max_tiles); then, when no tile is kept, the
-        /// reason of the first tile that was filtered (<see cref="EconomyRules.WallLineTileProblem"/> or duplicate_tile) or, when tiles survived
+        /// reason of the first tile that was filtered (<see cref="EconomyRules.WallLineTileProblem"/>: out_of_bounds, site_unexplored, tile_blocked, on_resource_field, site_pending; or duplicate_tile) or, when tiles survived
         /// the filter but none can be paid for, insufficient_resources or supply_cap. A rejection changes nothing. On acceptance the previous
         /// order and queue of the worker are cancelled (refunded), the cost of every kept tile is paid, supply is reserved and
         /// BuildOrderAcceptedEvent (cost = the whole amount) is followed by one BuildLineTileSkippedEvent per left-out tile in list order.

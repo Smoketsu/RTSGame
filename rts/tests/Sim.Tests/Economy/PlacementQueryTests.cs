@@ -67,6 +67,18 @@ namespace Rts.Sim.Tests.Economy
             AssertAccepted(sim, new BuildStructureCommand(sim.Clock.Tick, P0, Seq(), other, TestWorld.BarracksId, x, 14));
         }
 
+        /// <summary>A structure on the economy map's field tile (10, 10) is rejected on_resource_field by command and query and charges nothing; the next tile accepts.</summary>
+        [Test]
+        public void Is06_ResourceFieldTileRefusesStructures()
+        {
+            Simulation sim = WithWorker(out EntityId worker);
+            Agree(sim, worker, TestWorld.BarracksId, 10, 10, "on_resource_field");
+            Assert.That(PlayerOf(sim, P0).Common, Is.EqualTo(200));
+            Assert.That(Get(sim, worker).BuildState, Is.EqualTo(BuildOrderState.None));
+            // A tile next to the field accepts (spends, so it is last).
+            Agree(sim, worker, TestWorld.BarracksId, 11, 10, null);
+        }
+
         /// <summary>IS-1: for every reason, the query equals the command's rejection (null equals accepted).</summary>
         [Test]
         public void Is01_QueryAgreesWithTheCommand()
