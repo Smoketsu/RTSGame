@@ -16,12 +16,12 @@ The developer decided on 21 Nov: **get every feature usable by a player first, t
 
 ## 3. What changed in the simulation that Unity must know
 
-- **Every state hash moved** (research was added, 21 Nov). Old values in notes or logs no longer match.
+- **Every state hash moved twice on 21 Nov** (research was added, then the rally point joined the hash). Old values in notes or logs no longer match.
 
 | Check | New value |
 | --- | --- |
-| Harness, default script `rts/data/scripts/smoke.json` | `STATE_HASH=45aad722858eb562` |
-| Harness, `--script rts/data/scripts/economy_smoke.json` (the script `SimulationHost` plays by default) | `STATE_HASH=72128f50a116322b` |
+| Harness, default script `rts/data/scripts/smoke.json` | `STATE_HASH=207be73eaa460b3c` |
+| Harness, `--script rts/data/scripts/economy_smoke.json` (the script `SimulationHost` plays by default) | `STATE_HASH=98b2e00d9babe167` |
 
 - **Research exists** (`rts/docs/specs/research_and_unlocks.md`, package R1). The Storm Spire and Reef Workshop each list research items in `Definition.Economy.Researches`. A player queues one with the ordinary train order: `train_unit(building, researchId)`. Stormcaller, Thunderhead, Ink Lobber and Leviathan cannot be trained until their item is done.
   - Queries: `Player.HasResearched(id)`, `EconomyRules.IsResearchQueued(...)`, `EconomyRules.QueueEntryTicks(...)`, `EconomyRules.FirstMissingRequirement(...)` (now also returns research IDs). Names: `Content.Researches[id].DisplayName`.
@@ -31,7 +31,7 @@ The developer decided on 21 Nov: **get every feature usable by a player first, t
 
 ## 4. The hash check (run first, and after every package)
 
-1. Headless: `dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/data/scripts/economy_smoke.json`. Note the `STATE_HASH=` line; on current `main` it is `72128f50a116322b`.
+1. Headless: `dotnet run --project rts/tools/BalanceHarness -- --data rts/data --script rts/data/scripts/economy_smoke.json`. Note the `STATE_HASH=` line; on current `main` it is `98b2e00d9babe167`.
 2. Unity: enter Play Mode with the default script and no input. The final hash it logs must be the same.
 3. If they differ, stop and report it in `STATUS.md` before building anything. A mismatch means Unity and the headless run have diverged, and every later check would be meaningless.
 
@@ -45,9 +45,9 @@ All of it is specified in `rts/docs/specs/player_interface.md`. Build one packag
 | 2 | UI-1 | Resource, supply and clock bar; selected-unit panel | No |
 | 3 | UI-2 | Train buttons, queue, greyed buttons for missing prerequisites | No |
 | 4 | Research panel | Research buttons on the two tech buildings (`research_and_unlocks.md` section R1.10) | No; it is the train order with a research ID, so it follows UI-2 directly |
-| 5 | UI-3 | Build menu with ghost placement | Partly: see section 6, I1 |
+| 5 | UI-3 | Build menu with ghost placement | No; uses I1 in section 6 |
 | 6 | UI-4 | Wall and gate drag | No |
-| 7 | UI-5 | Downdraft and the wave | Partly: see section 6, I2 and I3 |
+| 7 | UI-5 | Downdraft and the wave | No; uses I2 and I3 in section 6 |
 | 8 | UI-6 | Fog of war drawing | No |
 | 9 | UI-7 | Combat, flood and terrain event drawing | No |
 | 10 | UI-8 | Timeline bar and cycle pick | No |
@@ -56,17 +56,17 @@ All of it is specified in `rts/docs/specs/player_interface.md`. Build one packag
 
 Later, each needing its own short spec: menus and skirmish setup against a local AI, map picker, replay playback, cancel buttons and rally points (section 6).
 
-## 6. Coming from the cloud side (not on `main` yet)
+## 6. Interface support from the cloud side (on `main` since 21 Nov)
 
-Spec: `rts/docs/specs/interface_support.md`. A builder is on it now. Check `STATUS.md` or `git log` for "interface support" before relying on any of these names; until they land, build the package without that part and leave a `shortcut:` comment saying what to switch to.
+Spec: `rts/docs/specs/interface_support.md`. All five items are built, reviewed and merged; the signatures below are as they are in the code.
 
 | Item | What it gives Unity | Used by |
 | --- | --- | --- |
-| I1 | `EconomyRules.PlacementProblem(...)`: the reason a structure cannot go on a tile, the same answer the build order would give | UI-3 ghost colour and tooltip |
-| I2 | `FloodingMechanic.PreviewWave(...)`: the tiles a wave cast would cover and flood | UI-5 cast preview |
-| I3 | Display names and descriptions for Downdraft and the wave, in the unit data | UI-5 button text |
-| I4 | `cancel_production` command, full refund, for units and research | A cancel button on queue entries (after UI-2) |
-| I5 | `set_rally_point` command; a newly trained unit walks to the point | Right-click with a producer selected (after UI-2) |
+| I1 | `EconomyRules.PlacementProblem(sim, player, definitionId, tileX, tileY)`: the reason a structure cannot go on a tile (null when it can), the same answer the build order would give; hides what the player's team cannot see | UI-3 ghost colour and tooltip |
+| I2 | `FloodingMechanic.PreviewWave(sim, viewer, caster, target, area, floods)`: fills the tiles a wave cast would cover and flood; returns a refusal reason for a caster the viewer does not own. Call it between steps, on the thread that steps the simulation | UI-5 cast preview |
+| I3 | Display names and descriptions for Downdraft (`grounding_ability.display_name`, `.description`) and the wave (`wave_display_name`, `wave_description`), in the unit data | UI-5 button text |
+| I4 | `CancelProductionCommand(tick, issuer, sequence, producer, index, definitionId)`, full refund, for units and research; `ProductionCancelledEvent` | A cancel button on queue entries (after UI-2) |
+| I5 | `SetRallyPointCommand(tick, issuer, sequence, producer, clear, point)`; a newly trained unit walks to the point; read `Unit.HasRallyPoint` and `Unit.RallyPoint` to draw it (own units only) | Right-click with a producer selected (after UI-2) |
 
 ## 7. Rules that are easy to break
 
