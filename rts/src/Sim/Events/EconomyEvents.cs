@@ -94,13 +94,13 @@ namespace Rts.Sim.Events
     /// <summary>A producer finished a research item (research_and_unlocks.md R1.4); the owner's research set now holds it. Emitted in step 7b.</summary>
     public sealed class ResearchCompletedEvent : SimEvent
     {
-        /// <summary>The building that researched it.</summary>
+        /// <summary>The building that researched it. Range: an entity ID allocated by the simulation, never reused (it may be gone by the time the event is read).</summary>
         public EntityId Producer { get; }
 
-        /// <summary>The producer's owner, who now has the research.</summary>
+        /// <summary>The producer's owner, who now has the research. Range: a player ID of this match (never None).</summary>
         public PlayerId Owner { get; }
 
-        /// <summary>Research ID, for example "skai.thunderhead_plans".</summary>
+        /// <summary>Research ID, for example "skai.thunderhead_plans". Range: non-empty; the ID of an item in Content.Researches.</summary>
         public string ResearchId { get; }
 
         /// <summary>Builds the event from its fields.</summary>
