@@ -86,10 +86,10 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>True when --pool was given: play the candidate (--profile-b) against the opponent pool (see <see cref="PoolRunner"/>).</summary>
         public bool Pool { get; private set; }
 
-        /// <summary>True when --behaviour was given: play paired games with the summary observer and evaluate the behaviour checks (BehaviourRunner).</summary>
+        /// <summary>True when --behaviour was given: play paired games with the summary observer and evaluate the behaviour checks (see <see cref="BehaviourRunner"/>).</summary>
         public bool Behaviour { get; private set; }
 
-        /// <summary>True when --balance was given: self-play with the summary observer and write the balance report (BalanceRunner).</summary>
+        /// <summary>True when --balance was given: self-play with the summary observer and write the balance report (see <see cref="BalanceRunner"/>).</summary>
         public bool Balance { get; private set; }
 
         /// <summary>True when --summary was given (workers): attach the read-only summary observer and write its per-slot summary to the record.</summary>

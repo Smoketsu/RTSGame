@@ -33,6 +33,10 @@ namespace Rts.Tools.BalanceHarness
             {
                 return PoolRunner.Run(options, data, output, error);
             }
+            if (options.Balance && !options.IsWorker)
+            {
+                return BalanceRunner.Run(options, data, output, error);
+            }
             if (options.Behaviour && !options.IsWorker)
             {
                 return BehaviourRunner.Run(options, data, output, error);

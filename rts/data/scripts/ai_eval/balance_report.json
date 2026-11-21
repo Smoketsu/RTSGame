@@ -1,0 +1,31 @@
+// rts/data/scripts/ai_eval/balance_report.json: settings of the standing balance report of the balance harness (--balance); spec rts/docs/specs/balance_measurement.md M.5 and M.6. Read by rts/tools/BalanceHarness/BalanceSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every number is a placeholder.
+{
+  "$schema_version": 1,
+  "$doc": "Balance report: self-play of one profile in both slots, with the summary observer; the report holds the faction and opening matrices, unit and mechanic use, unspent resources and the four trust checks of P-006 section 6.",
+  // Profile that plays both slots (--profile overrides). Unit: profile ID. Range: a file name under rts/data/ai without .json. Source: balance_measurement.md M.6; placeholder.
+  "profile": "aggressive_s5",
+  // Base seed of the per-game seed derivation. Unit: seed. Range: 0 to 2147483647. Source: balance_measurement.md M.6; placeholder.
+  "base_seed": 20261121,
+  // Games per (map, matchup) cell; factions swap on odd games, so the count is a multiple of 2. Unit: games. Range: 2 to 10000, a multiple of 2. Source: balance_measurement.md M.6; placeholder (1 map x 3 matchups x 72 = 216 games).
+  "games_per_cell": 72,
+  // Maps played; empty means every map with exactly 2 spawns. Unit: list of map IDs. Range: 0 to 32 entries. Source: balance_measurement.md M.6; developer decision 18 Nov 2026 (only the prototype map is used for evaluation).
+  "maps": ["prototype_1v1"],
+  // Matchups played (mirror and cross). Unit: list of matchup IDs, factions in ordinal order. Range: 1 to 16 entries. Source: balance_measurement.md M.6.
+  "matchups": ["skai_vs_skai", "skai_vs_water", "water_vs_water"],
+  // Game length limit. Unit: seconds. Range: 60 to 7200. Source: balance_measurement.md M.6; placeholder (as ladder_max_game_seconds).
+  "max_game_seconds": 2400,
+  // Check balance_use: every unit and every applicable mechanic must be used in at least this share of its faction's slot-games. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "min_use_share": 0.10,
+  // Check balance_predictor: the fight predictor must name the winner of at least this share of decided fights. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "predictor_min_accuracy": 0.85,
+  // Check balance_unspent: the median unspent common resource at every bank time and for every faction may be at most this. Unit: resource units. Range: 0 to 100000. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "max_median_unspent_common": 400,
+  // Check balance_unspent: the same for the rare resource. Unit: resource units. Range: 0 to 100000. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "max_median_unspent_rare": 150,
+  // Check balance_openings: lowest distinct-game win fraction an opening with enough mirror games may have ("loses nearly every mirror game"). Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "opening_mirror_min": 0.10,
+  // Check balance_openings: highest distinct-game win fraction ("wins nearly every mirror game"). Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "opening_mirror_max": 0.90,
+  // Check balance_openings: distinct mirror games against other openings an opening needs before it is judged. Unit: distinct games. Range: 1 to 1000. Source: balance_measurement.md M.5.5 and Q-8; placeholder for the developer.
+  "opening_min_games": 10
+}
