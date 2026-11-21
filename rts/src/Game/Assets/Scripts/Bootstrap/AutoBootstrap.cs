@@ -1,6 +1,6 @@
 // rts/src/Game/Assets/Scripts/Bootstrap/AutoBootstrap.cs
 // Makes pressing Play in ANY scene show the simulation: after the first scene has loaded it adds a
-// SimulationHost with its LocalCommands (the one local command path) and GateView, a camera with its RtsCameraController, a directional
+// SimulationHost with its LocalCommands (the one local command path), GateView, FogView and EventView, a camera with its RtsCameraController, a directional
 // light, a TerrainView, a SelectionController and the HUD canvas if the scene does not already have them. The flat grey ground plane of Phase 0 is no longer added (TerrainView draws the
 // real terrain at the same height as layer 0 and the two would overlap); EnsureGround stays available as a fallback.
 // Part of Rts.Game (Unity side, presentation only). Delete this file once a real entry scene exists; the
@@ -43,6 +43,8 @@ namespace Rts.Game.Bootstrap
             EnsureHost();
             EnsureLocalCommands();
             EnsureComponent<GateView>(EnsureHost().gameObject);
+            EnsureComponent<FogView>(EnsureHost().gameObject);
+            EnsureComponent<EventView>(EnsureHost().gameObject);
             EnsureCamera();
             EnsureCameraController();
             EnsureLight();

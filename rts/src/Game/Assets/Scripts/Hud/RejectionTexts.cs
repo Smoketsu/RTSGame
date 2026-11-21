@@ -73,6 +73,12 @@ namespace Rts.Game.Hud
             { "out_of_range", "Out of range" },
             { "on_cooldown", "Not ready" },
             { "no_direction", "Aim away from the caster" },
+            // Interface support: cancel a queued entry (I4) and rally points (I5). A stale queue click is refused quietly.
+            { "no_entry", null },
+            { "entry_mismatch", null },
+            { "not_a_producer", null },
+            // Structures on resource fields are refused (cloud fix on review/field-block, answering the UI-4 question).
+            { "on_resource_field", "Cannot build on a resource field" },
         };
 
         /// <summary>

@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Text;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
+using Rts.Game.Presentation;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Economy;
@@ -531,8 +532,10 @@ namespace Rts.Game.UnitSelection
                         continue;
                     }
                 }
-                else if (!_host.Match.Players.AreEnemies(_localPlayer, unit.Owner))
+                else if (!_host.Match.Players.AreEnemies(_localPlayer, unit.Owner)
+                    || !FogView.CanSee(_host.Match, _host.Match.Players.TeamOf(_localPlayer), unit))
                 {
+                    // Not an enemy, or an enemy the local team cannot see (fog of war, UI-6): not a target.
                     continue;
                 }
                 // Vector from the ray origin to the cube centre, and how far along the ray the centre lies. Unit: world units.
@@ -613,7 +616,7 @@ namespace Rts.Game.UnitSelection
 
         // ------------------------------------------------------------------ orders
 
-        /// <summary>Right click: attack an enemy under the cursor, else move to the ground point.</summary>
+        /// <summary>Right click: attack an enemy under the cursor, else move to the ground point; selected producers that cannot walk set their rally point there.</summary>
         private void IssueRightClickOrder()
         {
             if (_selected.Count == 0)
@@ -640,9 +643,18 @@ namespace Rts.Game.UnitSelection
             FixVec2 destination = ToSimPoint(point);
             foreach (EntityId id in _selected)
             {
-                if (_host.Match.Units.TryGet(id, out Unit unit) && CanMove(unit))
+                if (!_host.Match.Units.TryGet(id, out Unit unit))
+                {
+                    continue;
+                }
+                if (CanMove(unit))
                 {
                     Submit(new MoveUnitCommand(CurrentTick(), _localPlayer, NextSequence(), id, destination));
+                }
+                else if (unit.Definition.Hq != null || unit.Definition.Economy.Trains.Count > 0)
+                {
+                    // A producer that cannot walk (a building, a Rooted HQ) gets a rally point instead (interface support I5).
+                    Submit(new SetRallyPointCommand(CurrentTick(), _localPlayer, NextSequence(), id, false, destination));
                 }
             }
         }
