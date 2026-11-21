@@ -273,8 +273,13 @@ namespace Rts.Sim.Factions.Water
         /// Fills the no-flood masks of every team that could flood: for team T the anchors are every drop-off of a player on
         /// another team plus every resource field within resource_claim_radius_tiles (Chebyshev) of such a drop-off, and the
         /// mask is every tile within enemy_resource_gap_tiles of an anchor. Teams without an enemy anchor get no mask.
+        /// With a valid <paramref name="viewer"/> (the wave preview), a drop-off that team cannot see is left out as an anchor, with the fields it claims,
+        /// so the result uses only what the viewer knows; with <see cref="TeamId.None"/> (the cast and every other caller) nothing is left out.
         /// </summary>
-        private void BuildMasks(Simulation sim, FloodField field)
+        /// <param name="sim">The simulation.</param>
+        /// <param name="field">The working field whose masks are filled.</param>
+        /// <param name="viewer">Team whose vision limits the anchors, or <see cref="TeamId.None"/> for all of them.</param>
+        private void BuildMasks(Simulation sim, FloodField field, TeamId viewer)
         {
             // Flood tuning: ranges and rates read by this method. Unit: see FloodTuning.
             FloodTuning flood = sim.Tuning.Flood;
@@ -285,7 +290,7 @@ namespace Rts.Sim.Factions.Water
             // Unit checked for being a drop-off, ascending ID.
             foreach (Unit unit in sim.Units.All)
             {
-                if (!EconomyRules.IsDropOff(unit))
+                if (!EconomyRules.IsDropOff(unit) || (viewer.IsValid && !sim.Vision.IsUnitVisibleTo(viewer, unit)))
                 {
                     continue;
                 }
@@ -393,7 +398,7 @@ namespace Rts.Sim.Factions.Water
             // Water state before this update, to find the changed tiles at the end.
             int[] originalDrops = (int[])field.Drops.Clone();
             int[] originalTeam = (int[])field.Team.Clone();
-            BuildMasks(sim, field);
+            BuildMasks(sim, field, TeamId.None);
             // Teams that may flood, ascending. Range: 0 to 254.
             SortedSet<int> teams = FloodingTeams(sim, field);
             // Drops removed per team by the limits step, for the two removal reasons.
@@ -604,48 +609,21 @@ namespace Rts.Sim.Factions.Water
             TeamId team = TeamOfOwner(sim, caster.Owner);
             // The working field for this cast.
             FloodField field = ReadField(sim);
-            BuildMasks(sim, field);
-            // Caster tile coordinates and the half width of the wave. Unit: tiles.
-            int tile = terrain.TileOf(caster.Position);
-            // Caster's tile column. Unit: tiles. Range: 0 to Width - 1.
-            int cx = terrain.XOf(tile);
-            // Caster's tile row. Unit: tiles. Range: 0 to Height - 1.
-            int cy = terrain.YOf(tile);
-            // Half the wave width, rounded down. Unit: tiles. Range: 0 upward ((wave_width_tiles - 1) / 2).
-            int half = (flood.WaveWidthTiles - 1) / 2;
+            BuildMasks(sim, field, TeamId.None);
             // Covered tiles in ascending index order, each once.
             SortedSet<int> area = new SortedSet<int>();
-            // Distance along the wave direction. Unit: tiles. Range: 1 to wave_length_tiles.
-            for (int s = 1; s <= flood.WaveLengthTiles; s++)
-            {
-                // Offset across the wave direction. Unit: tiles. Range: -half to half.
-                for (int o = -half; o <= half; o++)
-                {
-                    // Tile at distance s along the direction and offset o across it.
-                    int x = cx + s * dirX - o * dirY;
-                    // Row of the covered tile. Unit: tiles. Range: may fall off the map; Contains checks.
-                    int y = cy + s * dirY + o * dirX;
-                    if (terrain.Contains(x, y))
-                    {
-                        area.Add(terrain.IndexOf(x, y));
-                    }
-                }
-            }
+            CollectWaveArea(terrain, terrain.TileOf(caster.Position), dirX, dirY, flood.WaveLengthTiles, flood.WaveWidthTiles, area);
             // Tiles that gained water.
             int flooded = 0;
             // Covered tile index, ascending. Unit: tile index.
             foreach (int index in area)
             {
-                if (!FloodRules.Accepts(field, index, team.Value, null))
+                if (!WaveGains(field, index, team.Value))
                 {
                     continue;
                 }
-                // Drops added: a full wave depth or whatever room is left.
+                // Drops added: a full wave depth or whatever room is left (above 0, WaveGains checked).
                 int gain = Math.Min(WaveDrops, FloodRules.Room(field, index));
-                if (gain <= 0)
-                {
-                    continue;
-                }
                 field.Drops[index] += gain;
                 field.Team[index] = team.Value;
                 terrain.SetWater(sim, index, FloodMath.ToDepth(field.Drops[index]), team);
@@ -654,6 +632,137 @@ namespace Rts.Sim.Factions.Water
             sim.Events.Add(new WaveCastEvent(tick, caster.Id, caster.Owner, (sbyte)dirX, (sbyte)dirY, flooded));
             PushEnemies(sim, team, area, dirX, dirY);
             _nextWaveTick[caster.Id] = tick + WaveCooldownTicks;
+        }
+
+        /// <summary>
+        /// The wave's direction from a caster position towards a target, shared by cast_wave and the preview. no_direction when the target lies in the
+        /// caster's own tile or the offsets give no step; otherwise null and the steps: the dominant axis when one offset is more than twice the other, else the diagonal.
+        /// </summary>
+        /// <param name="sim">The simulation (for the tile of a position).</param>
+        /// <param name="from">The caster's position. Unit: tiles (fixed-point).</param>
+        /// <param name="target">The target point. Unit: tiles (fixed-point). Range: within the world bound.</param>
+        /// <param name="dirX">X step of the direction. Unit: tile step. Range: -1, 0 or 1; 0 when a problem is returned.</param>
+        /// <param name="dirY">Y step of the direction. Unit: tile step. Range: -1, 0 or 1; 0 when a problem is returned.</param>
+        internal static string? WaveDirection(Simulation sim, FixVec2 from, FixVec2 target, out int dirX, out int dirY)
+        {
+            dirX = 0;
+            dirY = 0;
+            if (sim.Terrain.TileOf(from) == sim.Terrain.TileOf(target))
+            {
+                return "no_direction";
+            }
+            // Offset from the caster to the target. Unit: tiles.
+            Fix64 dx = target.X - from.X;
+            Fix64 dy = target.Y - from.Y;
+            if (dx.Abs() > dy.Abs() * 2)
+            {
+                dirX = dx.Sign();
+            }
+            else if (dy.Abs() > dx.Abs() * 2)
+            {
+                dirY = dy.Sign();
+            }
+            else
+            {
+                dirX = dx.Sign();
+                dirY = dy.Sign();
+            }
+            return dirX == 0 && dirY == 0 ? "no_direction" : null;
+        }
+
+        /// <summary>Adds every on-map tile of the wave strip (wave_length_tiles long, wave_width_tiles wide, starting next to the caster's tile) to <paramref name="area"/>.</summary>
+        /// <param name="terrain">The grid (for bounds and indices).</param>
+        /// <param name="casterTile">Tile index of the caster. Range: 0 to TileCount - 1.</param>
+        /// <param name="dirX">X step of the direction. Unit: tile step. Range: -1, 0 or 1.</param>
+        /// <param name="dirY">Y step of the direction. Unit: tile step. Range: -1, 0 or 1 (not both 0).</param>
+        /// <param name="lengthTiles">Strip length. Unit: tiles. Range: 1 upward (wave_length_tiles).</param>
+        /// <param name="widthTiles">Strip width. Unit: tiles. Range: 1 upward (wave_width_tiles).</param>
+        /// <param name="area">Receives the tile indices, ascending and each once.</param>
+        private static void CollectWaveArea(TerrainGrid terrain, int casterTile, int dirX, int dirY, int lengthTiles, int widthTiles, SortedSet<int> area)
+        {
+            // Caster's tile column. Unit: tiles. Range: 0 to Width - 1.
+            int cx = terrain.XOf(casterTile);
+            // Caster's tile row. Unit: tiles. Range: 0 to Height - 1.
+            int cy = terrain.YOf(casterTile);
+            // Half the wave width, rounded down. Unit: tiles. Range: 0 upward ((wave_width_tiles - 1) / 2).
+            int half = (widthTiles - 1) / 2;
+            // Distance along the wave direction. Unit: tiles. Range: 1 to wave_length_tiles.
+            for (int s = 1; s <= lengthTiles; s++)
+            {
+                // Offset across the wave direction. Unit: tiles. Range: -half to half.
+                for (int o = -half; o <= half; o++)
+                {
+                    // Column of the covered tile at distance s along the direction and offset o across it. Unit: tiles. May fall off the map; Contains checks.
+                    int x = cx + s * dirX - o * dirY;
+                    // Row of the covered tile. Unit: tiles. May fall off the map; Contains checks.
+                    int y = cy + s * dirY + o * dirX;
+                    if (terrain.Contains(x, y))
+                    {
+                        area.Add(terrain.IndexOf(x, y));
+                    }
+                }
+            }
+        }
+
+        /// <summary>True when a wave of <paramref name="team"/> would add water to the tile: it accepts the team's water and has room for at least one drop.</summary>
+        /// <param name="field">The working field with its masks built.</param>
+        /// <param name="tile">Tile index. Range: 0 to TileCount - 1.</param>
+        /// <param name="team">The caster's team number. Range: 0 to 254.</param>
+        private bool WaveGains(FloodField field, int tile, int team)
+        {
+            return FloodRules.Accepts(field, tile, team, null) && Math.Min(WaveDrops, FloodRules.Room(field, tile)) > 0;
+        }
+
+        /// <summary>
+        /// Wave preview for Unity (specs/interface_support.md I2): what a cast_wave of <paramref name="caster"/> towards <paramref name="target"/> would cover and flood,
+        /// from the caster's team's point of view. Clears both lists. Returns the first of not_wave_caster, out_of_bounds, no_direction (lists left empty), else null
+        /// (on_cooldown is not checked: the strip is the same). <paramref name="area"/> gets every covered tile; <paramref name="floods"/> the covered tiles that are visible
+        /// now to the caster's team and that the wave would flood, using only drop-offs the team can see for the no-flood masks. Both ascending tile index. Works between
+        /// steps, changes no simulation state, and allocates a map-sized field per call (call it only when the caster or target tile changes).
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="caster">The would-be caster.</param>
+        /// <param name="target">The target point. Unit: tiles (fixed-point).</param>
+        /// <param name="area">Receives the covered tile indices. Unit: tile index.</param>
+        /// <param name="floods">Receives the tile indices that would be flooded. Unit: tile index.</param>
+        public string? PreviewWave(Simulation sim, Unit caster, FixVec2 target, List<int> area, List<int> floods)
+        {
+            area.Clear();
+            floods.Clear();
+            if (!CanCast(sim, caster))
+            {
+                return "not_wave_caster";
+            }
+            if (!Simulation.IsWithinWorldBounds(target))
+            {
+                return "out_of_bounds";
+            }
+            // Direction steps; the problem, if any.
+            string? problem = WaveDirection(sim, caster.Position, target, out int dirX, out int dirY);
+            if (problem != null)
+            {
+                return problem;
+            }
+            // The live terrain grid, read only.
+            TerrainGrid terrain = sim.Terrain;
+            // The caster's team, whose view limits the answer.
+            TeamId team = TeamOfOwner(sim, caster.Owner);
+            // Working field and masks as the cast would build them, limited to what the team sees.
+            FloodField field = ReadField(sim);
+            BuildMasks(sim, field, team);
+            // Covered tiles, ascending, each once.
+            SortedSet<int> covered = new SortedSet<int>();
+            CollectWaveArea(terrain, terrain.TileOf(caster.Position), dirX, dirY, sim.Tuning.Flood.WaveLengthTiles, sim.Tuning.Flood.WaveWidthTiles, covered);
+            // Covered tile index, ascending.
+            foreach (int index in covered)
+            {
+                area.Add(index);
+                if (sim.Vision.IsTileVisible(team, terrain.XOf(index), terrain.YOf(index)) && WaveGains(field, index, team.Value))
+                {
+                    floods.Add(index);
+                }
+            }
+            return null;
         }
 
         /// <summary>Shoves every enemy non-air unit standing on an area tile (never a Rooted, Rooting or Uprooting HQ, nor any structure with a footprint, such as a gate), ascending unit ID, wave_push_tiles single steps along the direction, stopping before the first impassable step.</summary>

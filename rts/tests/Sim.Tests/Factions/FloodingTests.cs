@@ -4,6 +4,7 @@
 // Part of Rts.Sim.Tests. Setup: hand-built test units (a flood source, a swimmer, walkers, a wave caster, a drop-off) on flat
 // test maps, P0 = a water-faction player on team 0 and P1 = an ordinary player on team 1, 20 ticks per second. Where a test needs
 // no sources to disturb the water it uses tuning with min_retreat_per_second 0. Tiny corridors are made with wall blockers.
+// The wave preview tests (IS-6 to IS-9, specs/interface_support.md I2) are the second part of this class, in WavePreviewTests.cs, because they share these fixtures.
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
@@ -24,7 +25,7 @@ namespace Rts.Sim.Tests.Factions
 {
     /// <summary>Flood rules, tide, emission, limits, speeds, healing and the wave.</summary>
     [TestFixture]
-    public sealed class FloodingTests
+    public sealed partial class FloodingTests
     {
         /// <summary>ID of the test flood source: ground, speed 0, no footprint, output 1, capacity from the catalog builder.</summary>
         private const string SourceId = "flood.source";

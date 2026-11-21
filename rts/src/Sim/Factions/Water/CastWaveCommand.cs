@@ -63,36 +63,11 @@ namespace Rts.Sim.Factions.Water
             {
                 return CommandResult.Reject("on_cooldown");
             }
-            // Caster and target tiles; the wave needs a direction between them.
-            int casterTile = sim.Terrain.TileOf(caster.Position);
-            if (casterTile == sim.Terrain.TileOf(Target))
+            // The wave's direction steps (shared with the preview query); null when the target gives none.
+            string? directionProblem = FloodingMechanic.WaveDirection(sim, caster.Position, Target, out int ux, out int uy);
+            if (directionProblem != null)
             {
-                return CommandResult.Reject("no_direction");
-            }
-            // Offset from the caster to the target. Unit: tiles.
-            Fix64 dx = Target.X - caster.Position.X;
-            Fix64 dy = Target.Y - caster.Position.Y;
-            // Direction steps: the dominant axis when one offset is more than twice the other, else the diagonal.
-            int ux;
-            int uy;
-            if (dx.Abs() > dy.Abs() * 2)
-            {
-                ux = dx.Sign();
-                uy = 0;
-            }
-            else if (dy.Abs() > dx.Abs() * 2)
-            {
-                ux = 0;
-                uy = dy.Sign();
-            }
-            else
-            {
-                ux = dx.Sign();
-                uy = dy.Sign();
-            }
-            if (ux == 0 && uy == 0)
-            {
-                return CommandResult.Reject("no_direction");
+                return CommandResult.Reject(directionProblem);
             }
             mechanic.CastWave(sim, caster, ux, uy);
             return CommandResult.Ok;
