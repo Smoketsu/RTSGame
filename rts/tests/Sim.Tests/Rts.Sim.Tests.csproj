@@ -22,9 +22,14 @@
     <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
     <!-- The balance harness (batch mode, seeds, statistics, HQ floor trials), tested in Harness/. -->
     <ProjectReference Include="../../tools/BalanceHarness/Rts.Tools.BalanceHarness.csproj" />
+    <!-- The campaign scripting library and the mission tool, tested in Campaign/. -->
+    <ProjectReference Include="../../src/Campaign/Rts.Campaign.csproj" />
+    <ProjectReference Include="../../tools/MissionRunner/Rts.Tools.MissionRunner.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Data files are copied next to the test binary so tests can load real tuning and unit files. -->
     <None Include="../../data/**/*.json" Link="data/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Mission and scripted-input files are copied too, so the tutorial tests read the shipped files. -->
+    <None Include="../../campaign/**/*.json" Link="campaign/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
