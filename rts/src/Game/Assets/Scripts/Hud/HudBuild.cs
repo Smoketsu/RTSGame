@@ -86,6 +86,25 @@ namespace Rts.Game.Hud
             return image;
         }
 
+        /// <summary>Creates a clickable button with a centred label.</summary>
+        /// <param name="parent">Parent transform.</param>
+        /// <param name="name">Object name in the Hierarchy.</param>
+        /// <param name="anchor">Anchor and pivot in the parent, each axis 0 to 1.</param>
+        /// <param name="position">Offset of the pivot from the anchor. Unit: reference pixels.</param>
+        /// <param name="size">Width and height. Unit: reference pixels.</param>
+        /// <param name="label">Button text.</param>
+        /// <param name="onClick">Called on click.</param>
+        public static Button Button(Transform parent, string name, Vector2 anchor, Vector2 position, Vector2 size, string label, UnityEngine.Events.UnityAction onClick)
+        {
+            Image background = Image(parent, name, anchor, position, size, new Color(0.2f, 0.3f, 0.5f, 1f));
+            background.raycastTarget = true;
+            Button button = background.gameObject.AddComponent<Button>();
+            button.targetGraphic = background;
+            button.onClick.AddListener(onClick);
+            Text(background.transform, "Label", new Vector2(0.5f, 0.5f), Vector2.zero, size - new Vector2(8f, 4f), 20, TextAnchor.MiddleCenter).text = label;
+            return button;
+        }
+
         /// <summary>A tick count as seconds with one decimal, "4.8 s". Unit: input ticks, output seconds.</summary>
         /// <param name="ticks">Tick count. Range: 0 upward.</param>
         /// <param name="ticksPerSecond">The match's tick rate (sim.Clock.TicksPerSecond). Range: 10 to 60.</param>

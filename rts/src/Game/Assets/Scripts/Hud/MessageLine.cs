@@ -4,7 +4,7 @@
 // local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
 // Stand, depletion of a field an own worker gathers from; UI-2: units trained by own producers, own research completed; UI-3:
 // own build orders cancelled with their refund, own structures placed and completed; UI-4: own wall tiles skipped; UI-5: own
-// Downdraft casts with the number of units grounded; I4: own queue entries cancelled with their refund; UI-9: Core capture started, reset, captured, lost, contested and won; UI-8: the local team's cycle pick, cycle warnings and starts; UI-7: the tide turning, own flood water removed, quake paths
+// Downdraft casts with the number of units grounded; I4: own queue entries cancelled with their refund; UI-10: player state changes (surrender, defeat); UI-9: Core capture started, reset, captured, lost, contested and won; UI-8: the local team's cycle pick, cycle warnings and starts; UI-7: the tide turning, own flood water removed, quake paths
 // closing or opening, own units relocated). Other HUD code may post with Show. Builds its own uGUI Text under the
 // HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
@@ -225,6 +225,11 @@ namespace Rts.Game.Hud
                 {
                     Show("Downdraft: " + grounding.UnitsGrounded + " grounded");
                 }
+            }
+            else if (simEvent is PlayerStateChangedEvent playerChanged)
+            {
+                string name = sim.Players.TryGet(playerChanged.Player, out Rts.Sim.Teams.Player who) ? who.DisplayName : playerChanged.Player.ToString();
+                Show(name + ": " + playerChanged.Current + " (" + playerChanged.Cause + ")");
             }
             else if (simEvent is CoreCaptureStartedEvent captureStarted)
             {

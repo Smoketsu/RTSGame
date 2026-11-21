@@ -86,6 +86,10 @@ namespace Rts.Game.Hud
             { "unknown_cycle", null },
             { "pick_locked", "The next cycle is already locked" },
             { "repeats_play_style", "Cannot repeat the current play style" },
+            // UI-10: surrender (player_out_of_match is shared with the cycle pick above).
+            { "not_self", null },
+            { "unknown_player", null },
+            { "player_disconnected", "Disconnected players cannot surrender" },
         };
 
         /// <summary>

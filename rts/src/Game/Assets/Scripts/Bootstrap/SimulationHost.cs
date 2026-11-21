@@ -19,6 +19,8 @@
 //     after Start, every scripted and player command goes through it (Submit) and every tick is stepped through it. When the
 //     host is destroyed (leaving Play Mode, quitting) it writes <repo>/rts/build/replays/<local time>.rtsreplay in the editor,
 //     <persistentDataPath>/replays in a player; check it with rts/tools/ReplayCheck. The wall clock only names the file.
+//   - Match end (UI-10): after each step MatchOutcome.Evaluate; once decided the host stops stepping (as the harness does), logs the
+//     result and writes the replay at once. Outcome exposes the result to the HUD.
 //
 // Data directory (where every *.json under it is read and handed to Rts.Sim.Data.DataLoader):
 //   Editor:  <repo>/rts/data, resolved as Application.dataPath + "/../../../data" (dataPath is
@@ -44,6 +46,7 @@ using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
+using Rts.Sim.Teams;
 using Rts.Sim.Units;
 using Rts.Replay;
 using UnityEngine;
@@ -174,6 +177,9 @@ namespace Rts.Game.Bootstrap
         /// <summary>The match. Null until Awake succeeds. Read-only from the host's point of view except for Submit.</summary>
         private Simulation _sim;
 
+        /// <summary>The match result once one team (or none) is left standing; null while the match goes on. Set after the deciding step.</summary>
+        private MatchOutcome _outcome;
+
         /// <summary>Records the session for the replay file. Null when recordSession is off or before Awake succeeds.</summary>
         private ReplayRecorder _recorder;
 
@@ -206,6 +212,9 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>The running match, for read-only inspection by UI code later. Never mutate it; use Simulation.Submit.</summary>
         public Simulation Match => _sim;
+
+        /// <summary>The match result once decided (MatchOutcome.IsDecided), else null. Stepping stops when it is set (UI-10).</summary>
+        public MatchOutcome Outcome => _outcome;
 
         /// <summary>How far between the last two ticks the picture currently is. Unit: fraction. Range: 0 to 1.</summary>
         public float InterpolationAlpha => _alpha;
@@ -354,7 +363,7 @@ namespace Rts.Game.Bootstrap
         }
 
         /// <summary>True while ticks should still run: the script has not finished, or continueAfterScript keeps the match going. Unit: on/off.</summary>
-        private bool ShouldStep => !_scriptFinished || continueAfterScript;
+        private bool ShouldStep => _outcome == null && (!_scriptFinished || continueAfterScript);
 
         /// <summary>Positions every cube between its previous and current tick position. Runs after all Update calls.</summary>
         private void LateUpdate()
@@ -424,6 +433,14 @@ namespace Rts.Game.Bootstrap
                 // the same state the headless harness prints as STATE_HASH.
                 _scriptFinished = true;
                 Debug.Log("[SimulationHost] script finished at tick " + _sim.Clock.Tick + ", final hash " + _sim.ComputeStateHash().ToString("x16"));
+            }
+            // As the headless harness does: after each step, stop once one team or none is left standing, and write the replay then.
+            MatchOutcome outcome = MatchOutcome.Evaluate(_sim.Players);
+            if (outcome.IsDecided)
+            {
+                _outcome = outcome;
+                Debug.Log("[SimulationHost] match decided at tick " + _sim.Clock.Tick + ": " + outcome + ", final hash " + _sim.ComputeStateHash().ToString("x16"));
+                WriteReplay();
             }
         }
 
