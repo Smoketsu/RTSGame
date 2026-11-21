@@ -141,3 +141,7 @@ Option (a), after package B is either fixed or replaced, and after P-006 package
 7. **Losing the building mid-research.** Default: the queued item is lost without refund, as for a queued unit; finished research stays.
 8. **Order.** Default: after package E is measured and package B passes its bars, so research is sized against a fair economy.
 9. **Map rare amounts** as the other lever (fields of 600). Default: unchanged; a map question, not part of this proposal.
+
+## Developer decisions (21 Nov 2026)
+
+Defaults accepted on decisions 1, 2, 3, 5, 6, 7 and 9. Decision 4 is changed: the research tree is the **same size for every faction** (same number of items, same total cost). Decision 8 is replaced by a new standing direction: "get every feature usable, then make the AI work", so research is built now and the AI packages of P-006 wait. Build spec: `rts/docs/specs/` (being written on `review/p007-spec`).
