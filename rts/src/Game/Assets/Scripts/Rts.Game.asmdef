@@ -4,6 +4,7 @@
   "references": [
     "Rts.Sim",
     "Rts.Replay",
+    "Rts.Ai",
     "UnityEngine.UI",
     "Unity.InputSystem"
   ],
