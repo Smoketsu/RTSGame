@@ -30,6 +30,14 @@
   "opening_min_games": 10,
   // With --non-regression: the Wilson upper bound over distinct mirror games the candidate must reach; below it the report prints a WARNING that the candidate may be weaker than the baseline (never changes the exit code). Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v4_rl.md H.3; placeholder.
   "ladder_mirror_upper_min": 0.50,
+  // Two-sided level of the sign test and of the interval of the paired ladder and of the EFFECT line (at most 4 decimals). Unit: fraction (two-sided). Range: 0.0001 to 0.5. Source: balance_measurement.md M.6; placeholder (the usual level).
+  "effect_alpha": 0.05,
+  // z-score that matches effect_alpha two-sided; used only in the minimum detectable effect (Z = round(10000 x (effect_z_alpha + effect_z_power))). Unit: z-score. Range: 0 to 6. Source: balance_measurement.md M.6; placeholder.
+  "effect_z_alpha": 1.96,
+  // z-score of the power of the minimum detectable effect (0.8416 is 80 percent power). Unit: z-score. Range: 0 to 6. Source: balance_measurement.md M.6; placeholder.
+  "effect_z_power": 0.8416,
+  // A paired ladder whose complete pairs (no draw, no undecided game) are fewer than this share of all its pairs has the verdict INCOMPLETE (at most 4 decimals). Unit: fraction of pairs. Range: 0 to 1. Source: balance_measurement.md M.6; placeholder.
+  "paired_min_complete_fraction": 0.9,
   // Response tests, one per scenario script and AI-under-test faction. script: file in this folder; check: air_answer, armoured_answer, trade, raid or turtle; the other keys are that check's parameters (seconds are game seconds, fractions and ratios as named). Unit: objects. Range: 1 to 64 entries. Source: skirmish_ai_v3.md A.4; placeholder.
   "response_tests": [
     { "script": "response_roc_rush_skai.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },

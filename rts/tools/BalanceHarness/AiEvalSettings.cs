@@ -127,6 +127,18 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Games re-run in-process for the determinism spot check. Unit: games. Range: 0 to 16.</summary>
         public int LadderVerifyGames { get; private set; }
 
+        /// <summary>Two-sided level of the sign test and of the interval (balance_measurement.md M.6). Unit: parts per 10 000 (0.05 is 500). Range: 1 to 5000.</summary>
+        public int EffectAlphaPt { get; private set; }
+
+        /// <summary>z-score of <see cref="EffectAlphaPt"/>, used only in the MDE integer Z. Unit: z-score. Range: 0 to 6.</summary>
+        public Rts.Sim.Core.Fix64 EffectZAlpha { get; private set; }
+
+        /// <summary>z-score of the power of the MDE (0.8416 is 80 percent). Unit: z-score. Range: 0 to 6.</summary>
+        public Rts.Sim.Core.Fix64 EffectZPower { get; private set; }
+
+        /// <summary>Complete pairs a paired ladder needs, as a share of all its pairs, or its verdict is INCOMPLETE. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int PairedMinCompletePt { get; private set; }
+
         /// <summary>The response scenarios in file order. Range: 1 to 64 entries.</summary>
         public IReadOnlyList<ResponseTest> ResponseTests { get; private set; } = Array.Empty<ResponseTest>();
 
@@ -150,7 +162,8 @@ namespace Rts.Tools.BalanceHarness
             JsonValue root = JsonReader.Parse(text, SourceName);
             root.RejectUnknownKeys("ladder_base_seed", "ladder_games_per_cell", "ladder_maps", "ladder_matchups", "ladder_max_game_seconds", "ladder_min_decided",
                 "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "opening_max_use_fraction", "opening_max_mirror_win_fraction",
-                "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests");
+                "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests",
+                "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction");
             AiEvalSettings settings = new AiEvalSettings();
             settings.LadderBaseSeed = (ulong)root.RequireInt("ladder_base_seed", 0, int.MaxValue);
             // Games per cell, checked for the multiple-of-4 rule (the seat rule needs whole blocks of four games).
@@ -172,6 +185,10 @@ namespace Rts.Tools.BalanceHarness
             settings.OpeningMinMirrorWinFraction = HarnessStats.ToDouble(root.RequireFix64("opening_min_mirror_win_fraction", "0", "1"));
             settings.OpeningMinGames = root.RequireInt("opening_min_games", 1, 1000);
             settings.LadderMirrorUpperMin = HarnessStats.ToDouble(root.RequireFix64("ladder_mirror_upper_min", "0", "1"));
+            settings.EffectAlphaPt = PredictSettings.ReadPt(root, "effect_alpha", "0.0001", "0.5");
+            settings.EffectZAlpha = root.RequireFix64("effect_z_alpha", "0", "6");
+            settings.EffectZPower = root.RequireFix64("effect_z_power", "0", "6");
+            settings.PairedMinCompletePt = PredictSettings.ReadPt(root, "paired_min_complete_fraction");
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");

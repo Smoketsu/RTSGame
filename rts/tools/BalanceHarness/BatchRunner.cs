@@ -66,11 +66,10 @@ namespace Rts.Tools.BalanceHarness
             using (TextWriter text = toFile ? new StreamWriter(options.OutDirectory) : TextWriter.Null)
             {
                 GameTrace trace = new GameTrace(toFile ? text : output, GameTrace.DefaultIntervalSeconds);
-                // Profiles of the two slots: the batch profile twice, or with --profile-a and --profile-b the ladder seat rule for this game index.
-                bool ladder = options.ProfileA.Length > 0;
-                string profile0 = ladder ? GameRunner.LadderProfileInSlot(options.TraceGame, 0, options.ProfileA, options.ProfileB) : batch.AiProfile;
-                string profile1 = ladder ? GameRunner.LadderProfileInSlot(options.TraceGame, 1, options.ProfileA, options.ProfileB) : batch.AiProfile;
-                GameRecord record = GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, profile0, profile1, maxSeconds, trace);
+                // With --profile-a and --profile-b the game is the ladder's (unpaired seat rule, or the paired layout with --paired); else the batch profile twice.
+                GameRecord record = options.ProfileA.Length > 0
+                    ? GameRunner.PlayLadder(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, baseSeed, options.ProfileA, options.ProfileB, maxSeconds, options.Paired, 0UL, trace)
+                    : GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, seed, batch.AiProfile, batch.AiProfile, maxSeconds, trace);
                 output.Write(record.ToJsonLine() + "\n");
             }
             output.Flush();
@@ -105,11 +104,12 @@ namespace Rts.Tools.BalanceHarness
                     // Test switch: the re-run plays a different seed, so the spot check must report a mismatch.
                     seed ^= 1UL;
                 }
-                // Profiles of the two slots: the batch profile twice, or in a ladder worker the seat rule of GameRunner.LadderProfileInSlot.
-                bool ladder = options.ProfileA.Length > 0;
-                string profile0 = ladder ? GameRunner.LadderProfileInSlot(game, 0, options.ProfileA, options.ProfileB) : batch.AiProfile;
-                string profile1 = ladder ? GameRunner.LadderProfileInSlot(game, 1, options.ProfileA, options.ProfileB) : batch.AiProfile;
-                output.Write(GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, game, seed, profile0, profile1, maxSeconds).ToJsonLine() + "\n");
+                // A ladder worker plays the ladder's game (seat rule, or the paired layout with --paired); a batch worker plays the batch profile twice.
+                GameRecord record = options.ProfileA.Length > 0
+                    ? GameRunner.PlayLadder(data, options.WorkerMap, options.WorkerMatchup, game, baseSeed, options.ProfileA, options.ProfileB, maxSeconds, options.Paired,
+                        options.TestFault == BatchOptions.FaultPerturb && options.WorkerIsRerun && game == options.WorkerFirst ? 1UL : 0UL)
+                    : GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, game, seed, batch.AiProfile, batch.AiProfile, maxSeconds);
+                output.Write(record.ToJsonLine() + "\n");
                 output.Flush();
             }
             return 0;
@@ -331,7 +331,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Orders game records by map, matchup, game (ordinal).</summary>
-        internal static int CompareGames(GameRecord a, GameRecord b)
+        public static int CompareGames(GameRecord a, GameRecord b)
         {
             int c = string.CompareOrdinal(a.Map, b.Map);
             if (c == 0)

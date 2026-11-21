@@ -43,8 +43,14 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Play signatures of the decided games the candidate won. Unit: signatures. Range: 0 to CandidateWins entries.</summary>
         private readonly SortedSet<ulong> _winSignatures = new SortedSet<ulong>();
 
+        /// <summary>Play signatures of the games with a winner (candidate or baseline; draws and undecided games excluded). Unit: signatures. Range: 0 to CandidateWins + BaselineWins entries.</summary>
+        private readonly SortedSet<ulong> _winnerSignatures = new SortedSet<ulong>();
+
         /// <summary>Distinct play signatures among the decided games. Unit: games. Range: 0 to Decided.</summary>
         public int Distinct => _signatures.Count;
+
+        /// <summary>Distinct play signatures among the games with a winner (balance_measurement.md M.2, the n of the EFFECT line). Unit: games. Range: 0 to Distinct.</summary>
+        public int DistinctWinners => _winnerSignatures.Count;
 
         /// <summary>Distinct play signatures among the candidate's wins. Unit: games. Range: 0 to Distinct.</summary>
         public int DistinctWins => _winSignatures.Count;
@@ -54,6 +60,13 @@ namespace Rts.Tools.BalanceHarness
         public static int CandidateSlot(int game)
         {
             return (game / 2) % 2 == 0 ? 1 : 0;
+        }
+
+        /// <summary>The slot the candidate plays in a record's game: the record's explicit CandidateSlot for a paired game, else the unpaired seat rule of its game index.</summary>
+        /// <param name="record">A ladder game record.</param>
+        public static int CandidateSlot(GameRecord record)
+        {
+            return record.Pair >= 0 ? record.CandidateSlot : CandidateSlot(record.Game);
         }
 
         /// <summary>Adds one game.</summary>
@@ -69,14 +82,16 @@ namespace Rts.Tools.BalanceHarness
             {
                 Draws++;
             }
-            else if ((record.Result == GameRecord.Slot0 ? 0 : 1) == CandidateSlot(record.Game))
+            else if ((record.Result == GameRecord.Slot0 ? 0 : 1) == CandidateSlot(record))
             {
                 CandidateWins++;
                 _winSignatures.Add(record.PlaySignature);
+                _winnerSignatures.Add(record.PlaySignature);
             }
             else
             {
                 BaselineWins++;
+                _winnerSignatures.Add(record.PlaySignature);
             }
             if (record.Result != GameRecord.Undecided)
             {
@@ -346,7 +361,7 @@ namespace Rts.Tools.BalanceHarness
             foreach (GameRecord record in records)
             {
                 // Faction the candidate plays in this game (ID), and the row keys the game belongs to.
-                string candidateFaction = LadderTally.CandidateSlot(record.Game) == 0 ? record.Slot0Faction : record.Slot1Faction;
+                string candidateFaction = LadderTally.CandidateSlot(record) == 0 ? record.Slot0Faction : record.Slot1Faction;
                 string[] keys = record.Slot0Faction == record.Slot1Faction ? new[] { "mirror" } : new[] { "cross", "cross, candidate as " + candidateFaction };
                 foreach (string key in keys)
                 {
@@ -433,12 +448,16 @@ namespace Rts.Tools.BalanceHarness
             int jobs = options.Jobs ?? Math.Min(64, Math.Max(1, Environment.ProcessorCount));
             int chunkGames = data.Tuning.HarnessBatch.ChunkGames;
             // Fails early (exit 1) when a profile file is missing.
-            Rts.Ai.AiProfile.FromDataSet(data, options.ProfileA);
-            Rts.Ai.AiProfile.FromDataSet(data, options.ProfileB);
+            Rts.Ai.AiProfile baselineProfile = Rts.Ai.AiProfile.FromDataSet(data, options.ProfileA);
+            Rts.Ai.AiProfile candidateProfile = Rts.Ai.AiProfile.FromDataSet(data, options.ProfileB);
 
             List<string> common = new List<string> { "--data", options.DataDirectory, "--seed", baseSeed.ToString(CultureInfo.InvariantCulture),
                 "--max-game-seconds", maxSeconds.ToString(CultureInfo.InvariantCulture), "--games", games.ToString(CultureInfo.InvariantCulture),
                 "--profile-a", options.ProfileA, "--profile-b", options.ProfileB };
+            if (options.Paired)
+            {
+                common.Add("--paired");
+            }
             if (options.TestFault.Length > 0)
             {
                 common.Add("--test-fault");
@@ -486,8 +505,7 @@ namespace Rts.Tools.BalanceHarness
             for (int g = 0; g < verify; g++)
             {
                 GameRecord original = records.Find(r => r.Map == maps[0] && r.Matchup == matchups[0] && r.Game == g)!;
-                GameRecord again = GameRunner.Play(data, maps[0], matchups[0], g, SeedDerivation.GameSeed(baseSeed, maps[0], matchups[0], g),
-                    GameRunner.LadderProfileInSlot(g, 0, options.ProfileA, options.ProfileB), GameRunner.LadderProfileInSlot(g, 1, options.ProfileA, options.ProfileB), maxSeconds);
+                GameRecord again = GameRunner.PlayLadder(data, maps[0], matchups[0], g, baseSeed, options.ProfileA, options.ProfileB, maxSeconds, options.Paired);
                 if (original.ToJsonLine() != again.ToJsonLine())
                 {
                     mismatches++;
@@ -502,6 +520,27 @@ namespace Rts.Tools.BalanceHarness
             }
             double bar = options.NonRegression ? settings.LadderNonRegressionFractionMin : settings.LadderCandidateWinFractionMin;
             LadderVerdict verdict = new LadderVerdict(total.Decided, total.CandidateWins, settings.LadderMinDecided, bar);
+            // Paired: the pairs, their rows, the pairing kinds and the verdict of the "all" row (M.1 and M.2). Unpaired: the information-only EFFECT line.
+            List<PairRow>? pairRows = null;
+            string pairing = string.Empty;
+            string pairedVerdict = string.Empty;
+            string effect = string.Empty;
+            if (options.Paired)
+            {
+                pairRows = PairedLadder.Rows(PairedLadder.Outcomes(records), settings);
+                // Factions of the selected matchups, for the pairing kinds.
+                List<string> factions = new List<string>();
+                foreach (string matchup in matchups)
+                {
+                    factions.AddRange(GameRunner.SplitMatchup(matchup));
+                }
+                pairing = PairedLadder.PairingText(baselineProfile, candidateProfile, factions);
+                pairedVerdict = PairedLadder.Verdict(pairRows[pairRows.Count - 1], settings);
+            }
+            else
+            {
+                effect = PairedLadder.EffectLine(options.ProfileB, options.ProfileA, total, settings);
+            }
             // Distinct, mirror and cross text of the LADDER line, and the distinct-share warnings (reported only, never gating).
             string stats = StatsText(records);
             List<string> warnings = DistinctWarnings(records, HarnessStats.ToDouble(data.Tuning.HarnessBatch.MinDistinctFraction));
@@ -523,21 +562,34 @@ namespace Rts.Tools.BalanceHarness
             }
             File.WriteAllText(Path.Combine(outDirectory, "ladder.jsonl"), lines.ToString(), new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(outDirectory, "ladder.md"),
-                BuildReport(data, options, records, verdict, stats, warnings, openingRows, baseSeed, games, maxSeconds, verify, mismatches), new UTF8Encoding(false));
-            // Warnings first so the LADDER line stays the last stdout line.
+                BuildReport(data, options, records, verdict, stats, warnings, openingRows, baseSeed, games, maxSeconds, verify, mismatches, effect, pairRows, pairing, pairedVerdict, pairRows != null ? PairedLadder.Line(options.ProfileB, options.ProfileA, pairRows[pairRows.Count - 1], pairing, pairedVerdict) : string.Empty, settings),
+                new UTF8Encoding(false));
+            // Warnings first so the LADDER line stays the last stdout line (unpaired) or the PAIRED line does (paired); the unpaired EFFECT line comes just before the LADDER line.
             foreach (string warning in warnings)
             {
                 output.Write(warning + "\n");
             }
+            if (effect.Length > 0)
+            {
+                output.Write(effect + "\n");
+            }
             output.Write(verdict.Line(options.ProfileB, options.ProfileA, stats) + "\n");
+            if (pairRows != null)
+            {
+                output.Write(PairedLadder.Line(options.ProfileB, options.ProfileA, pairRows[pairRows.Count - 1], pairing, pairedVerdict) + "\n");
+            }
             output.Flush();
             error.Write("elapsed " + clock.Elapsed.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) + " s\n");
-            return mismatches > 0 ? 3 : verdict.ExitCode;
+            if (mismatches > 0)
+            {
+                return 3;
+            }
+            return pairRows != null ? PairedStats.ExitCode(pairedVerdict) : verdict.ExitCode;
         }
 
         /// <summary>Builds ladder.md: the settings, the verdict and the tables per cell, per map, per seat and overall.</summary>
         private static string BuildReport(DataSet data, BatchOptions options, IReadOnlyList<GameRecord> records, LadderVerdict verdict, string stats, IReadOnlyList<string> warnings, IReadOnlyList<OpeningRow> openingRows, ulong baseSeed, int games,
-            int maxSeconds, int verify, int mismatches)
+            int maxSeconds, int verify, int mismatches, string effect, IReadOnlyList<PairRow>? pairRows, string pairing, string pairedVerdict, string pairedLine, AiEvalSettings settings)
         {
             // Confidence z-score of the Wilson interval (tuning/harness_batch.json). Range: 1 to 4.
             double z = HarnessStats.ToDouble(data.Tuning.HarnessBatch.ConfidenceZ);
@@ -547,12 +599,29 @@ namespace Rts.Tools.BalanceHarness
             sb.Append("- Base seed ").Append(baseSeed.ToString(CultureInfo.InvariantCulture)).Append(", ").Append(games.ToString(CultureInfo.InvariantCulture))
                 .Append(" games per cell, game cap ").Append(maxSeconds.ToString(CultureInfo.InvariantCulture)).Append(" s, ")
                 .Append(options.NonRegression ? "non-regression bar" : "win bar").Append(".\n");
-            sb.Append("- Seats: in game g slot s plays the baseline when (g / 2) % 2 == s; factions swap on odd g.\n");
+            if (pairRows != null)
+            {
+                sb.Append("- Paired layout (balance_measurement.md M.1.2): pair p = g / 2, the candidate plays slot g % 2, factions swap on odd pairs and both games of a pair share the seed of the pair.\n");
+                sb.Append("- Pairing kind per faction (M.1.3): ").Append(pairing).Append(". The variety streams are keyed by (seed, slot); the small chance that a draw takes more than one raw draw is ignored.\n");
+                sb.Append("- Sign test and interval at two-sided alpha ").Append(PairedStats.P4(settings.EffectAlphaPt)).Append(", exact (integer arithmetic); MDE at power from z = ").Append(settings.EffectZPower.ToString()).Append(".\n");
+            }
+            else
+            {
+                sb.Append("- Seats: in game g slot s plays the baseline when (g / 2) % 2 == s; factions swap on odd g.\n");
+            }
             sb.Append("- Candidate fraction = candidate wins / decided games; draws count as decided, not as wins; the interval is Wilson at z = ")
                 .Append(z.ToString("0.00", CultureInfo.InvariantCulture)).Append(".\n");
             sb.Append("- Determinism spot check: ").Append(verify.ToString(CultureInfo.InvariantCulture)).Append(" games re-run in-process, ")
                 .Append(mismatches.ToString(CultureInfo.InvariantCulture)).Append(" mismatches.\n\n");
             sb.Append("**").Append(verdict.Line(options.ProfileB, options.ProfileA, stats)).Append("**\n\n");
+            if (effect.Length > 0)
+            {
+                sb.Append("**").Append(effect).Append("**\n\n");
+            }
+            if (pairRows != null)
+            {
+                sb.Append("**").Append(pairedLine).Append("**\n\n");
+            }
             foreach (string warning in warnings)
             {
                 sb.Append(warning).Append("\n\n");
@@ -565,10 +634,14 @@ namespace Rts.Tools.BalanceHarness
             sb.Append("\n## Per map\n\n");
             AppendTable(sb, "map", records, r => r.Map, z);
             sb.Append("\n## Per seat\n\n");
-            AppendTable(sb, "candidate seat", records, r => "slot " + LadderTally.CandidateSlot(r.Game).ToString(CultureInfo.InvariantCulture), z);
+            AppendTable(sb, "candidate seat", records, r => "slot " + LadderTally.CandidateSlot(r).ToString(CultureInfo.InvariantCulture), z);
             sb.Append("\n## Mirror and cross-faction\n\n");
             AppendRows(sb, "row", MirrorCross(records), z);
             AppendOpenings(sb, openingRows, z);
+            if (pairRows != null)
+            {
+                PairedLadder.AppendPairs(sb, pairRows);
+            }
             sb.Append("\n## Overall\n\n");
             AppendTable(sb, "all", records, r => "all games", z);
             return sb.ToString();

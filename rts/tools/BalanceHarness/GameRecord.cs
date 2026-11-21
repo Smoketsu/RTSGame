@@ -97,10 +97,18 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Every HQ that died, in ascending entity order.</summary>
         public IReadOnlyList<HqKill> HqKills { get; }
 
+        /// <summary>Pair index p = g / 2 of a paired ladder game (balance_measurement.md M.1.2), or -1 for an unpaired game (the line then has no "pair" key). Unit: pairs. Range: -1, or 0 upward.</summary>
+        public int Pair { get; }
+
+        /// <summary>Slot the candidate (profile B) plays in a paired ladder game, g % 2, or -1 for an unpaired game. Unit: slot. Range: -1, 0 or 1.</summary>
+        public int CandidateSlot { get; }
+
         /// <summary>Bundles the values.</summary>
         public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string slot0Profile, string slot1Profile, string result,
-            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "")
+            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "", int pair = -1, int candidateSlot = -1)
         {
+            Pair = pair;
+            CandidateSlot = candidateSlot;
             Opening0 = opening0;
             Opening1 = opening1;
             Map = map;
@@ -145,7 +153,13 @@ namespace Rts.Tools.BalanceHarness
                     .Append(",\"first_damage_tick\":").Append(HqKills[i].FirstDamageTick.ToString(CultureInfo.InvariantCulture))
                     .Append(",\"death_tick\":").Append(HqKills[i].DeathTick.ToString(CultureInfo.InvariantCulture)).Append('}');
             }
-            return sb.Append("]}").ToString();
+            sb.Append(']');
+            if (Pair >= 0)
+            {
+                // Paired ladder games carry the pair and the candidate's slot after the last existing key (M.1.4); unpaired lines are unchanged.
+                sb.Append(",\"pair\":").Append(Pair.ToString(CultureInfo.InvariantCulture)).Append(",\"candidate_slot\":").Append(CandidateSlot.ToString(CultureInfo.InvariantCulture));
+            }
+            return sb.Append('}').ToString();
         }
 
         /// <summary>Parses a line written by <see cref="ToJsonLine"/>; throws <see cref="HarnessException"/> when it is malformed.</summary>
@@ -174,7 +188,9 @@ namespace Rts.Tools.BalanceHarness
                     ulong.Parse(root.RequireString("state_hash"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
                     ulong.Parse(root.RequireString("play_signature"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture),
                     ulong.Parse(root.RequireString("content_digest"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), kills,
-                    root.RequireString("opening0"), root.RequireString("opening1"));
+                    root.RequireString("opening0"), root.RequireString("opening1"),
+                    root.TryGetMember("pair", out JsonValue? pairNode) ? pairNode.AsInt(0, int.MaxValue) : -1,
+                    root.TryGetMember("candidate_slot", out JsonValue? slotNode) ? slotNode.AsInt(0, 1) : -1);
             }
             catch (Exception ex) when (ex is DataValidationException || ex is FormatException || ex is OverflowException)
             {

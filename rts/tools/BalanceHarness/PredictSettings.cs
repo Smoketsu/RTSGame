@@ -115,14 +115,16 @@ namespace Rts.Tools.BalanceHarness
             return s;
         }
 
-        /// <summary>A fraction member 0 to 1 with at most 4 decimals, as parts per 10 000 (exact: no floating point).</summary>
+        /// <summary>A fraction member with at most 4 decimals, as parts per 10 000 (exact: no floating point); also used by <see cref="AiEvalSettings"/>.</summary>
         /// <param name="root">The settings object.</param>
         /// <param name="key">Member name.</param>
-        private static int ReadPt(JsonValue root, string key)
+        /// <param name="min">Smallest allowed value as decimal text. Range: "0" upward.</param>
+        /// <param name="max">Largest allowed value as decimal text. Range: up to "1".</param>
+        internal static int ReadPt(JsonValue root, string key, string min = "0", string max = "1")
         {
             JsonValue node = root.Require(key);
             // Value as Fix64 (range-checked), and its written text for the decimals check.
-            Fix64 value = node.AsFix64(Fix64.Zero, Fix64.One);
+            Fix64 value = node.AsFix64(Fix64.Parse(min), Fix64.Parse(max));
             // Position of the decimal point in the text; -1 for a whole number. Range: -1 upward.
             int dot = node.NumberText.IndexOf('.');
             if (dot >= 0 && node.NumberText.Length - dot - 1 > 4)
