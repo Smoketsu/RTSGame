@@ -138,3 +138,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [fight_predictor_v2.md](fight_predictor_v2.md) | A deterministic lane simulation (`FightSim`, `rts/src/Ai`) behind the profile switch `predictor_model` (`formula` in every existing profile; candidate `aggressive_s5_fp2`, ablation `aggressive_s5`); held-out fight set (`heldout.json`: new army values, AI mixes, uneven sizes, damaged-army snapshots) with bars B1 to B7 and C1 stated before results; attack ledger and mirror-only paired ladder. No `rts/src/Sim` change, no number changes | P-006 | `--predict-fights`, `--ladder --paired` (built); FP2-1 and FP2-2 in parallel, then FP2-3, then FP2-4; sim-reviewer on `FightSim` |
+
+## Budget queues (P-006 package B, 21 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [ai_budget_queues.md](ai_budget_queues.md) | Six AI spending queues (economy, expansion, production, army, tech, defence) with per-resource weights; accounts capped at the head item and released when a queue has nothing to buy; a defence spending ceiling; a rare-surplus boost of rare-cost units. Replaces rule R and the defence value-share check behind `use_budget_queues` (off in every existing profile; candidate `aggressive_s5_b`, ablation `abl_s5b_no_b`). Two harness checks (`workers_at`, `first_drop_off`); behaviour bars, then the stage-1 pool gate. No `rts/src/Sim` change, no number changes | P-006 | behaviour checks, `--balance`, `--pool` (built); build B0 and B1 in parallel, then B2; sim-reviewer on B1 |
