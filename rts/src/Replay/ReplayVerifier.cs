@@ -97,62 +97,17 @@ namespace Rts.Replay
             {
                 throw new ArgumentNullException(nameof(sim));
             }
-            if (!sim.IsStarted || sim.Clock.Tick != 0)
+            // The one playback path; its constructor applies the freshness check and refusals and submits the commands.
+            ReplayPlayback playback = new ReplayPlayback(replay, sim);
+            while (playback.Step())
             {
-                throw new InvalidOperationException("Verify needs a freshly started simulation at tick 0.");
             }
-            if (sim.ContentDigest != replay.ContentDigest)
+            if (playback.DesyncTick >= 0)
             {
-                throw new ReplayRefusedException("the replay was recorded with data digest " + replay.ContentDigest.ToString("x16", System.Globalization.CultureInfo.InvariantCulture)
-                    + " but the data set in use has digest " + sim.ContentDigest.ToString("x16", System.Globalization.CultureInfo.InvariantCulture)
-                    + "; use the unit, faction, tuning and map files the replay was recorded with");
+                // A desync reports the simulation's hash where it stopped as the final hash.
+                return new ReplayVerification(playback.DesyncTick, playback.ExpectedHash, playback.ActualHash, sim.ComputeStateHash());
             }
-            if (sim.Settings.StateHashIntervalTicks != replay.HashIntervalTicks)
-            {
-                throw new ReplayRefusedException("the replay hashes every " + replay.HashIntervalTicks + " ticks but this data set hashes every "
-                    + sim.Settings.StateHashIntervalTicks);
-            }
-            foreach (Command command in replay.Commands)
-            {
-                sim.Submit(command);
-            }
-            // Index of the next recorded checkpoint not yet compared. Range: 0 to Checkpoints.Count.
-            int next = 0;
-            // Step index. Unit: ticks. Range: 0 to TickCount - 1.
-            for (int i = 0; i < replay.TickCount; i++)
-            {
-                sim.Step();
-                foreach (SimEvent simEvent in sim.Events.Current)
-                {
-                    if (!(simEvent is StateHashedEvent hashed))
-                    {
-                        continue;
-                    }
-                    // Recorded checkpoint for this tick, or null when the replay has none here.
-                    ReplayCheckpoint? expected = next < replay.Checkpoints.Count ? replay.Checkpoints[next] : (ReplayCheckpoint?)null;
-                    if (expected == null || expected.Value.Tick != hashed.Tick)
-                    {
-                        return new ReplayVerification(hashed.Tick, 0, hashed.Hash, sim.ComputeStateHash());
-                    }
-                    if (expected.Value.Hash != hashed.Hash)
-                    {
-                        return new ReplayVerification(hashed.Tick, expected.Value.Hash, hashed.Hash, sim.ComputeStateHash());
-                    }
-                    next++;
-                }
-            }
-            if (next < replay.Checkpoints.Count)
-            {
-                // A recorded checkpoint the re-simulation never produced (a hand-built replay with an off-interval tick).
-                return new ReplayVerification(replay.Checkpoints[next].Tick, replay.Checkpoints[next].Hash, 0, sim.ComputeStateHash());
-            }
-            // Hash after the last step, to compare with the recorded final hash.
-            ulong finalHash = sim.ComputeStateHash();
-            if (finalHash != replay.FinalHash)
-            {
-                return new ReplayVerification(replay.TickCount, replay.FinalHash, finalHash, finalHash);
-            }
-            return new ReplayVerification(-1, 0, 0, finalHash);
+            return new ReplayVerification(-1, 0, 0, playback.FinalHash);
         }
     }
 }
