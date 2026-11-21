@@ -1,0 +1,79 @@
+// rts/data/scripts/fights/heldout2.json: the second held-out fight set of the fight predictor v2 (spec rts/docs/specs/fight_predictor_v2.md sections 5.5, 6 rule 3 and Q-7), made after the first set (heldout.json) failed its gate and FightSim was fixed: same structure as heldout.json, new base_seed and army values the sweep and the first set never played. Read by rts/tools/BalanceHarness/FightSettings.cs through --fight-settings only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. COMMITTED, with the FightSim fixes, BEFORE its fights were generated; the sweep it describes is run once and nothing here or in FightSim is changed after that run (no second fix round). Every value stays on one line so tests can edit it by key.
+{
+  "$schema_version": 1,
+  "$doc": "Held-out fight set: other seed, the armies the AI builds, army values the sweep never played, uneven sizes, extended records with a snapshot of damaged armies. Same keys and rules as fights.json plus extended_records, snapshot_loss_fraction and seat1_value_ratios.",
+  // Seed each fight seed is derived from; differs from the sweep's 20261118 so no fight repeats a measured one. Unit: seed. Range: 0 to 2147483647. Source: fight_predictor_v2.md 5.5.
+  "base_seed": 20261122,
+  // Units in the sweep; empty means every combat unit. Unit: list of unit IDs. Range: 0 to 64 entries, each a combat unit. Source: fight_predictor_v2.md 5.5.
+  "units": [],
+  // Mixed armies scaled to the army value as a whole: the four non-standard opening compositions of aggressive_s5 per faction, divided by 10 (the armies the AI builds); the two *_ai_mix of the sweep are left out. Unit: list of objects. Range: 0 to 16 entries; 1 to 8 units of one faction, counts 1 to 50. Source: fight_predictor_v2.md 5.5.
+  "compositions": [ { "id": "skai_pressure_mix", "units": { "skai.windrunner": 6, "skai.talon_archer": 1 } }, { "id": "skai_expand_mix", "units": { "skai.talon_archer": 3, "skai.windrunner": 2, "skai.roc_rider": 1 } }, { "id": "skai_air_mix", "units": { "skai.roc_rider": 3, "skai.thunderhead": 1, "skai.windrunner": 1 } }, { "id": "water_pressure_mix", "units": { "water.grasper": 6, "water.reef_runner": 1 } }, { "id": "water_expand_mix", "units": { "water.grasper": 2, "water.shellback": 2, "water.ink_lobber": 1, "water.spoutling": 1 } }, { "id": "water_leviathan_mix", "units": { "water.ink_lobber": 2, "water.shellback": 2, "water.leviathan": 1, "water.spoutling": 1 } } ],
+  // Terrain cases, the army values each is played at (values no earlier set played: 1250, 1750, 2250, 2750, chosen before anything was run: between the values of the sweep and the first held-out set, inside what the arena accepts) and, for flat_uneven, the ratios of seat 1's value to seat 0's (seat1_value_ratios, 1 to 4 decimal texts of 0.2 to 5; absent means ["1"]); kind is flat, high_ground, flooded or choke. Unit: list of objects (army values in resource units). Range: 1 to 16 cases, 1 to 8 army values of 50 to 20000 each. Source: fight_predictor_v2.md 5.5.
+  "cases": [ { "id": "flat", "kind": "flat", "army_values": [1250, 2750] }, { "id": "high_ground", "kind": "high_ground", "army_values": [1750] }, { "id": "flooded", "kind": "flooded", "army_values": [2250] }, { "id": "choke", "kind": "choke", "army_values": [1250] }, { "id": "flat_uneven", "kind": "flat", "army_values": [1750], "seat1_value_ratios": ["1.25", "1.5"] } ],
+  // Arena size along the line of approach. Unit: tiles. Range: 16 to 128. Source: fights.json; raise it if the plan rejects an army as too large (fight_predictor_v2.md 5.5).
+  "arena_width_tiles": 48,
+  // Arena size across the line of approach. Unit: tiles. Range: 16 to 128. Source: fights.json.
+  "arena_height_tiles": 32,
+  // Gap between the two front ranks at spawn; also the GapTiles of every start prediction. Unit: tiles. Range: 2 to 64. Source: fights.json.
+  "start_distance_tiles": 16,
+  // Units per rank. Unit: units. Range: 1 to 50. Source: fights.json.
+  "formation_width_units": 10,
+  // Distance between neighbouring spawn positions, within and between ranks. Unit: tiles. Range: 0.5 to 4. Source: fights.json.
+  "formation_spacing_tiles": 1,
+  // Width of the one ramp onto the plateau (high_ground). Unit: tiles. Range: 1 to 16. Source: fights.json.
+  "ramp_width_tiles": 4,
+  // Width of the gap in the wall (choke). Unit: tiles. Range: 1 to 16. Source: fights.json.
+  "choke_width_tiles": 3,
+  // Thickness of the wall (choke). Unit: tiles. Range: 1 to 8. Source: fights.json.
+  "choke_wall_thickness_tiles": 2,
+  // Structure spawned to flood the arena (flooded). Unit: unit ID. Range: a unit with flood_source_output_per_second above 0. Source: fights.json.
+  "flood_source_unit": "water.tidepool",
+  // Flood source tiles relative to the arena centre tile. Unit: list of [dx, dy] in whole tiles. Range: 1 to 8 entries, inside the arena. Source: fights.json.
+  "flood_source_offsets": [[0, -8], [0, 8], [-4, -8], [-4, 8]],
+  // Time the flood spreads before the armies spawn. Unit: seconds. Range: 0 to 600. Source: fights.json.
+  "flood_warmup_seconds": 40,
+  // Share of lane tiles that must be flooded at army spawn, else the run is a settings error. Unit: fraction. Range: 0 to 1. Source: fights.json.
+  "flood_min_lane_fraction": 0.5,
+  // Interval of the idle re-targeting rule. Unit: seconds. Range: 0.25 to 30. Source: fights.json.
+  "reissue_seconds": 2,
+  // How long "neither side can target the other" must hold to end the fight as a stalemate. Unit: seconds. Range: 0.05 to 60. Source: fights.json.
+  "stalemate_confirm_seconds": 5,
+  // Time with no damage to any army unit that ends the fight as a stalemate. Unit: seconds. Range: 0.05 to 600. Source: fights.json (predictor_sim_idle_seconds reads the same 30).
+  "stalemate_idle_seconds": 30,
+  // Cap on fight length; a fight still running at the cap is unresolved. Larger than the sweep's 180 because the armies are larger. Unit: seconds. Range: 1 to 1800. Source: fight_predictor_v2.md 5.5.
+  "max_fight_seconds": 300,
+  // Fights whose two army values differ by more than this share of the larger (of seat 1's value and the ratio times seat 0's, for uneven cases) are played and reported but marked mismatch and left out of the checks and the bars. Unit: fraction. Range: 0 to 1. Source: fights.json.
+  "max_value_mismatch_fraction": 0.15,
+  // Fights re-run in-process for the determinism spot check. Unit: fights. Range: 0 to 16. Source: fights.json.
+  "verify_fights": 2,
+  // Fights per worker process call. Unit: fights. Range: 1 to 1000. Source: fights.json.
+  "chunk_fights": 25,
+  // Case the rule checks and the matchups file read. Unit: case ID. Range: a case of kind flat. Source: fights.json.
+  "rule_case": "flat",
+  // Army value the checks and the matchups file read. Unit: resource units. Range: one of the army_values of rule_case. Source: fight_predictor_v2.md 5.5 (must be a value of rule_case; the sweep's 1500 is not played here).
+  "rule_army_value": 1250,
+  // Threat armies for rule 5: id, side (a unit or composition ID in the sweep). Unit: list of objects. Range: 0 to 16 entries. Source: fights.json.
+  "threats": [ { "id": "air", "side": "skai.roc_rider" }, { "id": "massed_armour", "side": "water.grasper" }, { "id": "massed_light", "side": "skai.windrunner" } ],
+  // Rule 1: mobile unit types a faction needs that can attack each enemy unit or HQ layer. Unit: unit types. Range: 0 to 20. Source: fights.json.
+  "rule1_min_mobile_answers": 2,
+  // Rule 1: static defence types a faction needs that can attack each enemy unit or HQ layer. Unit: unit types. Range: 0 to 20. Source: fights.json.
+  "rule1_min_static_answers": 1,
+  // Rule 2: lowest allowed damage multiplier. Unit: fraction of base damage. Range: 0 to 3. Source: fights.json.
+  "rule2_min_multiplier": 0.5,
+  // Rule 2: highest allowed damage multiplier. Unit: fraction of base damage. Range: 0 to 3. Source: fights.json.
+  "rule2_max_multiplier": 1.5,
+  // Rule 2: highest multiplier over lowest within one damage type. Unit: ratio. Range: 1 to 100. Source: fights.json.
+  "rule2_max_ratio_within_type": 2,
+  // Rule 3: least value a counter keeps against the unit it counters. Unit: fraction of its start value. Range: 0 to 1. Source: fights.json.
+  "rule3_min_value_left": 0.2,
+  // Rule 3: most value a counter may lose per unit of value it destroys. Unit: ratio (enemy start value over own value lost). Range: 1 to 100. Source: fights.json.
+  "rule3_max_exchange_ratio": 3,
+  // Rule 5: unit types that beat each threat (purchase answers). Unit: unit types. Range: 0 to 20. Source: fights.json.
+  "rule5_min_unit_answers": 1,
+  // Rule 5: terrain cases that give an answer to each threat (non-purchase answers, terrain only for now). Unit: cases. Range: 0 to 20. Source: fights.json.
+  "rule5_min_terrain_answers": 1,
+  // Records carry the extended keys of fight_predictor_v2.md 5.3 (value_ratio_pt, lane_depth_class, snapshot). Unit: boolean. Range: true or false (default false). Source: fight_predictor_v2.md 5.5.
+  "extended_records": true,
+  // A snapshot of both armies is taken at the end of the first step in which either seat has lost this share of its start value (damaged armies for subset D). Unit: fraction. Range: 0.05 to 0.95, at most 4 decimals. Source: fight_predictor_v2.md 5.5; placeholder.
+  "snapshot_loss_fraction": 0.25
+}

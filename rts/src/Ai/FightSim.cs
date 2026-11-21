@@ -183,9 +183,6 @@ namespace Rts.Ai
             /// <summary>Second the dome last absorbed. Unit: seconds of simulated time. Range: 0 upward.</summary>
             public Fix64 LastAbsorb;
 
-            /// <summary>Most extra units one blast of this unit reaches besides its target. Unit: units. Range: 0 upward.</summary>
-            public int SplashExtra;
-
             /// <summary>Value of the unit (cost common + cost rare). Unit: resource units. Range: 0 upward.</summary>
             public int Value;
 
@@ -296,6 +293,20 @@ namespace Rts.Ai
             return new FightPrediction(rest <= Fix64.Zero ? s.MaxSeconds : Fix64.Min(s.MaxSeconds, seconds / rest), seconds, false, rest);
         }
 
+        /// <summary>
+        /// Most extra units one blast reaches besides its target: floor(density x pi x (radius + the target's radius)^2) - 1, at least 0. The game's blast reaches the blast radius plus the
+        /// victim's own radius (CombatSystem.Blast), so the disc whose units the lane model counts is that wide.
+        /// </summary>
+        /// <param name="density">Units per square tile (predictor_sim_splash_density). Unit: units per square tile. Range: 0.1 to 4.</param>
+        /// <param name="weapon">The weapon with the blast.</param>
+        /// <param name="target">The type of the unit hit (its radius stands for the victims').</param>
+        internal static int BlastCap(Fix64 density, WeaponDefinition weapon, UnitDefinition target)
+        {
+            // Radius of the blast disc. Unit: tiles. Range: 0 to 4 plus a unit radius.
+            Fix64 reach = weapon.SplashRadiusTiles + target.Radius;
+            return Math.Max(0, (density * Pi * reach * reach).FloorToInt() - 1);
+        }
+
         /// <summary>True while a drench slow lasts at <paramref name="now"/> (the one test the speed factor and the Momentum loss rule share).</summary>
         /// <param name="slowUntil">Second the slow ends. Unit: seconds of simulated time.</param>
         /// <param name="now">Start of the current step. Unit: seconds of simulated time.</param>
@@ -398,11 +409,6 @@ namespace Rts.Ai
                         Pool = def.ShieldDome == null ? Fix64.Zero : def.ShieldDome.Pool,
                         Value = def.CostCommon + def.CostRare,
                     };
-                    if (def.Weapon != null && def.Weapon.SplashRadiusTiles > Fix64.Zero)
-                    {
-                        // Units one blast reaches: floor(density x pi x r^2), the target among them. Unit: units. Range: 0 upward.
-                        unit.SplashExtra = Math.Max(0, (s.SimSplashDensity * Pi * def.Weapon.SplashRadiusTiles * def.Weapon.SplashRadiusTiles).FloorToInt() - 1);
-                    }
                     units.Add(unit);
                 }
             }
@@ -485,11 +491,11 @@ namespace Rts.Ai
             /// <summary>True to find targets and blast victims by scanning every enemy (the reference), false to use the front index.</summary>
             private readonly bool _scan;
 
-            /// <summary>Per side and layer (0 ground, 1 water, 2 air): the living units sorted by position then index; rebuilt at the start of the step and after damage.</summary>
-            private readonly List<SimUnit>[,] _fronts = new List<SimUnit>[2, 3];
+            /// <summary>Per side and slot (layer 0 ground, 1 water, 2 air; plus 3 for an unarmed unit): the living units sorted by position then index; rebuilt at the start of the step and after damage.</summary>
+            private readonly List<SimUnit>[,] _fronts = new List<SimUnit>[2, 6];
 
             /// <summary>For each entry of <see cref="_fronts"/>, the position of the first entry with the same X (so the lowest index at that X is found without a walk). Unit: position. Range: 0 upward.</summary>
-            private readonly List<int>[,] _firsts = new List<int>[2, 3];
+            private readonly List<int>[,] _firsts = new List<int>[2, 6];
 
             /// <summary>Per side, its units with a shield dome in index order. Fixed for the fight.</summary>
             private readonly List<SimUnit>[] _domes = { new List<SimUnit>(), new List<SimUnit>() };
@@ -507,10 +513,10 @@ namespace Rts.Ai
                 _scan = scan;
                 for (int side = 0; side < 2; side++)
                 {
-                    for (int layer = 0; layer < 3; layer++)
+                    for (int slot = 0; slot < 6; slot++)
                     {
-                        _fronts[side, layer] = new List<SimUnit>();
-                        _firsts[side, layer] = new List<int>();
+                        _fronts[side, slot] = new List<SimUnit>();
+                        _firsts[side, slot] = new List<int>();
                     }
                     foreach (SimUnit unit in _sides[side])
                     {
@@ -528,26 +534,26 @@ namespace Rts.Ai
             {
                 for (int side = 0; side < 2; side++)
                 {
-                    for (int layer = 0; layer < 3; layer++)
+                    for (int slot = 0; slot < 6; slot++)
                     {
-                        _fronts[side, layer].Clear();
+                        _fronts[side, slot].Clear();
                     }
                     foreach (SimUnit unit in _sides[side])
                     {
                         if (unit.Alive)
                         {
-                            _fronts[side, (int)unit.Layer].Add(unit);
+                            _fronts[side, (int)unit.Layer + (unit.Weapon != null ? 0 : 3)].Add(unit);
                         }
                     }
-                    for (int layer = 0; layer < 3; layer++)
+                    for (int slot = 0; slot < 6; slot++)
                     {
-                        List<SimUnit> front = _fronts[side, layer];
+                        List<SimUnit> front = _fronts[side, slot];
                         front.Sort((p, q) =>
                         {
                             int byX = p.X.CompareTo(q.X);
                             return byX != 0 ? byX : p.Index.CompareTo(q.Index);
                         });
-                        List<int> first = _firsts[side, layer];
+                        List<int> first = _firsts[side, slot];
                         first.Clear();
                         for (int i = 0; i < front.Count; i++)
                         {
@@ -578,7 +584,7 @@ namespace Rts.Ai
                 return lo;
             }
 
-            /// <summary>The nearest living enemy of <paramref name="unit"/> that its weapon can hit, ties to the lower index, or null; <paramref name="distance"/> is its distance. Index and scan give the same answer.</summary>
+            /// <summary>The nearest living armed enemy of <paramref name="unit"/> that its weapon can hit (an unarmed one only when no armed one can be hit, as CombatSystem ranks candidates), ties to the lower index, or null; <paramref name="distance"/> is its distance. Index and scan give the same answer.</summary>
             private SimUnit? Nearest(SimUnit unit, out Fix64 distance)
             {
                 // Best enemy and its distance so far. Unit: tiles.
@@ -594,7 +600,8 @@ namespace Rts.Ai
                         }
                         // Distance along the lane. Unit: tiles.
                         Fix64 d = (enemy.X - unit.X).Abs();
-                        if (best == null || d < distance)
+                        // Rank 0 for an armed enemy, 1 for an unarmed one; the lower rank wins before distance.
+                        if (best == null || (enemy.Weapon != null ? 0 : 1) < (best.Weapon != null ? 0 : 1) || ((enemy.Weapon != null ? 0 : 1) == (best.Weapon != null ? 0 : 1) && d < distance))
                         {
                             best = enemy;
                             distance = d;
@@ -602,9 +609,14 @@ namespace Rts.Ai
                     }
                     return best;
                 }
-                for (int layer = 0; layer < 3; layer++)
+                for (int slot = 0; slot < 6; slot++)
                 {
-                    List<SimUnit> front = _fronts[1 - unit.Side, layer];
+                    if (slot == 3 && best != null)
+                    {
+                        break;
+                    }
+                    int layer = slot % 3;
+                    List<SimUnit> front = _fronts[1 - unit.Side, slot];
                     if (front.Count == 0 || !CanHit(unit.Weapon!, (MovementLayer)layer))
                     {
                         continue;
@@ -612,7 +624,7 @@ namespace Rts.Ai
                     // The first unit at or right of the shooter, and the lowest-index unit at the nearest X to its left.
                     int p = LowerBound(front, unit.X);
                     SimUnit? right = p < front.Count ? front[p] : null;
-                    SimUnit? left = p > 0 ? front[_firsts[1 - unit.Side, layer][p - 1]] : null;
+                    SimUnit? left = p > 0 ? front[_firsts[1 - unit.Side, slot][p - 1]] : null;
                     SimUnit pick;
                     if (right == null)
                     {
@@ -970,13 +982,13 @@ namespace Rts.Ai
                 {
                     Drench(target, now);
                 }
-                if (shooter.SplashExtra > 0)
+                if (weapon.SplashRadiusTiles > Fix64.Zero)
                 {
                     Blast(shooter, target, momentum, now);
                 }
             }
 
-            /// <summary>The blast of one shot: up to SplashExtra other living enemies within the radius of the target, nearest first (ties by index), each takes the splash fraction of the damage through its own armour and the domes.</summary>
+            /// <summary>The blast of one shot: up to BlastCap other living enemies within the radius of the target, nearest first (ties by index), each takes the splash fraction of the damage through its own armour and the domes.</summary>
             private void Blast(SimUnit shooter, SimUnit target, Fix64 momentum, Fix64 now)
             {
                 WeaponDefinition weapon = shooter.Weapon!;
@@ -998,10 +1010,10 @@ namespace Rts.Ai
                 {
                     // Window around the target in which a victim of any radius can lie. Unit: tiles.
                     Fix64 window = weapon.SplashRadiusTiles + _maxRadius;
-                    for (int layer = 0; layer < 3; layer++)
+                    for (int slot = 0; slot < 6; slot++)
                     {
-                        List<SimUnit> front = _fronts[1 - shooter.Side, layer];
-                        if (front.Count == 0 || !CanHit(weapon, (MovementLayer)layer))
+                        List<SimUnit> front = _fronts[1 - shooter.Side, slot];
+                        if (front.Count == 0 || !CanHit(weapon, (MovementLayer)(slot % 3)))
                         {
                             continue;
                         }
@@ -1022,7 +1034,7 @@ namespace Rts.Ai
                 });
                 // Damage before armour each blast victim takes. Unit: health points. Range: 0 upward.
                 Fix64 splashBase = weapon.Damage * _rules.Combat.SplashDamageFraction * momentum;
-                for (int k = 0; k < victims.Count && k < shooter.SplashExtra; k++)
+                for (int k = 0; k < victims.Count && k < BlastCap(_s.SimSplashDensity, weapon, target.Def); k++)
                 {
                     SimUnit victim = enemies[victims[k]];
                     // Damage after the victim's armour row and the domes (which see the blast from the target's position). Unit: health points.
