@@ -19,6 +19,13 @@
 //     after Start, every scripted and player command goes through it (Submit) and every tick is stepped through it. When the
 //     host is destroyed (leaving Play Mode, quitting) it writes <repo>/rts/build/replays/<local time>.rtsreplay in the editor,
 //     <persistentDataPath>/replays in a player; check it with rts/tools/ReplayCheck. The wall clock only names the file.
+//   - Start modes (player_interface_2.md UI-12): Awake always loads the data. Script mode starts the Inspector script at once, as
+//     before; Skirmish mode starts MatchLauncher.Pending when the setup screen has stored one (after the scene reload it causes)
+//     and otherwise stays idle so AutoBootstrap shows the setup screen. StartMatch builds either kind the same way.
+//   - Local AI (UI-12): one SkirmishAiController per AI slot (the script's "ai" keys or the setup's AI slots), sorted by player.
+//     Each controller's Think runs exactly once immediately before every stepped tick, inside StepOnce, in ascending player order,
+//     as the harness does; its commands go through Submit, so the recorder has them and the replay passes ReplayCheck. AiHost.ThinkAll
+//     is not used because its sink submits around the recorder.
 //   - Match end (UI-10): after each step MatchOutcome.Evaluate; once decided the host stops stepping (as the harness does), logs the
 //     result and writes the replay at once. Outcome exposes the result to the HUD.
 //
@@ -48,6 +55,7 @@ using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Teams;
 using Rts.Sim.Units;
+using Rts.Ai;
 using Rts.Replay;
 using UnityEngine;
 // Unity 6.6 added UnityEngine.EntityId; this alias makes every EntityId in this file the simulation's entity ID.
@@ -144,6 +152,22 @@ namespace Rts.Game.Bootstrap
         /// <summary>Log every StateHashedEvent to the Console as "tick=N hash=XXXXXXXXXXXXXXXX". Unit: on/off.</summary>
         [SerializeField] private bool logStateHashes = true;
 
+        /// <summary>How the host starts a match when the scene loads.</summary>
+        public enum StartMode
+        {
+            /// <summary>Start the Inspector command script at once (hash checks, verification scripts).</summary>
+            Script,
+
+            /// <summary>Start MatchLauncher.Pending if the setup screen stored one, else stay idle and let the setup screen show.</summary>
+            Skirmish,
+        }
+
+        /// <summary>How the match starts when the scene loads. Default Script (UI-12; UI-13 adds a menu mode).</summary>
+        [SerializeField] private StartMode startMode = StartMode.Script;
+
+        /// <summary>Log the simulation's refusals of AI commands to the Console. Unit: on/off. Default off (they are frequent and expected).</summary>
+        [SerializeField] private bool logAiRejections = false;
+
         /// <summary>Record every command and hash checkpoint and write a replay file when the host is destroyed. Unit: on/off. Default on.</summary>
         [SerializeField] private bool recordSession = true;
 
@@ -176,6 +200,18 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>The match. Null until Awake succeeds. Read-only from the host's point of view except for Submit.</summary>
         private Simulation _sim;
+
+        /// <summary>Folder the data was read from. Range: an existing folder after Awake succeeds.</summary>
+        private string _dataDirectory;
+
+        /// <summary>The AI controllers of this match, ascending player slot. Empty without AI slots.</summary>
+        private readonly List<IPlayerController> _controllers = new List<IPlayerController>();
+
+        /// <summary>Players played by an AI controller, for filtering their refusals and keeping the local player off them.</summary>
+        private readonly HashSet<PlayerId> _aiPlayers = new HashSet<PlayerId>();
+
+        /// <summary>Where the AI controllers' commands go: this host's Submit (and so the recorder). Range: non-null after Awake.</summary>
+        private HostCommandSink _aiSink;
 
         /// <summary>The match result once one team (or none) is left standing; null while the match goes on. Set after the deciding step.</summary>
         private MatchOutcome _outcome;
@@ -212,6 +248,31 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>The running match, for read-only inspection by UI code later. Never mutate it; use Simulation.Submit.</summary>
         public Simulation Match => _sim;
+
+        /// <summary>The loaded data set (units, maps, AI profiles); null when loading failed. Read by the setup screen.</summary>
+        public DataSet Data { get; private set; }
+
+        /// <summary>The request the running match was started from, or null while idle.</summary>
+        public MatchRequest CurrentRequest { get; private set; }
+
+        /// <summary>The reason the last start failed (data error, StandardMatchStart refusal), or null. Shown by the setup screen.</summary>
+        public string StartError { get; private set; }
+
+        /// <summary>The local human slot of a skirmish, overriding LocalCommands' Inspector slot; null in Script mode.</summary>
+        public int? LocalSlotOverride { get; private set; }
+
+        /// <summary>Where the camera should start (the local player's spawn in a skirmish), or null for the map centre. Unit: tiles (x, y).</summary>
+        public Vector2? StartFocus { get; private set; }
+
+        /// <summary>True while the host has loaded data but runs no match (the setup screen shows).</summary>
+        public bool IsIdle => _sim == null && Data != null;
+
+        /// <summary>True when an AI controller plays this player in the running match.</summary>
+        /// <param name="player">A player slot.</param>
+        public bool IsAiPlayer(PlayerId player)
+        {
+            return _aiPlayers.Contains(player);
+        }
 
         /// <summary>The match result once decided (MatchOutcome.IsDecided), else null. Stepping stops when it is set (UI-10).</summary>
         public MatchOutcome Outcome => _outcome;
@@ -262,43 +323,143 @@ namespace Rts.Game.Bootstrap
         /// <summary>Loads data and the command script, builds the simulation, starts it and queues every scripted command. Disables itself on failure.</summary>
         private void Awake()
         {
+            _aiSink = new HostCommandSink(this);
             try
             {
                 // Folder holding the data tree (tuning/, units/, factions/, ...).
-                string dataDirectory = ResolveDataDirectory();
-                List<DataSourceFile> files = ReadDataFiles(dataDirectory);
-                DataSet dataSet = DataLoader.Load(files);
+                _dataDirectory = ResolveDataDirectory();
+                Data = DataLoader.Load(ReadDataFiles(_dataDirectory));
+            }
+            catch (Exception exception)
+            {
+                StartError = exception.Message;
+                Debug.LogError("[SimulationHost] Could not load the data: " + exception.Message);
+                Debug.LogException(exception);
+                enabled = false;
+                return;
+            }
+            MatchRequest pending = MatchLauncher.Pending;
+            if (pending != null && pending.Kind == MatchKind.Skirmish)
+            {
+                StartMatch(pending);
+            }
+            else if (startMode == StartMode.Script)
+            {
+                StartMatch(new MatchRequest { Kind = MatchKind.Script });
+            }
+            // Otherwise the host stays idle and AutoBootstrap shows the setup screen.
+        }
 
-                // The command script: players, seed, tick count and every command. Error messages name its path and field.
-                CommandScript script = ReadScript(dataDirectory);
-                _scriptTicks = script.Ticks;
+        /// <summary>
+        /// The players of a skirmish request: one per open slot, ascending slot, named "Player" for the human and "AI n" for AI slots
+        /// (text only). Also used by the setup screen to check a request before starting it.
+        /// </summary>
+        /// <param name="request">A skirmish request.</param>
+        public static List<PlayerSetup> SkirmishPlayers(MatchRequest request)
+        {
+            List<PlayerSetup> players = new List<PlayerSetup>();
+            foreach (MatchSlot slot in request.Slots)
+            {
+                if (slot.Kind == SlotKind.Closed)
+                {
+                    continue;
+                }
+                string name = slot.Kind == SlotKind.Human ? "Player" : "AI " + (slot.Slot + 1);
+                players.Add(new PlayerSetup(new PlayerId((byte)slot.Slot), new TeamId((byte)slot.Team), slot.FactionId, name));
+            }
+            players.Sort((a, b) => a.Id.CompareTo(b.Id));
+            return players;
+        }
+
+        /// <summary>
+        /// Builds, starts and records one match (player_interface_2.md UI-12, API order): players, start commands (StandardMatchStart for a
+        /// skirmish, the script's for Script), simulation, recorder, commands through Submit, then the AI controllers. A failure is logged and
+        /// kept in StartError; the host stays idle.
+        /// </summary>
+        /// <param name="request">The match to start.</param>
+        public void StartMatch(MatchRequest request)
+        {
+            try
+            {
+                IReadOnlyList<PlayerSetup> players;
+                MapDefinition map;
+                ulong seed;
+                List<Command> commands;
+                // AI profile ID per player slot, ascending slot.
+                SortedDictionary<int, string> aiSlots = new SortedDictionary<int, string>();
+                // Text for the start log line.
+                string description;
+                if (request.Kind == MatchKind.Script)
+                {
+                    // The command script: players, seed, tick count and every command. Error messages name its path and field.
+                    CommandScript script = ReadScript(_dataDirectory);
+                    _scriptTicks = script.Ticks;
+                    // Seed: the script's, unless the Inspector override is 0 or more.
+                    seed = matchSeed >= 0 ? (ulong)matchSeed : script.Seed;
+                    // Map named by the script, or the first map in ordinal order.
+                    map = Data.RequireMap(script.MapId);
+                    players = script.Players;
+                    commands = new List<Command>(script.Commands);
+                    foreach (KeyValuePair<PlayerId, string> pair in script.AiProfiles)
+                    {
+                        aiSlots[pair.Key.Value] = pair.Value;
+                    }
+                    description = "script " + scriptRelativePath + " (" + script.Commands.Count + " commands, " + script.Players.Count + " players, " + _scriptTicks + " ticks)";
+                }
+                else if (request.Kind == MatchKind.Skirmish)
+                {
+                    map = Data.RequireMap(request.MapId);
+                    players = SkirmishPlayers(request);
+                    // Throws InvalidOperationException (no spawn, no HQ, too few worker tiles) before anything is built.
+                    commands = StandardMatchStart.Commands(Data, map, players);
+                    // No tick limit: the match runs until it is decided or the player leaves.
+                    _scriptTicks = int.MaxValue;
+                    seed = (ulong)request.Seed;
+                    foreach (MatchSlot slot in request.Slots)
+                    {
+                        if (slot.Kind == SlotKind.Ai)
+                        {
+                            aiSlots[slot.Slot] = slot.ProfileId;
+                        }
+                        else if (slot.Kind == SlotKind.Human)
+                        {
+                            LocalSlotOverride = slot.Slot;
+                            FixVec2 spawn = map.Spawns[slot.Slot];
+                            StartFocus = new Vector2(spawn.X.ToFloatForPresentation(), spawn.Y.ToFloatForPresentation());
+                        }
+                    }
+                    description = "skirmish on " + request.MapId + " (" + players.Count + " players, " + aiSlots.Count + " AI)";
+                }
+                else
+                {
+                    throw new InvalidOperationException("Replay playback is not built yet (player_interface_2.md UI-15).");
+                }
+                // Controllers are made before the simulation, so a profile that fails to parse stops the start cleanly. Ascending slot.
+                List<IPlayerController> controllers = new List<IPlayerController>();
+                foreach (KeyValuePair<int, string> pair in aiSlots)
+                {
+                    controllers.Add(new SkirmishAiController(new PlayerId((byte)pair.Key), AiProfile.FromDataSet(Data, pair.Value)));
+                }
                 _scriptFinished = false;
 
-                // Seed: the script's, unless the Inspector override is 0 or more.
-                ulong seed = matchSeed >= 0 ? (ulong)matchSeed : script.Seed;
-
                 // Core settings: tick rate and hash interval from data/tuning/match.json.
-                MatchSettings settings = dataSet.CreateMatchSettings(seed);
-
-                // Players come from the script, not from code.
-                // Map named by the script, or the first map in ordinal order.
-                MapDefinition map = dataSet.RequireMap(script.MapId);
-                SimulationConfig config = new SimulationConfig(settings, dataSet.Content, script.Players, BuiltInMechanics.CreateRegistry(), dataSet.Tuning, map,
-                    dataSet.Cycles.Values);
+                MatchSettings settings = Data.CreateMatchSettings(seed);
+                SimulationConfig config = new SimulationConfig(settings, Data.Content, players, BuiltInMechanics.CreateRegistry(), Data.Tuning, map,
+                    Data.Cycles.Values);
                 _sim = new Simulation(config);
                 _sim.Start();
                 if (recordSession)
                 {
                     // Attached before any command is queued: the recorder refuses a simulation that already holds commands.
-                    _recorder = new ReplayRecorder(_sim, script.Players, BuiltInMechanics.CreateCodecRegistry());
+                    _recorder = new ReplayRecorder(_sim, players, BuiltInMechanics.CreateCodecRegistry());
                 }
 
                 _tickSeconds = 1f / settings.TicksPerSecond;
                 _unitRoot = new GameObject("Simulation Units").transform;
 
-                // Every script tick is known now, so submit the whole stream before the first Step (the clock is at 0,
+                // Every start tick is known now, so submit the whole stream before the first Step (the clock is at 0,
                 // so Submit accepts every tick >= 0). The simulation orders commands by (tick, issuer, sequence) itself.
-                foreach (Command command in script.Commands)
+                foreach (Command command in commands)
                 {
                     if (command.Tick >= _scriptTicks && !continueAfterScript)
                     {
@@ -306,6 +467,12 @@ namespace Rts.Game.Bootstrap
                     }
                     Submit(command);
                 }
+                _controllers.AddRange(controllers);
+                foreach (IPlayerController controller in controllers)
+                {
+                    _aiPlayers.Add(controller.Player);
+                }
+                AiHost.StartAll(_sim, _controllers);
                 ProcessEvents();
                 if (_scriptTicks == 0)
                 {
@@ -313,16 +480,53 @@ namespace Rts.Game.Bootstrap
                     _scriptFinished = true;
                     Debug.Log("[SimulationHost] script finished at tick 0, final hash " + _sim.ComputeStateHash().ToString("x16"));
                 }
-                Debug.Log("[SimulationHost] Match started from " + dataDirectory + ": " + files.Count + " data files, script "
-                    + scriptRelativePath + " (" + script.Commands.Count + " commands, " + script.Players.Count + " players, "
-                    + _scriptTicks + " ticks), " + settings.TicksPerSecond + " ticks per second, seed " + settings.Seed + ".");
+                CurrentRequest = request;
+                StartError = null;
+                Debug.Log("[SimulationHost] Match started from " + _dataDirectory + ": " + description + ", " + settings.TicksPerSecond
+                    + " ticks per second, seed " + settings.Seed + ".");
             }
             catch (Exception exception)
             {
-                Debug.LogError("[SimulationHost] Could not start the simulation: " + exception.Message);
+                StartError = exception.Message;
+                Debug.LogError("[SimulationHost] Could not start the match: " + exception.Message);
                 Debug.LogException(exception);
                 _sim = null;
-                enabled = false;
+                _recorder = null;
+                _controllers.Clear();
+                _aiPlayers.Clear();
+                LocalSlotOverride = null;
+                StartFocus = null;
+            }
+        }
+
+        /// <summary>The AI controllers' sink: schedules for the current tick and submits through the host (and so through the recorder).</summary>
+        private sealed class HostCommandSink : ICommandSink
+        {
+            /// <summary>The host the commands go to. Range: non-null.</summary>
+            private readonly SimulationHost _host;
+
+            /// <summary>Creates the sink for a host.</summary>
+            /// <param name="host">The host.</param>
+            public HostCommandSink(SimulationHost host)
+            {
+                _host = host;
+            }
+
+            /// <summary>The tick the AI schedules for: the current clock tick, which the next step applies. Unit: ticks.</summary>
+            public int ScheduleTick => _host._sim.Clock.Tick;
+
+            /// <summary>Queues and records an AI command; a command the codec cannot encode is logged, not thrown into the step loop.</summary>
+            /// <param name="command">The AI's command.</param>
+            public void Submit(Command command)
+            {
+                try
+                {
+                    _host.Submit(command);
+                }
+                catch (Exception exception) when (exception is ArgumentException || exception is InvalidOperationException)
+                {
+                    Debug.LogWarning("[SimulationHost] AI command refused at submission " + command + ": " + exception.Message);
+                }
             }
         }
 
@@ -416,6 +620,11 @@ namespace Rts.Game.Bootstrap
         /// <summary>Runs exactly one simulation tick and updates the picture state from it.</summary>
         private void StepOnce()
         {
+            // Each AI thinks exactly once before every stepped tick, ascending player (player_interface_2.md rule 2).
+            foreach (IPlayerController controller in _controllers)
+            {
+                controller.Think(_sim, _aiSink);
+            }
             if (_recorder != null)
             {
                 _recorder.Step();
@@ -514,7 +723,10 @@ namespace Rts.Game.Bootstrap
                 }
                 else if (simEvent is CommandRejectedEvent rejected)
                 {
-                    Debug.LogWarning("[SimulationHost] " + rejected.Describe());
+                    if (logAiRejections || !_aiPlayers.Contains(rejected.Command.Issuer))
+                    {
+                        Debug.LogWarning("[SimulationHost] " + rejected.Describe());
+                    }
                 }
                 else if (simEvent is UnitLayerChangedEvent layerChanged)
                 {
