@@ -15,8 +15,12 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Game summary observer (read-only) and behaviour checks (`--behaviour`, `behaviour_checks.json`: `static_defence_share`, `hq_move_new_income`), registered by ID in `BehaviourChecks.cs`.
 - Balance report (`--balance`, `balance_report.json`): faction and opening matrices, unit and mechanic use, unspent resources and four trust checks; `--from` re-renders from `balance.jsonl`.
 
+- Fight predictor v2, FP2-1 (harness): `--fight-settings <path>` for `--fights` and `--predict-fights`; case key `seat1_value_ratios` (uneven armies); `extended_records` and `snapshot_loss_fraction` add `value_ratio_pt`, `lane_depth_class` and a damaged-army snapshot to each fight record (off: records byte-identical). `--predict-fights` scores subsets E, U and D, takes `--baseline-profile` and judges bars B1 to B7. New `data/scripts/fights/heldout.json` (seed 20261121, 1904 fights, not yet run) and the bar keys in `predict.json`, committed before the predictor.
+- Fight predictor v2, FP2-2: `FightSim` lane simulation in `rts/src/Ai` behind the profile key `predictor_model` (`formula` or `sim`) with six `predictor_sim_*` keys in every profile; every existing profile stays on `formula` and plays exactly as before; new profile `aggressive_s5_fp2` (a copy of `aggressive_s5` with `sim`). Reviewed; splash reach, dry-ground speed of water units, effective layer for uphill, the Momentum slow test and the end-time cap follow the game's rules. Development-set accuracy 0.841 against 0.735.
+
 ### Changed
 
+- `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
 - `aggressive_s5` ships with AI-H off (`harass_speed_ratio` 0) after the paired ladder found no measurable effect (`docs/reports/paired_first/`); the key, the code and `abl_s5_no_h` stay. No hash or pin moved.
 - `PairedStats.SignTest` takes an exact alpha divisor; `GameTrace` spending uses the shared `PlayerLedger` (trace output unchanged).
 - Spec `docs/specs/fight_predictor_v2.md` (21 Nov 2026) for P-006 package C, second half: lane fight simulation behind `predictor_model`, held-out fight set with bars stated before results, attack ledger and mirror-only paired ladder; no `rts/src/Sim` change. Not built yet.
