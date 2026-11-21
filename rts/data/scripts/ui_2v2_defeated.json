@@ -1,0 +1,49 @@
+// rts/data/scripts/ui_2v2_defeated.json: the player-interface 2v2 defeat script (rts/docs/specs/player_interface_2.md section 4, check 3). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (Script Relative Path scripts/ui_2v2_defeated.json, Local Player Slot 0) and the headless harness (--script rts/data/scripts/ui_2v2_defeated.json). Four players, two teams: eight Talon Archers of slot 2 attack slot 0's HQ at tick 20 with no player input, so slot 0 is defeated while the match goes on and the Defeated, Keep Watching screen can be checked. No map has four spawns; spawn_unit places anything anywhere.
+{
+  "$schema_version": 1,
+  "$doc": "2v2 defeat check: slot 0 Skai and slot 1 Water on team 0, slot 2 Skai and slot 3 Water on team 1. Entity IDs: 1 Great Aerie (slot 0), 2 and 3 Fledglings, 4 Grand Shell (slot 1), 5 and 6 Tenders, 7 Great Aerie (slot 2), 8 and 9 Fledglings, 10 Grand Shell (slot 3), 11 and 12 Tenders, 13 to 20 Talon Archers of slot 2 attacking entity 1. Player: no input; watch slot 0's HQ die, then click Keep Watching.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md; same as ui_sandbox.json.
+  "seed": 1234,
+  // Most ticks to simulate. Unit: ticks (20 per second, so 72000 is one hour). Range: 0 to 1000000. Source: player_interface_2.md section 4; placeholder.
+  "ticks": 72000,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: player_interface_2.md section 4 (greybox_1v1).
+  "map": "greybox_1v1",
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. No ai key: nobody plays a slot except the player. Source: player_interface_2.md section 4.
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai One" },
+    { "id": 1, "team": 0, "faction": "water", "name": "Water One" },
+    { "id": 2, "team": 1, "faction": "skai", "name": "Skai Two" },
+    { "id": 3, "team": 1, "faction": "water", "name": "Water Two" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter; x, y: position in tiles; unit, target: entity IDs; field: resource field index. One HQ and two workers per slot in its own map quarter (slot 0 south-west (7, 7), slot 1 south-east (57, 7), slot 2 north-east (57, 57), slot 3 north-west (7, 57)), then eight slot 2 Talon Archers at (10.5 to 11.5, 8.5 to 11.5) beside slot 0's HQ that attack entity 1 at tick 20. Positions are placeholders. Source: player_interface_2.md section 4.
+  "commands": [
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "9", "y": "6" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "57", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "55", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 5, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "59", "y": "6" },
+    { "tick": 0, "issuer": 255, "sequence": 6, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 2, "x": "57", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 7, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 2, "x": "55", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 8, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 2, "x": "59", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 3, "x": "7", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 10, "type": "spawn_unit", "definition": "water.tender", "owner": 3, "x": "9", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 11, "type": "spawn_unit", "definition": "water.tender", "owner": 3, "x": "6", "y": "59" },
+    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "11.5", "y": "8.5" },
+    { "tick": 0, "issuer": 255, "sequence": 13, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "11.5", "y": "9.5" },
+    { "tick": 0, "issuer": 255, "sequence": 14, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "11.5", "y": "10.5" },
+    { "tick": 0, "issuer": 255, "sequence": 15, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "11.5", "y": "11.5" },
+    { "tick": 0, "issuer": 255, "sequence": 16, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "10.5", "y": "8.5" },
+    { "tick": 0, "issuer": 255, "sequence": 17, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "10.5", "y": "9.5" },
+    { "tick": 0, "issuer": 255, "sequence": 18, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "10.5", "y": "10.5" },
+    { "tick": 0, "issuer": 255, "sequence": 19, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 2, "x": "10.5", "y": "11.5" },
+    { "tick": 20, "issuer": 255, "sequence": 20, "type": "attack_unit", "unit": 13, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 21, "type": "attack_unit", "unit": 14, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 22, "type": "attack_unit", "unit": 15, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 23, "type": "attack_unit", "unit": 16, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 24, "type": "attack_unit", "unit": 17, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 25, "type": "attack_unit", "unit": 18, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 26, "type": "attack_unit", "unit": 19, "target": 1 },
+    { "tick": 20, "issuer": 255, "sequence": 27, "type": "attack_unit", "unit": 20, "target": 1 }
+  ]
+}
