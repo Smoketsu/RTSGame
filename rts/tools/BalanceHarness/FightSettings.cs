@@ -61,12 +61,16 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Army values played. Unit: resource units. Range: 1 to 8 entries of 50 to 20000.</summary>
         public IReadOnlyList<int> ArmyValues { get; }
 
+        /// <summary>Seat 1's target value as a multiple of seat 0's (fight_predictor_v2.md 5.2), in parts per 10 000 (10000 = equal). Unit: parts per 10 000. Range: 1 to 4 entries of 2000 to 50000; [10000] when the case has no seat1_value_ratios.</summary>
+        public IReadOnlyList<int> RatiosPt { get; }
+
         /// <summary>Bundles the values.</summary>
-        public FightCase(string id, string kind, IReadOnlyList<int> armyValues)
+        public FightCase(string id, string kind, IReadOnlyList<int> armyValues, IReadOnlyList<int>? ratiosPt = null)
         {
             Id = id;
             Kind = kind;
             ArmyValues = armyValues;
+            RatiosPt = ratiosPt ?? new[] { FightSpec.EqualRatioPt };
         }
     }
 
@@ -171,6 +175,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Army value the checks and the matchups file read. Unit: resource units. Range: one of the army values of <see cref="RuleCase"/>.</summary>
         public int RuleArmyValue { get; private set; }
 
+        /// <summary>True when every record carries the extended keys of fight_predictor_v2.md 5.3 (value ratio, lane depth, snapshot). Default false: records are byte-identical to the original format.</summary>
+        public bool ExtendedRecords { get; private set; }
+
+        /// <summary>Loss of value of either seat that triggers the snapshot, in parts per 10 000 of its start value. Unit: parts per 10 000. Range: 500 to 9500; 0 when the key is absent.</summary>
+        public int SnapshotLossPt { get; private set; }
+
         /// <summary>Threat armies of rule 5. Range: 0 to 16 entries.</summary>
         public IReadOnlyList<FightThreat> Threats { get; private set; } = Array.Empty<FightThreat>();
 
@@ -241,27 +251,45 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="data">The loaded data set the settings are checked against.</param>
         public static FightSettings Load(string dataDirectory, DataSet data)
         {
-            // Full path of the settings file.
-            string path = Path.Combine(dataDirectory, RelativePath);
+            return LoadFile(Path.Combine(dataDirectory, RelativePath), data, SourceName);
+        }
+
+        /// <summary>The settings the options ask for: the file of --fight-settings when given, else the default file of --data (fight_predictor_v2.md 5.1).</summary>
+        /// <param name="options">Parsed options.</param>
+        /// <param name="data">The loaded data set.</param>
+        public static FightSettings ForOptions(BatchOptions options, DataSet data)
+        {
+            return options.FightSettingsPath.Length > 0
+                ? LoadFile(options.FightSettingsPath, data, options.FightSettingsPath.Replace('\\', '/'))
+                : Load(options.DataDirectory, data);
+        }
+
+        /// <summary>Reads and parses one settings file; throws <see cref="HarnessException"/> when it is missing.</summary>
+        /// <param name="path">Path of the file.</param>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="sourceName">Name used in error messages.</param>
+        private static FightSettings LoadFile(string path, DataSet data, string sourceName)
+        {
             if (!File.Exists(path))
             {
                 throw new HarnessException("settings file not found: " + path);
             }
-            return Parse(File.ReadAllText(path), data);
+            return Parse(File.ReadAllText(path), data, sourceName);
         }
 
         /// <summary>Parses the text of fights.json and checks it against the data set.</summary>
         /// <param name="text">File text (comments allowed).</param>
         /// <param name="data">The loaded data set.</param>
-        public static FightSettings Parse(string text, DataSet data)
+        /// <param name="sourceName">Name used in error messages. Range: any text; the default is the shipped file's name.</param>
+        public static FightSettings Parse(string text, DataSet data, string sourceName = SourceName)
         {
-            JsonValue root = JsonReader.Parse(text, SourceName);
+            JsonValue root = JsonReader.Parse(text, sourceName);
             root.RejectUnknownKeys("base_seed", "units", "compositions", "cases", "arena_width_tiles", "arena_height_tiles", "start_distance_tiles", "formation_width_units",
                 "formation_spacing_tiles", "ramp_width_tiles", "choke_width_tiles", "choke_wall_thickness_tiles", "flood_source_unit", "flood_source_offsets",
                 "flood_warmup_seconds", "flood_min_lane_fraction", "reissue_seconds", "stalemate_confirm_seconds", "stalemate_idle_seconds", "max_fight_seconds",
                 "max_value_mismatch_fraction", "verify_fights", "chunk_fights", "rule_case", "rule_army_value", "threats", "rule1_min_mobile_answers",
                 "rule1_min_static_answers", "rule2_min_multiplier", "rule2_max_multiplier", "rule2_max_ratio_within_type", "rule3_min_value_left",
-                "rule3_max_exchange_ratio", "rule5_min_unit_answers", "rule5_min_terrain_answers");
+                "rule3_max_exchange_ratio", "rule5_min_unit_answers", "rule5_min_terrain_answers", "extended_records", "snapshot_loss_fraction");
             FightSettings s = new FightSettings();
             s.BaseSeed = (ulong)root.RequireInt("base_seed", 0, int.MaxValue);
             s.Units = ReadUnits(root.Require("units"), data);
@@ -321,6 +349,12 @@ namespace Rts.Tools.BalanceHarness
             s.Rule3MaxExchangeRatio = HarnessStats.ToDouble(root.RequireFix64("rule3_max_exchange_ratio", "1", "100"));
             s.Rule5MinUnitAnswers = root.RequireInt("rule5_min_unit_answers", 0, 20);
             s.Rule5MinTerrainAnswers = root.RequireInt("rule5_min_terrain_answers", 0, 20);
+            // Optional keys of fight_predictor_v2.md 5.3: extended_records defaults to false; snapshot_loss_fraction is required when it is true.
+            s.ExtendedRecords = root.TryGetMember("extended_records", out JsonValue? extended) && extended.AsBool();
+            if (s.ExtendedRecords || root.TryGetMember("snapshot_loss_fraction", out JsonValue? _))
+            {
+                s.SnapshotLossPt = PredictSettings.ReadPt(root, "snapshot_loss_fraction", "0.05", "0.95");
+            }
             return s;
         }
 
@@ -441,7 +475,7 @@ namespace Rts.Tools.BalanceHarness
             SortedSet<string> seen = new SortedSet<string>(StringComparer.Ordinal);
             foreach (JsonValue item in node.Items)
             {
-                item.RejectUnknownKeys("id", "kind", "army_values");
+                item.RejectUnknownKeys("id", "kind", "army_values", "seat1_value_ratios");
                 JsonValue idNode = item.Require("id");
                 string id = idNode.AsString();
                 if (!IsIdentifier(id))
@@ -468,7 +502,51 @@ namespace Rts.Tools.BalanceHarness
                 {
                     values.Add(value.AsInt(50, 20000));
                 }
-                list.Add(new FightCase(id, kind, values));
+                list.Add(new FightCase(id, kind, values, ReadRatios(item)));
+            }
+            return list;
+        }
+
+        /// <summary>Reads the optional seat1_value_ratios of a case: 1 to 4 decimal texts of 0.2 to 5 with at most 4 decimals, as parts per 10 000, no duplicates; [10000] when absent.</summary>
+        private static List<int> ReadRatios(JsonValue caseNode)
+        {
+            // Ratios read so far. Unit: parts per 10 000.
+            List<int> list = new List<int>();
+            if (!caseNode.TryGetMember("seat1_value_ratios", out JsonValue? node))
+            {
+                list.Add(FightSpec.EqualRatioPt);
+                return list;
+            }
+            if (node.Items.Count < 1 || node.Items.Count > 4)
+            {
+                throw node.Fail("must hold 1 to 4 entries (found " + node.Items.Count.ToString(CultureInfo.InvariantCulture) + ")");
+            }
+            foreach (JsonValue item in node.Items)
+            {
+                // Decimal text of the ratio, parsed without floating point.
+                string text = item.AsString();
+                Fix64 ratio;
+                try
+                {
+                    ratio = Fix64.Parse(text);
+                }
+                catch (FormatException ex)
+                {
+                    throw item.Fail("is not a decimal number (" + ex.Message + ")");
+                }
+                // Position of the decimal point in the text; -1 for a whole number.
+                int dot = text.IndexOf('.');
+                if (ratio < Fix64.Parse("0.2") || ratio > Fix64.FromInt(5) || (dot >= 0 && text.Length - dot - 1 > 4))
+                {
+                    throw item.Fail("must be 0.2 to 5 with at most 4 decimals (found '" + text + "')");
+                }
+                // Ratio in parts per 10 000, exact for at most 4 decimals.
+                int pt = (ratio * 10000).RoundToInt();
+                if (list.Contains(pt))
+                {
+                    throw item.Fail("lists '" + text + "' twice");
+                }
+                list.Add(pt);
             }
             return list;
         }

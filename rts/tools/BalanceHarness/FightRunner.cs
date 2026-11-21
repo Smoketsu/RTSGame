@@ -103,6 +103,12 @@ namespace Rts.Tools.BalanceHarness
             int cap = sim.Clock.SecondsToTicks(settings.MaxFightSeconds);
             // Flooded lane tiles measured at army spawn, or -1 outside the flooded kind. Unit: tiles.
             int floodedLane = -1;
+            // Depth class held by most lane tiles at army spawn (fight_predictor_v2.md 5.3), or -1 outside the flooded kind. Unit: depth class. Range: -1 to 2.
+            int laneDepthClass = -1;
+            // Snapshot (5.3): tick of the step that took it (-1 until then) and the living units of each seat grouped by definition.
+            int snapTick = -1;
+            SortedDictionary<string, SnapGroup> snap0 = new SortedDictionary<string, SnapGroup>(StringComparer.Ordinal);
+            SortedDictionary<string, SnapGroup> snap1 = new SortedDictionary<string, SnapGroup>(StringComparer.Ordinal);
             // Army units per seat (ascending entity ID), their entity-to-seat map, start values; filled after the spawn tick.
             List<Unit>[] army = { new List<Unit>(), new List<Unit>() };
             SortedDictionary<EntityId, int> seatOf = new SortedDictionary<EntityId, int>();
@@ -120,7 +126,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 if (t == spawnTick && flooded)
                 {
-                    floodedLane = CountFloodedLane(sim, settings, spec.Id);
+                    floodedLane = CountFloodedLane(sim, settings, spec.Id, out laneDepthClass);
                 }
                 sim.Step();
                 if (t < spawnTick)
@@ -161,6 +167,13 @@ namespace Rts.Tools.BalanceHarness
                     reason = alive0 == 0 && alive1 == 0 ? "both_eliminated" : "eliminated";
                     break;
                 }
+                if (settings.ExtendedRecords && snapTick < 0 && (LossReached(sim, live0, spec.Value0, settings.SnapshotLossPt) || LossReached(sim, live1, spec.Value1, settings.SnapshotLossPt)))
+                {
+                    // Both armies still stand here (the elimination case broke out above), so the snapshot is a fight that can still be predicted.
+                    snapTick = endTick;
+                    snap0 = Group(live0);
+                    snap1 = Group(live1);
+                }
                 cannotStreak = CanHurt(sim, live0, live1) || CanHurt(sim, live1, live0) ? 0 : cannotStreak + 1;
                 if (cannotStreak >= confirm)
                 {
@@ -184,7 +197,39 @@ namespace Rts.Tools.BalanceHarness
                     Control(sim, t == spawnTick, attacks, goal, new List<Unit>[] { live0, live1 }, commands);
                 }
             }
-            return new FightRun(BuildRecord(sim, spec, army, result, reason, endTick, alive0, alive1, floodedLane, seed), commands);
+            // The extended keys, only when fights.json asks for them (fight_predictor_v2.md 5.3).
+            FightExtension? extension = settings.ExtendedRecords ? new FightExtension(spec.RatioPt, laneDepthClass, snapTick, snap0, snap1) : null;
+            return new FightRun(BuildRecord(sim, spec, army, result, reason, endTick, alive0, alive1, floodedLane, seed, extension), commands);
+        }
+
+        /// <summary>True when the value left of <paramref name="live"/> (value times health fraction over its units) is at most (10 000 - lossPt) / 10 000 of <paramref name="startValue"/>; Fix64 and integers only.</summary>
+        private static bool LossReached(Simulation sim, List<Unit> live, int startValue, int lossPt)
+        {
+            // Value left of the living units. Unit: resource units.
+            Fix64 sum = Fix64.Zero;
+            foreach (Unit unit in live)
+            {
+                sum += Fix64.FromInt(FightSettings.ValueOf(unit.Definition)) * unit.Health / unit.Definition.MaxHealth;
+            }
+            return sum * 10000 <= Fix64.FromInt(startValue) * (10000 - lossPt);
+        }
+
+        /// <summary>The living units grouped by definition ID (ordinal order): count and summed health in thousandths, rounded down.</summary>
+        private static SortedDictionary<string, SnapGroup> Group(List<Unit> live)
+        {
+            // Count and summed health per definition ID.
+            SortedDictionary<string, KeyValuePair<int, Fix64>> sums = new SortedDictionary<string, KeyValuePair<int, Fix64>>(StringComparer.Ordinal);
+            foreach (Unit unit in live)
+            {
+                sums.TryGetValue(unit.Definition.Id, out KeyValuePair<int, Fix64> before);
+                sums[unit.Definition.Id] = new KeyValuePair<int, Fix64>(before.Key + 1, before.Value + unit.Health);
+            }
+            SortedDictionary<string, SnapGroup> groups = new SortedDictionary<string, SnapGroup>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, KeyValuePair<int, Fix64>> pair in sums)
+            {
+                groups[pair.Key] = new SnapGroup(pair.Value.Key, (pair.Value.Value * 1000).Raw >> Fix64.FractionBits);
+            }
+            return groups;
         }
 
         /// <summary>Submits the orders for the next tick (spec 4.4): <paramref name="opening"/> sends every unit of an attacking seat to the enemy front-rank centre, otherwise each idle unit goes to the nearest enemy it can hit.</summary>
@@ -271,11 +316,13 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Counts the flooded lane tiles and throws a settings error when fewer than flood_min_lane_fraction are flooded.</summary>
-        private static int CountFloodedLane(Simulation sim, FightSettings settings, string fightId)
+        private static int CountFloodedLane(Simulation sim, FightSettings settings, string fightId, out int depthClass)
         {
             // Lane tiles and how many of them are flooded. Unit: tiles.
             int lane = 0;
             int flooded = 0;
+            // Lane tiles per depth class (0 dry, 1 shallow, 2 deep). Unit: tiles.
+            int[] perClass = new int[3];
             for (int y = 0; y < settings.ArenaHeightTiles; y++)
             {
                 for (int x = 0; x < settings.ArenaWidthTiles; x++)
@@ -284,7 +331,17 @@ namespace Rts.Tools.BalanceHarness
                     {
                         lane++;
                         flooded += sim.Terrain.At(x, y).IsFlooded ? 1 : 0;
+                        perClass[sim.Terrain.DepthClass(sim.Terrain.IndexOf(x, y))]++;
                     }
+                }
+            }
+            // The class held by most lane tiles, ties to the lower class (strict greater-than keeps the lower one).
+            depthClass = 0;
+            for (int c = 1; c < 3; c++)
+            {
+                if (perClass[c] > perClass[depthClass])
+                {
+                    depthClass = c;
                 }
             }
             // Measured share of the lane. Unit: fraction. Range: 0 to 1.
@@ -299,7 +356,7 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Assembles the record: the armies, the value left of each seat and the final state hash.</summary>
-        private static FightRecord BuildRecord(Simulation sim, FightSpec spec, List<Unit>[] army, string result, string reason, int endTick, int alive0, int alive1, int floodedLane, ulong seed)
+        private static FightRecord BuildRecord(Simulation sim, FightSpec spec, List<Unit>[] army, string result, string reason, int endTick, int alive0, int alive1, int floodedLane, ulong seed, FightExtension? extension)
         {
             double[] left = new double[2];
             for (int seat = 0; seat < 2; seat++)
@@ -319,7 +376,7 @@ namespace Rts.Tools.BalanceHarness
             long tenths = ((long)endTick * 10 * 2 + sim.Clock.TicksPerSecond) / (2L * sim.Clock.TicksPerSecond);
             string seconds = (tenths / 10).ToString(CultureInfo.InvariantCulture) + "." + (tenths % 10).ToString(CultureInfo.InvariantCulture);
             return new FightRecord(spec.Id, spec.Case.Id, spec.ArmyValue, spec.Seat0.Id, spec.Seat1.Id, Counts(spec.Seat0, spec.Multiplier0), Counts(spec.Seat1, spec.Multiplier1),
-                spec.Value0, spec.Value1, spec.Mismatch, result, reason, endTick, seconds, left[0], left[1], alive0, alive1, floodedLane, seed, sim.ComputeStateHash());
+                spec.Value0, spec.Value1, spec.Mismatch, result, reason, endTick, seconds, left[0], left[1], alive0, alive1, floodedLane, seed, sim.ComputeStateHash(), extension);
         }
 
         /// <summary>Unit counts of a side's army: recipe counts times the multiplier, in ordinal unit ID order.</summary>

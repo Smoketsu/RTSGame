@@ -127,6 +127,22 @@ namespace Rts.Ai
         /// <param name="settings">The predictor numbers.</param>
         public static FightPrediction Predict(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, bool aUphill, CombatRules rules, PredictorSettings settings)
         {
+            return Predict(a, b, FightContext.Dry(aUphill), rules, settings);
+        }
+
+        /// <summary>
+        /// As the overload above with the facts of <paramref name="context"/>. The formula uses only <see cref="FightContext.AUphill"/>; water, water side and gap are carried for the
+        /// lane simulation of fight_predictor_v2.md and ignored here.
+        /// </summary>
+        /// <param name="a">Side A.</param>
+        /// <param name="b">Side B.</param>
+        /// <param name="context">Uphill, water and gap of the fight.</param>
+        /// <param name="rules">The damage table (ContentCatalog.Combat).</param>
+        /// <param name="settings">The predictor numbers.</param>
+        public static FightPrediction Predict(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, in FightContext context, CombatRules rules, PredictorSettings settings)
+        {
+            // True when side A shoots uphill.
+            bool aUphill = context.AUphill;
             // The two sides without empty entries, order kept.
             List<FightEntry> sideA = Live(a);
             List<FightEntry> sideB = Live(b);

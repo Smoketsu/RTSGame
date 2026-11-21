@@ -119,6 +119,11 @@ namespace Rts.Tools.BalanceHarness
 
             foreach (FightCase fightCase in settings.Cases)
             {
+                // A case with no equal-value fights (every ratio differs from 1) has no matrix: its fight IDs carry a ratio suffix the matrix does not look up.
+                if (!new List<int>(fightCase.RatiosPt).Contains(FightSpec.EqualRatioPt))
+                {
+                    continue;
+                }
                 foreach (int armyValue in fightCase.ArmyValues)
                 {
                     AppendMatrix(sb, plan, fightCase, armyValue, byId);

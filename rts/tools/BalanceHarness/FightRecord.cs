@@ -91,11 +91,15 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>State hash of the simulation after the last step. Range: any ulong.</summary>
         public ulong StateHash { get; }
 
+        /// <summary>The extended keys of fight_predictor_v2.md 5.3, or null for a record in the original format (written only with extended_records).</summary>
+        public FightExtension? Extension { get; }
+
         /// <summary>Bundles the values.</summary>
         public FightRecord(string fight, string fightCase, int armyValue, string seat0, string seat1, IReadOnlyDictionary<string, int> units0, IReadOnlyDictionary<string, int> units1,
             int value0, int value1, bool mismatch, string result, string reason, int endTick, string seconds, double left0, double left1, int alive0, int alive1,
-            int floodedLaneTiles, ulong seed, ulong stateHash)
+            int floodedLaneTiles, ulong seed, ulong stateHash, FightExtension? extension = null)
         {
+            Extension = extension;
             Fight = fight;
             Case = fightCase;
             ArmyValue = armyValue;
@@ -171,8 +175,12 @@ namespace Rts.Tools.BalanceHarness
                 .Append(",\"alive0\":").Append(Alive0.ToString(CultureInfo.InvariantCulture)).Append(",\"alive1\":").Append(Alive1.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"flooded_lane_tiles\":").Append(FloodedLaneTiles.ToString(CultureInfo.InvariantCulture))
                 .Append(",\"seed\":").Append(GameRecord.Quote(Seed.ToString(CultureInfo.InvariantCulture)))
-                .Append(",\"state_hash\":").Append(GameRecord.Quote(StateHash.ToString("x16", CultureInfo.InvariantCulture))).Append('}');
-            return sb.ToString();
+                .Append(",\"state_hash\":").Append(GameRecord.Quote(StateHash.ToString("x16", CultureInfo.InvariantCulture)));
+            if (Extension != null)
+            {
+                sb.Append(Extension.ToJsonTail());
+            }
+            return sb.Append('}').ToString();
         }
 
         /// <summary>Parses a line written by <see cref="ToJsonLine"/>; throws <see cref="HarnessException"/> when it is malformed.</summary>
@@ -194,7 +202,7 @@ namespace Rts.Tools.BalanceHarness
                     double.Parse(root.Require("left0").NumberText, CultureInfo.InvariantCulture), double.Parse(root.Require("left1").NumberText, CultureInfo.InvariantCulture),
                     root.RequireInt("alive0", 0, int.MaxValue), root.RequireInt("alive1", 0, int.MaxValue), root.RequireInt("flooded_lane_tiles", -1, int.MaxValue),
                     ulong.Parse(root.RequireString("seed"), NumberStyles.None, CultureInfo.InvariantCulture),
-                    ulong.Parse(root.RequireString("state_hash"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture));
+                    ulong.Parse(root.RequireString("state_hash"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), FightExtension.Read(root));
             }
             catch (Exception ex) when (ex is DataValidationException || ex is FormatException || ex is OverflowException)
             {

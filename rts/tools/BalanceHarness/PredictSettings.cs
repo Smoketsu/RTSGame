@@ -48,6 +48,42 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Under FIX_FORMULA the mechanics below this accuracy are listed to be added. Unit: parts per 10 000. Range: 0 to 10000.</summary>
         public int FixMinAccuracyPt { get; private set; }
 
+        /// <summary>The C.5 hit_delay mechanic is present only when some weapon's HitDelayTicks is above this (fight_predictor_v2.md 5.4). Unit: ticks. Range: 0 to 20.</summary>
+        public int HitDelayIgnoreTicks { get; private set; }
+
+        /// <summary>B1: least accuracy on subset E. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2MinAccuracyPt { get; private set; }
+
+        /// <summary>B1: least gain over the baseline's accuracy on subset E. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2MinGainPt { get; private set; }
+
+        /// <summary>B3: upper edge (exclusive) of the attack-edge margin window that starts at the profile's attack_min_advantage. Unit: ratio. Range: 1 to 10.</summary>
+        public Fix64 V2AttackEdgeUpper { get; private set; }
+
+        /// <summary>B3: least share of attack-edge fights the predicted winner wins. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2AttackEdgeMinSharePt { get; private set; }
+
+        /// <summary>B4: least share of no-winner fights predicted none. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2MinNoWinnerAgreePt { get; private set; }
+
+        /// <summary>B4: no-winner fights needed before the agreement half is judged. Unit: fights. Range: 1 to 1000.</summary>
+        public int V2MinNoWinnerFights { get; private set; }
+
+        /// <summary>B4: largest share of decided fights predicted none. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2MaxFalseNonePt { get; private set; }
+
+        /// <summary>B5: least accuracy of every single-unit pair with enough decided fights. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2MinPairAccuracyPt { get; private set; }
+
+        /// <summary>B5: decided fights a single-unit pair needs to be judged. Unit: fights. Range: 1 to 1000.</summary>
+        public int V2PairMinFights { get; private set; }
+
+        /// <summary>B6: least accuracy on the damaged-army subset D. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int V2MinDamagedAccuracyPt { get; private set; }
+
+        /// <summary>C1: largest mean wall time per Predict call (read from stderr by the coordinator, not a code verdict). Unit: microseconds. Range: 1 to 100000.</summary>
+        public int V2MaxMeanCallMicroseconds { get; private set; }
+
         /// <summary>Reads and parses the file from <paramref name="dataDirectory"/>; throws <see cref="HarnessException"/> when it is missing.</summary>
         /// <param name="dataDirectory">The data folder (rts/data).</param>
         public static PredictSettings Load(string dataDirectory)
@@ -67,7 +103,9 @@ namespace Rts.Tools.BalanceHarness
         {
             JsonValue root = JsonReader.Parse(text, SourceName);
             root.RejectUnknownKeys("predictor_profile", "margin_bin_edges", "min_fights_per_row", "mechanic_min_fights", "simulate_below_accuracy", "simulate_below_clean_accuracy",
-                "calibration_max_inversion", "fix_min_mechanic_accuracy", "fix_min_accuracy");
+                "calibration_max_inversion", "fix_min_mechanic_accuracy", "fix_min_accuracy", "hit_delay_ignore_ticks", "v2_min_accuracy", "v2_min_gain", "v2_attack_edge_upper",
+                "v2_attack_edge_min_share", "v2_min_no_winner_agree", "v2_min_no_winner_fights", "v2_max_false_none", "v2_min_pair_accuracy", "v2_pair_min_fights",
+                "v2_min_damaged_accuracy", "v2_max_mean_call_microseconds");
             PredictSettings s = new PredictSettings();
             s.PredictorProfile = root.RequireNonEmptyString("predictor_profile");
             // The edge list node, checked for size, order and the first edge.
@@ -112,6 +150,18 @@ namespace Rts.Tools.BalanceHarness
             s.CalibrationMaxInversionPt = ReadPt(root, "calibration_max_inversion");
             s.FixMinMechanicAccuracyPt = ReadPt(root, "fix_min_mechanic_accuracy");
             s.FixMinAccuracyPt = ReadPt(root, "fix_min_accuracy");
+            s.HitDelayIgnoreTicks = root.RequireInt("hit_delay_ignore_ticks", 0, 20);
+            s.V2MinAccuracyPt = ReadPt(root, "v2_min_accuracy");
+            s.V2MinGainPt = ReadPt(root, "v2_min_gain");
+            s.V2AttackEdgeUpper = root.RequireFix64("v2_attack_edge_upper", "1", "10");
+            s.V2AttackEdgeMinSharePt = ReadPt(root, "v2_attack_edge_min_share");
+            s.V2MinNoWinnerAgreePt = ReadPt(root, "v2_min_no_winner_agree");
+            s.V2MinNoWinnerFights = root.RequireInt("v2_min_no_winner_fights", 1, 1000);
+            s.V2MaxFalseNonePt = ReadPt(root, "v2_max_false_none");
+            s.V2MinPairAccuracyPt = ReadPt(root, "v2_min_pair_accuracy");
+            s.V2PairMinFights = root.RequireInt("v2_pair_min_fights", 1, 1000);
+            s.V2MinDamagedAccuracyPt = ReadPt(root, "v2_min_damaged_accuracy");
+            s.V2MaxMeanCallMicroseconds = root.RequireInt("v2_max_mean_call_microseconds", 1, 100000);
             return s;
         }
 

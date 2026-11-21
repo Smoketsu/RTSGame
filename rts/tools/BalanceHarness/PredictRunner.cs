@@ -25,10 +25,12 @@ namespace Rts.Tools.BalanceHarness
         public static int Run(BatchOptions options, DataSet data, TextWriter output, TextWriter error)
         {
             PredictSettings settings = PredictSettings.Load(options.DataDirectory);
-            FightSettings fightSettings = FightSettings.Load(options.DataDirectory, data);
+            FightSettings fightSettings = FightSettings.ForOptions(options, data);
             // Profile whose predictor numbers are used: --profile, else the settings' default.
             string profileId = options.Profile.Length > 0 ? options.Profile : settings.PredictorProfile;
             AiProfile profile = AiProfile.FromDataSet(data, profileId);
+            // The baseline profile of --baseline-profile, or null.
+            AiProfile? baselineProfile = options.BaselineProfile.Length > 0 ? AiProfile.FromDataSet(data, options.BaselineProfile) : null;
             // Fight records, and the exit code of the sweep (0 when read from a file).
             List<FightRecord> records = new List<FightRecord>();
             int sweepCode = 0;
@@ -44,30 +46,81 @@ namespace Rts.Tools.BalanceHarness
             {
                 sweepCode = FightCoordinator.RunSweepFor(options, data, output, error, records);
             }
-            PredictorSettings predictor = PredictorSettings.From(profile);
-            // Every record predicted and scored; a failing record is reported with its line number.
+            // True when any record carries the extended keys: subsets E, U and D and the bars are then reported.
+            bool extended = records.Exists(r => r.Extension != null);
+            // Start and snapshot predictions of the candidate and, when given, of the baseline, with the wall time of their calls (stderr only).
+            PredictTiming timing = new PredictTiming();
             List<PredictedFight> fights = new List<PredictedFight>();
+            List<PredictedFight> snapshots = new List<PredictedFight>();
+            Predictions(records, fightSettings, data, PredictorSettings.From(profile), timing, fights, snapshots);
+            PredictTiming baselineTiming = new PredictTiming();
+            List<PredictedFight> baselineFights = new List<PredictedFight>();
+            List<PredictedFight> baselineSnapshots = new List<PredictedFight>();
+            if (baselineProfile != null)
+            {
+                Predictions(records, fightSettings, data, PredictorSettings.From(baselineProfile), baselineTiming, baselineFights, baselineSnapshots);
+            }
+            PredictEvaluation evaluation = PredictEvaluator.Evaluate(fights, fightSettings, data, settings);
+            PredictDecision decision = PredictEvaluator.Decide(settings, evaluation.Overall, evaluation.Clean, evaluation.Mechanics, evaluation.Bins);
+            // Subsets and bars for extended records.
+            PredictSubsets? subsets = null;
+            PredictSubsets? baselineSubsets = null;
+            List<BarResult> bars = new List<BarResult>();
+            string barsSuffix = string.Empty;
+            if (extended)
+            {
+                subsets = PredictSubsets.Build(fights, snapshots, fightSettings, data, settings);
+                baselineSubsets = baselineProfile == null ? null : PredictSubsets.Build(baselineFights, baselineSnapshots, fightSettings, data, settings);
+                bars = PredictBars.Judge(settings, profile.AttackMinAdvantage, subsets, baselineSubsets, data);
+                string verdict = PredictBars.Verdict(bars, out int passed, out int judged);
+                barsSuffix = " bars=" + passed.ToString(CultureInfo.InvariantCulture) + "/" + judged.ToString(CultureInfo.InvariantCulture) + " verdict=" + verdict;
+            }
+            // Output folder: --out, or the fights subfolder of the default harness folder (where --fights writes).
+            string outDirectory = options.OutDirectory == BatchOptions.DefaultOutDirectory ? Path.Combine(BatchOptions.DefaultOutDirectory, "fights") : options.OutDirectory;
+            Directory.CreateDirectory(outDirectory);
+            File.WriteAllText(Path.Combine(outDirectory, "predict.jsonl"), BuildJsonl(evaluation, snapshots), new UTF8Encoding(false));
+            string report = BuildReport(data, fightSettings, settings, profileId, profile, options, evaluation, decision);
+            if (subsets != null)
+            {
+                StringBuilder tail = new StringBuilder();
+                AppendExtended(tail, subsets, baselineSubsets, bars, options.BaselineProfile, HarnessStats.ToDouble(data.Tuning.HarnessBatch.ConfidenceZ), settings);
+                report += tail.ToString();
+            }
+            File.WriteAllText(Path.Combine(outDirectory, "predict.md"), report, new UTF8Encoding(false));
+            output.Write(Line(evaluation, decision) + barsSuffix + "\n");
+            output.Flush();
+            // Wall time per Predict call, stderr only (never in a file or on stdout): the C1 bar is read from here.
+            error.Write("predict time profile " + profileId + ": mean " + timing.MeanMicroseconds().ToString(CultureInfo.InvariantCulture) + " us, largest " + timing.MaxMicroseconds().ToString(CultureInfo.InvariantCulture)
+                + " us over " + timing.Calls.ToString(CultureInfo.InvariantCulture) + " calls\n");
+            if (baselineProfile != null)
+            {
+                error.Write("predict time profile " + options.BaselineProfile + ": mean " + baselineTiming.MeanMicroseconds().ToString(CultureInfo.InvariantCulture) + " us, largest "
+                    + baselineTiming.MaxMicroseconds().ToString(CultureInfo.InvariantCulture) + " us over " + baselineTiming.Calls.ToString(CultureInfo.InvariantCulture) + " calls\n");
+            }
+            return sweepCode != 0 ? sweepCode : 0;
+        }
+
+        /// <summary>Predicts and scores every record's start and, when it has a snapshot, its snapshot; a failing record is reported with its line number.</summary>
+        private static void Predictions(List<FightRecord> records, FightSettings fightSettings, DataSet data, PredictorSettings predictor, PredictTiming timing, List<PredictedFight> fights, List<PredictedFight> snapshots)
+        {
             for (int i = 0; i < records.Count; i++)
             {
                 try
                 {
-                    fights.Add(PredictEvaluator.Predict(records[i], fightSettings.CaseById(records[i].Case).Kind, data, predictor));
+                    // Terrain kind of the record's case.
+                    string kind = fightSettings.CaseById(records[i].Case).Kind;
+                    fights.Add(PredictEvaluator.Predict(records[i], kind, data, predictor, fightSettings, timing));
+                    PredictedFight? snapshot = PredictEvaluator.PredictSnapshot(records[i], kind, data, predictor, timing);
+                    if (snapshot != null)
+                    {
+                        snapshots.Add(snapshot);
+                    }
                 }
                 catch (HarnessException ex)
                 {
                     throw new HarnessException("record " + (i + 1).ToString(CultureInfo.InvariantCulture) + " (" + records[i].Fight + "): " + ex.Message);
                 }
             }
-            PredictEvaluation evaluation = PredictEvaluator.Evaluate(fights, fightSettings, data, settings);
-            PredictDecision decision = PredictEvaluator.Decide(settings, evaluation.Overall, evaluation.Clean, evaluation.Mechanics, evaluation.Bins);
-            // Output folder: --out, or the fights subfolder of the default harness folder (where --fights writes).
-            string outDirectory = options.OutDirectory == BatchOptions.DefaultOutDirectory ? Path.Combine(BatchOptions.DefaultOutDirectory, "fights") : options.OutDirectory;
-            Directory.CreateDirectory(outDirectory);
-            File.WriteAllText(Path.Combine(outDirectory, "predict.jsonl"), BuildJsonl(evaluation), new UTF8Encoding(false));
-            File.WriteAllText(Path.Combine(outDirectory, "predict.md"), BuildReport(data, fightSettings, settings, profileId, profile, options, evaluation, decision), new UTF8Encoding(false));
-            output.Write(Line(evaluation, decision) + "\n");
-            output.Flush();
-            return sweepCode != 0 ? sweepCode : 0;
         }
 
         /// <summary>Parses fight records, one per non-empty line; a bad line is an error naming its number.</summary>
@@ -106,17 +159,28 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>predict.jsonl: one line per fight with the prediction in integers (milli = thousandths).</summary>
-        private static string BuildJsonl(PredictEvaluation e)
+        private static string BuildJsonl(PredictEvaluation e, IReadOnlyList<PredictedFight> snapshots)
         {
             StringBuilder sb = new StringBuilder();
             foreach (PredictedFight f in e.Fights)
             {
-                sb.Append("{\"fight\":").Append(GameRecord.Quote(f.Record.Fight)).Append(",\"kind\":").Append(GameRecord.Quote(f.Kind))
-                    .Append(",\"result\":").Append(GameRecord.Quote(f.Record.Result)).Append(",\"predicted\":").Append(GameRecord.Quote(f.Class))
-                    .Append(",\"margin_milli\":").Append(Milli(f.Margin)).Append(",\"time_seat0_milli\":").Append(Milli(f.TimeSeat0KillsSeat1))
-                    .Append(",\"time_seat1_milli\":").Append(Milli(f.TimeSeat1KillsSeat0)).Append(",\"correct\":").Append(f.Correct ? "true" : "false").Append("}\n");
+                AppendLine(sb, f, string.Empty);
+            }
+            // Snapshot predictions (subset D) follow the start predictions, each marked with its subset.
+            foreach (PredictedFight f in snapshots)
+            {
+                AppendLine(sb, f, ",\"subset\":\"D\"");
             }
             return sb.ToString();
+        }
+
+        /// <summary>One predict.jsonl line; <paramref name="extra"/> is JSON text starting with a comma, inserted after the fight ID (empty for the original format).</summary>
+        private static void AppendLine(StringBuilder sb, PredictedFight f, string extra)
+        {
+            sb.Append("{\"fight\":").Append(GameRecord.Quote(f.Record.Fight)).Append(extra).Append(",\"kind\":").Append(GameRecord.Quote(f.Kind))
+                .Append(",\"result\":").Append(GameRecord.Quote(f.Record.Result)).Append(",\"predicted\":").Append(GameRecord.Quote(f.Class))
+                .Append(",\"margin_milli\":").Append(Milli(f.Margin)).Append(",\"time_seat0_milli\":").Append(Milli(f.TimeSeat0KillsSeat1))
+                .Append(",\"time_seat1_milli\":").Append(Milli(f.TimeSeat1KillsSeat0)).Append(",\"correct\":").Append(f.Correct ? "true" : "false").Append("}\n");
         }
 
         /// <summary>A Fix64 in thousandths, rounded, as text (integer arithmetic).</summary>
@@ -238,16 +302,7 @@ namespace Rts.Tools.BalanceHarness
 
             sb.Append("## Calibration of the predicted margin\n\n");
             sb.Append("Decided fights only. \"Winner left\" is the lower median of the measured winner's value left. Read: when the predictor names a winner by a ratio in this bin, it wins this often.\n\n");
-            sb.Append("| bin (margin) | fights | predicted winner won | share | Wilson interval (%) | winner left (median) |\n| --- | ---: | ---: | ---: | --- | ---: |\n");
-            sb.Append("| predicted none | ").Append(e.DecidedPredictedNone.ToString(CultureInfo.InvariantCulture)).Append(" | - | - | - | - |\n");
-            foreach (CalibrationBin bin in e.Bins)
-            {
-                WinRate rate = HarnessStats.Wilson(bin.Wins, 0, bin.Decided - bin.Wins, z);
-                sb.Append("| ").Append(bin.Low.ToString()).Append(bin.High.HasValue ? " to below " + bin.High.Value.ToString() : " and above").Append(" | ").Append(bin.Decided.ToString(CultureInfo.InvariantCulture))
-                    .Append(" | ").Append(bin.Wins.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(PredictEvaluator.Ratio3(bin.Wins, bin.Decided)).Append(" | ")
-                    .Append(rate.Games > 0 ? "[" + HarnessStats.Percent(rate.Low) + ", " + HarnessStats.Percent(rate.High) + "]" : "-").Append(" | ")
-                    .Append(bin.WinnerLeftMilli.Count > 0 ? PredictEvaluator.Ratio3(HarnessStats.Percentile(bin.WinnerLeftMilli, 50), 1000) : "-").Append(" |\n");
-            }
+            CalibrationTable(sb, e, z, null);
 
             sb.Append("\n## No-winner fights\n\n");
             if (e.NoWinner == 0)
@@ -271,6 +326,79 @@ namespace Rts.Tools.BalanceHarness
                 }
             }
             return sb.ToString();
+        }
+
+        /// <summary>The calibration table (C.6) of one evaluation; with a baseline, a column of the baseline's win share in the same bin.</summary>
+        private static void CalibrationTable(StringBuilder sb, PredictEvaluation e, double z, PredictEvaluation? baseline)
+        {
+            sb.Append("| bin (margin) | fights | predicted winner won | share | Wilson interval (%) | winner left (median) |").Append(baseline == null ? string.Empty : " baseline share |")
+                .Append("\n| --- | ---: | ---: | ---: | --- | ---: |").Append(baseline == null ? string.Empty : " ---: |").Append('\n');
+            sb.Append("| predicted none | ").Append(e.DecidedPredictedNone.ToString(CultureInfo.InvariantCulture)).Append(" | - | - | - | - |").Append(baseline == null ? string.Empty : " - |").Append('\n');
+            for (int i = 0; i < e.Bins.Count; i++)
+            {
+                CalibrationBin bin = e.Bins[i];
+                WinRate rate = HarnessStats.Wilson(bin.Wins, 0, bin.Decided - bin.Wins, z);
+                sb.Append("| ").Append(bin.Low.ToString()).Append(bin.High.HasValue ? " to below " + bin.High.Value.ToString() : " and above").Append(" | ").Append(bin.Decided.ToString(CultureInfo.InvariantCulture))
+                    .Append(" | ").Append(bin.Wins.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(PredictEvaluator.Ratio3(bin.Wins, bin.Decided)).Append(" | ")
+                    .Append(rate.Games > 0 ? "[" + HarnessStats.Percent(rate.Low) + ", " + HarnessStats.Percent(rate.High) + "]" : "-").Append(" | ")
+                    .Append(bin.WinnerLeftMilli.Count > 0 ? PredictEvaluator.Ratio3(HarnessStats.Percentile(bin.WinnerLeftMilli, 50), 1000) : "-").Append(" |")
+                    .Append(baseline == null ? string.Empty : " " + PredictEvaluator.Ratio3(baseline.Bins[i].Wins, baseline.Bins[i].Decided) + " (" + baseline.Bins[i].Wins.ToString(CultureInfo.InvariantCulture) + "/"
+                        + baseline.Bins[i].Decided.ToString(CultureInfo.InvariantCulture) + ") |").Append('\n');
+            }
+        }
+
+        /// <summary>A table of tallies with a baseline accuracy column (empty when there is no baseline), in the order given.</summary>
+        private static void SubsetTable(StringBuilder sb, string first, IEnumerable<KeyValuePair<string, PredictTally>> rows, SortedDictionary<string, PredictTally>? baseline, double z, int minFights)
+        {
+            sb.Append("| ").Append(first).Append(" | fights | decided | correct | accuracy | Wilson interval (%) |").Append(baseline == null ? string.Empty : " baseline accuracy |").Append(" |\n| --- | ---: | ---: | ---: | ---: | --- |")
+                .Append(baseline == null ? string.Empty : " ---: |").Append(" --- |\n");
+            foreach (KeyValuePair<string, PredictTally> pair in rows)
+            {
+                PredictTally t = pair.Value;
+                WinRate rate = HarnessStats.Wilson(t.Correct, 0, t.Decided - t.Correct, z);
+                sb.Append("| ").Append(pair.Key).Append(" | ").Append(t.Fights.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(t.Decided.ToString(CultureInfo.InvariantCulture)).Append(" | ")
+                    .Append(t.Correct.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(t.AccuracyText()).Append(" | ")
+                    .Append(rate.Games > 0 ? "[" + HarnessStats.Percent(rate.Low) + ", " + HarnessStats.Percent(rate.High) + "]" : "-").Append(" |");
+                if (baseline != null)
+                {
+                    sb.Append(' ').Append(baseline.TryGetValue(pair.Key, out PredictTally? other) ? other.AccuracyText() : "-").Append(" |");
+                }
+                sb.Append(t.Decided < minFights ? " small |\n" : "  |\n");
+            }
+            sb.Append('\n');
+        }
+
+        /// <summary>The section of one subset (E, U or D): headline row, the breakdowns of C.5 2 to 4 (unit pair, side, case, army value) and the calibration table, with baseline columns when given.</summary>
+        private static void SubsetSection(StringBuilder sb, string title, string what, PredictEvaluation e, PredictEvaluation? baseline, double z, int minFights)
+        {
+            sb.Append("## ").Append(title).Append("\n\n").Append(what).Append("\n\n");
+            sb.Append("Headline: ").Append(e.Overall.Correct.ToString(CultureInfo.InvariantCulture)).Append(" of ").Append(e.Overall.Decided.ToString(CultureInfo.InvariantCulture)).Append(" decided fights = ")
+                .Append(e.Overall.AccuracyText()).Append(baseline == null ? string.Empty : "; baseline " + baseline.Overall.AccuracyText()).Append(". No-winner fights ").Append(e.NoWinner.ToString(CultureInfo.InvariantCulture))
+                .Append(", predicted none for ").Append(e.NoWinnerAgree.ToString(CultureInfo.InvariantCulture)).Append("; decided fights predicted none ").Append(e.DecidedPredictedNone.ToString(CultureInfo.InvariantCulture)).Append(".\n\n");
+            SubsetTable(sb, "unordered unit pair (accuracy ascending)", PredictEvaluator.SortByAccuracy(e.ByPair), baseline?.ByPair, z, minFights);
+            SubsetTable(sb, "side (accuracy ascending)", PredictEvaluator.SortByAccuracy(e.BySide), baseline?.BySide, z, minFights);
+            SubsetTable(sb, "case", e.ByCase, baseline?.ByCase, z, minFights);
+            SubsetTable(sb, "army value (zero padded)", e.ByValue, baseline?.ByValue, z, minFights);
+            sb.Append("Calibration (decided fights, predicted winner by margin bin):\n\n");
+            CalibrationTable(sb, e, z, baseline);
+            sb.Append('\n');
+        }
+
+        /// <summary>The subset sections and the bar table appended to predict.md for extended records (fight_predictor_v2.md 5.4).</summary>
+        private static void AppendExtended(StringBuilder sb, PredictSubsets cand, PredictSubsets? baseline, IReadOnlyList<BarResult> bars, string baselineId, double z, PredictSettings s)
+        {
+            sb.Append("\n# Subsets of extended records (fight_predictor_v2.md 5.4)\n\n");
+            sb.Append("Start predictions use GapTiles = start_distance_tiles, the water of lane_depth_class (Shallow in a flooded case without one) and neutral water; snapshot predictions use GapTiles 0 and the health of the snapshot. ")
+                .Append(baseline == null ? "No --baseline-profile: the comparison bars are UNJUDGED.\n\n" : "Baseline columns: profile `" + baselineId + "`.\n\n");
+            SubsetSection(sb, "Subset E", "Start predictions of fights with equal target values (ratio 1).", cand.E, baseline?.E, z, s.MinFightsPerRow);
+            SubsetSection(sb, "Subset U", "Start predictions of fights where seat 1's target value differs (seat1_value_ratios).", cand.U, baseline?.U, z, s.MinFightsPerRow);
+            SubsetSection(sb, "Subset D", "Snapshot predictions of damaged armies: the armies when either seat had lost snapshot_loss_fraction of its value, scored against the fight's measured winner.", cand.D, baseline?.D, z, s.MinFightsPerRow);
+            sb.Append("## Bars\n\n| ID | bar | measured | result | reason |\n| --- | --- | --- | --- | --- |\n");
+            foreach (BarResult bar in bars)
+            {
+                sb.Append("| ").Append(bar.Id).Append(" | ").Append(bar.Bar.Replace("|", "\\|")).Append(" | ").Append(bar.Measured.Replace("|", "\\|")).Append(" | ").Append(bar.Status).Append(" | ").Append(bar.Reason).Append(" |\n");
+            }
+            sb.Append('\n');
         }
 
         /// <summary>Text naming the judged mechanic with the lowest accuracy (cross-multiplied), or "none judged".</summary>

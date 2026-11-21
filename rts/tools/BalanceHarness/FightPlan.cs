@@ -85,24 +85,44 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Start value of seat 1's army. Unit: resource units. Range: 1 upward.</summary>
         public int Value1 => Multiplier1 * Seat1.RecipeValue;
 
-        /// <summary>True when the two start values differ by more than max_value_mismatch_fraction of the larger.</summary>
+        /// <summary>True when seat 1's start value differs from the ratio times seat 0's by more than max_value_mismatch_fraction of the larger of the two.</summary>
         public bool Mismatch { get; }
 
+        /// <summary>The ratio of case value seat 1 aims at, relative to seat 0's (fight_predictor_v2.md 5.2). Unit: parts per 10 000. Range: 2000 to 50000; <see cref="EqualRatioPt"/> for an ordinary fight.</summary>
+        public int RatioPt { get; }
+
+        /// <summary>The ratio 1 in parts per 10 000: equal target values, fight IDs without a ratio suffix. Unit: parts per 10 000. Range: fixed 10000.</summary>
+        public const int EqualRatioPt = 10000;
+
         /// <summary>Bundles the values.</summary>
-        public FightSpec(int index, FightCase fightCase, int armyValue, FightSide seat0, FightSide seat1, double maxMismatchFraction)
+        public FightSpec(int index, FightCase fightCase, int armyValue, FightSide seat0, FightSide seat1, double maxMismatchFraction, int ratioPt = EqualRatioPt)
         {
             Index = index;
             Case = fightCase;
             ArmyValue = armyValue;
             Seat0 = seat0;
             Seat1 = seat1;
+            RatioPt = ratioPt;
+            // Seat 1's target value, rounded half up in integers. Unit: resource units. Range: 10 to 100000.
+            int target1 = ratioPt == EqualRatioPt ? armyValue : (int)(((long)armyValue * ratioPt + 5000) / 10000);
             Multiplier0 = seat0.Multiplier(armyValue);
-            Multiplier1 = seat1.Multiplier(armyValue);
-            Id = fightCase.Id + "/" + armyValue.ToString(CultureInfo.InvariantCulture) + "/" + seat0.Id + "/" + seat1.Id;
-            // Larger and smaller start value. Unit: resource units.
-            int larger = Math.Max(Value0, Value1);
-            int smaller = Math.Min(Value0, Value1);
-            Mismatch = (larger - smaller) > maxMismatchFraction * larger;
+            Multiplier1 = seat1.Multiplier(target1);
+            Id = fightCase.Id + "/" + armyValue.ToString(CultureInfo.InvariantCulture) + "/" + seat0.Id + "/" + seat1.Id
+                + (ratioPt == EqualRatioPt ? string.Empty : "/r" + ratioPt.ToString(CultureInfo.InvariantCulture));
+            if (ratioPt == EqualRatioPt)
+            {
+                // Larger and smaller start value. Unit: resource units.
+                int larger = Math.Max(Value0, Value1);
+                int smaller = Math.Min(Value0, Value1);
+                Mismatch = (larger - smaller) > maxMismatchFraction * larger;
+            }
+            else
+            {
+                // Seat 1's start value and the ratio times seat 0's, both times 10 000 so the comparison stays in integers. Unit: resource units x 10 000.
+                long actual = (long)Value1 * 10000;
+                long wanted = (long)ratioPt * Value0;
+                Mismatch = Math.Abs(actual - wanted) > maxMismatchFraction * Math.Max(actual, wanted);
+            }
         }
 
         /// <summary>The side in <paramref name="seat"/> (0 or 1).</summary>
@@ -184,12 +204,15 @@ namespace Rts.Tools.BalanceHarness
             {
                 foreach (int armyValue in fightCase.ArmyValues)
                 {
-                    for (int i = 0; i < sides.Count; i++)
+                    foreach (int ratioPt in fightCase.RatiosPt)
                     {
-                        for (int j = i + 1; j < sides.Count; j++)
+                        for (int i = 0; i < sides.Count; i++)
                         {
-                            fights.Add(new FightSpec(fights.Count, fightCase, armyValue, sides[i], sides[j], settings.MaxValueMismatchFraction));
-                            fights.Add(new FightSpec(fights.Count, fightCase, armyValue, sides[j], sides[i], settings.MaxValueMismatchFraction));
+                            for (int j = i + 1; j < sides.Count; j++)
+                            {
+                                fights.Add(new FightSpec(fights.Count, fightCase, armyValue, sides[i], sides[j], settings.MaxValueMismatchFraction, ratioPt));
+                                fights.Add(new FightSpec(fights.Count, fightCase, armyValue, sides[j], sides[i], settings.MaxValueMismatchFraction, ratioPt));
+                            }
                         }
                     }
                 }

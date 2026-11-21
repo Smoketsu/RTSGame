@@ -22,7 +22,7 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="error">stderr.</param>
         public static int Run(BatchOptions options, DataSet data, TextWriter output, TextWriter error)
         {
-            FightSettings settings = FightSettings.Load(options.DataDirectory, data);
+            FightSettings settings = FightSettings.ForOptions(options, data);
             // Base seed after the command-line override. Range: any ulong.
             ulong baseSeed = options.Seed ?? settings.BaseSeed;
             if (options.IsWorker)
@@ -59,7 +59,7 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="records">Receives every fight record in plan order.</param>
         internal static int RunSweepFor(BatchOptions options, DataSet data, TextWriter output, TextWriter error, List<FightRecord> records)
         {
-            FightSettings settings = FightSettings.Load(options.DataDirectory, data);
+            FightSettings settings = FightSettings.ForOptions(options, data);
             return RunSweep(options, data, settings, FightMatchups.Load(options.DataDirectory, settings, data), FightPlan.Build(data, settings), options.Seed ?? settings.BaseSeed, output, error, records);
         }
 
@@ -75,6 +75,11 @@ namespace Rts.Tools.BalanceHarness
             int jobs = options.Jobs ?? Math.Min(64, Math.Max(1, Environment.ProcessorCount));
             // Common worker arguments.
             List<string> common = new List<string> { "--data", options.DataDirectory, "--seed", baseSeed.ToString(CultureInfo.InvariantCulture), "--fights" };
+            if (options.FightSettingsPath.Length > 0)
+            {
+                common.Add("--fight-settings");
+                common.Add(options.FightSettingsPath);
+            }
             // HQ floor trials: every ordered faction pair with an HQ, units then compositions.
             SortedSet<string> factions = new SortedSet<string>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, FactionDefinition> pair in data.Content.Factions)
