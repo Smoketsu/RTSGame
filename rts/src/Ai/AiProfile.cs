@@ -56,6 +56,10 @@
 //     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).
 //   * field_saturation.md package AI-H (faction-fair harass speed): harass_speed_ratio (every profile file carries it; the old value 0 keeps the
 //     fixed harass_min_speed_tiles_per_second and the flyer exemption).
+//   * specs/ai_budget_queues.md package B (budget queues): use_budget_queues and the keys budget_common_weights, budget_rare_weights (objects with exactly
+//     the six queue IDs of AiBudget), budget_opening_production_factor, budget_threat_defence_factor, budget_worker_floor, budget_defence_max_spend_share,
+//     budget_rare_surplus_on, budget_rare_surplus_off and budget_rare_surplus_weight_factor (every profile file carries them; with use_budget_queues false
+//     they are read, range-checked and ignored, and the AI plays exactly as before).
 //   * skirmish_ai_v4_rl.md package L (opening library): each faction plan carries "openings" (0 to 16 entries, [] = none), each with id, weight,
 //     build_order, composition, handover_seconds, expand_at_seconds, early_expansion_seconds, attack_army_supply and attack_min_supply; one is
 //     drawn at match start (AiVariety). Validated here: unique IDs, a weight sum above 0, and that every unit with a requires list has its
@@ -690,6 +694,36 @@ namespace Rts.Ai
         /// <summary>AI-H: a unit may harass when its speed is at least this multiple of the chaser speed (<see cref="AiIntel.ChaserSpeed"/>); 0 keeps the fixed-speed rule and the flyer exemption. Unit: ratio. Range: 0 to 4.</summary>
         public Fix64 HarassSpeedRatio { get; }
 
+        /// <summary>Package B: the AI divides its bank between six budget queues instead of rule R's reservations. Unit: boolean.</summary>
+        public bool UseBudgetQueues { get; }
+
+        /// <summary>Package B: weight of each queue in the split of free common, in <see cref="AiBudget.QueueIds"/> order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
+        public IReadOnlyList<int> BudgetCommonWeights { get; }
+
+        /// <summary>Package B: weight of each queue in the split of free rare, same order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
+        public IReadOnlyList<int> BudgetRareWeights { get; }
+
+        /// <summary>Package B: multiplier on the production queue's weights before the drawn opening's handover. Unit: factor. Range: 1 to 20.</summary>
+        public int BudgetOpeningProductionFactor { get; }
+
+        /// <summary>Package B: multiplier on the defence queue's weights while a threat is inside the base. Unit: factor. Range: 1 to 20.</summary>
+        public int BudgetThreatDefenceFactor { get; }
+
+        /// <summary>Package B: own workers (alive, not queued) below which the army and defence queues pause; 0 never. Unit: workers. Range: 0 to 200.</summary>
+        public int BudgetWorkerFloor { get; }
+
+        /// <summary>Package B: ceiling on the defence queue's share of all spending; 0 means no ceiling. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64 BudgetDefenceMaxSpendShare { get; }
+
+        /// <summary>Package B: free rare at or above which rare-cost units are boosted in the composition; 0 switches the rule off. Unit: resource units (rare). Range: 0 to 100000.</summary>
+        public int BudgetRareSurplusOn { get; }
+
+        /// <summary>Package B: free rare below which the boost ends. Unit: resource units (rare). Range: 0 to budget_rare_surplus_on.</summary>
+        public int BudgetRareSurplusOff { get; }
+
+        /// <summary>Package B: multiplier on the composition weight of units with a rare cost while the surplus is active. Unit: factor. Range: 1 to 20.</summary>
+        public int BudgetRareSurplusWeightFactor { get; }
+
         /// <summary>Per-faction plans by faction ID, in ordinal order.</summary>
         public IReadOnlyDictionary<string, AiFactionPlan> Factions { get; }
 
@@ -886,10 +920,50 @@ namespace Rts.Ai
             ThreatDefenceMaxValueShare = root.RequireFix64("threat_defence_max_value_share", "0", "2");
             ThreatDefenceReleaseFraction = root.RequireFix64("threat_defence_release_fraction", "0", "1");
             HarassSpeedRatio = root.RequireFix64("harass_speed_ratio", "0", "4");
+            UseBudgetQueues = root.RequireBool("use_budget_queues");
+            BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
+            BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
+            BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
+            BudgetThreatDefenceFactor = root.RequireInt("budget_threat_defence_factor", 1, 20);
+            BudgetWorkerFloor = root.RequireInt("budget_worker_floor", 0, 200);
+            BudgetDefenceMaxSpendShare = root.RequireFix64("budget_defence_max_spend_share", "0", "1");
+            BudgetRareSurplusOn = root.RequireInt("budget_rare_surplus_on", 0, 100000);
+            BudgetRareSurplusOff = root.RequireInt("budget_rare_surplus_off", 0, 100000);
+            if (BudgetRareSurplusOff > BudgetRareSurplusOn)
+            {
+                throw root.Require("budget_rare_surplus_off").Fail("must not exceed budget_rare_surplus_on");
+            }
+            BudgetRareSurplusWeightFactor = root.RequireInt("budget_rare_surplus_weight_factor", 1, 20);
             if (UseThreatDefence && !UseStaticDefence)
             {
                 throw root.Require("use_threat_defence").Fail("requires use_static_defence to be true as well");
             }
+        }
+
+        /// <summary>
+        /// Reads a package B weight object: exactly the six queue IDs of <see cref="AiBudget.QueueIds"/>, each an integer 0 to 1000, the sum above 0. Throws <see cref="DataValidationException"/> naming the file and the field.
+        /// </summary>
+        /// <param name="root">The profile's root object.</param>
+        /// <param name="key">The member name (budget_common_weights or budget_rare_weights).</param>
+        private static IReadOnlyList<int> ReadQueueWeights(JsonValue root, string key)
+        {
+            // The weight object.
+            JsonValue node = root.Require(key);
+            node.RejectUnknownKeys(AiBudget.QueueIds);
+            // Weights in queue order. Unit: weight. Range: 0 to 1000 each.
+            int[] weights = new int[AiBudget.QueueCount];
+            // Sum of the weights. Unit: weight. Range: 0 to 6000.
+            int sum = 0;
+            for (int q = 0; q < AiBudget.QueueCount; q++)
+            {
+                weights[q] = node.RequireInt(AiBudget.QueueIds[q], 0, 1000);
+                sum += weights[q];
+            }
+            if (sum == 0)
+            {
+                throw node.Fail("the weights must not all be 0");
+            }
+            return weights;
         }
 
         /// <summary>Parses and validates profile text. Throws <see cref="DataValidationException"/> naming the file and the field.</summary>
@@ -981,7 +1055,9 @@ namespace Rts.Ai
                 "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter",
                 "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
                 "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
-                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "factions");
+                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues",
+                "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
+                "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
             string id = root.RequireNonEmptyString("id");
             // File name stem the id must match, from the source path.

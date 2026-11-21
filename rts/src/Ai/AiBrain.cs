@@ -113,6 +113,12 @@
 //      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no
 //      field on the map has known resources (rule A), the attack threshold drops to 1 supply, the tide window is ignored, the army never
 //      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
+// Package B of specs/ai_budget_queues.md (AiBrainBudget.cs, AiBudget.cs; only with use_budget_queues, off in every profile but aggressive_s5_b): two budget steps join the rule order, Open after rule 2 (Gather) and Close after
+// rule 5b (ExtraProducer). Six queues (economy: 3a supply building and 4b workers; expansion: rule E depots; production: 3b build-order steps and rule X; army: 4c scout and rule P; tech: rules T and T2; defence: rule SD) each hold
+// an account per resource, filled at Open in proportion to per-queue weights from the money in no account, and buy only from their own account. The first item of a queue that fails only on money is its head: its cost is the
+// queue's want for the next Open and the queue buys nothing more that think. This replaces rule R's shared reservations (a think with no earning worker still spends as before), rule X's bank test reads the free money,
+// rule P's rare filter reads account plus free rare, rule SD's value share is replaced by a ceiling on the defence share of spending, and a free rare bank at budget_rare_surplus_on re-weights rare-cost units up in the composition
+// until it falls below budget_rare_surplus_off. Workers below budget_worker_floor pause the army and defence queues. State is in AiMemory (accounts, wants, spending, the surplus flag); never hashed.
 // Package C (skirmish_ai_v3.md C.4 and C.7) replaces, while its switch is on: the plan's composition by the counter-mix weights (use_counter_mix:
 // AiCounter.Mix from the enemy model and unit data; read by rules P, X and T) and rule E's clock gate and target order (use_rare_priority:
 // when rare-cost units weigh at least rare_need_weight_share of the mix and no rare field is served, rare sites come first; since package C2 it no
@@ -207,6 +213,7 @@ namespace Rts.Ai
             turn.Hq();
             turn.Cycle();
             turn.Gather();
+            turn.BudgetOpen();
             turn.Structures();
             turn.Tech();
             turn.StaticDefence();
@@ -215,6 +222,7 @@ namespace Rts.Ai
             turn.Scout();
             turn.Produce();
             turn.ExtraProducer();
+            turn.BudgetClose();
             turn.Army();
             return intents;
         }
@@ -912,7 +920,9 @@ namespace Rts.Ai
                 ScanThreat();
                 _model = profile.UseEnemyModel ? AiIntel.ModelCounts(view, profile, memory) : new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
                 _enemies = AiCounter.Entries(view, _model);
-                _composition = profile.UseCounterMix ? AiCounter.Mix(view, profile, plan, memory) : plan.Composition;
+                // Package B: buy through the queues when the switch is on and some worker is earning; the rare surplus (step 5) may re-weight the composition.
+                _bq = profile.UseBudgetQueues && _income;
+                _composition = BudgetComposition(profile.UseCounterMix ? AiCounter.Mix(view, profile, plan, memory) : plan.Composition);
             }
 
             /// <summary>True when some field with known resources lies within field_max_distance_tiles of <paramref name="point"/>.</summary>
@@ -964,9 +974,15 @@ namespace Rts.Ai
                 return _supplyUsed + _view.SupplyOf(definition) <= _view.SupplyCap;
             }
 
-            /// <summary>Books the cost and supply of an ordered unit or structure.</summary>
-            private void Pay(UnitDefinition definition)
+            /// <summary>Books the cost and supply of an ordered unit or structure; with budget queues on the cost also leaves the account of <paramref name="queue"/> (package B).</summary>
+            /// <param name="definition">The item ordered.</param>
+            /// <param name="queue">Queue index of the paying queue, 0 to 5, or -1 for none.</param>
+            private void Pay(UnitDefinition definition, int queue = -1)
             {
+                if (_bq && queue >= 0)
+                {
+                    BqPay(queue, definition);
+                }
                 _common -= definition.CostCommon;
                 _rare -= definition.CostRare;
                 _supplyUsed += _view.SupplyOf(definition);
@@ -1460,7 +1476,7 @@ namespace Rts.Ai
                 }
                 if (!supplyPending && _view.SupplyCap - _view.SupplyUsed <= _profile.SupplyBuffer && _view.SupplyCap < _view.SupplyCapLimit)
                 {
-                    TryBuild(_view.Content.Units[_plan.SupplyBuildingId]);
+                    TryBuild(_view.Content.Units[_plan.SupplyBuildingId], null, false, AiBudget.Economy);
                 }
                 foreach (AiBuildStep step in _plan.BuildOrder)
                 {
@@ -1470,7 +1486,7 @@ namespace Rts.Ai
                     }
                     if (_view.SupplyUsed >= step.AtSupplyUsed)
                     {
-                        TryBuild(_view.Content.Units[step.StructureId]);
+                        TryBuild(_view.Content.Units[step.StructureId], null, false, AiBudget.Production);
                     }
                     // Strict order: later steps wait for this one.
                     break;
@@ -1501,8 +1517,15 @@ namespace Rts.Ai
             /// <param name="definition">The structure to build.</param>
             /// <param name="site">Fixed site tile, or null to search.</param>
             /// <param name="producer">True for the producers of rule X and rule T (AI-P P1 may search another base's ring).</param>
-            private bool TryBuild(UnitDefinition definition, (int X, int Y)? site = null, bool producer = false)
+            /// <param name="queue">Package B: the budget queue that pays (0 to 5), or -1 for none; used only while budget queues are on (the rule R reservation is then not made: a failure on money alone records the queue's want).</param>
+            private bool TryBuild(UnitDefinition definition, (int X, int Y)? site = null, bool producer = false, int queue = -1)
             {
+                // True while budget queues pay for this item: the queue's account, not the stock minus reservations, is what the item is bought from.
+                bool queued = _bq && queue >= 0;
+                if (queued && BqBlocked(queue))
+                {
+                    return false;
+                }
                 if (!RequirementsMet(definition))
                 {
                     return false;
@@ -1517,7 +1540,17 @@ namespace Rts.Ai
                 {
                     return false;
                 }
-                if ((definition.CostCommon != 0 && _common - _reserveCommon < definition.CostCommon) || (definition.CostRare != 0 && _rare - _reserveRare < definition.CostRare))
+                // True when the queue's account cannot pay (package B): the item is the queue's head if nothing else stops it.
+                bool moneyShort = false;
+                if (queued)
+                {
+                    if (queue == AiBudget.Defence && !DefenceAllows(definition))
+                    {
+                        return false;
+                    }
+                    moneyShort = !BqCanPay(queue, definition);
+                }
+                else if ((definition.CostCommon != 0 && _common - _reserveCommon < definition.CostCommon) || (definition.CostRare != 0 && _rare - _reserveRare < definition.CostRare))
                 {
                     // Rule R: hold the cost only while workers are earning; without income the bank is spent on whatever it can buy.
                     if (_income)
@@ -1532,7 +1565,10 @@ namespace Rts.Ai
                 {
                     return false;
                 }
-                _memory.LastBuildAttemptTick[definition.Id] = _view.Tick;
+                if (!moneyShort)
+                {
+                    _memory.LastBuildAttemptTick[definition.Id] = _view.Tick;
+                }
                 // Tile column of the new structure. Unit: tiles. Range: 0 to map width - 1.
                 int x = 0;
                 // Tile row of the new structure. Unit: tiles. Range: 0 to map height - 1.
@@ -1544,6 +1580,12 @@ namespace Rts.Ai
                 }
                 else if (!(producer && _profile.UseForwardProducers && TryFindProducerSite(out x, out y)) && !TryFindSite(out x, out y))
                 {
+                    return false;
+                }
+                if (moneyShort)
+                {
+                    // Only money was missing: the item is the head of its queue (a builder and a site exist).
+                    BqWant(queue, definition);
                     return false;
                 }
                 // Worker that places the structure: the nearest free one to the site, never null here.
@@ -1559,7 +1601,7 @@ namespace Rts.Ai
                 }
                 if (Emit(AiIntent.Build(builder.Id, definition.Id, x, y)))
                 {
-                    Pay(definition);
+                    Pay(definition, queue);
                     _pickedBuilders.Add(builder.Id);
                     _reservedSites.Add(_view.IndexOf(x, y));
                     return true;
@@ -1876,7 +1918,7 @@ namespace Rts.Ai
                             return;
                         }
                     }
-                    TryBuild(_view.Content.Units[missing]);
+                    TryBuild(_view.Content.Units[missing], null, false, AiBudget.Tech);
                     return;
                 }
             }
@@ -1908,7 +1950,7 @@ namespace Rts.Ai
                 }
                 // The structure that trains the unit, or null when the faction has none.
                 UnitDefinition? structure = ProducerStructureFor(top);
-                return structure != null && TryBuild(structure, null, true);
+                return structure != null && TryBuild(structure, null, true, AiBudget.Tech);
             }
 
             /// <summary>Own drop-offs for rule SD: the Rooted HQ and every complete drop-off structure, ascending ID.</summary>
@@ -2225,7 +2267,7 @@ namespace Rts.Ai
                 UnitDefinition? defence = PickDefence(layers);
                 if (defence != null && TryFindDefenceSite(origin, toward, out int x, out int y))
                 {
-                    _defenceOrdered |= TryBuild(defence, (x, y));
+                    _defenceOrdered |= TryBuild(defence, (x, y), false, AiBudget.Defence);
                 }
             }
 
@@ -2263,7 +2305,7 @@ namespace Rts.Ai
                     }
                     if (raids >= _profile.StaticDefenceAfterRaids && StaticDefencesNear(dropOff.Position) < DefenceCap)
                     {
-                        if (!WithinValueCap(_profile.StaticDefenceMaxValueShare))
+                        if (!_bq && !WithinValueCap(_profile.StaticDefenceMaxValueShare))
                         {
                             // C2.4 step 2: the defences would outweigh the army; no build this think (step 3 is still tried).
                             break;
@@ -2357,7 +2399,7 @@ namespace Rts.Ai
                     _memory.UnbuildableFields.Add(target.Index);
                     return;
                 }
-                TryBuild(_view.Content.Units[_plan.DropOffBuildingId], (x, y));
+                TryBuild(_view.Content.Units[_plan.DropOffBuildingId], (x, y), false, AiBudget.Expansion);
             }
 
             /// <summary>
@@ -2529,6 +2571,23 @@ namespace Rts.Ai
                 }
                 // The worker unit type.
                 UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
+                if (_bq)
+                {
+                    // Package B: workers buy from the economy queue; a worker that only money is missing for is its head.
+                    if (BqBlocked(AiBudget.Economy) || !HasSupply(worker))
+                    {
+                        return;
+                    }
+                    if (!BqCanPay(AiBudget.Economy, worker))
+                    {
+                        BqWant(AiBudget.Economy, worker);
+                    }
+                    else if (Emit(AiIntent.Train(_hq.Id, worker.Id)))
+                    {
+                        Pay(worker, AiBudget.Economy);
+                    }
+                    return;
+                }
                 if (_common >= worker.CostCommon && _rare >= worker.CostRare && HasSupply(worker) && Emit(AiIntent.Train(_hq.Id, worker.Id)))
                 {
                     Pay(worker);
@@ -2719,6 +2778,24 @@ namespace Rts.Ai
                 }
                 // The scout unit type.
                 UnitDefinition definition = _view.Content.Units[_plan.ScoutUnitId];
+                if (_bq)
+                {
+                    // Package B: the scout is the army queue's first item of the think.
+                    if (BqBlocked(AiBudget.Army) || !HasSupply(definition))
+                    {
+                        return;
+                    }
+                    if (!BqCanPay(AiBudget.Army, definition))
+                    {
+                        BqWant(AiBudget.Army, definition);
+                    }
+                    else if (Emit(AiIntent.Train(producer.Id, definition.Id)))
+                    {
+                        Pay(definition, AiBudget.Army);
+                        _usedProducers.Add(producer.Id);
+                    }
+                    return;
+                }
                 if (!CanPay(definition))
                 {
                     if (_income)
@@ -2757,6 +2834,11 @@ namespace Rts.Ai
                         }
                     }
                 }
+                if (_bq && BqBlocked(AiBudget.Army))
+                {
+                    // Package B: the army queue already has its head this think (the scout) or is paused: later items wait.
+                    return;
+                }
                 // Upper bound on units bought this think (one per producer), a guard against a loop that never ends. Unit: units.
                 int guard = _view.OwnUnits.Count + _composition.Count;
                 // Units the bank cannot pay while the player has no income: they hold no reservation, so cheaper units may be bought instead (rule R).
@@ -2770,7 +2852,7 @@ namespace Rts.Ai
                     {
                         // Definition of this composition unit.
                         UnitDefinition candidate = _view.Content.Units[pair.Key];
-                        if (pair.Value > 0 && !unaffordable.Contains(pair.Key) && (candidate.CostRare == 0 || candidate.CostRare <= _rare - _reserveRare) && FindFreeProducer(pair.Key) != null)
+                        if (pair.Value > 0 && !unaffordable.Contains(pair.Key) && (candidate.CostRare == 0 || candidate.CostRare <= (_bq ? _memory.BudgetAccounts[AiBudget.Cell(AiBudget.Army, AiBudget.Rare)] + FreeRare() : _rare - _reserveRare)) && FindFreeProducer(pair.Key) != null)
                         {
                             candidates.Add(pair.Key);
                         }
@@ -2785,7 +2867,20 @@ namespace Rts.Ai
                     AiUnitView producer = FindFreeProducer(choice)!;
                     // Definition of the chosen unit.
                     UnitDefinition definition = _view.Content.Units[choice];
-                    if (!CanPay(definition) || !HasSupply(definition))
+                    if (_bq)
+                    {
+                        // Package B: supply first (no want), then the army account; the unit that only money is missing for is the head and nothing cheaper jumps ahead.
+                        if (!HasSupply(definition))
+                        {
+                            return;
+                        }
+                        if (!BqCanPay(AiBudget.Army, definition))
+                        {
+                            BqWant(AiBudget.Army, definition);
+                            return;
+                        }
+                    }
+                    else if (!CanPay(definition) || !HasSupply(definition))
                     {
                         // The head of the queue waits: hold its cost so cheaper units do not jump ahead (rule R: only while the player has income).
                         if (!_income)
@@ -2801,7 +2896,7 @@ namespace Rts.Ai
                     {
                         return;
                     }
-                    Pay(definition);
+                    Pay(definition, AiBudget.Army);
                     _counts[choice]++;
                     _usedProducers.Add(producer.Id);
                 }
@@ -2875,7 +2970,7 @@ namespace Rts.Ai
             /// <summary>Rule X of skirmish_ai_v2.md: when money piles up and every producer is busy, builds the producer of the most needed unit.</summary>
             public void ExtraProducer()
             {
-                if (_threatCount > 0 || _latestHit != null || _common - _reserveCommon < _profile.ExtraProducerBankCommon)
+                if (_threatCount > 0 || _latestHit != null || (_bq ? FreeCommon() : _common - _reserveCommon) < _profile.ExtraProducerBankCommon)
                 {
                     return;
                 }
@@ -2907,7 +3002,7 @@ namespace Rts.Ai
                 UnitDefinition? structure = ProducerStructureFor(needed);
                 if (structure != null)
                 {
-                    TryBuild(structure, null, true);
+                    TryBuild(structure, null, true, AiBudget.Production);
                 }
             }
 
