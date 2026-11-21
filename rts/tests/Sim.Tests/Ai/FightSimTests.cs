@@ -103,13 +103,14 @@ namespace Rts.Sim.Tests.Ai
 
         /// <summary>
         /// FP2-2-1 (b): one fixed-seed AI game per shipped profile family ends with the final state hash pinned from main before this package.
-        /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9; the AI never researches, so the Stormcaller, Ink Lobber, Thunderhead and Leviathan are never trained): aggressive_s5 old end tick 9883 and hash 79b49601e07be618, new 10378 and 2a9fdef3422f6141; aggressive_s3 old 9867 and aaa7203112b1ac2d, new 9223 and 1db9fc659b9f0eea; both still slot 0.
+        /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9; the AI never researches, so the Stormcaller, Ink Lobber, Thunderhead and Leviathan are never trained): aggressive_s5 old end tick 9883 and hash 79b49601e07be618, new 10378 and 963626e47dd707bf; aggressive_s3 old 9867 and aaa7203112b1ac2d, new 9223 and c04bdcc0d03b3910; both still slot 0.
         /// </summary>
         [Test]
         public void OldProfiles_FixedSeedGamesKeepTheirHash()
         {
-            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":10378,\"state_hash\":\"2a9fdef3422f6141\""));
-            Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9223,\"state_hash\":\"1db9fc659b9f0eea\""));
+            // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hashes only, end ticks 10378 and 9223 and winners unchanged. Old values 2a9fdef3422f6141 and 1db9fc659b9f0eea.
+            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":10378,\"state_hash\":\"963626e47dd707bf\""));
+            Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9223,\"state_hash\":\"c04bdcc0d03b3910\""));
         }
 
         /// <summary>The text of a shipped profile file.</summary>

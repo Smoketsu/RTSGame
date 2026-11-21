@@ -95,7 +95,8 @@ namespace Rts.Sim.Tests.Combat
             // Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest): old value 7171673623519835621; hash only.
             // Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value 12309595045426278381; hash only. Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): old 1249752913091875761, new 5070971311697080518; hash only.
             // Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): research count in the player hash, research section in the content digest. Old value 5070971311697080518, new 6503954997832632446; hash only.
-            Assert.That(first, Is.EqualTo(6503954997832632446UL), "pin");
+            // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 6503954997832632446, new 13985676956117752642.
+            Assert.That(first, Is.EqualTo(13985676956117752642UL), "pin");
         }
     }
 }

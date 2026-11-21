@@ -100,8 +100,9 @@ namespace Rts.Sim.Tests
         /// update the value; replays recorded before the change will no longer re-simulate.
         /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value 0x414b070cac0f68aa; hash only. Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): old 0x59ffb5d3accc2ed7, new 0x13ca4053c7b10a07; hash only.
         /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): research count in the player hash, research section in the content digest, `Researches` in UnitEconomyDefinition.WriteHash. Old value 0x13ca4053c7b10a07; hash only (checked: with those three additions left out of the hash the old value comes back).
+        /// Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 0xf707341bdbd9896e.
         /// </summary>
-        private const ulong GoldenFinalHash = 0xf707341bdbd9896eUL;
+        private const ulong GoldenFinalHash = 0x54d46ea1712e12deUL;
 
         [Test]
         public void GoldenHash_IsPinned()

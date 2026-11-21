@@ -137,7 +137,7 @@ namespace Rts.Sim.Units
         /// <summary>Backing list for <see cref="ProductionQueue"/>.</summary>
         private readonly List<string> _productionQueue = new List<string>();
 
-        /// <summary>True when the player set a rally point on this producer (set_rally_point); units it trains are sent there. Range: true or false; false at spawn. Hashed only while true (right after the statuses).</summary>
+        /// <summary>True when the player set a rally point on this producer (set_rally_point); units it trains are sent there. Range: true or false; false at spawn. Hashed always (after the statuses).</summary>
         public bool HasRallyPoint { get; private set; }
 
         /// <summary>Where trained units are sent. Unit: tiles (fixed-point). Range: each component within ±Simulation.WorldBoundTiles when <see cref="HasRallyPoint"/>; <see cref="FixVec2.Zero"/> otherwise. Only meaningful on a producer (it trains units or is an HQ). Hashed with <see cref="HasRallyPoint"/>.</summary>
@@ -634,12 +634,9 @@ namespace Rts.Sim.Units
             hasher.Write(ShieldLastAbsorbTick);
             hasher.Write(GroundingReadyTick);
             Statuses.WriteHash(hasher);
-            // Written only while a rally point is set, so a match that never sets one keeps its hashes (specs/interface_support.md I5.4).
-            if (HasRallyPoint)
-            {
-                hasher.Write(true);
-                hasher.Write(RallyPoint);
-            }
+            // Always written, Zero when unset, so the hash layout is fixed-width per unit (specs/interface_support.md I5.4, determinism review of I1 to I5).
+            hasher.Write(HasRallyPoint);
+            hasher.Write(RallyPoint);
         }
     }
 }
