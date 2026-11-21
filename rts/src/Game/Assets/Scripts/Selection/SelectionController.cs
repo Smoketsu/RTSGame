@@ -639,8 +639,20 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
-            // Target in simulation tiles.
-            FixVec2 destination = ToSimPoint(point);
+            IssueGroundOrder(ToSimPoint(point));
+        }
+
+        /// <summary>
+        /// Orders the selection to a ground point: a move for each selected unit that can walk, a rally point for each selected producer that
+        /// cannot. Used by the right click on the map and on the minimap (player_interface_2.md UI-14).
+        /// </summary>
+        /// <param name="destination">Target point in tiles (built from integer cells).</param>
+        public void IssueGroundOrder(FixVec2 destination)
+        {
+            if (_commands == null || !_commands.IsReady)
+            {
+                return;
+            }
             foreach (EntityId id in _selected)
             {
                 if (!_host.Match.Units.TryGet(id, out Unit unit))
@@ -671,7 +683,24 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
-            FixVec2 destination = ToSimPoint(point);
+            IssueAttackMoveAt(ToSimPoint(point));
+        }
+
+        /// <summary>True while attack-move targeting (A) waits for its target point. Unit: on/off.</summary>
+        public bool AttackMoveArmed => _attackMoveArmed;
+
+        /// <summary>
+        /// Attack-moves the selection to a point (units without a weapon simply move) and ends attack-move targeting. Used by the map click and
+        /// the minimap click while A is armed.
+        /// </summary>
+        /// <param name="destination">Target point in tiles (built from integer cells).</param>
+        public void IssueAttackMoveAt(FixVec2 destination)
+        {
+            SetAttackMoveArmed(false);
+            if (_commands == null || !_commands.IsReady)
+            {
+                return;
+            }
             foreach (EntityId id in _selected)
             {
                 if (!_host.Match.Units.TryGet(id, out Unit unit) || !CanMove(unit))

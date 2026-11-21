@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Unity UI-14 (`specs/player_interface_2.md`): `Hud/Minimap.cs`, bottom left, one pixel per tile for the local team: TerrainView's tile colours (its `TileColour` is now public) at full, dimmed or black by vision (F8 Show All applies), unit dots in owner colours (enemies only when seen), the Core ring in the holder's colour and the camera's ground frame. Left click or drag moves the camera; right click orders the selection there (`SelectionController.IssueGroundOrder`, split out of the right-click order: moves and rally points); with A armed, left click attack-moves (`IssueAttackMoveAt`).
 - Unity UI-13 (`specs/player_interface_2.md`): `Hud/MainMenu.cs` (Skirmish, Quit) in front of the setup screen, which gets Back and Esc; `startMode` is Script or Menu, Menu the default (the committed Bootstrap scene opens in Menu mode; hash checks use Script); F10 adds Restart and Main Menu; the end screen offers Restart, Main Menu and Quit, and "Defeated" offers Keep Watching and Main Menu. `MatchLauncher` gains `ShowMenu` (Main Menu works from Script mode too), `RestartOf` (a new seed when Random was on) and `Quit`.
 - `ReplayPlayback` in `Rts.Replay` (gap G3 of `specs/player_interface_2.md`): a step-by-step replay player; `ReplayVerifier.Verify` now runs on it, results unchanged.
 - Verification scripts `data/scripts/ui_research.json`, `ui_victory.json`, `ui_2v2_defeated.json` and `ui_health.json` for the four things the Unity session could not check.
