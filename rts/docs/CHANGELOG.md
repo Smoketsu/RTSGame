@@ -20,6 +20,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 - Fight predictor v2 held-out measurement, `docs/reports/predict_v2/` (FP2-3): 1904 fights, 5 of 7 bars pass, gate FAIL (accuracy 0.783 against 0.80 with the formula at 0.708; five unit pairs below 0.40); mean 240 µs per call. Nothing retuned.
 
+- First balance report, `docs/reports/balance_first/` (216 self-play games of `aggressive_s5`): 1 of 4 trust checks passes (unused units and mechanics, predictor accuracy and unspent rare fail). Nothing tuned.
+
 ### Changed
 
 - `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
