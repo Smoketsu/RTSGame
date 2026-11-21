@@ -100,14 +100,7 @@ namespace Rts.Sim.Data
         public static CommandScript Parse(JsonValue root, string sourceName, IReadOnlyList<IScriptCommandParser> extraParsers)
         {
             // Extra readers by script type, in ordinal order. Range: one entry per distinct Type.
-            SortedDictionary<string, IScriptCommandParser> extras = new SortedDictionary<string, IScriptCommandParser>(StringComparer.Ordinal);
-            foreach (IScriptCommandParser extra in extraParsers)
-            {
-                if (Array.IndexOf(CoreKinds, extra.Type) >= 0 || !extras.TryAdd(extra.Type, extra))
-                {
-                    throw new ArgumentException("script command type \"" + extra.Type + "\" is registered twice or shadows a core command", nameof(extraParsers));
-                }
-            }
+            SortedDictionary<string, IScriptCommandParser> extras = BuildExtras(extraParsers);
             if (root.Kind != JsonKind.Object)
             {
                 throw new DataValidationException(sourceName, string.Empty, "the top level must be a JSON object (found " + root.Kind.ToString().ToLowerInvariant() + ")");
@@ -171,14 +164,70 @@ namespace Rts.Sim.Data
         /// <param name="extras">Extra readers by type, tried when the type is not a core kind.</param>
         private static Command ReadCommand(JsonValue node, string sourceName, SortedDictionary<string, IScriptCommandParser> extras)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, cancel_production, set_rally_point, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
-            string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
             // Issuing player slot. Unit: slot number. Range: 0 to PlayerId.None.Value (none).
             PlayerId issuer = new PlayerId((byte)node.RequireInt("issuer", 0, PlayerId.None.Value));
             // Per-issuer sequence number. Unit: integer sequence. Range: 0 to int.MaxValue.
             uint sequence = (uint)node.RequireInt("sequence", 0, int.MaxValue);
+            return ReadBody(node, tick, issuer, sequence, sourceName, extras);
+        }
+
+        /// <summary>
+        /// Reads one command object whose tick, issuer and sequence the caller supplies instead of the file (campaign missions,
+        /// rts/docs/specs/campaign_scripting.md): the same command types, keys and error messages as a script file, plus the extra
+        /// readers. The object must not itself contain tick, issuer or sequence; that is an error naming the member. Throws
+        /// <see cref="DataValidationException"/> naming the node's source and path on any problem.
+        /// </summary>
+        /// <param name="node">The command object (type plus the command's own keys).</param>
+        /// <param name="tick">Tick the command applies at. Unit: ticks. Range: 0 to <see cref="MaxTicks"/>.</param>
+        /// <param name="issuer">Issuing slot. Range: a valid slot or PlayerId.None.</param>
+        /// <param name="sequence">Per-issuer sequence number. Unit: integer sequence. Range: 0 to int.MaxValue.</param>
+        /// <param name="sourceName">The file path, passed on to extra readers.</param>
+        /// <param name="parsers">Readers for command kinds added by faction mechanics; may be empty. Range: unique Type values that do not shadow a core kind.</param>
+        public static Command ParseCommandObject(JsonValue node, int tick, PlayerId issuer, uint sequence, string sourceName, IReadOnlyList<IScriptCommandParser> parsers)
+        {
+            if (node.Kind != JsonKind.Object)
+            {
+                throw node.Fail("must be a command object (found " + node.Kind.ToString().ToLowerInvariant() + ")");
+            }
+            foreach (string supplied in new[] { "tick", "issuer", "sequence" })
+            {
+                if (node.TryGetMember(supplied, out JsonValue? member))
+                {
+                    throw member.Fail("is not allowed here; the mission runner supplies it");
+                }
+            }
+            return ReadBody(node, tick, issuer, sequence, sourceName, BuildExtras(parsers));
+        }
+
+        /// <summary>Indexes extra readers by type in ordinal order; throws <see cref="ArgumentException"/> for a duplicate or a core kind.</summary>
+        /// <param name="extraParsers">Readers to index. Range: unique Type values that do not shadow a core kind.</param>
+        private static SortedDictionary<string, IScriptCommandParser> BuildExtras(IReadOnlyList<IScriptCommandParser> extraParsers)
+        {
+            // Extra readers by script type, in ordinal order. Range: one entry per distinct Type.
+            SortedDictionary<string, IScriptCommandParser> extras = new SortedDictionary<string, IScriptCommandParser>(StringComparer.Ordinal);
+            foreach (IScriptCommandParser extra in extraParsers)
+            {
+                if (Array.IndexOf(CoreKinds, extra.Type) >= 0 || !extras.TryAdd(extra.Type, extra))
+                {
+                    throw new ArgumentException("script command type \"" + extra.Type + "\" is registered twice or shadows a core command", nameof(extraParsers));
+                }
+            }
+            return extras;
+        }
+
+        /// <summary>Reads the command kind and its own keys; tick, issuer and sequence are already known.</summary>
+        /// <param name="node">The command object.</param>
+        /// <param name="tick">Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.</param>
+        /// <param name="issuer">Issuing slot. Range: a valid slot or PlayerId.None.</param>
+        /// <param name="sequence">Per-issuer sequence number. Unit: integer sequence. Range: 0 to int.MaxValue.</param>
+        /// <param name="sourceName">The script path, passed on to extra readers.</param>
+        /// <param name="extras">Extra readers by type, tried when the type is not a core kind.</param>
+        private static Command ReadBody(JsonValue node, int tick, PlayerId issuer, uint sequence, string sourceName, SortedDictionary<string, IScriptCommandParser> extras)
+        {
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, cancel_production, set_rally_point, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
+            string type = node.RequireString("type");
             switch (type)
             {
                 case "noop":
