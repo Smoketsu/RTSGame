@@ -227,6 +227,9 @@ namespace Rts.Ai
         /// <summary>Data-root-relative file the profile came from, for error messages, for example "ai/aggressive.json".</summary>
         public string SourceName { get; }
 
+        /// <summary>The validated JSON tree every scalar was read from; kept so <see cref="WithForcedOpenings"/> can build a copy with other plans. Read only.</summary>
+        private readonly JsonValue _root;
+
         /// <summary>Time between decisions. Unit: seconds. Range: 0.1 to 5.</summary>
         public Fix64 ThinkIntervalSeconds { get; }
 
@@ -673,6 +676,7 @@ namespace Rts.Ai
         private AiProfile(JsonValue root, string id, IReadOnlyDictionary<string, AiFactionPlan> factions)
         {
             Id = id;
+            _root = root;
             SourceName = root.SourceName;
             Factions = factions;
             ThinkIntervalSeconds = root.RequireFix64("think_interval_seconds", "0.1", "5");
@@ -993,6 +997,52 @@ namespace Rts.Ai
                 throw new DataValidationException(SourceName, "factions." + factionId, "is missing; this profile has no plan for that faction");
             }
             return plan;
+        }
+
+        /// <summary>
+        /// A copy of this profile (same id and every scalar) in which each named faction's plan has exactly one opening, the named one, with weight 1; other factions are unchanged
+        /// (balance_measurement.md M.3.1). The opening draw then takes one NextInt(1) call. Used only by the balance harness; no AI file and no play changes. Throws
+        /// <see cref="ArgumentException"/> naming the faction and the opening when either is missing.
+        /// </summary>
+        /// <param name="openingByFaction">Opening ID to force by faction ID. Range: each faction has a plan here and an opening of that ID.</param>
+        public AiProfile WithForcedOpenings(IReadOnlyDictionary<string, string> openingByFaction)
+        {
+            if (openingByFaction == null)
+            {
+                throw new ArgumentNullException(nameof(openingByFaction));
+            }
+            // Plans of the copy by faction ID, in ordinal order.
+            SortedDictionary<string, AiFactionPlan> plans = new SortedDictionary<string, AiFactionPlan>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, AiFactionPlan> pair in Factions)
+            {
+                plans.Add(pair.Key, pair.Value);
+            }
+            foreach (KeyValuePair<string, string> forced in openingByFaction)
+            {
+                if (!Factions.TryGetValue(forced.Key, out AiFactionPlan? plan))
+                {
+                    throw new ArgumentException("profile '" + Id + "' has no plan for faction '" + forced.Key + "' (opening '" + forced.Value + "')");
+                }
+                // The opening to force, null when the plan has none of that ID.
+                AiOpening? found = null;
+                foreach (AiOpening candidate in plan.Openings)
+                {
+                    if (candidate.Id == forced.Value)
+                    {
+                        found = candidate;
+                    }
+                }
+                if (found == null)
+                {
+                    throw new ArgumentException("faction '" + forced.Key + "' of profile '" + Id + "' has no opening '" + forced.Value + "'");
+                }
+                // The same opening with weight 1, so the draw is NextInt(1).
+                AiOpening one = new AiOpening(found.Id, 1, found.BuildOrder, found.Composition, found.HandoverSeconds, found.ExpandAtSeconds, found.EarlyExpansionSeconds,
+                    found.AttackArmySupply, found.AttackMinSupply);
+                plans[forced.Key] = new AiFactionPlan(plan.FactionId, plan.WorkerUnitId, plan.SupplyBuildingId, plan.BuildOrder, plan.Composition, plan.AttackTideMin, plan.AttackTideMax,
+                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one });
+            }
+            return new AiProfile(_root, Id, plans);
         }
 
         /// <summary>Validates one faction plan object.</summary>

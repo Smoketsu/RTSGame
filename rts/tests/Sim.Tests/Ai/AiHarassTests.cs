@@ -56,6 +56,9 @@ namespace Rts.Sim.Tests.Ai
             return AiProfile.Parse(text, "ai/aggressive_s5.json", Data.Content);
         }
 
+        /// <summary>aggressive_s5 with package AI-H switched on (harass_speed_ratio 1.2, the value it shipped with until 21 Nov 2026), set in the test because the shipped file has it at 0.</summary>
+        private static AiProfile OnProfile() => Edited("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": 1.2,");
+
         /// <summary>A model: the given definition IDs with their counts. Unit: units.</summary>
         private static SortedDictionary<string, Fix64> Model(params (string Id, int Count)[] entries)
         {
@@ -67,26 +70,23 @@ namespace Rts.Sim.Tests.Ai
             return model;
         }
 
-        /// <summary>H-0: shipped values (old profiles 0, aggressive_s5 1.2, abl_s5_no_h 0) and the parser (range 0 to 4, type, missing key).</summary>
+        /// <summary>H-0: shipped values (every profile 0 since AI-H was switched off on aggressive_s5, 21 Nov 2026; the in-test OnProfile 1.2) and the parser (range 0 to 4, type, missing key).</summary>
         [Test]
         public void H0_ShippedValuesAndParser()
         {
-            Assert.That(AiProfile.FromDataSet(Data, "aggressive_s5").HarassSpeedRatio, Is.EqualTo(Fix64.Parse("1.2")));
+            Assert.That(OnProfile().HarassSpeedRatio, Is.EqualTo(Fix64.Parse("1.2")));
             foreach (string id in Data.AiProfiles.Keys)
             {
-                if (id != "aggressive_s5")
-                {
-                    Assert.That(AiProfile.FromDataSet(Data, id).HarassSpeedRatio, Is.EqualTo(Fix64.Zero), id);
-                }
+                Assert.That(AiProfile.FromDataSet(Data, id).HarassSpeedRatio, Is.EqualTo(Fix64.Zero), id);
             }
             // Pairs of (old text, new text) that must be rejected with the file name and the key in the message.
             (string Old, string New)[] bad =
             {
-                ("\"harass_speed_ratio\": 1.2,", "\"harass_speed_ratio\": 4.5,"),
-                ("\"harass_speed_ratio\": 1.2,", "\"harass_speed_ratio\": -0.1,"),
-                ("\"harass_speed_ratio\": 1.2,", "\"harass_speed_ratio\": \"fast\","),
-                ("\"harass_speed_ratio\": 1.2,", "\"harass_speed_ratio\": true,"),
-                ("\"harass_speed_ratio\": 1.2,", string.Empty),
+                ("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": 4.5,"),
+                ("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": -0.1,"),
+                ("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": \"fast\","),
+                ("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": true,"),
+                ("\"harass_speed_ratio\": 0,", string.Empty),
             };
             foreach ((string oldText, string newText) in bad)
             {
@@ -94,8 +94,8 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(error.Message, Does.StartWith("ai/aggressive_s5.json").And.Contain("harass_speed_ratio"), newText);
             }
             // The limits themselves are accepted.
-            Assert.That(Edited("\"harass_speed_ratio\": 1.2,", "\"harass_speed_ratio\": 4,").HarassSpeedRatio, Is.EqualTo(Fix64.FromInt(4)));
-            Assert.That(Edited("\"harass_speed_ratio\": 1.2,", "\"harass_speed_ratio\": 0,").HarassSpeedRatio, Is.EqualTo(Fix64.Zero));
+            Assert.That(Edited("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": 4,").HarassSpeedRatio, Is.EqualTo(Fix64.FromInt(4)));
+            Assert.That(Edited("\"harass_speed_ratio\": 0,", "\"harass_speed_ratio\": 1.2,").HarassSpeedRatio, Is.EqualTo(Fix64.Parse("1.2")));
         }
 
         /// <summary>The view of player 0 knows its enemy factions from the match setup, sorted, without its own.</summary>
@@ -113,7 +113,7 @@ namespace Rts.Sim.Tests.Ai
         public void H1_ChaserSpeedFromTheModel()
         {
             AiWorldView view = SkaiView();
-            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile profile = OnProfile();
             SortedDictionary<string, Fix64> model = Model(("water.shellback", 2), ("water.grasper", 1));
             Assert.That(AiIntel.ChaserSpeed(view, model, MovementLayer.Ground, out Fix64 chaser), Is.True);
             Assert.That(Fix64.Max(chaser, Fix64.Parse("2.2")) - Fix64.Min(chaser, Fix64.Parse("2.2")) < Fix64.Parse("0.001"), Is.True, chaser.ToString());
@@ -148,7 +148,7 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(chaser, Is.EqualTo(sum / Fix64.FromInt(count)), layer.ToString());
             }
             // Against water's roster the Windrunner (3.5) harasses and the Talon Archer (2.5) does not.
-            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile profile = OnProfile();
             Assert.That(AiIntel.MayHarass(view, profile, Model(), MovementLayer.Ground, Data.Content.Units["skai.windrunner"].SpeedTilesPerSecond), Is.True);
             Assert.That(AiIntel.MayHarass(view, profile, Model(), MovementLayer.Ground, Data.Content.Units["skai.talon_archer"].SpeedTilesPerSecond), Is.False);
         }
@@ -158,7 +158,7 @@ namespace Rts.Sim.Tests.Ai
         public void H3_NothingHitsTheLayer()
         {
             AiWorldView view = SkaiView();
-            AiProfile profile = AiProfile.FromDataSet(Data, "aggressive_s5");
+            AiProfile profile = OnProfile();
             // Shellbacks and Graspers: neither hits air by its static layer list.
             SortedDictionary<string, Fix64> model = Model(("water.shellback", 2), ("water.grasper", 1));
             view.EnemyFactionIds = new[] { "neutral" };

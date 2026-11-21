@@ -139,6 +139,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Complete pairs a paired ladder needs, as a share of all its pairs, or its verdict is INCOMPLETE. Unit: parts per 10 000. Range: 0 to 10000.</summary>
         public int PairedMinCompletePt { get; private set; }
 
+        /// <summary>Seconds per income bucket of the game summary (M.4.2). Unit: seconds. Range: 5 to 600.</summary>
+        public int SummaryBucketSeconds { get; private set; }
+
+        /// <summary>Game times of the summary's bank snapshots (M.4.2). Unit: seconds. Range: 1 to 8 entries of 1 to 7200, ascending.</summary>
+        public IReadOnlyList<int> SummaryBankTimesSeconds { get; private set; } = Array.Empty<int>();
+
         /// <summary>The response scenarios in file order. Range: 1 to 64 entries.</summary>
         public IReadOnlyList<ResponseTest> ResponseTests { get; private set; } = Array.Empty<ResponseTest>();
 
@@ -163,7 +169,7 @@ namespace Rts.Tools.BalanceHarness
             root.RejectUnknownKeys("ladder_base_seed", "ladder_games_per_cell", "ladder_maps", "ladder_matchups", "ladder_max_game_seconds", "ladder_min_decided",
                 "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "opening_max_use_fraction", "opening_max_mirror_win_fraction",
                 "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests",
-                "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction");
+                "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction", "summary_bucket_seconds", "summary_bank_times_seconds");
             AiEvalSettings settings = new AiEvalSettings();
             settings.LadderBaseSeed = (ulong)root.RequireInt("ladder_base_seed", 0, int.MaxValue);
             // Games per cell, checked for the multiple-of-4 rule (the seat rule needs whole blocks of four games).
@@ -189,6 +195,24 @@ namespace Rts.Tools.BalanceHarness
             settings.EffectZAlpha = root.RequireFix64("effect_z_alpha", "0", "6");
             settings.EffectZPower = root.RequireFix64("effect_z_power", "0", "6");
             settings.PairedMinCompletePt = PredictSettings.ReadPt(root, "paired_min_complete_fraction");
+            settings.SummaryBucketSeconds = root.RequireInt("summary_bucket_seconds", 5, 600);
+            // The bank times, checked for size and ascending order.
+            JsonValue bankNode = root.Require("summary_bank_times_seconds");
+            if (bankNode.Items.Count < 1 || bankNode.Items.Count > 8)
+            {
+                throw bankNode.Fail("must hold 1 to 8 entries (found " + bankNode.Items.Count.ToString(CultureInfo.InvariantCulture) + ")");
+            }
+            List<int> bankTimes = new List<int>();
+            foreach (JsonValue time in bankNode.Items)
+            {
+                int seconds = time.AsInt(1, 7200);
+                if (bankTimes.Count > 0 && seconds <= bankTimes[bankTimes.Count - 1])
+                {
+                    throw time.Fail("must be above the entry before it (found " + seconds.ToString(CultureInfo.InvariantCulture) + ")");
+                }
+                bankTimes.Add(seconds);
+            }
+            settings.SummaryBankTimesSeconds = bankTimes;
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");

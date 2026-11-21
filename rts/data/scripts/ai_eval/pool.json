@@ -1,0 +1,25 @@
+// rts/data/scripts/ai_eval/pool.json: the opponent pool of the balance harness (--pool); spec rts/docs/specs/balance_measurement.md M.3. Read by rts/tools/BalanceHarness/PoolSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every number is a placeholder.
+{
+  "$schema_version": 1,
+  "$doc": "Opponent pool: a candidate profile plays paired games against each member; stage 1 is run on every candidate, stage 2 (one forced opening per faction) once per package before it is marked done.",
+  // Maps the pool plays; empty means the ladder's maps (ladder_maps in ai_eval.json). Unit: list of map IDs. Range: 0 to 32 entries. Source: balance_measurement.md M.6; placeholder.
+  "pool_maps": [],
+  // Matchups the pool plays: mirror cells only while the cross cell is decided by faction (every cross pair is concordant); put skai_vs_water back once it is not one-sided. Unit: list of matchup IDs, factions in ordinal order. Range: 1 to 16 entries. Source: balance_measurement.md M.6 and Q-4; placeholder.
+  "pool_matchups": ["skai_vs_skai", "water_vs_water"],
+  // Pairs per cell of a stage 1 run (a pair is two games, so 46 pairs are 92 games per cell). Unit: pairs. Range: 2 to 1000, even. Source: balance_measurement.md M.6 and M.3.5; placeholder.
+  "stage1_pairs_per_cell": 46,
+  // Pairs per cell of a stage 2 run. Unit: pairs. Range: 2 to 1000, even. Source: balance_measurement.md M.6 and M.3.5; placeholder.
+  "stage2_pairs_per_cell": 24,
+  // True: a member counts as "better" only when significant at effect_alpha divided by the number of members run (Bonferroni); false: at effect_alpha. "Worse" is always tested at effect_alpha. Unit: boolean. Range: true or false. Source: balance_measurement.md M.6 and Q-6; placeholder.
+  "better_bonferroni": true,
+  // The members, in file order: id (unique, 1 to 48 lower-case letters, digits or underscores), profile (a file under rts/data/ai), optional force_opening (faction ID to opening ID, one opening forced per faction) and stage (1 or 2). Unit: list of objects. Range: 1 to 32 entries. Source: balance_measurement.md M.3.2; placeholder.
+  "members": [
+    { "id": "s3", "profile": "aggressive_s3", "stage": 1 },
+    { "id": "s4r", "profile": "aggressive_s4r", "stage": 1 },
+    { "id": "s5", "profile": "aggressive_s5", "stage": 1 },
+    { "id": "s5_standard", "profile": "aggressive_s5", "force_opening": { "skai": "skai_standard", "water": "water_standard" }, "stage": 2 },
+    { "id": "s5_pressure", "profile": "aggressive_s5", "force_opening": { "skai": "skai_windrunner_pressure", "water": "water_grasper_pressure" }, "stage": 2 },
+    { "id": "s5_fast_expand", "profile": "aggressive_s5", "force_opening": { "skai": "skai_fast_expand", "water": "water_fast_expand" }, "stage": 2 },
+    { "id": "s5_tech", "profile": "aggressive_s5", "force_opening": { "skai": "skai_air", "water": "water_leviathan_tech" }, "stage": 2 }
+  ]
+}

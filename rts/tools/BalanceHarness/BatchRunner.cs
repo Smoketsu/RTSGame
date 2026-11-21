@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using Rts.Ai;
 using Rts.Sim.Data;
 
 namespace Rts.Tools.BalanceHarness
@@ -27,6 +28,18 @@ namespace Rts.Tools.BalanceHarness
             if (options.PredictFights && !options.IsWorker)
             {
                 return PredictRunner.Run(options, data, output, error);
+            }
+            if (options.Pool && !options.IsWorker)
+            {
+                return PoolRunner.Run(options, data, output, error);
+            }
+            if (options.Balance && !options.IsWorker)
+            {
+                return BalanceRunner.Run(options, data, output, error);
+            }
+            if (options.Behaviour && !options.IsWorker)
+            {
+                return BehaviourRunner.Run(options, data, output, error);
             }
             if (options.Fights)
             {
@@ -96,23 +109,49 @@ namespace Rts.Tools.BalanceHarness
             // Base seed and tick limit after the command-line overrides.
             ulong baseSeed = options.Seed ?? (ulong)batch.BaseSeed;
             int maxSeconds = options.MaxGameSeconds ?? batch.MaxGameSeconds;
+            // A pool worker (balance_measurement.md M.3.3): the member's profile, with its forced openings, against the candidate; always the paired layout.
+            AiProfile? memberProfile = null;
+            AiProfile? candidateProfile = null;
+            if (options.PoolMember.Length > 0)
+            {
+                memberProfile = PoolSettings.Load(options.DataDirectory, data).Require(options.PoolMember).Resolve(data);
+                candidateProfile = AiProfile.FromDataSet(data, options.ProfileB);
+            }
             for (int game = options.WorkerFirst; game < options.WorkerFirst + options.WorkerCount; game++)
             {
+                if (memberProfile != null && candidateProfile != null)
+                {
+                    output.Write(GameRunner.PlayPool(data, options.WorkerMap, options.WorkerMatchup, game, baseSeed, memberProfile, options.PoolMember, candidateProfile, options.ProfileB, maxSeconds,
+                        options.TestFault == BatchOptions.FaultPerturb && options.WorkerIsRerun && game == options.WorkerFirst ? 1UL : 0UL).ToJsonLine() + "\n");
+                    output.Flush();
+                    continue;
+                }
                 ulong seed = SeedDerivation.GameSeed(baseSeed, options.WorkerMap, options.WorkerMatchup, game);
                 if (options.TestFault == BatchOptions.FaultPerturb && options.WorkerIsRerun && game == options.WorkerFirst)
                 {
                     // Test switch: the re-run plays a different seed, so the spot check must report a mismatch.
                     seed ^= 1UL;
                 }
-                // A ladder worker plays the ladder's game (seat rule, or the paired layout with --paired); a batch worker plays the batch profile twice.
+                // The read-only summary observer of --behaviour and --balance games (--summary), or null.
+                SummaryObserver? summary = options.Summary ? NewSummaryObserver(options) : null;
+                // A ladder worker plays the ladder's game (seat rule, or the paired layout with --paired); a batch worker plays the batch profile (or --profile, for --balance) twice.
                 GameRecord record = options.ProfileA.Length > 0
                     ? GameRunner.PlayLadder(data, options.WorkerMap, options.WorkerMatchup, game, baseSeed, options.ProfileA, options.ProfileB, maxSeconds, options.Paired,
-                        options.TestFault == BatchOptions.FaultPerturb && options.WorkerIsRerun && game == options.WorkerFirst ? 1UL : 0UL)
-                    : GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, game, seed, batch.AiProfile, batch.AiProfile, maxSeconds);
+                        options.TestFault == BatchOptions.FaultPerturb && options.WorkerIsRerun && game == options.WorkerFirst ? 1UL : 0UL, null, summary)
+                    : GameRunner.Play(data, options.WorkerMap, options.WorkerMatchup, game, seed, options.Profile.Length > 0 ? options.Profile : batch.AiProfile,
+                        options.Profile.Length > 0 ? options.Profile : batch.AiProfile, maxSeconds, null, -1, -1, summary);
                 output.Write(record.ToJsonLine() + "\n");
                 output.Flush();
             }
             return 0;
+        }
+
+        /// <summary>A new summary observer with the bucket length and bank times of ai_eval.json (M.4.2).</summary>
+        /// <param name="options">Worker options (the data folder).</param>
+        internal static SummaryObserver NewSummaryObserver(BatchOptions options)
+        {
+            AiEvalSettings settings = AiEvalSettings.Load(options.DataDirectory);
+            return new SummaryObserver(settings.SummaryBucketSeconds, settings.SummaryBankTimesSeconds);
         }
 
         // ------------------------------------------------------------------ coordinator

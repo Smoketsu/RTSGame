@@ -1,0 +1,33 @@
+// rts/data/scripts/ai_eval/behaviour_checks.json: the behaviour checks of the balance harness (--behaviour); spec rts/docs/specs/balance_measurement.md M.4 and M.6. Read by rts/tools/BalanceHarness/BehaviourSettings.cs only; it lives under scripts/ so DataLoader skips it (outside the content digest) and in a subfolder so CI does not run it as a command script. Every number is a placeholder.
+{
+  "$schema_version": 1,
+  "$doc": "Behaviour checks: named predicates over one slot's game summary, evaluated for every slot-game of a profile and reported as counts. A check is declared here by its registry ID (BehaviourChecks.cs) under checks.",
+  // Games per (map, matchup) cell of a --behaviour run, in the paired layout (72 games over three matchups, about 16 minutes at 4 jobs). Unit: games. Range: 4 to 1000, a multiple of 4. Source: balance_measurement.md M.6; placeholder.
+  "games_per_cell": 24,
+  // Weight of one rare resource unit against one common unit when a check adds the two. Unit: ratio. Range: 0 to 20, at most 4 decimals. Source: balance_measurement.md M.6 (as counter_rare_cost_weight); placeholder.
+  "rare_weight": 1,
+  "checks": {
+    "static_defence_share": {
+      // Run this check. Unit: boolean. Range: true or false. Source: balance_measurement.md M.6; placeholder.
+      "enabled": true,
+      // Most a slot-game may spend on static defence, as a share of everything it spent (common plus rare_weight times rare); edge inclusive. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.4.3 and P-006 (tower spending stays under its budget share); placeholder until package B sets the defence band.
+      "max_share": 0.15,
+      // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.6; placeholder.
+      "max_violation_fraction": 0.05
+    },
+    "hq_move_new_income": {
+      // Run this check. Unit: boolean. Range: true or false. Source: balance_measurement.md M.6; placeholder.
+      "enabled": true,
+      // HQ moves shorter than this are ignored (a shuffle is not a relocation). Unit: tiles. Range: 0 to 200. Source: balance_measurement.md M.4.4; placeholder.
+      "min_distance_tiles": 4,
+      // Number of income buckets summed before the uproot and after the settling time. Unit: buckets. Range: 1 to 20. Source: balance_measurement.md M.4.4; placeholder.
+      "window_buckets": 2,
+      // Buckets after the HQ roots that are skipped before the after window starts. Unit: buckets. Range: 0 to 20. Source: balance_measurement.md M.4.4; placeholder.
+      "settle_buckets": 1,
+      // Income after the move must be at least before times (1 + this); below it the move violates (edge inclusive). Unit: fraction. Range: 0 to 10, at most 4 decimals. Source: balance_measurement.md M.4.4 and P-006 (no HQ move without new income); placeholder.
+      "min_gain_fraction": 0.10,
+      // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.6; placeholder.
+      "max_violation_fraction": 0
+    }
+  }
+}

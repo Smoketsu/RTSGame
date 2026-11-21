@@ -84,20 +84,47 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="paired">True for the paired layout.</param>
         /// <param name="seedXor">Value xor-ed into the seed (test fault only). Range: any ulong; 0 normally.</param>
         /// <param name="trace">Optional read-only observer.</param>
+        /// <param name="summary">Optional read-only summary observer; its per-slot summaries go to the record.</param>
         public static GameRecord PlayLadder(DataSet data, string mapId, string matchupId, int game, ulong baseSeed, string profileA, string profileB, int maxGameSeconds, bool paired,
-            ulong seedXor = 0, GameTrace? trace = null)
+            ulong seedXor = 0, GameTrace? trace = null, SummaryObserver? summary = null)
         {
             // Index the seed derives from: the pair when paired, else the game.
             int seedIndex = paired ? game / 2 : game;
             ulong seed = SeedDerivation.GameSeed(baseSeed, mapId, matchupId, seedIndex) ^ seedXor;
             if (!paired)
             {
-                return Play(data, mapId, matchupId, game, seed, LadderProfileInSlot(game, 0, profileA, profileB), LadderProfileInSlot(game, 1, profileA, profileB), maxGameSeconds, trace);
+                return Play(data, mapId, matchupId, game, seed, LadderProfileInSlot(game, 0, profileA, profileB), LadderProfileInSlot(game, 1, profileA, profileB), maxGameSeconds, trace, -1, -1, summary);
             }
-            return Play(data, mapId, matchupId, game, seed, PairedProfileInSlot(game, 0, profileA, profileB), PairedProfileInSlot(game, 1, profileA, profileB), maxGameSeconds, trace, game / 2, game % 2);
+            return Play(data, mapId, matchupId, game, seed, PairedProfileInSlot(game, 0, profileA, profileB), PairedProfileInSlot(game, 1, profileA, profileB), maxGameSeconds, trace, game / 2, game % 2, summary);
         }
 
-        /// <summary>Plays one game and returns its record.</summary>
+        /// <summary>
+        /// Plays game <paramref name="game"/> of a paired ladder cell of the opponent pool (balance_measurement.md M.3.3): the paired layout of <see cref="PlayLadder"/> with the baseline given as a
+        /// profile object (a pool member's, possibly with forced openings); the record carries the member ID and names the baseline side by it.
+        /// </summary>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="mapId">Map ID.</param>
+        /// <param name="matchupId">Matchup ID.</param>
+        /// <param name="game">Game index in the cell. Unit: games. Range: 0 upward.</param>
+        /// <param name="baseSeed">The run's base seed. Range: any ulong.</param>
+        /// <param name="baseline">The member's profile (the baseline).</param>
+        /// <param name="memberId">The member's ID.</param>
+        /// <param name="candidate">The candidate's profile.</param>
+        /// <param name="candidateId">The candidate's profile ID.</param>
+        /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
+        /// <param name="seedXor">Value xor-ed into the seed (test fault only). Range: any ulong; 0 normally.</param>
+        public static GameRecord PlayPool(DataSet data, string mapId, string matchupId, int game, ulong baseSeed, AiProfile baseline, string memberId, AiProfile candidate, string candidateId,
+            int maxGameSeconds, ulong seedXor = 0)
+        {
+            // The seed of the pair, as PlayLadder derives it for a paired game.
+            ulong seed = SeedDerivation.GameSeed(baseSeed, mapId, matchupId, game / 2) ^ seedXor;
+            // True when the candidate plays slot 0 (even games).
+            bool candidateFirst = game % 2 == 0;
+            return Play(data, mapId, matchupId, game, seed, candidateFirst ? candidate : baseline, candidateFirst ? baseline : candidate, candidateFirst ? candidateId : memberId,
+                candidateFirst ? memberId : candidateId, maxGameSeconds, null, game / 2, game % 2, memberId);
+        }
+
+        /// <summary>Plays one game by profile IDs (each loaded from the data set) and returns its record; see the profile-object overload.</summary>
         /// <param name="data">The loaded data set.</param>
         /// <param name="mapId">Map ID; the map must have two spawns.</param>
         /// <param name="matchupId">Matchup ID "a_vs_b".</param>
@@ -107,11 +134,37 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="profileSlot1">AI profile ID slot 1 plays.</param>
         /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
         /// <param name="trace">Optional read-only observer (--trace mode); null in batch games. It never changes the game.</param>
+        /// <param name="pair">Pair index of a paired ladder game, or -1 (unpaired). Unit: pairs. Range: -1, or 0 upward.</param>
+        /// <param name="candidateSlot">Slot of the candidate in a paired game, written to the record. Range: -1 (unpaired), 0 or 1.</param>
+        /// <param name="summary">Optional read-only summary observer (--behaviour and --balance games); null in every other mode.</param>
+        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string profileSlot0, string profileSlot1, int maxGameSeconds, GameTrace? trace = null,
+            int pair = -1, int candidateSlot = -1, SummaryObserver? summary = null)
+        {
+            return Play(data, mapId, matchupId, game, seed, AiProfile.FromDataSet(data, profileSlot0), AiProfile.FromDataSet(data, profileSlot1), profileSlot0, profileSlot1, maxGameSeconds,
+                trace, pair, candidateSlot, string.Empty, summary);
+        }
+
+        /// <summary>Plays one game and returns its record. The profile objects may be shared and immutable; the names go to the record.</summary>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="mapId">Map ID; the map must have two spawns.</param>
+        /// <param name="matchupId">Matchup ID "a_vs_b".</param>
+        /// <param name="game">Game index in the cell. Unit: games. Range: 0 upward.</param>
+        /// <param name="seed">Simulation seed (see <see cref="SeedDerivation"/>). Range: any ulong.</param>
+        /// <param name="profile0">Profile slot 0 plays.</param>
+        /// <param name="profile1">Profile slot 1 plays.</param>
+        /// <param name="name0">Name written to the record for slot 0's profile (a profile ID or a pool member ID).</param>
+        /// <param name="name1">Name written to the record for slot 1's profile.</param>
+        /// <param name="maxGameSeconds">Tick limit in seconds. Unit: seconds. Range: 1 to 7200.</param>
+        /// <param name="trace">Optional read-only observer (--trace mode); null in batch games. It never changes the game.</param>
         /// <param name="pair">Pair index of a paired ladder game: the factions follow the pair (<see cref="FactionInSlot"/> of the pair, so both games of a pair match) and the record carries it. Unit: pairs. Range: -1 (unpaired, factions follow the game), or 0 upward.</param>
         /// <param name="candidateSlot">Slot of the candidate in a paired game, written to the record. Range: -1 (unpaired), 0 or 1.</param>
-        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, string profileSlot0, string profileSlot1, int maxGameSeconds, GameTrace? trace = null,
-            int pair = -1, int candidateSlot = -1)
+        /// <param name="member">Pool member ID written to the record, or empty. Range: empty, or a pool member ID.</param>
+        /// <param name="summary">Optional read-only summary observer; null in every mode that does not need a summary.</param>
+        public static GameRecord Play(DataSet data, string mapId, string matchupId, int game, ulong seed, AiProfile profile0, AiProfile profile1, string name0, string name1, int maxGameSeconds,
+            GameTrace? trace = null, int pair = -1, int candidateSlot = -1, string member = "", SummaryObserver? summary = null)
         {
+            string profileSlot0 = name0;
+            string profileSlot1 = name1;
             // Index the factions follow: the pair of a paired game, else the game itself.
             int factionIndex = pair >= 0 ? pair : game;
             MapDefinition map = data.RequireMap(mapId);
@@ -133,9 +186,10 @@ namespace Rts.Tools.BalanceHarness
             List<IPlayerController> controllers = new List<IPlayerController>();
             foreach (PlayerSetup player in players)
             {
-                controllers.Add(new SkirmishAiController(player.Id, AiProfile.FromDataSet(data, player.Id.Value == 0 ? profileSlot0 : profileSlot1)));
+                controllers.Add(new SkirmishAiController(player.Id, player.Id.Value == 0 ? profile0 : profile1));
             }
             AiHost.StartAll(sim, controllers);
+            summary?.Begin(sim);
             // IDs of the openings the two AIs drew (skirmish_ai_v4_rl.md H.1), "" for a profile without openings.
             string opening0 = ((SkirmishAiController)controllers[0]).OpeningId;
             string opening1 = ((SkirmishAiController)controllers[1]).OpeningId;
@@ -169,9 +223,11 @@ namespace Rts.Tools.BalanceHarness
                     }
                 }
                 trace?.AfterThink(sim, controllers);
+                summary?.AfterThink(controllers);
                 lastTick = sim.Clock.Tick;
                 sim.Step();
                 trace?.AfterStep(sim);
+                summary?.AfterStep(sim);
                 if (i == 0)
                 {
                     // shortcut: only the HQs of the standard start are watched; an HQ trained later would be missed, upgrade when HQs can be built.
@@ -218,8 +274,10 @@ namespace Rts.Tools.BalanceHarness
             }
             signature.Write(Math.Max(lastTick, 0));
             signature.Write(result);
+            // The per-slot summaries, when an observer was attached.
+            GameSummary[]? summaries = summary?.Finish(Math.Max(lastTick, 0));
             return new GameRecord(mapId, matchupId, game, seed, FactionInSlot(matchupId, factionIndex, 0), FactionInSlot(matchupId, factionIndex, 1), profileSlot0, profileSlot1, result,
-                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills, opening0, opening1, pair, candidateSlot);
+                Math.Max(lastTick, 0), sim.ComputeStateHash(), signature.Hash, sim.ContentDigest, kills, opening0, opening1, pair, candidateSlot, member, summaries?[0], summaries?[1]);
         }
 
         /// <summary>Damage and death ticks of one HQ unit while a game runs.</summary>
