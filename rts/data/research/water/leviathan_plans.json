@@ -1,0 +1,17 @@
+// rts/data/research/water/leviathan_plans.json: Leviathan Plans, a water research item queued at the Reef Workshop; finishing it lets its owner train Leviathans. Part of rts/data/research; read by the data loader (rts/src/Sim/Data) into a ResearchDefinition. Every number is a placeholder.
+{
+  "$schema_version": 1,
+  "$doc": "Leviathan Plans research item for the water faction (unlocks water.leviathan; researched at the Reef Workshop); placeholder numbers.",
+  // Stable research ID, equal to the faction folder, a dot and the file name; shares one namespace with unit IDs. Unit: text ID. Range: lower-case letters, digits, underscores and dots; not equal to any unit ID. Source: docs/decisions/ADR-003-entity-ids.md.
+  "id": "water.leviathan_plans",
+  // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  "display_name": "Leviathan Plans",
+  // Faction that can research this; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
+  "faction_id": "water",
+  // Cost in the common resource, paid when queued, not refunded. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  "cost_common": 25,
+  // Cost in the rare resource, paid when queued, not refunded. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  "cost_rare": 175,
+  // Time the item takes at the head of its building's queue. Unit: seconds. Range: 0.05 to 3600. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  "research_seconds": 45
+}

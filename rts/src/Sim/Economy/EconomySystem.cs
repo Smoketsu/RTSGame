@@ -21,6 +21,8 @@
 //   complete (and, for an HQ, Rooted); at 0 the unit appears on the first free tile next to the producer (EconomyRules.
 //   TryFindSpawnPosition) and UnitTrainedEvent is emitted; with no free tile it waits and retries next tick. A queued unit
 //   reserves its supply and its cost is paid when queued; there is no refund (placeholder).
+//   A research item (research_and_unlocks.md) sits in the same queue: it counts down research_seconds, needs no spawn tile, and at 0 adds its ID
+//   to the owner's research set and emits ResearchCompletedEvent; the next entry then starts with its own length (EconomyRules.QueueEntryTicks).
 // Build orders (BuildOrderState; specs/worker_construction.md): BuildStructureCommand pays the cost, records the order on the
 //   worker and sends it to the site (ToSite). StepBuild runs after StepGather and before StepProduction, when the worker has
 //   BuildState != None.
@@ -700,7 +702,7 @@ namespace Rts.Sim.Economy
             }
         }
 
-        /// <summary>Counts a producer's head-of-queue time down and releases the unit when it is done.</summary>
+        /// <summary>Counts a producer's head-of-queue time down and releases the unit when it is done; a finished research item sets the owner's research flag instead (ResearchCompletedEvent).</summary>
         private static void StepProduction(Simulation sim, Unit producer)
         {
             if (producer.IsUnderConstruction || (producer.Definition.Hq != null && producer.HqState != HqState.Rooted))
@@ -714,9 +716,21 @@ namespace Rts.Sim.Economy
             }
             // Definition ID at the head of the queue and its definition.
             string headId = producer.ProductionQueue[0];
+            // Length of the next queue entry in ticks (unit or research), or 0 when none is waiting.
+            int nextEntryTicks = producer.ProductionQueue.Count > 1 ? EconomyRules.QueueEntryTicks(sim, producer.ProductionQueue[1]) : 0;
+            if (sim.Content.Researches.ContainsKey(headId))
+            {
+                if (sim.Players.TryGet(producer.Owner, out Player? researcher))
+                {
+                    researcher.AddResearch(headId);
+                }
+                sim.Events.Add(new ResearchCompletedEvent(sim.Clock.Tick, producer.Id, producer.Owner, headId));
+                producer.FinishProductionHead(nextEntryTicks);
+                return;
+            }
             if (!sim.Content.Units.TryGetValue(headId, out UnitDefinition? definition))
             {
-                producer.FinishProductionHead(0);
+                producer.FinishProductionHead(nextEntryTicks);
                 return;
             }
             if (!EconomyRules.TryFindSpawnPosition(sim, producer.Position, definition.Layer, out FixVec2 position))
@@ -727,13 +741,7 @@ namespace Rts.Sim.Economy
             // The new unit, owned by the producer's owner.
             Unit created = sim.SpawnUnit(definition, producer.Owner, position);
             sim.Events.Add(new UnitTrainedEvent(sim.Clock.Tick, producer.Id, created.Id, definition.Id));
-            // Build time of the next queue entry in ticks, or 0 when none is waiting.
-            int nextTicks = 0;
-            if (producer.ProductionQueue.Count > 1 && sim.Content.Units.TryGetValue(producer.ProductionQueue[1], out UnitDefinition? next))
-            {
-                nextTicks = EconomyRules.BuildTicks(sim, next);
-            }
-            producer.FinishProductionHead(nextTicks);
+            producer.FinishProductionHead(nextEntryTicks);
         }
     }
 }

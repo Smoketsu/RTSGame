@@ -1,6 +1,6 @@
 // rts/src/Sim/Units/UnitEconomyDefinition.cs
 // Immutable economy part of a unit definition: build time, worker and drop-off flags, what the unit can train, the
-// static-defence flag, footprint size, supply provided, the wall flag and the prerequisite buildings. Part of Rts.Sim.Units. Parsed from the optional economy
+// static-defence flag, footprint size, supply provided, the wall flag, the prerequisite buildings and units and the research items a building can queue. Part of Rts.Sim.Units. Parsed from the optional economy
 // keys of a unit file (can_gather, is_drop_off, trains, build_seconds, is_static_defence, footprint, provides_supply, is_wall, requires);
 // read by the economy system (Rts.Sim.Economy) and the train and build commands. Every value comes from data (rule 3).
 using System;
@@ -51,6 +51,9 @@ namespace Rts.Sim.Units
         /// </summary>
         public IReadOnlyList<string> Requires { get; }
 
+        /// <summary>IDs of the research items this building can queue, in file order (menu order). Range: 0 to 8 distinct research IDs of this unit's faction, checked by the loader.</summary>
+        public IReadOnlyList<string> Researches { get; }
+
         /// <summary>True for a gate: a wall piece whose tile units of the owner's team (allies included) cross; everyone else treats it as a wall (walls_and_tech.md G.1). Needs <see cref="IsWall"/>.</summary>
         public bool IsGate { get; }
 
@@ -65,8 +68,10 @@ namespace Rts.Sim.Units
         /// <param name="isWall">True for walls; needs footprintTiles 1. Default false.</param>
         /// <param name="requires">Prerequisite building IDs; null means none. Range: 0 to 8 entries.</param>
         /// <param name="isGate">True for gates; needs isWall. Default false.</param>
+        /// <param name="researches">Research IDs this building can queue; null means none. Range: 0 to 8 entries.</param>
         public UnitEconomyDefinition(Fix64 buildSeconds, bool canGather, bool isDropOff, IReadOnlyList<string> trains,
-            bool isStaticDefence, int footprintTiles, int providesSupply, bool isWall = false, IReadOnlyList<string>? requires = null, bool isGate = false)
+            bool isStaticDefence, int footprintTiles, int providesSupply, bool isWall = false, IReadOnlyList<string>? requires = null, bool isGate = false,
+            IReadOnlyList<string>? researches = null)
         {
             if (buildSeconds < Fix64.Parse("0.05"))
             {
@@ -102,6 +107,7 @@ namespace Rts.Sim.Units
             IsWall = isWall;
             Requires = requires ?? new List<string>();
             IsGate = isGate;
+            Researches = researches ?? new List<string>();
         }
 
         /// <summary>Feeds every field into a hash in a fixed order (used by the content digest).</summary>
@@ -125,6 +131,11 @@ namespace Rts.Sim.Units
                 hasher.Write(id);
             }
             hasher.Write(IsGate);
+            hasher.Write(Researches.Count);
+            foreach (string id in Researches)
+            {
+                hasher.Write(id);
+            }
         }
     }
 }

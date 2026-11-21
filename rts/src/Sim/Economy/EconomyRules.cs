@@ -65,7 +65,7 @@ namespace Rts.Sim.Economy
         /// <summary>
         /// The first entry of <c>definition.Economy.Requires</c>, in file order, that <paramref name="owner"/> does not meet, or null when all are
         /// met or the list is empty (walls_and_tech.md T.1). A requirement is met when the owner has a registered, complete (not under
-        /// construction), living unit of that definition; allies' and enemies' buildings never count. One scan of the units per entry.
+        /// construction), living unit of that definition, or, for a research ID, has finished that research; allies' and enemies' buildings never count. One scan of the units per entry.
         /// </summary>
         /// <param name="sim">The simulation.</param>
         /// <param name="owner">The player who wants to train or build.</param>
@@ -80,8 +80,17 @@ namespace Rts.Sim.Economy
                 string required = requires[r];
                 // True once a complete, living building of the owner with this definition is found.
                 bool met = false;
+                if (sim.Content.Researches.ContainsKey(required))
+                {
+                    // A research item is met when the owner has finished it (own research only).
+                    met = sim.Players.TryGet(owner, out Player? player) && player.HasResearched(required);
+                }
                 foreach (Unit unit in sim.Units.All)
                 {
+                    if (met)
+                    {
+                        break;
+                    }
                     if (unit.Owner == owner && !unit.IsUnderConstruction && unit.Health > Fix64.Zero && string.Equals(unit.Definition.Id, required, StringComparison.Ordinal))
                     {
                         met = true;
@@ -94,6 +103,44 @@ namespace Rts.Sim.Economy
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// True when a unit owned by <paramref name="owner"/> has the research item anywhere in its production queue. An existence test over
+        /// all units, so order cannot change the result (research_and_unlocks.md R1.5).
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="owner">The player whose producers are searched.</param>
+        /// <param name="researchId">Research ID, such as "skai.thunderhead_plans".</param>
+        public static bool IsResearchQueued(Simulation sim, PlayerId owner, string researchId)
+        {
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == owner && System.Linq.Enumerable.Contains(unit.ProductionQueue, researchId))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Length in ticks of a production queue entry: <see cref="BuildTicks"/> for a unit ID, max(1, research_seconds in ticks) for a research ID,
+        /// 0 for an unknown ID. Unit: ticks. Range: 0 upward.
+        /// </summary>
+        /// <param name="sim">The simulation (for the catalog and clock).</param>
+        /// <param name="definitionId">Unit or research ID.</param>
+        public static int QueueEntryTicks(Simulation sim, string definitionId)
+        {
+            if (sim.Content.Units.TryGetValue(definitionId, out UnitDefinition? unit))
+            {
+                return BuildTicks(sim, unit);
+            }
+            if (sim.Content.Researches.TryGetValue(definitionId, out ResearchDefinition? research))
+            {
+                return Math.Max(1, sim.Clock.SecondsToTicks(research.ResearchSeconds));
+            }
+            return 0;
         }
 
         /// <summary>

@@ -1390,7 +1390,8 @@ namespace Rts.Ai
                     // A structure ID the step's structure requires (Economy.Requires). Range: a structure ID of the faction.
                     foreach (string required in content.Units[steps[i].StructureId].Economy.Requires)
                     {
-                        if (!built.Contains(required))
+                        // Research items are never built by a step (research_and_unlocks.md R1.8): skipped.
+                        if (!built.Contains(required) && !content.Researches.ContainsKey(required))
                         {
                             throw orderNode.Fail("step " + i + " builds '" + steps[i].StructureId + "', which requires '" + required + "' in an earlier step");
                         }
@@ -1407,7 +1408,8 @@ namespace Rts.Ai
                     // A structure ID the unit requires (Economy.Requires). Range: a structure ID of the faction.
                     foreach (string required in content.Units[pair.Key].Economy.Requires)
                     {
-                        if (!built.Contains(required))
+                        // Research items are never built by a step (research_and_unlocks.md R1.8): skipped.
+                        if (!built.Contains(required) && !content.Researches.ContainsKey(required))
                         {
                             throw compositionNode.Require(pair.Key).Fail("requires '" + required + "', which this opening's build_order never builds");
                         }

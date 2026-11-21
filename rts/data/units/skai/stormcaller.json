@@ -1,7 +1,7 @@
 // rts/data/units/skai/stormcaller.json: Stormcaller, the Skai ground area bombardment unit. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Stormcaller unit definition for the skai faction (ground bombardment with blast damage, slow cooldown, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Its shell has a blast (splash_radius_tiles); its grounding_ability is the Downdraft: an order that slams every enemy flyer near a point to the ground (rts/docs/specs/combat_mechanics.md package 4).",
+  "$doc": "Stormcaller unit definition for the skai faction (ground bombardment with blast damage, slow cooldown, trained at the Windspire); placeholder numbers until the Phase 1 unit docs are written. Its shell has a blast (splash_radius_tiles); its grounding_ability is the Downdraft: an order that slams every enemy flyer near a point to the ground (rts/docs/specs/combat_mechanics.md package 4). Needs Stormcaller Plans researched.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.stormcaller",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Skai Riders / Unit concepts (Stormcaller).
@@ -30,6 +30,8 @@
   "build_seconds": 30,
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: placeholder.
   "armour_type": "light",
+  // Buildings the owner must have standing and complete, and research items the owner must have finished, to train or build this; checked only when the order is given. Unit: list of unit and research IDs. Range: 0 to 8 distinct IDs of buildings (footprint 1) or research items of this unit's faction, never this unit, no cycles (empty when absent). Source: P-005 developer decision 8 (18 Nov 2026) and P-007 developer decisions 1 and 3 (21 Nov 2026); gated units and the Stormcaller choice are placeholders, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  "requires": ["skai.stormcaller_plans"],
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder.
   "sight_range_tiles": 10,
   // Weapon: slow, heavy blast bombardment at long range, hitting ground and water only. Every number is a placeholder for playtesting.

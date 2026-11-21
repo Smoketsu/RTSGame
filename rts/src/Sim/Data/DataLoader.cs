@@ -86,6 +86,8 @@ namespace Rts.Sim.Data
             SortedDictionary<string, string> cycleFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
             // Unit ID mapped to the data file that defined it, for cross-reference errors.
             SortedDictionary<string, string> unitFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            // File path per research ID, for error messages. Range: every research ID read.
+            SortedDictionary<string, string> researchFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
             // Faction file roots by faction ID, kept for the unit-list reference check.
             SortedDictionary<string, JsonValue> factionRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
             // Skirmish AI profile roots by profile ID, in ordinal ID order; validated by Rts.Ai, not here.
@@ -135,6 +137,18 @@ namespace Rts.Sim.Data
                             unitFiles.Add(unit.Id, path);
                             break;
                         }
+                    case "research":
+                        {
+                            // Research definition read from this file. Range: validated by ReadResearch.
+                            ResearchDefinition research = ReadResearch(root, path, parts);
+                            if (content.Researches.ContainsKey(research.Id))
+                            {
+                                throw new DataValidationException(path, "id", "duplicates the research id '" + research.Id + "' defined elsewhere");
+                            }
+                            content.AddResearch(research);
+                            researchFiles.Add(research.Id, path);
+                            break;
+                        }
                     case "factions":
                         {
                             // Faction definition read from this file. Range: validated by ReadFaction.
@@ -168,7 +182,7 @@ namespace Rts.Sim.Data
                         }
                     default:
                         throw new DataValidationException(path, string.Empty,
-                            "is not under a known data folder (tuning/, units/, factions/, maps/, cycles/, ai/ or scripts/)");
+                            "is not under a known data folder (tuning/, units/, research/, factions/, maps/, cycles/, ai/ or scripts/)");
                 }
             }
 
@@ -189,7 +203,7 @@ namespace Rts.Sim.Data
             }
             tuning.SetSourceDigest(tuningHasher.Hash);
             CheckQuakePathsClearOfSpawns(maps, tuning.Economy.StartingWorkerSearchRadiusTiles);
-            CheckReferences(content, unitFiles, factionRoots);
+            CheckReferences(content, unitFiles, researchFiles, factionRoots);
             CheckRequirementCycles(content, unitFiles);
             content.SetCombatRules(tuning.Combat.CreateRules());
             return new DataSet(content, tuning, maps, cycles, aiProfiles);
@@ -326,7 +340,7 @@ namespace Rts.Sim.Data
             CheckDepth(path, parts, 3, "units/<faction>/<name>.json");
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
                 "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "airborne_sight_range_tiles", "weapon",
-                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "requires", "is_static_defence", "is_wall", "is_gate", "footprint", "provides_supply",
+                "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "requires", "researches", "is_static_defence", "is_wall", "is_gate", "footprint", "provides_supply",
                 "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave", "shield_dome", "grounding_ability");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
@@ -389,6 +403,29 @@ namespace Rts.Sim.Data
             // Optional grounding ability (combat_mechanics.md package 4); null when absent.
             GroundingAbilityDefinition? groundingAbility = UnitSchema.ReadGroundingAbility(root);
             return new UnitDefinition(id, displayName, factionId, layer, maxHealth, speed, supply, radius, costCommon, costRare, armourType, sightRange, weapon, hq, economy, airborneSightRange, flood, shieldDome, groundingAbility);
+        }
+
+        /// <summary>Reads research/&lt;faction&gt;/&lt;name&gt;.json (research_and_unlocks.md R1.2). References are checked later in <see cref="CheckReferences"/>.</summary>
+        private static ResearchDefinition ReadResearch(JsonValue root, string path, string[] parts)
+        {
+            CheckDepth(path, parts, 3, "research/<faction>/<name>.json");
+            root.RejectUnknownKeys("id", "display_name", "faction_id", "cost_common", "cost_rare", "research_seconds");
+            // ID implied by the path: the folder is the faction, the file name is the item.
+            string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
+            // Display name text. Range: non-empty string.
+            string displayName = root.RequireNonEmptyString("display_name");
+            // Owning faction ID; must equal the folder name checked below.
+            string factionId = root.RequireNonEmptyString("faction_id");
+            if (!string.Equals(factionId, parts[1], StringComparison.Ordinal))
+            {
+                throw root.Require("faction_id").Fail("must be '" + parts[1] + "' to match the folder the file is in (found '" + factionId + "')");
+            }
+            // Costs. Unit: resource units. Range: 0 to 100000.
+            int costCommon = root.Require("cost_common").AsInt(0, 100000);
+            int costRare = root.Require("cost_rare").AsInt(0, 100000);
+            // Research time. Unit: seconds (fixed-point). Range: 0.05 to 3600.
+            Fix64 seconds = root.Require("research_seconds").AsFix64(Fix64.Parse("0.05"), Fix64.FromInt(3600));
+            return new ResearchDefinition(id, displayName, factionId, costCommon, costRare, seconds);
         }
 
         /// <summary>Adds a unit to the catalog, turning a duplicate ID into a file-named error.</summary>
@@ -497,6 +534,11 @@ namespace Rts.Sim.Data
             path.Add(id);
             foreach (string required in content.Units[id].Economy.Requires)
             {
+                if (content.Researches.ContainsKey(required))
+                {
+                    // Research items are leaves: they have no requires.
+                    continue;
+                }
                 VisitRequirement(content, unitFiles, required, done, path);
             }
             path.RemoveAt(path.Count - 1);
@@ -504,8 +546,21 @@ namespace Rts.Sim.Data
         }
 
         /// <summary>Checks unit-to-faction and faction-to-unit references, naming the file and field of the dangling one.</summary>
-        private static void CheckReferences(ContentCatalog content, SortedDictionary<string, string> unitFiles, SortedDictionary<string, JsonValue> factionRoots)
+        private static void CheckReferences(ContentCatalog content, SortedDictionary<string, string> unitFiles, SortedDictionary<string, string> researchFiles, SortedDictionary<string, JsonValue> factionRoots)
         {
+            foreach (KeyValuePair<string, ResearchDefinition> pair in content.Researches)
+            {
+                if (!content.Factions.ContainsKey(pair.Value.FactionId))
+                {
+                    throw new DataValidationException(researchFiles[pair.Key], "faction_id",
+                        "names the faction '" + pair.Value.FactionId + "', which has no file in factions/");
+                }
+                if (content.Units.ContainsKey(pair.Key))
+                {
+                    throw new DataValidationException(researchFiles[pair.Key], "id",
+                        "duplicates the unit id '" + pair.Key + "'; research and unit IDs share one namespace");
+                }
+            }
             foreach (KeyValuePair<string, UnitDefinition> pair in content.Units)
             {
                 if (!content.Factions.ContainsKey(pair.Value.FactionId))
@@ -534,6 +589,24 @@ namespace Rts.Sim.Data
                     {
                         throw new DataValidationException(unitFiles[pair.Key], field, "requires itself");
                     }
+                    if (content.Researches.TryGetValue(required, out ResearchDefinition? requiredResearch))
+                    {
+                        if (!string.Equals(requiredResearch.FactionId, pair.Value.FactionId, StringComparison.Ordinal))
+                        {
+                            throw new DataValidationException(unitFiles[pair.Key], field, "names '" + required + "' of faction '" + requiredResearch.FactionId + "'; requirements must be of the same faction");
+                        }
+                        // True when some building of the same faction lists this research in researches.
+                        bool listedByBuilding = false;
+                        foreach (UnitDefinition building in content.Units.Values)
+                        {
+                            listedByBuilding |= string.Equals(building.FactionId, pair.Value.FactionId, StringComparison.Ordinal) && System.Linq.Enumerable.Contains(building.Economy.Researches, required);
+                        }
+                        if (!listedByBuilding)
+                        {
+                            throw new DataValidationException(unitFiles[pair.Key], field, "names the research '" + required + "', which no building of faction '" + pair.Value.FactionId + "' lists in researches");
+                        }
+                        continue;
+                    }
                     if (!content.Units.TryGetValue(required, out UnitDefinition? requiredDefinition))
                     {
                         throw new DataValidationException(unitFiles[pair.Key], field, "names the unit '" + required + "', which has no file in units/");
@@ -545,6 +618,21 @@ namespace Rts.Sim.Data
                     if (requiredDefinition.Economy.FootprintTiles <= 0)
                     {
                         throw new DataValidationException(unitFiles[pair.Key], field, "names '" + required + "', which is not a building (footprint 1)");
+                    }
+                }
+                if (pair.Value.Economy.Researches.Count > 0 && (pair.Value.Economy.FootprintTiles != 1 || pair.Value.Hq != null))
+                {
+                    throw new DataValidationException(unitFiles[pair.Key], "researches", "is only allowed on a building (footprint 1) that is not an HQ");
+                }
+                foreach (string researched in pair.Value.Economy.Researches)
+                {
+                    if (!content.Researches.TryGetValue(researched, out ResearchDefinition? researchDefinition))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], "researches", "names the research '" + researched + "', which has no file in research/");
+                    }
+                    if (!string.Equals(researchDefinition.FactionId, pair.Value.FactionId, StringComparison.Ordinal))
+                    {
+                        throw new DataValidationException(unitFiles[pair.Key], "researches", "names '" + researched + "' of faction '" + researchDefinition.FactionId + "'; research must be of the same faction");
                     }
                 }
                 if (pair.Value.Hq != null)
