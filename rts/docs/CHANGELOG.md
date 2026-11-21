@@ -7,6 +7,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `ReplayPlayback` in `Rts.Replay` (gap G3 of `specs/player_interface_2.md`): a step-by-step replay player; `ReplayVerifier.Verify` now runs on it, results unchanged.
+- Verification scripts `data/scripts/ui_research.json`, `ui_victory.json`, `ui_2v2_defeated.json` and `ui_health.json` for the four things the Unity session could not check.
 - Gap G1 of `specs/player_interface_2.md`: the Unity project loads the skirmish AI as package `com.rtsgame.ai` (`file:../../Ai`), `Rts.Game.asmdef` references `Rts.Ai`, and the `.meta` files Unity generated for every file in `rts/src/Ai` are committed (no source change there). `Rts.Ai` compiles in Unity 6000.6.7f1 with no errors or warnings.
 - Spec `docs/specs/player_interface_2.md` for the PC session: UI-12 skirmish setup against a local AI, UI-13 main menu and match flow, UI-14 minimap, UI-15 replay playback, four verification scripts, and the cloud-side gaps G1 to G3.
 - Unity UI-10 (`specs/player_interface.md`): `Hud/GameMenu.cs`, F10 menu with Surrender (confirm Yes or No) sending `SurrenderCommand`, and the end screen: Victory, Defeat or Draw with the cause of the last player to leave, Leave (stops Play Mode in the editor, quits a player), and "Defeated" with Keep Watching while a team match goes on. `SimulationHost` evaluates `MatchOutcome` after each step and, once decided, stops stepping and writes the replay at once (`Outcome` for the HUD). Notices for player state changes; surrender rejection texts; `HudBuild.Button`.
