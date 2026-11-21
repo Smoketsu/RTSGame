@@ -22,6 +22,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 - First balance report, `docs/reports/balance_first/` (216 self-play games of `aggressive_s5`): 1 of 4 trust checks passes (unused units and mechanics, predictor accuracy and unspent rare fail). Nothing tuned.
 
+- Fight predictor v2 fix round, `docs/reports/predict_v2b/`: `FightSim` blast count uses blast radius plus victim radius and takes armed targets before unarmed (both ports of `CombatSystem`); new held-out set `data/scripts/fights/heldout2.json` (seed 20261122) scored once: 6 of 7 bars (accuracy 0.819 against the formula's 0.705), gate FAIL on the worst-pair bar. No setting or bar changed.
+
 ### Changed
 
 - `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
