@@ -471,7 +471,7 @@ namespace Rts.Game.Bootstrap
             }
         }
 
-        /// <summary>Reads the events of the tick that just ran: spawns, removals, hashes, rejections, layer changes (grounding) and wave pushes.</summary>
+        /// <summary>Reads the events of the tick that just ran: spawns, removals, hashes, rejections, layer changes (grounding), wave pushes and quake relocations.</summary>
         private void ProcessEvents()
         {
             // Events of the latest tick, oldest first; valid until the next Step.
@@ -503,6 +503,14 @@ namespace Rts.Game.Bootstrap
                 {
                     // A grounded flyer drops to ground height (and rises again when the status ends), without a blend.
                     SnapView(layerChanged.Unit, layerChanged.To == MovementLayer.Air ? AirHeight : GroundHeight);
+                }
+                else if (simEvent is UnitRelocatedEvent relocated)
+                {
+                    // A quake relocation is instant, so the cube jumps instead of sliding.
+                    if (_views.TryGetValue(relocated.Unit, out UnitView relocatedView))
+                    {
+                        SnapView(relocated.Unit, relocatedView.Height);
+                    }
                 }
                 else if (simEvent is UnitPushedEvent pushed)
                 {

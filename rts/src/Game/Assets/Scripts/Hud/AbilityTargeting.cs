@@ -13,6 +13,7 @@
 using System.Collections.Generic;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
+using Rts.Game.Presentation;
 using Rts.Game.UnitSelection;
 using Rts.Sim;
 using Rts.Sim.Commands;
@@ -47,8 +48,8 @@ namespace Rts.Game.Hud
         /// <summary>Colour of the effect radius at the cursor and of cast pulses. Unit: RGBA, each channel 0 to 1.</summary>
         [SerializeField] private Color effectColor = new Color(1f, 0.85f, 0.3f, 0.9f);
 
-        /// <summary>Points per circle. Unit: line vertices.</summary>
-        private const int CircleSegments = 48;
+        /// <summary>Width of targeting and effect lines. Unit: world units.</summary>
+        private const float LineWidth = 0.08f;
 
         /// <summary>Height of circles and lines above the terrain. Unit: world units.</summary>
         private const float Lift = 0.08f;
@@ -77,8 +78,8 @@ namespace Rts.Game.Hud
         /// <summary>The ability being targeted, or null while the mode is off.</summary>
         private AbilityKind? _kind;
 
-        /// <summary>Lines in use this frame and kept between frames; index 0 onward. Range: 0 to the most lines seen.</summary>
-        private readonly List<LineRenderer> _lines = new List<LineRenderer>();
+        /// <summary>Circles and lines drawn this frame. Presentation only.</summary>
+        private readonly LinePool _pool = new LinePool("Ability Line");
 
         /// <summary>Selected own casters of the targeted ability, ascending EntityId. Presentation scratch list.</summary>
         private readonly List<Unit> _casters = new List<Unit>();
@@ -95,8 +96,6 @@ namespace Rts.Game.Hud
         /// <summary>True once subscribed to the host's events. Unit: on/off.</summary>
         private bool _subscribed;
 
-        /// <summary>Number of lines used this frame. Range: 0 upward.</summary>
-        private int _used;
 
         /// <summary>Tiles a wave would cover, from the last preview. Unit: tile indices. Presentation scratch list.</summary>
         private readonly List<int> _previewArea = new List<int>();
@@ -167,13 +166,7 @@ namespace Rts.Game.Hud
             {
                 _commands.Host.EventRaised -= OnSimEvent;
             }
-            foreach (LineRenderer line in _lines)
-            {
-                if (line != null)
-                {
-                    Destroy(line.gameObject);
-                }
-            }
+            _pool.Dispose();
             foreach (Renderer marker in _tileMarkers)
             {
                 if (marker != null)
@@ -194,7 +187,7 @@ namespace Rts.Game.Hud
             {
                 _selection = FindAnyObjectByType<SelectionController>();
             }
-            _used = 0;
+            _pool.Begin();
             // Wave preview markers used this frame. Range: 0 upward.
             int markers = 0;
             if (_commands != null && _selection != null && _commands.IsReady)
@@ -216,10 +209,7 @@ namespace Rts.Game.Hud
             {
                 _tileMarkers[i].gameObject.SetActive(false);
             }
-            for (int i = _used; i < _lines.Count; i++)
-            {
-                _lines[i].gameObject.SetActive(false);
-            }
+            _pool.End();
         }
 
         /// <summary>One frame of targeting: collect casters, draw, and cast or cancel. Returns the number of wave preview markers drawn.</summary>
@@ -405,7 +395,7 @@ namespace Rts.Game.Hud
             Simulation sim = _commands.Host.Match;
             // The local team, for fog of war: effects only show where the team can see (UI-6).
             Rts.Sim.Core.TeamId team = sim.Players.TeamOf(_commands.LocalPlayer);
-            if (simEvent is GroundingCastEvent grounding && Presentation.FogView.CanSeePoint(sim, team, grounding.Target))
+            if (simEvent is GroundingCastEvent grounding && FogView.CanSeePoint(sim, team, grounding.Target))
             {
                 // Radius of the caster's ability when it is still alive; one tile otherwise. Unit: tiles.
                 float radius = sim.Units.TryGet(grounding.Caster, out Unit caster) && caster.Definition.GroundingAbility != null
@@ -413,7 +403,7 @@ namespace Rts.Game.Hud
                 Vector3 centre = ToWorld(grounding.Target);
                 _effects.Add((centre, centre, true, radius, Time.unscaledTime + EffectSeconds));
             }
-            else if (simEvent is WaveCastEvent wave && sim.Units.TryGet(wave.Caster, out Unit waveCaster) && Presentation.FogView.CanSee(sim, team, waveCaster))
+            else if (simEvent is WaveCastEvent wave && sim.Units.TryGet(wave.Caster, out Unit waveCaster) && FogView.CanSee(sim, team, waveCaster))
             {
                 Vector3 from = ToWorld(waveCaster.Position);
                 Vector3 direction = new Vector3(wave.DirX, 0f, wave.DirY).normalized;
@@ -448,7 +438,7 @@ namespace Rts.Game.Hud
         {
             foreach (Unit unit in sim.Units.All)
             {
-                if (unit.Statuses.IsGrounded && Presentation.FogView.CanSee(sim, sim.Players.TeamOf(_commands.LocalPlayer), unit))
+                if (unit.Statuses.IsGrounded && FogView.CanSee(sim, sim.Players.TeamOf(_commands.LocalPlayer), unit))
                 {
                     DrawCircle(ToWorld(unit.Position) + Vector3.up * GroundedMarkerHeight, GroundedMarkerRadius, effectColor);
                 }
@@ -471,12 +461,7 @@ namespace Rts.Game.Hud
         /// <param name="color">Line colour, RGBA 0 to 1.</param>
         private void DrawCircle(Vector3 centre, float radius, Color color)
         {
-            LineRenderer line = NextLine(color, CircleSegments, true);
-            for (int i = 0; i < CircleSegments; i++)
-            {
-                float angle = i * Mathf.PI * 2f / CircleSegments;
-                line.SetPosition(i, centre + new Vector3(Mathf.Cos(angle) * radius, Lift, Mathf.Sin(angle) * radius));
-            }
+            _pool.Circle(centre + Vector3.up * Lift, radius, color, LineWidth);
         }
 
         /// <summary>Draws a straight line between two world points, lifted above the terrain.</summary>
@@ -485,34 +470,7 @@ namespace Rts.Game.Hud
         /// <param name="color">Line colour, RGBA 0 to 1.</param>
         private void DrawLine(Vector3 from, Vector3 to, Color color)
         {
-            LineRenderer line = NextLine(color, 2, false);
-            line.SetPosition(0, from + Vector3.up * Lift);
-            line.SetPosition(1, to + Vector3.up * Lift);
-        }
-
-        /// <summary>The next free line renderer, created when the pool is too small, set up for this use.</summary>
-        /// <param name="color">Line colour.</param>
-        /// <param name="points">Vertex count.</param>
-        /// <param name="loop">True to close the line into a loop.</param>
-        private LineRenderer NextLine(Color color, int points, bool loop)
-        {
-            if (_used == _lines.Count)
-            {
-                GameObject lineObject = new GameObject("Ability Line " + _used);
-                LineRenderer created = lineObject.AddComponent<LineRenderer>();
-                // Sprites/Default is always included in builds and draws the vertex colour unlit.
-                created.material = new Material(Shader.Find("Sprites/Default"));
-                created.widthMultiplier = 0.08f;
-                created.useWorldSpace = true;
-                _lines.Add(created);
-            }
-            LineRenderer line = _lines[_used++];
-            line.gameObject.SetActive(true);
-            line.positionCount = points;
-            line.loop = loop;
-            line.startColor = color;
-            line.endColor = color;
-            return line;
+            _pool.Line(from + Vector3.up * Lift, to + Vector3.up * Lift, color, LineWidth);
         }
     }
 }
