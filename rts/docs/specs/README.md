@@ -126,3 +126,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [field_saturation.md](field_saturation.md) | SAT: gather slots per field (`gather_slots_per_common_field` 3, `gather_slots_per_rare_field` 2), `GatherState.Waiting` with a hashed first-come queue tick; every hash moves. SAT-M: re-baseline. AI-E: worker caps, depots and rare cap from the slots (`aggressive_s5`). AI-P: producers at expansions, static defence by threat. AI-H: harass speed relative to the enemy's chasers. AI-HQ: relocation to the best field cluster | developer decision 18 Nov 2026 | economy (built); build SAT, SAT-M, then L-R and the AI packages in the order of its section 10 |
+
+## Balance measurement (P-006 packages M and C first half, 21 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [balance_measurement.md](balance_measurement.md) | M: paired ladder games with an exact sign test, stated power (MDE) and the verdict NO_MEASURABLE_EFFECT, an opponent pool with forced openings (`AiProfile.WithForcedOpenings`, the only `rts/src/Ai` change), behaviour checks over per-game summaries, the standing `--balance` report. C (first half): `--predict-fights` scores `FightPredictor` against the `--fights` sweep, with a proposed fix-or-simulate rule. No `rts/src/Sim` change, no change to AI play | P-006 | balance harness, fights, opening library (built); build M1, M3, M4, M5 in order, C in parallel before M5 |
