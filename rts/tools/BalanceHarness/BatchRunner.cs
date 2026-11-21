@@ -24,6 +24,10 @@ namespace Rts.Tools.BalanceHarness
         public static int Run(BatchOptions options, TextWriter output, TextWriter error)
         {
             DataSet data = DataLoader.Load(Program.ReadDataFolder(options.DataDirectory));
+            if (options.PredictFights && !options.IsWorker)
+            {
+                return PredictRunner.Run(options, data, output, error);
+            }
             if (options.Fights)
             {
                 return FightCoordinator.Run(options, data, output, error);

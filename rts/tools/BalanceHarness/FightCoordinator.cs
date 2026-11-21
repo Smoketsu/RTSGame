@@ -49,10 +49,25 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>
+        /// The sweep for --predict-fights (balance_measurement.md C.2): exactly the --fights coordinator (same plan, workers, spot check and files), and the records it read are added to
+        /// <paramref name="records"/>. Returns the sweep's exit code (0 or 3).
+        /// </summary>
+        /// <param name="options">Parsed options (--jobs, --seed, --out are read).</param>
+        /// <param name="data">The loaded data set.</param>
+        /// <param name="output">stdout.</param>
+        /// <param name="error">stderr.</param>
+        /// <param name="records">Receives every fight record in plan order.</param>
+        internal static int RunSweepFor(BatchOptions options, DataSet data, TextWriter output, TextWriter error, List<FightRecord> records)
+        {
+            FightSettings settings = FightSettings.Load(options.DataDirectory, data);
+            return RunSweep(options, data, settings, FightMatchups.Load(options.DataDirectory, settings, data), FightPlan.Build(data, settings), options.Seed ?? settings.BaseSeed, output, error, records);
+        }
+
+        /// <summary>
         /// The coordinator (spec 4.6): plans every fight, runs chunks of the plan and the HQ floor trials in worker processes, sorts the records into plan order, re-runs the first
         /// fights in-process, runs the checks and writes fights.jsonl, hq_floor.jsonl and fights.md. Exit codes: 0 done, 1 error, 2 a check failed with --strict, 3 spot check failed.
         /// </summary>
-        private static int RunSweep(BatchOptions options, DataSet data, FightSettings settings, FightMatchups matchups, FightPlan plan, ulong baseSeed, TextWriter output, TextWriter error)
+        private static int RunSweep(BatchOptions options, DataSet data, FightSettings settings, FightMatchups matchups, FightPlan plan, ulong baseSeed, TextWriter output, TextWriter error, List<FightRecord>? keep = null)
         {
             // Wall clock for the elapsed line on stderr only (tool code, never fed to a simulation).
             Stopwatch clock = Stopwatch.StartNew();
@@ -128,6 +143,7 @@ namespace Rts.Tools.BalanceHarness
                 floors.Add(HqFloorRecord.Parse(result.Lines[0]));
             }
             floors.Sort(BatchRunner.CompareFloors);
+            keep?.AddRange(records);
 
             // Determinism spot check: the first fights of the plan run again in this process; the JSON lines must be identical.
             int verify = Math.Min(settings.VerifyFights, plan.Fights.Count);
