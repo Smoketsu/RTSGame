@@ -156,3 +156,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [research_and_unlocks.md](research_and_unlocks.md) | Research items queued at the Storm Spire and Reef Workshop through `train_unit` and the production queue; a finished item sets a per-player flag that `requires` can name. Equal trees (two items, 50 common and 300 rare per faction, placeholders); Stormcaller, Thunderhead, Brinecaster and Leviathan gated. R1: sim, data, loader, queries, the AI kept playing without research. R2 (later): the AI researches behind `use_research`, harness accounting | P-007 | package T (built); R1 now, R2 later; sim-reviewer on each |
+
+## Interface support (player_interface.md section 4, 21 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [interface_support.md](interface_support.md) | Simulation gaps for the Unity HUD: I1 placement query shared with `build_structure` (fog-safe), I2 wave preview shared with `cast_wave`, I3 ability names in unit data, I4 `cancel_production` with full refund (units and research), I5 `set_rally_point`; no pins move | 9 | player_interface.md; I4 after research R1 |
