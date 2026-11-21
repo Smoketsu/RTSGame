@@ -16,6 +16,9 @@ namespace Rts.Sim.Core
         /// <summary>Unit definitions by ID, ordinal order.</summary>
         private readonly SortedDictionary<string, UnitDefinition> _units = new SortedDictionary<string, UnitDefinition>(StringComparer.Ordinal);
 
+        /// <summary>Research definitions by ID, ordinal order.</summary>
+        private readonly SortedDictionary<string, ResearchDefinition> _researches = new SortedDictionary<string, ResearchDefinition>(StringComparer.Ordinal);
+
         /// <summary>Faction definitions by ID, ordinal order.</summary>
         private readonly SortedDictionary<string, FactionDefinition> _factions = new SortedDictionary<string, FactionDefinition>(StringComparer.Ordinal);
 
@@ -27,6 +30,9 @@ namespace Rts.Sim.Core
 
         /// <summary>Unit definitions by ID. Iteration is in ordinal ID order.</summary>
         public IReadOnlyDictionary<string, UnitDefinition> Units => _units;
+
+        /// <summary>Research definitions by ID (research_and_unlocks.md). Iteration is in ordinal ID order.</summary>
+        public IReadOnlyDictionary<string, ResearchDefinition> Researches => _researches;
 
         /// <summary>Faction definitions by ID. Iteration is in ordinal ID order.</summary>
         public IReadOnlyDictionary<string, FactionDefinition> Factions => _factions;
@@ -44,6 +50,21 @@ namespace Rts.Sim.Core
                 throw new InvalidOperationException("Duplicate unit definition id '" + definition.Id + "'.");
             }
             _units.Add(definition.Id, definition);
+        }
+
+        /// <summary>Adds a research definition. A duplicate ID throws.</summary>
+        public void AddResearch(ResearchDefinition definition)
+        {
+            RequireNotFrozen();
+            if (definition == null)
+            {
+                throw new ArgumentNullException(nameof(definition));
+            }
+            if (_researches.ContainsKey(definition.Id))
+            {
+                throw new InvalidOperationException("Duplicate research definition id '" + definition.Id + "'.");
+            }
+            _researches.Add(definition.Id, definition);
         }
 
         /// <summary>Adds a faction definition. A duplicate ID throws.</summary>
@@ -142,6 +163,11 @@ namespace Rts.Sim.Core
                     hasher.Write(unitId);
                 }
             }
+            hasher.Write(_researches.Count);
+            foreach (ResearchDefinition research in _researches.Values)
+            {
+                research.WriteHash(hasher);
+            }
             Combat.WriteHash(hasher);
             return hasher.Hash;
         }
@@ -176,6 +202,13 @@ namespace Rts.Sim.Core
                     if (!_units.ContainsKey(trained))
                     {
                         return "Unit '" + unit.Id + "' trains unknown unit '" + trained + "'.";
+                    }
+                }
+                foreach (string researched in unit.Economy.Researches)
+                {
+                    if (!_researches.ContainsKey(researched))
+                    {
+                        return "Unit '" + unit.Id + "' researches unknown research '" + researched + "'.";
                     }
                 }
                 if (unit.Hq != null && !_units.ContainsKey(unit.Hq.WorkerUnitId))

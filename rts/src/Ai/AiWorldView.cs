@@ -229,6 +229,12 @@ namespace Rts.Ai
         /// <summary>Supply used, queued units included. Unit: supply. Range: 0 upward.</summary>
         public int SupplyUsed { get; private set; }
 
+        /// <summary>
+        /// Research IDs the AI player has finished, ordinal order: a copy of its own <see cref="Player.Researched"/> (own information only, nothing about
+        /// enemies; research_and_unlocks.md R1.11 rule 11). Unit: research IDs. Range: 0 to the research items of the player's faction.
+        /// </summary>
+        public SortedSet<string> OwnResearched { get; private set; } = new SortedSet<string>(StringComparer.Ordinal);
+
         /// <summary>Supply cap now. Unit: supply. Range: 0 to <see cref="SupplyCapLimit"/>.</summary>
         public int SupplyCap { get; private set; }
 
@@ -421,6 +427,7 @@ namespace Rts.Ai
             view.Rare = self.Rare;
             view.SupplyUsed = self.SupplyUsed;
             view.SupplyCap = self.SupplyCap;
+            view.OwnResearched = new SortedSet<string>(self.Researched, StringComparer.Ordinal);
             view.SupplyCapLimit = sim.Tuning.Supply.SupplyCap;
             view.StaticDefenceSupplyCost = sim.Tuning.Supply.StaticDefenceSupplyCost;
             view.StaticDefencesPerBaseMax = sim.Tuning.Supply.StaticDefencesPerBaseMax;

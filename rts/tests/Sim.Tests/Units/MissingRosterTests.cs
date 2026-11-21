@@ -135,12 +135,20 @@ namespace Rts.Sim.Tests.Units
         {
             Simulation sim = Start("greybox_1v1", faction, faction == "skai" ? "water" : "skai");
             EntityId producer = Spawn(sim, producerId, P0, 13, 6);
-            // Complete buildings the unit requires (walls_and_tech.md T.1: the Thunderhead needs a Storm Spire, the Leviathan a Reef Workshop).
+            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
+            // Complete buildings the unit requires (walls_and_tech.md T.1: the Thunderhead needs a Storm Spire, the Leviathan a Reef Workshop) and the research
+            // items it requires, finished in setup (research_and_unlocks.md R1.8: the research queue itself is covered by ResearchTests).
             foreach (string required in sim.Content.Units[unitId].Economy.Requires)
             {
-                Spawn(sim, required, P0, 16, 6);
+                if (sim.Content.Researches.ContainsKey(required))
+                {
+                    player!.AddResearch(required);
+                }
+                else
+                {
+                    Spawn(sim, required, P0, 16, 6);
+                }
             }
-            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
             player!.SetStock(common + 50, rare + 50);
             // Tick on which the command is applied. Unit: ticks.
             int accepted = sim.Clock.Tick;

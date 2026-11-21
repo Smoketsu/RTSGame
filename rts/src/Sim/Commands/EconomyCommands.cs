@@ -102,6 +102,9 @@ namespace Rts.Sim.Commands
         /// Applies the command. Rejections, in order: unknown_unit (the producer), not_owner, unknown_definition, under_construction,
         /// cannot_train (the definition is not in the producer's trains list, or the HQ's worker), hq_not_rooted, missing_prerequisite (the owner lacks a complete building the definition requires), queue_full,
         /// insufficient_resources, supply_cap (supply used plus this unit's supply, queued units included, would exceed the cap).
+        /// A definition ID that names a research item takes the research path instead (research_and_unlocks.md R1.4): unknown_unit, not_owner,
+        /// unknown_definition, not_owner, under_construction, cannot_train (not in the producer's researches), already_researched,
+        /// already_queued, queue_full, insufficient_resources; hq_not_rooted, missing_prerequisite and supply_cap do not apply.
         /// </summary>
         public override CommandResult Apply(Simulation sim)
         {
@@ -115,7 +118,9 @@ namespace Rts.Sim.Commands
             }
             if (!sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? definition))
             {
-                return CommandResult.Reject("unknown_definition");
+                return sim.Content.Researches.TryGetValue(DefinitionId, out ResearchDefinition? research)
+                    ? ApplyResearch(sim, producer, research)
+                    : CommandResult.Reject("unknown_definition");
             }
             if (!sim.Players.TryGet(producer.Owner, out Player? owner))
             {
@@ -160,6 +165,55 @@ namespace Rts.Sim.Commands
             owner.Spend(definition.CostCommon, definition.CostRare);
             producer.EnqueueProduction(DefinitionId, EconomyRules.BuildTicks(sim, definition));
             EconomySystem.RecomputeSupply(sim);
+            return CommandResult.Ok;
+        }
+
+        /// <summary>
+        /// The research path of <see cref="Apply"/> (research_and_unlocks.md R1.4); unknown_unit, not_owner and unknown_definition are already checked.
+        /// Rejections, in order: not_owner (no player record), under_construction, cannot_train (not in the producer's researches), already_researched,
+        /// already_queued (at any of the owner's producers), queue_full, insufficient_resources. No supply is used and no requires apply.
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="producer">The building; exists and belongs to the issuer.</param>
+        /// <param name="research">The research item named by <see cref="DefinitionId"/>.</param>
+        private CommandResult ApplyResearch(Simulation sim, Unit producer, ResearchDefinition research)
+        {
+            if (!sim.Players.TryGet(producer.Owner, out Player? owner))
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (producer.IsUnderConstruction)
+            {
+                return CommandResult.Reject("under_construction");
+            }
+            // True when the producer's data lists this research item.
+            bool listed = false;
+            foreach (string id in producer.Definition.Economy.Researches)
+            {
+                listed |= string.Equals(id, DefinitionId, System.StringComparison.Ordinal);
+            }
+            if (!listed)
+            {
+                return CommandResult.Reject("cannot_train");
+            }
+            if (owner.HasResearched(DefinitionId))
+            {
+                return CommandResult.Reject("already_researched");
+            }
+            if (EconomyRules.IsResearchQueued(sim, producer.Owner, DefinitionId))
+            {
+                return CommandResult.Reject("already_queued");
+            }
+            if (producer.ProductionQueue.Count >= sim.Tuning.Economy.MaxQueueLength)
+            {
+                return CommandResult.Reject("queue_full");
+            }
+            if (!owner.CanAfford(research.CostCommon, research.CostRare))
+            {
+                return CommandResult.Reject("insufficient_resources");
+            }
+            owner.Spend(research.CostCommon, research.CostRare);
+            producer.EnqueueProduction(DefinitionId, EconomyRules.QueueEntryTicks(sim, DefinitionId));
             return CommandResult.Ok;
         }
 

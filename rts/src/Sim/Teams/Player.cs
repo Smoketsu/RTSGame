@@ -4,6 +4,7 @@
 // PlayerRegistry; only PlayerTransitions (inside Simulation.Step) and later-phase match rules change it.
 // Everything here except the display name feeds the state hash (see WriteHash).
 using System;
+using System.Collections.Generic;
 using Rts.Sim.Core;
 
 namespace Rts.Sim.Teams
@@ -75,6 +76,19 @@ namespace Rts.Sim.Teams
         /// completed structure the player owns). Unit: supply. Range: 0 to supply_cap. Recomputed with <see cref="SupplyUsed"/>. Hashed.
         /// </summary>
         public int SupplyCap { get; private set; }
+
+        /// <summary>Research IDs this player has finished, ordinal order (research_and_unlocks.md R1.3). Range: 0 to the research definitions of the player's faction. Hashed.</summary>
+        private readonly SortedSet<string> _researched = new SortedSet<string>(StringComparer.Ordinal);
+
+        /// <summary>Research IDs this player has finished, in ordinal order.</summary>
+        public IReadOnlyCollection<string> Researched => _researched;
+
+        /// <summary>True when this player has finished the research item. Allies' research never counts.</summary>
+        /// <param name="researchId">Research ID, such as "skai.thunderhead_plans".</param>
+        public bool HasResearched(string researchId)
+        {
+            return _researched.Contains(researchId);
+        }
 
         /// <summary>True while <see cref="State"/> is <see cref="PlayerState.Active"/>.</summary>
         public bool IsActive => State == PlayerState.Active;
@@ -148,6 +162,13 @@ namespace Rts.Sim.Teams
             Rare -= rare;
         }
 
+        /// <summary>Records a finished research item. Internal: <see cref="Rts.Sim.Economy.EconomySystem"/> step 7b only. Adding an ID already present is a no-op.</summary>
+        /// <param name="researchId">Research ID finished.</param>
+        internal void AddResearch(string researchId)
+        {
+            _researched.Add(researchId);
+        }
+
         /// <summary>Stores the recomputed supply figures. Internal: economy system only.</summary>
         /// <param name="used">Supply in use. Unit: supply. Range: 0 upward.</param>
         /// <param name="cap">Supply cap. Unit: supply. Range: 0 upward.</param>
@@ -185,7 +206,7 @@ namespace Rts.Sim.Teams
         /// <summary>
         /// Feeds everything about this player that affects future ticks into the state hash, in a fixed order:
         /// ID, team, faction ID, state, state-since tick, disconnect count, disconnect pauses used, pause ticks used, common, rare,
-        /// supply used, supply cap.
+        /// supply used, supply cap, research count, then the finished research IDs in ordinal order.
         /// The display name is deliberately left out.
         /// </summary>
         /// <param name="hasher">Hasher being filled by <see cref="PlayerRegistry.WriteHash"/>.</param>
@@ -203,6 +224,11 @@ namespace Rts.Sim.Teams
             hasher.Write(Rare);
             hasher.Write(SupplyUsed);
             hasher.Write(SupplyCap);
+            hasher.Write(_researched.Count);
+            foreach (string researchId in _researched)
+            {
+                hasher.Write(researchId);
+            }
         }
 
         /// <summary>Text such as "P2 (T1, skai, active)" for logs.</summary>

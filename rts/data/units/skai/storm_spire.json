@@ -1,7 +1,7 @@
 // rts/data/units/skai/storm_spire.json: Storm Spire, Skai tech building. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Storm Spire building definition for the skai faction (tech building: thunderheads need one standing); placeholder numbers.",
+  "$doc": "Storm Spire building definition for the skai faction (tech building: researches Stormcaller Plans and Thunderhead Plans; Thunderheads also need one standing); placeholder numbers.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "skai.storm_spire",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
@@ -30,6 +30,8 @@
   "footprint": 1,
   // Armour type, picks the row of the damage table in tuning/combat.json. Unit: armour type name. Range: one of the armour_types in tuning/combat.json. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
   "armour_type": "structure",
+  // Research items this building can queue (each once per player, through train_unit); a finished item lets its owner meet a requires entry that names it. Unit: list of research IDs. Range: 0 to 8 distinct IDs of research files of this unit's faction; only on a building (footprint 1) that is not an HQ (empty when absent). Source: P-007 developer decisions 1 and 2 (21 Nov 2026); rts/docs/specs/research_and_unlocks.md R1.2.
+  "researches": ["skai.stormcaller_plans", "skai.thunderhead_plans"],
   // How far the unit sees. Unit: tiles. Range: 1 to 64. Source: placeholder, developer to confirm (rts/docs/specs/walls_and_tech.md T.2).
   "sight_range_tiles": 8
 }

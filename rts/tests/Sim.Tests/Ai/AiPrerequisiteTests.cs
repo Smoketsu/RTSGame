@@ -1,5 +1,5 @@
 // rts/tests/Sim.Tests/Ai/AiPrerequisiteTests.cs
-// Tests TA-1 to TA-3 of package T of rts/docs/specs/walls_and_tech.md (AI minimum): the skirmish AI never trains a unit whose requires building
+// Tests TA-1 to TA-3 of package T (TA-2 and TA-3 changed by research_and_unlocks.md R-17) of rts/docs/specs/walls_and_tech.md (AI minimum): the skirmish AI never trains a unit whose requires building
 // it does not own complete (FindFreeProducer), and rule T2 builds that building when the mix wants the unit and its producer exists. TA-4
 // (exit test, no rejection) is SkirmishAiTests.ExitTest_AiVsAi_TwoRunsAreIdenticalAndDecided, which already demands zero rejections.
 // Part of Rts.Sim.Tests. Setup: greybox_1v1, water against water, shipped aggressive_s3 (counter mix: Leviathan weight 700 against 6 Graspers
@@ -123,36 +123,47 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(trains.Exists(id => id == "water.shellback" || id == "water.ink_lobber"), Is.True, string.Join(",", trains));
         }
 
-        /// <summary>TA-2: rule T2 builds the Reef Workshop once; none with an order pending, none under construction, none with the switch off.</summary>
+        /// <summary>
+        /// TA-2 (changed by research_and_unlocks.md R-17c): the Leviathan needs Leviathan Plans, which the AI never researches in R1, so rule T2 skips it
+        /// and builds no Reef Workshop for it, with rule T on or off.
+        /// </summary>
         [Test]
-        public void TA2_RuleT2BuildsTheTech()
+        public void TA2_RuleT2SkipsResearchGatedUnits()
         {
-            EntityId worker = WaterBase(out Simulation sim, false);
-            Assert.That(Of(Decide(sim, S3), AiIntentKind.Build), Does.Contain("water.reef_workshop"));
+            WaterBase(out Simulation sim, false);
+            Assert.That(Of(Decide(sim, S3), AiIntentKind.Build), Does.Not.Contain("water.reef_workshop"));
             Assert.That(Of(Decide(sim, S3NoTech()), AiIntentKind.Build), Does.Not.Contain("water.reef_workshop"), "switch off");
-            // A pending order: the worker has been told, the structure is not there yet.
-            sim.Submit(new BuildStructureCommand(sim.Clock.Tick, P0, _sequence++, worker, "water.reef_workshop", 17, 6));
-            sim.Step();
-            Assert.That(Of(Decide(sim, S3), AiIntentKind.Build), Does.Not.Contain("water.reef_workshop"), "pending order");
-            // Under construction: step until the structure appears.
-            bool placed = false;
-            for (int i = 0; i < 600 && !placed; i++)
-            {
-                sim.Step();
-                foreach (SimEvent evt in sim.Events.Current)
-                {
-                    placed |= evt is StructurePlacedEvent;
-                }
-            }
-            Assert.That(placed, Is.True);
-            Assert.That(Of(Decide(sim, S3), AiIntentKind.Build), Does.Not.Contain("water.reef_workshop"), "under construction");
         }
 
-        /// <summary>TA-3: with a complete Reef Workshop the think trains the Leviathan.</summary>
+        /// <summary>
+        /// TA-3 (changed by R-17d): with a complete Reef Workshop but without Leviathan Plans there is no Leviathan train; with the research
+        /// queued at the workshop and stepped to completion the Leviathan train is emitted.
+        /// </summary>
         [Test]
-        public void TA3_TrainsOnceComplete()
+        public void TA3_TrainsOnceResearched()
         {
             WaterBase(out Simulation sim, true);
+            Assert.That(Of(Decide(sim, S3), AiIntentKind.Train), Does.Not.Contain("water.leviathan"));
+            // The workshop's ID (the only Reef Workshop of P0).
+            EntityId workshop = EntityId.None;
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == P0 && unit.Definition.Id == "water.reef_workshop")
+                {
+                    workshop = unit.Id;
+                }
+            }
+            Assert.That(workshop, Is.Not.EqualTo(EntityId.None));
+            sim.Submit(new TrainUnitCommand(sim.Clock.Tick, P0, _sequence++, workshop, "water.leviathan_plans"));
+            sim.Step();
+            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
+            Assert.That(player!.HasResearched("water.leviathan_plans"), Is.False);
+            Assert.That(sim.Units.TryGet(workshop, out Unit? shop) && shop!.ProductionQueue.Count == 1, Is.True, "the research is queued");
+            // The 45 s of research are not stepped here: the AI's plan changes with the clock (by tick 900 the mix no longer asks for the Leviathan), so the
+            // finished research is set directly (the queue path itself is covered by ResearchTests R-1). The flag is the only thing the AI reads.
+            player.AddResearch("water.leviathan_plans");
+            // The research cost 175 rare; restore the stock the other tests of this file use (the counter-mix budget reads it).
+            player.SetStock(5000, 400);
             Assert.That(Of(Decide(sim, S3), AiIntentKind.Train), Does.Contain("water.leviathan"));
         }
     }

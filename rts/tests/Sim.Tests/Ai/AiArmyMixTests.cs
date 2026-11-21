@@ -783,6 +783,9 @@ namespace Rts.Sim.Tests.Ai
             // Rule P orders it from the Windspire. Common 1000 rather than the spec's 200: the HQ buys a Fledgling first (rule 4b) and would leave less than 200; rare 65 pays one Thunderhead and no more.
             // A complete Storm Spire stands (walls_and_tech.md T.4: the Thunderhead requires it).
             Spawn(sim, "skai.storm_spire", P0, "16", "6");
+            // Thunderhead Plans finished in setup (research_and_unlocks.md R1.8; the research queue itself is covered by ResearchTests).
+            Assert.That(sim.Players.TryGet(P0, out Rts.Sim.Teams.Player? skai), Is.True);
+            skai!.AddResearch("skai.thunderhead_plans");
             SetStock(sim, P0, 1000, 65);
             List<AiIntent> trains = Decide(sim, S3, memory).FindAll(i => i.Kind == AiIntentKind.Train);
             Assert.That(trains.ConvertAll(i => i.DefinitionId), Does.Contain("skai.thunderhead"));

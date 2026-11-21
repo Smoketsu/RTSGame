@@ -1892,6 +1892,7 @@ namespace Rts.Ai
             /// Rule T2 (walls_and_tech.md T.4), run when rule T built nothing: among composition units with weight at least tech_min_weight_share x
             /// mix_resolution (descending weight, then ordinal ID) the first whose producer exists but whose requirements are not met gets its first
             /// unmet requirement built, unless an own unit (complete, under construction or a pending order) already has that definition.
+            /// A unit with a research item in its requires is skipped: until R2 the AI never researches (research_and_unlocks.md R1.8).
             /// </summary>
             private void TechPrerequisite()
             {
@@ -1906,6 +1907,16 @@ namespace Rts.Ai
                     }
                     // Definition of this composition unit and its first missing building.
                     UnitDefinition unit = _view.Content.Units[pair.Key];
+                    // True when the unit needs a research item: the AI never researches in R1 (research_and_unlocks.md R1.8), so T2 skips it.
+                    bool needsResearch = false;
+                    foreach (string required in unit.Economy.Requires)
+                    {
+                        needsResearch |= _view.Content.Researches.ContainsKey(required);
+                    }
+                    if (needsResearch)
+                    {
+                        continue;
+                    }
                     string? missing = FirstUnmetRequirement(unit);
                     if (missing == null || !AnyOwnTrains(pair.Key))
                     {
@@ -2918,13 +2929,13 @@ namespace Rts.Ai
                 return FirstUnmetRequirement(definition) == null;
             }
 
-            /// <summary>The first <c>requires</c> entry of <paramref name="definition"/>, in file order, that no own complete unit satisfies, or null.</summary>
+            /// <summary>The first <c>requires</c> entry of <paramref name="definition"/>, in file order, that no own complete unit satisfies and that is not a finished own research item, or null.</summary>
             private string? FirstUnmetRequirement(UnitDefinition definition)
             {
                 foreach (string required in definition.Economy.Requires)
                 {
-                    // True once an own complete unit of the required definition is found.
-                    bool met = false;
+                    // True once an own complete unit of the required definition is found, or the research item is finished (the AI never researches in R1, so for it this stays false).
+                    bool met = _view.OwnResearched.Contains(required);
                     foreach (AiUnitView unit in _view.OwnUnits)
                     {
                         met |= !unit.IsUnderConstruction && string.Equals(unit.Definition.Id, required, StringComparison.Ordinal);

@@ -91,6 +91,33 @@ namespace Rts.Sim.Events
         public override string Describe() => Producer + " trained " + Unit + " (" + DefinitionId + ").";
     }
 
+    /// <summary>A producer finished a research item (research_and_unlocks.md R1.4); the owner's research set now holds it. Emitted in step 7b.</summary>
+    public sealed class ResearchCompletedEvent : SimEvent
+    {
+        /// <summary>The building that researched it.</summary>
+        public EntityId Producer { get; }
+
+        /// <summary>The producer's owner, who now has the research.</summary>
+        public PlayerId Owner { get; }
+
+        /// <summary>Research ID, for example "skai.thunderhead_plans".</summary>
+        public string ResearchId { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public ResearchCompletedEvent(int tick, EntityId producer, PlayerId owner, string researchId) : base(tick)
+        {
+            Producer = producer;
+            Owner = owner;
+            ResearchId = researchId;
+        }
+
+        /// <summary>Machine-readable kind name: "research_completed".</summary>
+        public override string Kind => "research_completed";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Producer + " finished research " + ResearchId + " for " + Owner + ".";
+    }
+
     /// <summary>A structure placed by a worker reached full construction and is now active (producer, drop-off, supply).</summary>
     public sealed class StructureCompletedEvent : SimEvent
     {
