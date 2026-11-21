@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Spec `docs/specs/research_and_unlocks.md` (P-007 option a): research queued through `train_unit` at the tech buildings, equal trees of two items per faction (50 common and 300 rare in total), packages R1 (simulation, data, queries) and R2 (AI, later).
 - Spec `docs/specs/player_interface.md` for the PC session: Unity packages UI-0 to UI-10 that make every simulation feature usable by a player (each names the command sent and the query or event read), the simulation gaps a UI needs filled, and open questions.
 - Proposal P-007 (`docs/proposals/P-007-research-and-unlocks.md`): research and unlocks as a rare-resource sink, sized from the measured rare banks; awaiting the developer's decision.
 - Balance harness: summary fields `workers` (own workers at each bank time) and `drop_off_ticks`, and behaviour checks `workers_at` and `first_drop_off` (P-006 B0).
