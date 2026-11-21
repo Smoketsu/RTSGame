@@ -346,6 +346,9 @@ namespace Rts.Sim.Tests.Ai
                 Spawn(sim, "water.grasper", P1, sim.Map.Spawns[1] + new FixVec2(Fix64.FromInt(-6 - i), Fix64.FromInt(-6)));
             }
             SetStock(sim, P1, 100, 40);
+            // Brinecaster Plans finished in setup (research_and_unlocks.md R1.8): the Ink Lobber is the cheaper unit that must not jump ahead.
+            Assert.That(sim.Players.TryGet(P1, out Rts.Sim.Teams.Player? water), Is.True);
+            water!.AddResearch("water.ink_lobber_plans");
             AiMemory memory = new AiMemory();
             memory.BudgetAccounts[AiBudget.Cell(AiBudget.Army, 0)] = 100;
             memory.BudgetWants[AiBudget.Cell(AiBudget.Army, 0)] = 150;

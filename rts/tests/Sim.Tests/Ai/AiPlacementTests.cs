@@ -592,11 +592,12 @@ namespace Rts.Sim.Tests.Ai
         public void P6_AblationPlaysThePreAiPGame()
         {
             // (matchup, game, expected final state hash) of the recorded games.
+            // Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): the AI never researches, so its mixes lose the Stormcaller, Ink Lobber, Thunderhead and Leviathan. Old values skai_vs_water 0xae4f362f8bdc9885, skai_vs_skai 0x235626745316a81d, water_vs_water 0xb171e5cd2bf0bfeb; end ticks were not recorded.
             (string Matchup, int Game, ulong Hash)[] recorded =
             {
-                ("skai_vs_water", 2, 0xae4f362f8bdc9885UL),
-                ("skai_vs_skai", 3, 0x235626745316a81dUL),
-                ("water_vs_water", 2, 0xb171e5cd2bf0bfebUL),
+                ("skai_vs_water", 2, 0x31dbd80f94a26eaeUL),
+                ("skai_vs_skai", 3, 0x311eec87f47b4d4eUL),
+                ("water_vs_water", 2, 0x4b44414af49e53e4UL),
             };
             foreach ((string matchup, int game, ulong hash) in recorded)
             {

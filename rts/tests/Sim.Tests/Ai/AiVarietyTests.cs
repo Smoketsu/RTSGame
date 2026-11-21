@@ -27,14 +27,15 @@ namespace Rts.Sim.Tests.Ai
         /// End tick of the traced game prototype_1v1, skai_vs_skai, seed 20261117, game 0, aggressive_s3 against aggressive_s3, recorded on
         /// main (e274808) before any package R code (skirmish_ai_v4_rl.md R-0). Unit: ticks. Range: fixed by the shipped data; changes only on purpose.
         /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old end tick 15462, hash e5c323f688131dd0 and signature fde24604c8dc84e6; new end tick 18387, hash d80614bed80cb693 and signature 7e3f96d9dc4ee256; the winner is slot 0 (decided). Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): old end tick 18387, hash d80614bed80cb693, signature 7e3f96d9dc4ee256; new end tick 16970, hash bafa3116842bfd89, signature 0295b11cf769ce58; winner still slot 0.
+        /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): the Skai mix names the Stormcaller, which now needs research the AI never does. Old end tick 16970, hash bafa3116842bfd89, signature 0295b11cf769ce58; new end tick 14986, hash 114f8276fd673c83, signature 4c225c548f969261; the winner is still slot 0.
         /// </summary>
-        private const int S3SelfTraceEndTick = 16970;
+        private const int S3SelfTraceEndTick = 14986;
 
         /// <summary>The state hash that goes with <see cref="S3SelfTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string S3SelfTraceHash = "bafa3116842bfd89";
+        private const string S3SelfTraceHash = "114f8276fd673c83";
 
         /// <summary>The play signature (hash of every AI command) of the same game, as 16 lower-case hex digits.</summary>
-        private const string S3SelfTraceSignature = "0295b11cf769ce58";
+        private const string S3SelfTraceSignature = "4c225c548f969261";
 
         /// <summary>Player slot 0 (Skai in the greybox scenarios).</summary>
         private static readonly PlayerId P0 = new PlayerId(0);

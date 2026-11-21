@@ -7,6 +7,7 @@
 // identical hashes and a decided outcome within the script's tick limit. Part of Rts.Sim.Tests. Test code only (may use System.IO).
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using NUnit.Framework;
 using Rts.Ai;
@@ -191,6 +192,9 @@ namespace Rts.Sim.Tests.Ai
             /// <summary>build_structure commands naming a gate definition (is_gate) and every build_wall_line, as "tick definition"; the AI issues neither (walls_and_tech.md G-14, D-14).</summary>
             public List<string> GateOrLineBuilds { get; } = new List<string>();
 
+            /// <summary>train_unit commands naming a research item or a unit that requires one, as "tick definition"; the AI never researches in R1 (research_and_unlocks.md R-17b).</summary>
+            public List<string> ResearchGated { get; } = new List<string>();
+
             /// <summary>Violations of the vision rule found while the AIs played.</summary>
             public List<string> VisionViolations { get; } = new List<string>();
 
@@ -238,6 +242,11 @@ namespace Rts.Sim.Tests.Ai
                         if (command is BuildStructureCommand build && sim.Content.Units.TryGetValue(build.DefinitionId, out UnitDefinition? built) && built.Economy.IsWall)
                         {
                             result.WallBuilds.Add(sim.Clock.Tick + " " + build.DefinitionId);
+                        }
+                        if (command is TrainUnitCommand train && (sim.Content.Researches.ContainsKey(train.DefinitionId)
+                            || (sim.Content.Units.TryGetValue(train.DefinitionId, out UnitDefinition? trained) && trained.Economy.Requires.Any(r => sim.Content.Researches.ContainsKey(r)))))
+                        {
+                            result.ResearchGated.Add(sim.Clock.Tick + " " + train.DefinitionId);
                         }
                         if ((command is BuildStructureCommand gateBuild && sim.Content.Units.TryGetValue(gateBuild.DefinitionId, out UnitDefinition? gateDef) && gateDef.Economy.IsGate) || command is BuildWallLineCommand)
                         {
@@ -863,8 +872,9 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files). Old value 0xacd32f73604e2bd3; outcome unchanged (winner 1, tick 7613; the AI never builds gates).
         /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest). Old value 0x849c8691d566adde; outcome unchanged (winner 1, tick 7613; the AI never issues build_wall_line).
         /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value 0x38e1f3919c6d0aeb; the outcome is unchanged (OUTCOME winner=1 tick=7613, the scripted AI never crowds a field). Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): old d016e3d25fb28d6a, new 1b76cd03ef38ef55; outcome unchanged.
+        /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): research in the content digest and player hash, and the Stormcaller and Ink Lobber now need research the AI never does. Old value 0x1b76cd03ef38ef55; OUTCOME winner=1 tick=7613 before and after (the outcome did not move).
         /// </summary>
-        private const ulong V2ReferenceHash = 0x1b76cd03ef38ef55UL;
+        private const ulong V2ReferenceHash = 0x1c0951645337b54eUL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -893,11 +903,12 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for gates (specs/walls_and_tech.md package G: GateTeam in the tile hash, is_gate in the content digest, two gate unit files). Old hash a8211dfa11746641; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest). Old hash b68b2102f6713a46; the end tick (20151) and the winner (slot 0) do not move.
         /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old end tick 20151 and hash 015496c40671ead9; new end tick 13219 and hash dd13f646a7502e2f; the winner is still slot 0 (decided). Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): end tick stays 13219, hash dd13f646a7502e2f is now 5db5cdb273174f34, winner still slot 0.
+        /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): the Water mix names the Ink Lobber, which now needs research the AI never does. Old end tick 13219 and hash 5db5cdb273174f34; new end tick 10910 and hash 6a39af6718193ef8; the winner is still slot 0.
         /// </summary>
-        private const int BlindTraceEndTick = 13219;
+        private const int BlindTraceEndTick = 10910;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "5db5cdb273174f34";
+        private const string BlindTraceHash = "6a39af6718193ef8";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]
@@ -951,6 +962,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(runs[0].Rejections, Is.Empty);
             Assert.That(runs[0].WallBuilds, Is.Empty, "W-14: no build_structure names a wall definition");
             Assert.That(runs[0].GateOrLineBuilds, Is.Empty, "G-14, D-14: no gate build_structure and no build_wall_line");
+            Assert.That(runs[0].ResearchGated, Is.Empty, "R-17b: no train_unit names a research item or a research-gated unit");
             Assert.That(runs[0].VisionViolations, Is.Empty);
         }
     }
