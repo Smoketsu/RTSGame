@@ -3,7 +3,9 @@
 // Simulation.Start, ReportSignal for camera and selection between steps, and AfterStep after every Simulation.Step. The runner READS
 // sim.Events, sim.Units, sim.Players and sim.Clock and SUBMITS ordinary commands with sim.Submit between steps; it calls no other method that changes the simulation
 // (architecture rules 2 and 8), never steps, never draws from sim.Rng, and never issues commands as a human or AI slot. Mission state lives here, outside the
-// simulation, and is not hashed (like AI memory); replays need no runner because they record the commands themselves. Engine-free; Fix64 and integers only;
+// simulation, and is not hashed (like AI memory). Replays need no runner, but only if every command the runner submits is recorded: pass the recorder's
+// Submit as the submit sink (see the class summary for the call order). SINGLE-PLAYER ONLY for now: in a lockstep match each peer would run its own runner
+// with its own camera and selection signals and submit outside the peers' command bundles, which would desync. Engine-free; Fix64 and integers only;
 // collections are lists in file order or SortedDictionary; no clock, no random numbers, no static state.
 using System;
 using System.Collections.Generic;
@@ -113,7 +115,16 @@ namespace Rts.Campaign
         }
     }
 
-    /// <summary>Plays one mission. One instance per match; not thread-safe.</summary>
+    /// <summary>
+    /// Plays one mission. One instance per match; not thread-safe. SINGLE-PLAYER ONLY for now: in a lockstep match every peer would run it with its own
+    /// camera and selection signals and submit outside the peers' bundles, which would desync.
+    /// Replays: every command the runner submits goes through the submit sink passed to the constructor (default <c>sim.Submit</c>), so a host that
+    /// records passes <c>ReplayRecorder.Submit</c>. The recorder refuses a simulation that already holds queued commands, so the host's call order is:
+    /// (1) <c>sim = mission.CreateSimulation(data)</c>; (2) <c>sim.Start()</c>; (3) <c>new ReplayRecorder(sim, mission.PlayerSetups())</c>;
+    /// (4) <c>new MissionRunner(mission, presenter, recorder.Submit)</c>; (5) <c>runner.Start(sim)</c>, which submits the setup commands through the sink;
+    /// (6) controllers' <c>OnMatchStart</c>; then per tick: inputs <c>BeforeStep(sim, runner, recorder.Submit)</c>, <c>sim.Step()</c>, <c>recorder.AfterStep()</c>,
+    /// <c>runner.AfterStep(sim)</c>; at the end <c>recorder.Finish()</c>. A replay verifies with no runner attached.
+    /// </summary>
     public sealed class MissionRunner
     {
         /// <summary>The mission played.</summary>
@@ -167,11 +178,22 @@ namespace Rts.Campaign
         /// <summary>True when a win_mission action ran during this AfterStep.</summary>
         private bool _winRequest;
 
+        /// <summary>Where the runner's commands go; null until <see cref="Start"/> (then the constructor's sink or <c>sim.Submit</c>).</summary>
+        private Action<Command>? _submit;
+
+        /// <summary>The sink passed to the constructor, or null for <c>sim.Submit</c>.</summary>
+        private readonly Action<Command>? _sink;
+
+        /// <summary>Tick of the last <see cref="AfterStep"/> processed. Unit: ticks. Range: -1 before the first.</summary>
+        private int _lastTick = -1;
+
         /// <summary>Builds a runner for a mission.</summary>
         /// <param name="mission">The validated mission.</param>
         /// <param name="presenter">Receives cues; null for none (they still go to the log).</param>
-        public MissionRunner(MissionDefinition mission, IMissionPresenter? presenter)
+        /// <param name="submit">Receives every command the runner submits (setup and actions); null means <c>sim.Submit</c>. Pass <c>ReplayRecorder.Submit</c> to record.</param>
+        public MissionRunner(MissionDefinition mission, IMissionPresenter? presenter, Action<Command>? submit = null)
         {
+            _sink = submit;
             Mission = mission ?? throw new ArgumentNullException(nameof(mission));
             _presenter = presenter;
             foreach (ObjectiveDefinition objective in mission.Objectives)
@@ -201,6 +223,7 @@ namespace Rts.Campaign
         public void Start(Simulation sim)
         {
             _sim = sim ?? throw new ArgumentNullException(nameof(sim));
+            _submit = _sink ?? sim.Submit;
             if (Status != MissionStatus.Running || _log.Count > 0 || sim.Clock.Tick != 0)
             {
                 throw new InvalidOperationException("MissionRunner.Start needs a fresh runner and a simulation at tick 0.");
@@ -238,6 +261,10 @@ namespace Rts.Campaign
             {
                 throw new InvalidOperationException("MissionRunner.ReportSignal needs Start first.");
             }
+            if (Status != MissionStatus.Running)
+            {
+                return;
+            }
             _pendingSignals.Add(new StampedSignal(_sim.Clock.Tick, signal));
         }
 
@@ -258,6 +285,11 @@ namespace Rts.Campaign
             }
             // The tick just stepped. Unit: ticks. Range: 0 upward.
             int t = sim.Clock.Tick - 1;
+            if (t <= _lastTick)
+            {
+                throw new InvalidOperationException("MissionRunner.AfterStep ran for tick " + Num(t) + " after tick " + Num(_lastTick) + "; call it once per step.");
+            }
+            _lastTick = t;
             foreach (SimEvent simEvent in sim.Events.Current)
             {
                 if (simEvent is CommandRejectedEvent rejected)
@@ -445,7 +477,7 @@ namespace Rts.Campaign
             // Sequence number for this issuer. Unit: counter. Range: 0 upward.
             uint sequence = _nextSequence[issuer];
             _nextSequence[issuer] = sequence + 1;
-            sim.Submit(CommandScript.ParseCommandObject(node, tick, issuer, sequence, Mission.SourceName, Mission.Parsers));
+            _submit!(CommandScript.ParseCommandObject(node, tick, issuer, sequence, Mission.SourceName, Mission.Parsers));
         }
 
         /// <summary>Decides the end of the mission after a tick's work: a requested or earlier loss beats a win, a win beats the timeout.</summary>

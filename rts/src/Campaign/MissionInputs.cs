@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Rts.Sim;
+using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
 using Rts.Sim.Teams;
@@ -181,7 +182,8 @@ namespace Rts.Campaign
         /// </summary>
         /// <param name="sim">The simulation between steps.</param>
         /// <param name="runner">The runner of the mission; it receives the signals and says which objectives are active.</param>
-        public void BeforeStep(Simulation sim, MissionRunner runner)
+        /// <param name="submit">Receives the human commands; null means <c>sim.Submit</c>. Pass <c>ReplayRecorder.Submit</c> to record them.</param>
+        public void BeforeStep(Simulation sim, MissionRunner runner, Action<Command>? submit = null)
         {
             foreach (InputEntry entry in _entries)
             {
@@ -208,7 +210,7 @@ namespace Rts.Campaign
                 }
                 else
                 {
-                    sim.Submit(CommandScript.ParseCommandObject(entry.Command!, sim.Clock.Tick, Player, NextSequence, _mission.SourceName, _mission.Parsers));
+                    (submit ?? sim.Submit)(CommandScript.ParseCommandObject(entry.Command!, sim.Clock.Tick, Player, NextSequence, _mission.SourceName, _mission.Parsers));
                     NextSequence++;
                 }
             }

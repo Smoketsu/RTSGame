@@ -11,6 +11,8 @@
     <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
     <!-- The skirmish AI controllers attached to a mission's ai: slots. -->
     <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
+    <!-- The replay recorder and writer behind the replay option. -->
+    <ProjectReference Include="../../src/Replay/Rts.Replay.csproj" />
     <!-- The mission loader, runner and scripted inputs. -->
     <ProjectReference Include="../../src/Campaign/Rts.Campaign.csproj" />
   </ItemGroup>

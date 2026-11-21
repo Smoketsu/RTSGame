@@ -13,6 +13,7 @@ using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Teams;
+using Rts.Replay;
 
 namespace Rts.Sim.Tests.Campaign
 {
@@ -451,6 +452,50 @@ namespace Rts.Sim.Tests.Campaign
                 Assert.That(warnings, cycles ? Is.EqualTo(new List<int> { 3600 }) : Is.Empty);
                 Assert.That(runner.EndReason, Is.EqualTo("timeout").Or.EqualTo(string.Empty));
             }
+        }
+
+
+        // ------------------------------------------------------------ replay, repeat and late signals
+
+        /// <summary>F1: the tutorial played through a recorder verifies with no mission runner attached and reproduces every hash and the live final hash.</summary>
+        [Test]
+        public void RecordedTutorialVerifiesWithoutTheRunner()
+        {
+            MissionDefinition mission = CampaignTestSupport.Parse(CampaignTestSupport.TutorialText, "tutorial_01");
+            MissionInputs inputs = MissionInputs.Parse(CampaignTestSupport.TutorialInputsText, "campaign/inputs/tutorial_01.json", mission, CampaignTestSupport.Data);
+            Rts.Tools.MissionTool.MissionResult live = Rts.Tools.MissionTool.MissionPlay.Play(CampaignTestSupport.Data, mission, inputs, null, new System.IO.StringWriter(), true);
+            Assert.That(live.Runner.Status, Is.EqualTo(MissionStatus.Won));
+            Assert.That(live.Replay, Is.Not.Null);
+            // Round trip through the file format, as ReplayCheck reads it.
+            byte[] bytes = ReplayWriter.Write(live.Replay!, BuiltInMechanics.CreateCodecRegistry());
+            ReplayData replay = ReplayReader.Read(bytes, BuiltInMechanics.CreateCodecRegistry());
+            Simulation fresh = ReplayVerifier.CreateSimulation(replay, CampaignTestSupport.Data);
+            ReplayVerification result = ReplayVerifier.Verify(replay, fresh);
+            Assert.That(result.IsMatch, Is.True, "desync at tick " + result.DesyncTick);
+            Assert.That(result.FinalHash, Is.EqualTo(live.Sim.ComputeStateHash()));
+            Assert.That(replay.Commands.Count, Is.EqualTo(9), "4 setup, 1 hatch, 4 scripted-player commands");
+        }
+
+        /// <summary>F3: AfterStep for a tick already processed throws instead of counting its events twice.</summary>
+        [Test]
+        public void AfterStepTwiceForOneTickThrows()
+        {
+            MissionDefinition mission = CampaignTestSupport.Parse(CampaignTestSupport.Mission("repeat_test", CampaignTestSupport.NeverObjectives, "[]", "never"), "repeat_test");
+            Simulation sim = CampaignTestSupport.Drive(mission, null, 5, null, null, out MissionRunner runner);
+            Assert.That(runner.Status, Is.EqualTo(MissionStatus.Running));
+            Expect.Throws<System.InvalidOperationException>(() => runner.AfterStep(sim));
+        }
+
+        /// <summary>F4: a signal reported after the mission ended is ignored and not kept.</summary>
+        [Test]
+        public void SignalsAfterTheEndAreIgnored()
+        {
+            MissionDefinition mission = CampaignTestSupport.Parse(CampaignTestSupport.Mission("late_signal", CampaignTestSupport.NeverObjectives, "[]", "never", maxSeconds: 30), "late_signal");
+            CampaignTestSupport.Drive(mission, null, 700, null, null, out MissionRunner runner);
+            Assert.That(runner.Status, Is.EqualTo(MissionStatus.Lost));
+            runner.ReportSignal(new CameraMovedSignal(Fix64.Zero, Fix64.Zero));
+            System.Reflection.FieldInfo field = typeof(MissionRunner).GetField("_pendingSignals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+            Assert.That(((System.Collections.ICollection)field.GetValue(runner)!).Count, Is.EqualTo(0));
         }
 
         // ------------------------------------------------------------ CommandScript.ParseCommandObject

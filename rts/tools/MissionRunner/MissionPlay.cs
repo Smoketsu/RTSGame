@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using Rts.Ai;
 using Rts.Campaign;
+using Rts.Replay;
 using Rts.Sim;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
@@ -25,6 +26,9 @@ namespace Rts.Tools.MissionTool
         /// <summary>The simulation after the last step.</summary>
         public Simulation Sim { get; }
 
+        /// <summary>The replay of the run when recording was asked for, else null. It holds every mission command (setup, trigger and scripted-player commands).</summary>
+        public ReplayData? Replay { get; }
+
         /// <summary>True when the run stopped at the tick cap with the mission still running (reported as a timeout).</summary>
         public bool CappedByTicks { get; }
 
@@ -32,8 +36,10 @@ namespace Rts.Tools.MissionTool
         public int LastTick { get; }
 
         /// <summary>Bundles the result.</summary>
-        public MissionResult(MissionRunner runner, Simulation sim, bool cappedByTicks, int lastTick)
+        /// <param name="replay">The replay, or null when not recording.</param>
+        public MissionResult(MissionRunner runner, Simulation sim, bool cappedByTicks, int lastTick, ReplayData? replay = null)
         {
+            Replay = replay;
             Runner = runner;
             Sim = sim;
             CappedByTicks = cappedByTicks;
@@ -56,11 +62,27 @@ namespace Rts.Tools.MissionTool
         /// <param name="inputs">The scripted player, or null when nobody plays the human slot.</param>
         /// <param name="tickCap">Most steps to run, or null for the mission's own time limit. Unit: ticks. Range: 0 upward.</param>
         /// <param name="output">Receives the lines.</param>
-        public static MissionResult Play(DataSet data, MissionDefinition mission, MissionInputs? inputs, int? tickCap, TextWriter output)
+        /// <param name="record">True to record a replay (<see cref="MissionResult.Replay"/>). Refused for a mission with AI slots, whose commands are not routed through the recorder here.</param>
+        public static MissionResult Play(DataSet data, MissionDefinition mission, MissionInputs? inputs, int? tickCap, TextWriter output, bool record = false)
         {
             Simulation sim = mission.CreateSimulation(data);
             sim.Start();
-            MissionRunner runner = new MissionRunner(mission, null);
+            // Recorder attached before the runner submits anything (it refuses a simulation with queued commands); null when not recording.
+            ReplayRecorder? recorder = null;
+            if (record)
+            {
+                foreach (MissionPlayer player in mission.Players)
+                {
+                    if (player.AiProfile != null)
+                    {
+                        throw new InvalidOperationException("recording a replay of a mission with AI slots is not supported yet");
+                    }
+                }
+                recorder = new ReplayRecorder(sim, mission.PlayerSetups());
+            }
+            // Sink for every mission command: the recorder's Submit, or null for sim.Submit.
+            Action<Rts.Sim.Commands.Command>? sink = recorder == null ? null : recorder.Submit;
+            MissionRunner runner = new MissionRunner(mission, null, sink);
             runner.Start(sim);
             // AI controllers of the "ai:" slots, ascending slot order (the mission lists them in file order; AiHost sorts them again).
             List<IPlayerController> controllers = new List<IPlayerController>();
@@ -80,7 +102,7 @@ namespace Rts.Tools.MissionTool
             int steps = 0;
             while (runner.Status == MissionStatus.Running && (tickCap == null || steps < tickCap.Value))
             {
-                inputs?.BeforeStep(sim, runner);
+                inputs?.BeforeStep(sim, runner, sink);
                 AiHost.ThinkAll(sim, controllers);
                 lastTick = sim.Clock.Tick;
                 sim.Step();
@@ -92,6 +114,7 @@ namespace Rts.Tools.MissionTool
                         output.Write("tick=" + hashed.Tick.ToString(CultureInfo.InvariantCulture) + " hash=" + hashed.Hash.ToString("x16", CultureInfo.InvariantCulture) + "\n");
                     }
                 }
+                recorder?.AfterStep();
                 runner.AfterStep(sim);
                 written = Flush(runner, written, output);
             }
@@ -101,7 +124,7 @@ namespace Rts.Tools.MissionTool
             {
                 output.Write("MISSION timeout tick=" + lastTick.ToString(CultureInfo.InvariantCulture) + "\n");
             }
-            return new MissionResult(runner, sim, capped, lastTick);
+            return new MissionResult(runner, sim, capped, lastTick, recorder?.Finish());
         }
 
         /// <summary>Writes the runner's log lines from index <paramref name="from"/> and returns the new line count. Unit: lines.</summary>

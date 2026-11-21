@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using Rts.Campaign;
+using Rts.Replay;
 using Rts.Sim.Data;
 using Rts.Sim.Factions;
 
@@ -26,7 +27,7 @@ namespace Rts.Tools.MissionTool
     public static class Program
     {
         /// <summary>Usage text printed with command-line errors.</summary>
-        public const string Usage = "usage: Rts.Tools.MissionRunner --data <data folder> --campaign <campaign folder> --mission <id> [--inputs <inputs.json>] [--ticks N]";
+        public const string Usage = "usage: Rts.Tools.MissionRunner --data <data folder> --campaign <campaign folder> --mission <id> [--inputs <inputs.json>] [--ticks N] [--replay <file>]";
 
         /// <summary>Process entry point.</summary>
         public static int Main(string[] args)
@@ -47,13 +48,14 @@ namespace Rts.Tools.MissionTool
                 string campaignDir = string.Empty;
                 string missionId = string.Empty;
                 string inputsPath = string.Empty;
+                string replayPath = string.Empty;
                 // Step cap from --ticks, or null. Unit: ticks. Range: 0 to 1000000.
                 int? ticks = null;
                 for (int i = 0; i < args.Length; i++)
                 {
                     // Flag being read; its value is the next argument.
                     string flag = args[i];
-                    if (flag != "--data" && flag != "--campaign" && flag != "--mission" && flag != "--inputs" && flag != "--ticks")
+                    if (flag != "--data" && flag != "--campaign" && flag != "--mission" && flag != "--inputs" && flag != "--ticks" && flag != "--replay")
                     {
                         throw new MissionToolException("unknown argument '" + flag + "'. " + Usage);
                     }
@@ -69,6 +71,7 @@ namespace Rts.Tools.MissionTool
                         case "--campaign": campaignDir = value; break;
                         case "--mission": missionId = value; break;
                         case "--inputs": inputsPath = value; break;
+                        case "--replay": replayPath = value; break;
                         default:
                             if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) || parsed > 1000000)
                             {
@@ -103,8 +106,15 @@ namespace Rts.Tools.MissionTool
                 }
                 MissionInputs? inputs = inputsPath.Length == 0 ? null : MissionInputs.Parse(File.ReadAllText(inputsPath), inputsPath, mission, data);
 
-                MissionResult result = MissionPlay.Play(data, mission, inputs, ticks, output);
+                MissionResult result = MissionPlay.Play(data, mission, inputs, ticks, output, replayPath.Length > 0);
                 output.Write("STATE_HASH=" + result.Sim.ComputeStateHash().ToString("x16", CultureInfo.InvariantCulture) + "\n");
+                if (result.Replay != null)
+                {
+                    File.WriteAllBytes(replayPath, ReplayWriter.Write(result.Replay, BuiltInMechanics.CreateCodecRegistry()));
+                    output.Write("REPLAY_RECORDED file=" + replayPath.Replace('\\', '/') + " ticks=" + result.Replay.TickCount.ToString(CultureInfo.InvariantCulture)
+                        + " commands=" + result.Replay.Commands.Count.ToString(CultureInfo.InvariantCulture)
+                        + " checkpoints=" + result.Replay.Checkpoints.Count.ToString(CultureInfo.InvariantCulture) + "\n");
+                }
                 output.Flush();
                 return result.ExitCode;
             }
