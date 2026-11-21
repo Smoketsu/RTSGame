@@ -2,7 +2,7 @@
 // The fight predictor checked against measured fights (spec: rts/docs/specs/balance_measurement.md C.3 to C.7): turns one FightRecord into a prediction (FightPredictor.Predict on the
 // units of the record, entries in ordinal ID order), scores it (decided fights give the headline accuracy, no-winner fights are counted apart), builds the breakdown tables (unit pair, side,
 // terrain case, army value, unmodelled mechanic, calibration bins, seat order) and applies the proposed decision rule (SIMULATE, FIX_FORMULA or DEVELOPER_CHOICE).
-// Measurement only: FightPredictor, the fight sweep and its records are not changed. Every verdict is integer arithmetic (parts per 10 000, long products); Fix64 is used for the
+// Measurement only: FightPredictor, the fight sweep and its records are not changed. With extended records (fight_predictor_v2.md 5) it also predicts the snapshots (subset D), builds the contexts of start predictions, and counts hit_delay only above hit_delay_ignore_ticks. Every verdict is integer arithmetic (parts per 10 000, long products); Fix64 is used for the
 // predictor numbers and the margin bins, double only inside HarnessStats.Wilson for display. Part of Rts.Tools.BalanceHarness.
 using System;
 using System.Collections.Generic;

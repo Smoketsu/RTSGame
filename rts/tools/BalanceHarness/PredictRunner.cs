@@ -2,7 +2,7 @@
 // Command --predict-fights (spec: rts/docs/specs/balance_measurement.md C.2): reads fight records (from --from <fights.jsonl>, or by running the --fights sweep exactly as --fights does),
 // predicts every fight with FightPredictor, scores the predictions (PredictEvaluator), writes predict.jsonl and predict.md and prints the last line
 // "PREDICT fights=.. judged=.. decided=.. correct=.. accuracy=.. clean=../.. no_winner_agree=../.. decision=.. (proposed thresholds)". Nothing here changes the predictor, the sweep or its records.
-// Output depends only on data, options and records, never on --jobs or the clock. Exit codes: 0 done (any decision), 3 the sweep's spot check failed, 1 error. Part of Rts.Tools.BalanceHarness.
+// With extended records (fight_predictor_v2.md 5.4) it also writes the subsets E, U and D and the bar table (PredictBars), appends " bars=<passed>/<judged> verdict=<..>" to the last line and prints the wall time per Predict call on stderr only; --baseline-profile adds baseline columns. Output depends only on data, options and records, never on --jobs or the clock. Exit codes: 0 done (any decision), 3 the sweep's spot check failed, 1 error. Part of Rts.Tools.BalanceHarness.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
