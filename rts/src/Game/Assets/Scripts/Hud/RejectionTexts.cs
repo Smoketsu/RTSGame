@@ -47,6 +47,21 @@ namespace Rts.Game.Hud
             { "unknown_definition", null },
             { "already_researched", "Already researched" },
             { "already_queued", "Already being researched" },
+            // UI-3: structure orders, and the reasons a build order is cancelled (BuildOrderCancelledEvent, refunded).
+            { "cannot_build", "Only workers can build" },
+            { "not_a_structure", null },
+            { "wrong_faction", null },
+            { "site_unexplored", "You have not explored that spot" },
+            { "tile_blocked", "Blocked" },
+            { "tile_occupied", "A unit is in the way" },
+            { "site_pending", "Already being built there" },
+            { "no_base", "Defences must be built near a drop-off" },
+            { "static_defence_cap", "This base has the most defences allowed" },
+            { "worker_lost", "Builder lost" },
+            { "site_blocked", "Site blocked" },
+            { "site_occupied", "A unit stood on the site" },
+            { "unreachable", "Builder could not reach the site" },
+            { "new_order", null },
         };
 
         /// <summary>
@@ -57,8 +72,10 @@ namespace Rts.Game.Hud
         /// <param name="rejected">The rejection of a local command.</param>
         public static string For(Simulation sim, CommandRejectedEvent rejected)
         {
-            if (rejected.Reason == "missing_prerequisite" && rejected.Command is TrainUnitCommand train
-                && sim.Content.Units.TryGetValue(train.DefinitionId, out UnitDefinition definition))
+            // The definition the command wanted, for naming a missing prerequisite. Null for commands that name none.
+            string wanted = rejected.Command is TrainUnitCommand train ? train.DefinitionId
+                : rejected.Command is BuildStructureCommand build ? build.DefinitionId : null;
+            if (rejected.Reason == "missing_prerequisite" && wanted != null && sim.Content.Units.TryGetValue(wanted, out UnitDefinition definition))
             {
                 string missing = EconomyRules.FirstMissingRequirement(sim, rejected.Command.Issuer, definition);
                 if (missing != null)

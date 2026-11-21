@@ -7,7 +7,10 @@
 // shortest queue, ties lowest EntityId. Buttons grey out only for a missing prerequisite, a producer under construction, an HQ that
 // is not Rooted, or research already done; anything else is sent and the simulation answers (message line). Every number is read
 // from the simulation when drawn. Shortcut: the cost, supply, time and "Requires" text is printed on the button instead of a
-// hover tooltip, so a Play Mode check can read it. Part of Rts.Game (presentation only).
+// hover tooltip, so a Play Mode check can read it.
+// Workers (UI-3): with own workers selected and no producer, the card shows one "Build" button (key B); B or the button opens the
+// build menu, one button per structure of the local faction (faction UnitIds with a footprint that are neither walls nor HQs, in
+// file order, same greying rules), and picking one starts BuildPlacement. Esc or B closes the menu. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
@@ -15,6 +18,7 @@ using Rts.Game.UnitSelection;
 using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Economy;
+using Rts.Sim.Factions;
 using Rts.Sim.Teams;
 using Rts.Sim.Units;
 using UnityEngine;
@@ -55,6 +59,25 @@ namespace Rts.Game.Hud
             /// <summary>Progress fill of the head entry (zero width for waiting entries). Range: non-null.</summary>
             public RectTransform Progress;
         }
+
+        /// <summary>What the card shows this frame.</summary>
+        private enum CardMode
+        {
+            /// <summary>Nothing selected that the card serves; card hidden.</summary>
+            Hidden,
+
+            /// <summary>Train and research buttons of the selected producer, with its queue.</summary>
+            Producer,
+
+            /// <summary>Workers selected, no producer: one "Build" button.</summary>
+            Workers,
+
+            /// <summary>The build menu: one button per structure of the local faction.</summary>
+            BuildMenu,
+        }
+
+        /// <summary>Key that opens and closes the build menu (player_interface.md key table, placeholder).</summary>
+        private const KeyCode BuildMenuKey = KeyCode.B;
 
         /// <summary>Keys of slots 1 to 8, in slot order (player_interface.md key table, placeholders). Range: 8 keys GameInput can map.</summary>
         private static readonly KeyCode[] SlotKeys = { KeyCode.Q, KeyCode.W, KeyCode.E, KeyCode.T, KeyCode.Z, KeyCode.X, KeyCode.C, KeyCode.V };
@@ -104,6 +127,18 @@ namespace Rts.Game.Hud
         /// <summary>Selected own producers of the shown definition, ascending EntityId. Presentation scratch list.</summary>
         private readonly List<Unit> _producers = new List<Unit>();
 
+        /// <summary>Selected own workers (CanGather), in selection order. Presentation scratch list.</summary>
+        private readonly List<Unit> _workers = new List<Unit>();
+
+        /// <summary>What the card shows this frame.</summary>
+        private CardMode _mode;
+
+        /// <summary>True while the player has the build menu open (B or the Build button). Unit: on/off.</summary>
+        private bool _buildMenuOpen;
+
+        /// <summary>The placement mode on the same HUD object. Range: null when the HUD has none.</summary>
+        private BuildPlacement _placement;
+
         /// <summary>The local command path. Range: null until found.</summary>
         private LocalCommands _commands;
 
@@ -139,16 +174,20 @@ namespace Rts.Game.Hud
             {
                 _selection = FindAnyObjectByType<SelectionController>();
             }
-            bool visible = _commands != null && _selection != null && _commands.IsReady && FindProducers(_commands.Host.Match);
-            _card.gameObject.SetActive(visible);
-            _queue.gameObject.SetActive(visible);
-            if (!visible)
+            if (_placement == null)
+            {
+                _placement = GetComponent<BuildPlacement>();
+            }
+            Simulation sim = _commands != null && _selection != null && _commands.IsReady ? _commands.Host.Match : null;
+            _mode = sim == null ? CardMode.Hidden : ChooseMode(sim);
+            _card.gameObject.SetActive(_mode != CardMode.Hidden);
+            _queue.gameObject.SetActive(_mode == CardMode.Producer);
+            if (_mode == CardMode.Hidden)
             {
                 return;
             }
-            Simulation sim = _commands.Host.Match;
-            ListEntries(_producers[0].Definition);
             sim.Players.TryGet(_commands.LocalPlayer, out Player player);
+            ListEntries(sim, player);
             for (int i = 0; i < _slots.Count; i++)
             {
                 bool used = i < _entries.Count;
@@ -156,13 +195,52 @@ namespace Rts.Game.Hud
                 if (used)
                 {
                     DrawSlot(sim, player, i);
-                    if (_slots[i].Button.interactable && GameInput.GetKeyDown(SlotKeys[i]))
+                    // The Build button's key B is handled by ChooseMode, so it toggles once per press.
+                    if (_mode != CardMode.Workers && _slots[i].Button.interactable && GameInput.GetKeyDown(SlotKeys[i]))
                     {
                         Click(i);
                     }
                 }
             }
-            DrawQueue(sim, _producers[0]);
+            if (_mode == CardMode.Producer)
+            {
+                DrawQueue(sim, _producers[0]);
+            }
+        }
+
+        /// <summary>Collects the selected workers and producers, applies B and Esc to the build menu, and picks what the card shows.</summary>
+        /// <param name="sim">The running match.</param>
+        private CardMode ChooseMode(Simulation sim)
+        {
+            _workers.Clear();
+            foreach (EntityId id in _selection.Selected)
+            {
+                if (sim.Units.TryGet(id, out Unit unit) && unit.Owner == _commands.LocalPlayer && unit.Definition.Economy.CanGather)
+                {
+                    _workers.Add(unit);
+                }
+            }
+            if (_workers.Count == 0)
+            {
+                _buildMenuOpen = false;
+            }
+            else if (GameInput.GetKeyDown(BuildMenuKey))
+            {
+                _buildMenuOpen = !_buildMenuOpen;
+            }
+            else if (GameInput.GetKeyDown(KeyCode.Escape))
+            {
+                _buildMenuOpen = false;
+            }
+            if (_buildMenuOpen)
+            {
+                return CardMode.BuildMenu;
+            }
+            if (FindProducers(sim))
+            {
+                return CardMode.Producer;
+            }
+            return _workers.Count > 0 ? CardMode.Workers : CardMode.Hidden;
         }
 
         /// <summary>
@@ -198,20 +276,46 @@ namespace Rts.Game.Hud
             return definition.Hq != null || definition.Economy.Trains.Count > 0 || definition.Economy.Researches.Count > 0;
         }
 
-        /// <summary>Fills _entries with the producer's buttons in data order (worker, trains, researches), at most one per slot.</summary>
-        /// <param name="definition">The producer definition.</param>
-        private void ListEntries(UnitDefinition definition)
+        /// <summary>
+        /// Fills _entries for the mode, in data order, at most one per slot: the producer's worker, trains and researches; the local
+        /// faction's structures for the build menu; one empty placeholder for the Build button.
+        /// </summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="player">The local player (its faction).</param>
+        private void ListEntries(Simulation sim, Player player)
         {
             _entries.Clear();
-            if (definition.Hq != null)
+            if (_mode == CardMode.Workers)
             {
-                _entries.Add(definition.Hq.WorkerUnitId);
+                _entries.Add("");
+                return;
             }
-            _entries.AddRange(definition.Economy.Trains);
-            _entries.AddRange(definition.Economy.Researches);
+            if (_mode == CardMode.BuildMenu)
+            {
+                if (sim.Content.Factions.TryGetValue(player.FactionId, out FactionDefinition faction))
+                {
+                    foreach (string id in faction.UnitIds)
+                    {
+                        if (sim.Content.Units.TryGetValue(id, out UnitDefinition structure) && structure.Economy.FootprintTiles > 0 && !structure.Economy.IsWall && structure.Hq == null)
+                        {
+                            _entries.Add(id);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                UnitDefinition definition = _producers[0].Definition;
+                if (definition.Hq != null)
+                {
+                    _entries.Add(definition.Hq.WorkerUnitId);
+                }
+                _entries.AddRange(definition.Economy.Trains);
+                _entries.AddRange(definition.Economy.Researches);
+            }
             if (_entries.Count > _slots.Count)
             {
-                Debug.LogWarning("[CommandCard] " + definition.Id + " has " + _entries.Count + " entries; only " + _slots.Count + " slots are shown.");
+                Debug.LogWarning("[CommandCard] " + _mode + " has " + _entries.Count + " entries; only " + _slots.Count + " slots are shown.");
                 _entries.RemoveRange(_slots.Count, _entries.Count - _slots.Count);
             }
         }
@@ -233,7 +337,17 @@ namespace Rts.Game.Hud
             string id = _entries[index];
             // Tick rate for times. Unit: ticks per second. Range: 10 to 60.
             int rate = sim.Clock.TicksPerSecond;
-            bool anyReady = _producers.Exists(IsReadyProducer);
+            if (_mode == CardMode.Workers)
+            {
+                slot.Background.color = TrainColor;
+                slot.Button.interactable = true;
+                slot.Name.text = BuildMenuKey + "  Build";
+                slot.Info.text = "Structures";
+                slot.Info.color = HudBuild.TextColor;
+                return;
+            }
+            // True when a selected producer can take orders now (always true for the build menu, which has no producer).
+            bool anyReady = _mode != CardMode.Producer || _producers.Exists(IsReadyProducer);
             // Why no selected producer can take orders, or null when one can.
             string blocker = anyReady ? null : _producers[0].IsUnderConstruction ? "Under construction" : "Root the HQ first";
             bool interactable;
@@ -282,11 +396,32 @@ namespace Rts.Game.Hud
             return common + "c " + rare + "r " + (supply >= 0 ? supply + "s " : "") + HudBuild.Seconds(ticks, rate);
         }
 
-        /// <summary>Sends the slot's order to the ready producer with the shortest queue (ties lowest EntityId), or the lowest-ID producer when none is ready.</summary>
+        /// <summary>
+        /// Acts on a slot: opens the build menu (Build button), starts placement (build menu), or sends the train order to the ready producer
+        /// with the shortest queue (ties lowest EntityId), or the lowest-ID producer when none is ready.
+        /// </summary>
         /// <param name="index">Slot index. Range: 0 to the entry count - 1.</param>
         public void Click(int index)
         {
-            if (_commands == null || !_commands.IsReady || index >= _entries.Count || _producers.Count == 0)
+            if (_commands == null || !_commands.IsReady || index >= _entries.Count)
+            {
+                return;
+            }
+            if (_mode == CardMode.Workers)
+            {
+                _buildMenuOpen = true;
+                return;
+            }
+            if (_mode == CardMode.BuildMenu)
+            {
+                _buildMenuOpen = false;
+                if (_placement != null)
+                {
+                    _placement.Begin(_entries[index]);
+                }
+                return;
+            }
+            if (_producers.Count == 0)
             {
                 return;
             }

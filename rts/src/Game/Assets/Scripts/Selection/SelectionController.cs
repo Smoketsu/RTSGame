@@ -347,9 +347,18 @@ namespace Rts.Game.UnitSelection
 
         // ------------------------------------------------------------------ mouse
 
-        /// <summary>Left button: select or attack-move; right button: order. A press over a HUD panel belongs to the HUD and is ignored here.</summary>
+        /// <summary>
+        /// Left button: select or attack-move; right button: order. A press over a HUD panel belongs to the HUD, and while a targeting
+        /// mode holds PointerCapture (build placement) the buttons are its; both are ignored here.
+        /// </summary>
         private void HandleMouse()
         {
+            if (PointerCapture.IsCaptured)
+            {
+                _leftDown = false;
+                _dragging = false;
+                return;
+            }
             // True while the cursor is over a HUD panel or button (they are raycast targets of the HUD canvas).
             bool overHud = UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
             if (GameInput.GetMouseButtonDown(0) && !overHud)
@@ -552,11 +561,11 @@ namespace Rts.Game.UnitSelection
         /// </summary>
         /// <param name="ray">Ray from the camera through the cursor.</param>
         /// <param name="point">World hit point when found. Unit: world units; X and Z are tile coordinates.</param>
-        /// <returns>True when the ray hits a tile of the map.</returns>
-        private bool TryPickGround(Ray ray, out Vector3 point)
+        /// <returns>True when the ray hits a tile of the map; false also while the match is not running.</returns>
+        public bool TryPickGround(Ray ray, out Vector3 point)
         {
             point = Vector3.zero;
-            if (Mathf.Abs(ray.direction.y) < MinRayDirectionY)
+            if (_host == null || _host.Match == null || Mathf.Abs(ray.direction.y) < MinRayDirectionY)
             {
                 return false;
             }
