@@ -18,6 +18,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Fight predictor v2, FP2-1 (harness): `--fight-settings <path>` for `--fights` and `--predict-fights`; case key `seat1_value_ratios` (uneven armies); `extended_records` and `snapshot_loss_fraction` add `value_ratio_pt`, `lane_depth_class` and a damaged-army snapshot to each fight record (off: records byte-identical). `--predict-fights` scores subsets E, U and D, takes `--baseline-profile` and judges bars B1 to B7. New `data/scripts/fights/heldout.json` (seed 20261121, 1904 fights, not yet run) and the bar keys in `predict.json`, committed before the predictor.
 - Fight predictor v2, FP2-2: `FightSim` lane simulation in `rts/src/Ai` behind the profile key `predictor_model` (`formula` or `sim`) with six `predictor_sim_*` keys in every profile; every existing profile stays on `formula` and plays exactly as before; new profile `aggressive_s5_fp2` (a copy of `aggressive_s5` with `sim`). Reviewed; splash reach, dry-ground speed of water units, effective layer for uphill, the Momentum slow test and the end-time cap follow the game's rules. Development-set accuracy 0.841 against 0.735.
 
+- Fight predictor v2 held-out measurement, `docs/reports/predict_v2/` (FP2-3): 1904 fights, 5 of 7 bars pass, gate FAIL (accuracy 0.783 against 0.80 with the formula at 0.708; five unit pairs below 0.40); mean 240 µs per call. Nothing retuned.
+
 ### Changed
 
 - `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
