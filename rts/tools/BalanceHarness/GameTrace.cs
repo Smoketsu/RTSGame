@@ -616,11 +616,14 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Rare resource gathered over the whole game. Unit: resource. Range: 0 upward.</summary>
             public int TotalRare { get; private set; }
 
+            /// <summary>The spending account (shared with the summary observer): accepted train and build commands, less refunds of cancelled build orders.</summary>
+            private PlayerLedger Ledger { get; } = new PlayerLedger();
+
             /// <summary>Common resource spent on accepted train and build commands, less refunds of cancelled build orders. Unit: resource. Range: 0 upward.</summary>
-            public int SpentCommon { get; private set; }
+            public int SpentCommon => Ledger.SpentCommon;
 
             /// <summary>Rare resource spent on accepted train and build commands, less refunds of cancelled build orders. Unit: resource. Range: 0 upward.</summary>
-            public int SpentRare { get; private set; }
+            public int SpentRare => Ledger.SpentRare;
 
             /// <summary>Units trained since the last line, by definition.</summary>
             public CountMap Trained { get; } = new CountMap();
@@ -719,8 +722,7 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Adds the cost of a definition to the spent totals.</summary>
             public void Spend(UnitDefinition definition)
             {
-                SpentCommon += definition.CostCommon;
-                SpentRare += definition.CostRare;
+                Ledger.Spend(definition);
             }
 
             /// <summary>Takes a refund back out of the spent totals.</summary>
@@ -728,8 +730,7 @@ namespace Rts.Tools.BalanceHarness
             /// <param name="rare">Rare refunded. Unit: resource units. Range: 0 upward.</param>
             public void Refund(int common, int rare)
             {
-                SpentCommon -= common;
-                SpentRare -= rare;
+                Ledger.Refund(null, common, rare);
             }
 
             /// <summary>Clears the since-last-line counters.</summary>

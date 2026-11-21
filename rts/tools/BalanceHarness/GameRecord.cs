@@ -106,10 +106,18 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>ID of the opponent-pool member that played the baseline side (balance_measurement.md M.3.3), or "" for any other game (the line then has no "member" key). Range: empty, or 1 to 48 lower-case letters, digits or underscores.</summary>
         public string Member { get; }
 
+        /// <summary>Summary of slot 0's game (balance_measurement.md M.4.2), or null for a game played without the summary observer (the line then has no "summary0" key).</summary>
+        public GameSummary? Summary0 { get; }
+
+        /// <summary>Summary of slot 1's game, or null (no "summary1" key).</summary>
+        public GameSummary? Summary1 { get; }
+
         /// <summary>Bundles the values.</summary>
         public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string slot0Profile, string slot1Profile, string result,
-            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "", int pair = -1, int candidateSlot = -1, string member = "")
+            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "", int pair = -1, int candidateSlot = -1, string member = "", GameSummary? summary0 = null, GameSummary? summary1 = null)
         {
+            Summary0 = summary0;
+            Summary1 = summary1;
             Member = member;
             Pair = pair;
             CandidateSlot = candidateSlot;
@@ -167,6 +175,10 @@ namespace Rts.Tools.BalanceHarness
             {
                 sb.Append(",\"member\":").Append(Quote(Member));
             }
+            if (Summary0 != null && Summary1 != null)
+            {
+                sb.Append(",\"summary0\":").Append(Summary0.ToJson()).Append(",\"summary1\":").Append(Summary1.ToJson());
+            }
             return sb.Append('}').ToString();
         }
 
@@ -199,7 +211,9 @@ namespace Rts.Tools.BalanceHarness
                     root.RequireString("opening0"), root.RequireString("opening1"),
                     root.TryGetMember("pair", out JsonValue? pairNode) ? pairNode.AsInt(0, int.MaxValue) : -1,
                     root.TryGetMember("candidate_slot", out JsonValue? slotNode) ? slotNode.AsInt(0, 1) : -1,
-                    root.TryGetMember("member", out JsonValue? memberNode) ? memberNode.AsString() : string.Empty);
+                    root.TryGetMember("member", out JsonValue? memberNode) ? memberNode.AsString() : string.Empty,
+                    root.TryGetMember("summary0", out JsonValue? summary0Node) ? GameSummary.Parse(summary0Node) : null,
+                    root.TryGetMember("summary1", out JsonValue? summary1Node) ? GameSummary.Parse(summary1Node) : null);
             }
             catch (Exception ex) when (ex is DataValidationException || ex is FormatException || ex is OverflowException)
             {
