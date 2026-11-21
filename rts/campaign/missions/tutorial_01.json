@@ -14,7 +14,8 @@
   "players": [
     { "id": 0, "team": 0, "faction": "skai", "name": "You", "controller": "human" }
   ],
-  // Starting units on the south-west plateau; positions match rts/data/scripts/ai_vs_ai.json so the HQ starts Rooted. Unit: tiles. Source: Core gameplay loop (Opening).
+  // Starting units on the south-west plateau; positions match rts/data/scripts/ai_vs_ai.json so the HQ starts Rooted. Unit: tiles (x and y of each unit). Range: 0 to 64 (the map is 64 by 64). Source: Core gameplay loop (Opening).
+  // Entity IDs depend on this spawn order: 1 Great Aerie, 2 and 3 Fledglings, 4 Windrunner, 5 the Fledgling hatched later by trigger hatch_helper. The triggers (highlight_units 4) and the inputs file name these IDs, so reorder the spawns only together with them.
   "setup": [
     { "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
     { "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
@@ -25,17 +26,22 @@
     { "id": "look_around", "text": "Move the camera to the Core at the centre of the map.", "requires": [],
       // Camera focus within this circle around the Core. Unit: tiles. Range: radius 0.5 to 64. Source: tutorial placeholder.
       "complete_when": { "type": "camera_in_area", "x": "32", "y": "32", "radius_tiles": "6" },
+      // Circle the UI marks around the Core while the objective is active (smaller than the completion circle so the player aims at the middle). Unit: tiles. Range: radius 0.5 to 64. Source: tutorial placeholder.
       "hint_area": { "x": "32", "y": "32", "radius_tiles": "4" } },
     { "id": "select_rider", "text": "Select your Windrunner.", "requires": ["look_around"],
+      // Units of the owner and definition that must be in the selection. Unit: units. Range: 1 to 500. Source: tutorial placeholder.
       "complete_when": { "type": "selection_contains", "owner": 0, "definition": "skai.windrunner", "min_count": 1 } },
     { "id": "move_rider", "text": "Ride the Windrunner down the east ramp to the marked spot.", "requires": ["select_rider"],
       // Arrival circle just below the east ramp (tiles 14,6 to 14,9). Unit: tiles. Range: radius 0.5 to 64. Source: tutorial placeholder.
+      // Windrunners that must stand in the arrival circle. Unit: units. Range: 1 to 500. Source: tutorial placeholder.
       "complete_when": { "type": "units_in_area", "owner": 0, "definition": "skai.windrunner", "x": "18.5", "y": "8.5", "radius_tiles": "1.5", "min_count": 1 },
+      // Circle the UI marks at the arrival spot (same as the arrival circle). Unit: tiles. Range: radius 0.5 to 64. Source: tutorial placeholder.
       "hint_area": { "x": "18.5", "y": "8.5", "radius_tiles": "1.5" } },
     { "id": "gather", "text": "Send your Fledglings to gather. Bring back two loads.", "requires": ["move_rider"],
       // Deliveries needed. Unit: resource_deposited events. Range: 1 to 1000. Source: tutorial placeholder.
       "complete_when": { "type": "event_count", "event": "resource_deposited", "owner": 0, "min_count": 2 } },
     { "id": "build_roost", "text": "Have a Fledgling build a Roost on the plateau.", "requires": ["gather"],
+      // Roosts that must finish building. Unit: structure_completed events. Range: 1 to 1000. Source: tutorial placeholder.
       "complete_when": { "type": "event_count", "event": "structure_completed", "owner": 0, "definition": "skai.roost", "min_count": 1 } }
   ],
   "triggers": [
@@ -43,20 +49,29 @@
       // Message length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "show_message", "text": "Welcome, rider. Drag the screen edge or use the arrow keys to look around.", "seconds": 8 } ] },
     { "id": "explain_select", "when": { "objective_activated": "select_rider" }, "actions": [
+      // Message and highlight length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "show_message", "text": "Left-click a unit to select it.", "seconds": 6 },
+      // Highlight length for the Windrunner (entity 4, see the setup comment). Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "highlight_units", "units": [4], "seconds": 6 } ] },
     { "id": "explain_move", "when": { "objective_activated": "move_rider" }, "actions": [
+      // Message length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "show_message", "text": "Right-click the ground to move. Ramps lead off the high ground.", "seconds": 6 },
+      // Point the camera may pan to: the top of the east ramp. Unit: tiles (x and y). Range: 0 to 64. Source: tutorial placeholder.
       { "type": "camera_focus", "x": "16", "y": "8" } ] },
     { "id": "hatch_helper", "when": { "objective_activated": "gather" }, "actions": [
+      // Message length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "show_message", "text": "A new Fledgling hatches. Right-click a crystal field with Fledglings selected to gather.", "seconds": 6 },
-      // A third worker joins; scripted through the command pipeline (issuer: script). Unit: tiles. Source: tutorial placeholder.
+      // A third worker joins; scripted through the command pipeline (issuer: script). It becomes entity 5. Delay before the command's tick: 0 means the next tick. Unit: seconds. Range: 0 to 3600. Source: tutorial placeholder.
       { "type": "commands", "issuer": "script", "delay_seconds": 0, "commands": [
+        // Where the hatched Fledgling appears, on the plateau beside the Great Aerie. Unit: tiles (x and y). Range: 0 to 64. Source: tutorial placeholder.
         { "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "8.5", "y": "9.5" } ] },
+      // Highlight circle on the nearest crystal field (field 0 stands at tile 4,10) and its length on screen. Unit: tiles and seconds. Range: radius 0.5 to 64, seconds 1 to 60. Source: tutorial placeholder.
       { "type": "highlight_area", "x": "4.5", "y": "10.5", "radius_tiles": "1.5", "seconds": 6 } ] },
     { "id": "explain_build", "when": { "objective_activated": "build_roost" }, "actions": [
+      // Message length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "show_message", "text": "Select a Fledgling, open the build menu and place a Roost. It trains Windrunners.", "seconds": 8 } ] },
     { "id": "farewell", "when": { "objective_completed": "build_roost" }, "actions": [
+      // Message length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
       { "type": "show_message", "text": "Well flown. Your aerie grows.", "seconds": 6 } ] }
   ],
   "victory_objective": "build_roost",
