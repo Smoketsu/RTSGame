@@ -294,5 +294,11 @@ namespace Rts.Ai
         /// AiMemory built by hand), in which case every rule reads the profile and plan unchanged. Set by SkirmishAiController.OnMatchStart.
         /// </summary>
         public AiVariety? Variety { get; set; }
+
+        /// <summary>
+        /// The game data of the lane-simulation fight predictor (fight_predictor_v2.md 4), built once by SkirmishAiController.OnMatchStart; null when the profile's
+        /// predictor_model is formula (and for an AiMemory built by hand), in which case no caller reads it.
+        /// </summary>
+        public FightSimRules? FightSimRules { get; set; }
     }
 }

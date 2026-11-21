@@ -52,13 +52,15 @@ namespace Rts.Tools.BalanceHarness
             PredictTiming timing = new PredictTiming();
             List<PredictedFight> fights = new List<PredictedFight>();
             List<PredictedFight> snapshots = new List<PredictedFight>();
-            Predictions(records, fightSettings, data, PredictorSettings.From(profile), timing, fights, snapshots);
+            // The lane simulation's game data from the loaded data, used by every profile whose predictor_model is sim (ignored by the others).
+            FightSimRules simRules = FightSimRules.Build(data.Content, data.Tuning);
+            Predictions(records, fightSettings, data, PredictorSettings.From(profile, simRules), timing, fights, snapshots);
             PredictTiming baselineTiming = new PredictTiming();
             List<PredictedFight> baselineFights = new List<PredictedFight>();
             List<PredictedFight> baselineSnapshots = new List<PredictedFight>();
             if (baselineProfile != null)
             {
-                Predictions(records, fightSettings, data, PredictorSettings.From(baselineProfile), baselineTiming, baselineFights, baselineSnapshots);
+                Predictions(records, fightSettings, data, PredictorSettings.From(baselineProfile, simRules), baselineTiming, baselineFights, baselineSnapshots);
             }
             PredictEvaluation evaluation = PredictEvaluator.Evaluate(fights, fightSettings, data, settings);
             PredictDecision decision = PredictEvaluator.Decide(settings, evaluation.Overall, evaluation.Clean, evaluation.Mechanics, evaluation.Bins);

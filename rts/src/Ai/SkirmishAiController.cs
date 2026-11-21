@@ -93,6 +93,8 @@ namespace Rts.Ai
                 ? AiVariety.Create(Profile, Plan, AiVariety.SeedFor(sim.Settings.Seed, Player), sim.Clock.TicksPerSecond)
                 : null;
             ThinkTicks = Math.Max(1, sim.Clock.SecondsToTicks(Profile.ThinkIntervalSeconds));
+            // The lane simulation's game data, only for a profile that asks for the sim predictor (fight_predictor_v2.md 4); built once, never touches the simulation.
+            Memory.FightSimRules = Profile.PredictorModel == PredictorModel.Sim ? FightSimRules.Build(sim.Content, sim.Tuning) : null;
         }
 
         /// <summary>True when the controller decides on <paramref name="tick"/>: (tick + player) % ThinkTicks == 0.</summary>

@@ -146,6 +146,20 @@
   "predictor_dome_weight": 1,
   // Fight predictor: cap of the advantage ratio. Unit: ratio. Range: 1 to 10000. Source: skirmish_ai_v3.md C.1; placeholder.
   "predictor_max_advantage": 100,
+  // Fight predictor: which model answers (formula = the closed-form estimate, sim = the lane simulation of FightSim). Unit: text. Range: "formula" or "sim". Source: fight_predictor_v2.md 4.1; placeholder.
+  "predictor_model": "formula",
+  // Lane simulation: length of one step. Unit: seconds. Range: 0.05 to 1. Source: fight_predictor_v2.md 3.5; placeholder.
+  "predictor_sim_step_seconds": 0.25,
+  // Lane simulation: longest fight simulated; a fight still running is no winner. Unit: seconds. Range: 10 to 600. Source: fights.json max_fight_seconds (fight_predictor_v2.md 4.1).
+  "predictor_sim_max_seconds": 180,
+  // Lane simulation: time without any damage that ends the fight as no winner. Unit: seconds. Range: 1 to 600. Source: fights.json stalemate_idle_seconds (fight_predictor_v2.md 4.1).
+  "predictor_sim_idle_seconds": 30,
+  // Lane simulation: most units simulated per side; larger armies are scaled down. Unit: units. Range: 4 to 500. Source: fight_predictor_v2.md 4.1; placeholder.
+  "predictor_sim_max_units_per_side": 64,
+  // Lane simulation: units per square tile of a clump, which bounds how many enemies one blast reaches. Unit: units per square tile. Range: 0.1 to 4. Source: fights.json formation_spacing_tiles 1 (fight_predictor_v2.md 4.1); placeholder for games.
+  "predictor_sim_splash_density": 1,
+  // Lane simulation: tiles added to the longest weapon range to give the starting gap when the caller gives none. Unit: tiles. Range: 0 to 32. Source: fight_predictor_v2.md 4.1; placeholder.
+  "predictor_sim_approach_tiles": 4,
   // Counter-mix: weight of the counter share against the base composition at full confidence. Unit: fraction. Range: 0 to 1. Source: skirmish_ai_v3.md C.4; placeholder.
   "counter_weight": 0,
   // Counter-mix: known enemy army supply at which the confidence is full. Unit: supply. Range: 1 to 200. Source: skirmish_ai_v3.md C.4; placeholder.

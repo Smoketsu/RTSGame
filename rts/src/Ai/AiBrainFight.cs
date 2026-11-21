@@ -95,8 +95,21 @@ namespace Rts.Ai
             /// <summary>Predictor call with the profile's settings and the damage table.</summary>
             private FightPrediction PredictFight(List<FightEntry> a, List<FightEntry> b, bool aUphill)
             {
-                _predictorSettings ??= PredictorSettings.From(_profile);
-                return FightPredictor.Predict(a, b, aUphill, _view.Content.Combat, _predictorSettings);
+                return PredictFight(a, b, FightContext.Dry(aUphill));
+            }
+
+            /// <summary>Predictor call with the facts of <paramref name="context"/> (fight_predictor_v2.md 4): the formula reads only its uphill flag, the lane simulation all of it.</summary>
+            private FightPrediction PredictFight(List<FightEntry> a, List<FightEntry> b, in FightContext context)
+            {
+                _predictorSettings ??= PredictorSettings.From(_profile, _memory.FightSimRules);
+                return FightPredictor.Predict(a, b, context, _view.Content.Combat, _predictorSettings);
+            }
+
+            /// <summary>The context of the retreat test: the group is already engaged with the enemies near it, so the gap is 0 (fight_predictor_v2.md 4). Internal for the tests.</summary>
+            /// <param name="aUphill">True when the group shoots uphill.</param>
+            internal static FightContext RetreatContext(bool aUphill)
+            {
+                return new FightContext(aUphill, FightWater.None, -1, Fix64.Zero);
             }
 
             /// <summary>True when the tile of <paramref name="to"/> lies on a higher height layer than the tile of <paramref name="from"/> (the predictor's "uphill").</summary>
@@ -230,7 +243,7 @@ namespace Rts.Ai
                     return false;
                 }
                 // The group's prediction against those enemies.
-                FightPrediction prediction = PredictFight(FightPredictor.Group(group), FightPredictor.Group(engaged), IsUphill(MeanPosition(engaged), MeanPosition(group)));
+                FightPrediction prediction = PredictFight(FightPredictor.Group(group), FightPredictor.Group(engaged), RetreatContext(IsUphill(MeanPosition(engaged), MeanPosition(group))));
                 return prediction.Advantage < _profile.RetreatMaxAdvantage;
             }
 
