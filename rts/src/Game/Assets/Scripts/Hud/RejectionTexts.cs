@@ -62,6 +62,11 @@ namespace Rts.Game.Hud
             { "site_occupied", "A unit stood on the site" },
             { "unreachable", "Builder could not reach the site" },
             { "new_order", null },
+            // UI-4: wall and gate lines (the rasteriser and UI keep these from happening; logged only).
+            { "not_a_wall", null },
+            { "no_tiles", null },
+            { "too_many_tiles", null },
+            { "duplicate_tile", null },
         };
 
         /// <summary>

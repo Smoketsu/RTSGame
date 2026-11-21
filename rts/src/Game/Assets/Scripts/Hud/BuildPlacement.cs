@@ -5,7 +5,14 @@
 // EntityId), holding Shift keeps the mode armed, and Esc or a right click cancels. The ghost is red with the reason when the tile
 // has a placement problem or the structure misses a prerequisite, amber when a unit stands on the tile, green otherwise; these
 // are hints only and the simulation decides. Every frame it also draws a faint ghost for every pending build site of the local
-// player (active orders and queued tiles). Presentation only: nothing here changes the simulation except through the command.
+// player (active orders and queued tiles), and a short red flash on each tile of a wall line the simulation skipped.
+// Walls and gates (UI-4, walls_and_tech.md D.5): the mode becomes a drag. On press and every move the line from the press tile to
+// the cursor tile is WallLine.Rasterise(..., wall_line_max_tiles) with one ghost per tile (green, red with the tile problem, amber
+// with a unit on it, red past the count the player can pay for) and the label "N x cost = total", red when not all valid tiles are
+// affordable. On release the valid tiles are split into k = min(workers, tiles) contiguous chunks in drag order (sizes differ by at
+// most one, earlier chunks larger); chunk i goes to the unassigned worker nearest its first tile (ties lowest EntityId), reversed
+// when that worker is nearer its last tile, as one BuildWallLineCommand each. The simulation decides what is built and pays.
+// Presentation only: nothing here changes the simulation except through the commands.
 using System.Collections.Generic;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
@@ -14,6 +21,8 @@ using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Economy;
+using Rts.Sim.Events;
+using Rts.Sim.Teams;
 using Rts.Sim.Units;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -50,8 +59,41 @@ namespace Rts.Game.Hud
         /// <summary>Faint ghosts of pending sites, reused frame to frame. Range: 0 to the most pending sites seen.</summary>
         private readonly List<Renderer> _pending = new List<Renderer>();
 
-        /// <summary>Reason text next to the cursor while the ghost is red. Range: non-null after Awake.</summary>
+        /// <summary>Reason text next to the cursor while the ghost is red, or the "N x cost = total" label of a wall line. Range: non-null after Awake.</summary>
         private Text _reason;
+
+        /// <summary>How long a skipped wall tile flashes red. Unit: seconds (real time). Range: 0.2 to 5.</summary>
+        private const float FlashSeconds = 1.5f;
+
+        /// <summary>Tiles of the wall line under the cursor, in drag order. Presentation scratch list.</summary>
+        private readonly List<(int X, int Y)> _line = new List<(int X, int Y)>();
+
+        /// <summary>Valid tiles of the line (no tile problem), in drag order; what release sends. Presentation scratch list.</summary>
+        private readonly List<(int X, int Y)> _validTiles = new List<(int X, int Y)>();
+
+        /// <summary>One ghost per tile of the wall line, reused frame to frame. Range: 0 to wall_line_max_tiles.</summary>
+        private readonly List<Renderer> _lineGhosts = new List<Renderer>();
+
+        /// <summary>Skipped wall tiles still flashing, with the real time the flash ends. Unit: tiles; seconds of Time.unscaledTime.</summary>
+        private readonly List<(int X, int Y, float Until)> _flashes = new List<(int X, int Y, float Until)>();
+
+        /// <summary>True while the left button, pressed on the map, drags a wall line. Unit: on/off.</summary>
+        private bool _dragging;
+
+        /// <summary>Tile where the wall drag started. Unit: tiles.</summary>
+        private int _dragStartX;
+
+        /// <summary>Tile where the wall drag started. Unit: tiles.</summary>
+        private int _dragStartY;
+
+        /// <summary>Last tile the cursor was over during the drag, used while the cursor is off the map. Unit: tiles.</summary>
+        private int _dragEndX;
+
+        /// <summary>Last tile the cursor was over during the drag, used while the cursor is off the map. Unit: tiles.</summary>
+        private int _dragEndY;
+
+        /// <summary>True once subscribed to the host's events (for skipped tiles). Unit: on/off.</summary>
+        private bool _subscribed;
 
         /// <summary>Selected own workers this frame, ascending EntityId. Presentation scratch list.</summary>
         private readonly List<Unit> _workers = new List<Unit>();
@@ -77,11 +119,13 @@ namespace Rts.Game.Hud
         public void Cancel()
         {
             _definitionId = null;
+            _dragging = false;
             PointerCapture.Release(this);
             if (_ghost != null)
             {
                 _ghost.gameObject.SetActive(false);
             }
+            HideLineGhosts(0);
             _reason.text = "";
         }
 
@@ -91,10 +135,21 @@ namespace Rts.Game.Hud
             _reason = HudBuild.Text(transform, "Placement Reason", Vector2.zero, Vector2.zero, new Vector2(420f, 30f), 20, TextAnchor.LowerLeft);
         }
 
-        /// <summary>Releases the pointer and destroys the ghosts.</summary>
+        /// <summary>Releases the pointer, unsubscribes and destroys the ghosts.</summary>
         private void OnDestroy()
         {
             PointerCapture.Release(this);
+            if (_subscribed && _commands != null && _commands.Host != null)
+            {
+                _commands.Host.EventRaised -= OnSimEvent;
+            }
+            foreach (Renderer ghost in _lineGhosts)
+            {
+                if (ghost != null)
+                {
+                    Destroy(ghost.gameObject);
+                }
+            }
             if (_ghost != null)
             {
                 Destroy(_ghost.gameObject);
@@ -123,6 +178,11 @@ namespace Rts.Game.Hud
             {
                 return;
             }
+            if (!_subscribed)
+            {
+                _commands.Host.EventRaised += OnSimEvent;
+                _subscribed = true;
+            }
             Simulation sim = _commands.Host.Match;
             DrawPendingSites(sim);
             if (!IsActive)
@@ -136,26 +196,36 @@ namespace Rts.Game.Hud
                 return;
             }
             Camera camera = Camera.main;
-            if (camera == null || !_selection.TryPickGround(camera.ScreenPointToRay(GameInput.mousePosition), out Vector3 point))
+            // Ground point under the cursor; only meaningful when picked.
+            Vector3 point = Vector3.zero;
+            bool picked = camera != null && _selection.TryPickGround(camera.ScreenPointToRay(GameInput.mousePosition), out point);
+            if (!picked && !_dragging)
             {
                 if (_ghost != null)
                 {
                     _ghost.gameObject.SetActive(false);
                 }
+                HideLineGhosts(0);
                 _reason.text = "";
                 return;
             }
-            // Tile under the cursor. Unit: tiles.
-            int tileX = Mathf.FloorToInt(point.x);
-            int tileY = Mathf.FloorToInt(point.z);
+            // Tile under the cursor, or the last one of a drag while the cursor is off the map. Unit: tiles.
+            int tileX = picked ? Mathf.FloorToInt(point.x) : _dragEndX;
+            int tileY = picked ? Mathf.FloorToInt(point.z) : _dragEndY;
+            // True while the cursor is over a HUD panel; a click there belongs to the HUD.
+            bool overHud = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            if (sim.Content.Units.TryGetValue(_definitionId, out UnitDefinition armed) && armed.Economy.IsWall)
+            {
+                UpdateWallDrag(sim, armed, tileX, tileY, overHud);
+                return;
+            }
             Unit worker = NearestWorker(sim, tileX, tileY);
             string problem = TileProblem(sim, worker, tileX, tileY);
             Color color = problem != null ? invalidColor : UnitOnTile(sim, tileX, tileY) ? occupiedColor : validColor;
             PlaceGhost(EnsureGhost(), sim, tileX, tileY, color);
             _reason.text = problem != null ? RejectionTexts.For(problem) ?? problem : "";
-            _reason.rectTransform.anchoredPosition = (Vector2)GameInput.mousePosition / Mathf.Max(0.01f, GetComponent<Canvas>().scaleFactor) + new Vector2(18f, 12f);
-            // True while the cursor is over a HUD panel; a click there belongs to the HUD.
-            bool overHud = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            _reason.color = HudBuild.TextColor;
+            PlaceLabelAtCursor();
             if (GameInput.GetMouseButtonDown(0) && !overHud)
             {
                 _commands.Submit(new BuildStructureCommand(_commands.Tick, _commands.LocalPlayer, _commands.NextSequence(), worker.Id, _definitionId, tileX, tileY));
@@ -163,6 +233,157 @@ namespace Rts.Game.Hud
                 {
                     Cancel();
                 }
+            }
+        }
+
+        /// <summary>Wall mode: starts, draws and releases a wall line drag (see the file header).</summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="wall">The armed wall or gate definition.</param>
+        /// <param name="tileX">Tile under the cursor. Unit: tiles.</param>
+        /// <param name="tileY">Tile under the cursor. Unit: tiles.</param>
+        /// <param name="overHud">True while the cursor is over a HUD panel.</param>
+        private void UpdateWallDrag(Simulation sim, UnitDefinition wall, int tileX, int tileY, bool overHud)
+        {
+            if (_ghost != null)
+            {
+                _ghost.gameObject.SetActive(false);
+            }
+            if (!_dragging && GameInput.GetMouseButtonDown(0) && !overHud)
+            {
+                _dragging = true;
+                _dragStartX = tileX;
+                _dragStartY = tileY;
+            }
+            _dragEndX = tileX;
+            _dragEndY = tileY;
+            WallLine.Rasterise(_dragging ? _dragStartX : tileX, _dragging ? _dragStartY : tileY, tileX, tileY, sim.Tuning.Economy.WallLineMaxTiles, _line);
+            sim.Players.TryGet(_commands.LocalPlayer, out Player player);
+            // Tiles the player can pay for at once. Unit: tiles. Range: 0 upward (int.MaxValue for a free wall).
+            int affordable = Mathf.Min(wall.CostCommon > 0 ? player.Common / wall.CostCommon : int.MaxValue, wall.CostRare > 0 ? player.Rare / wall.CostRare : int.MaxValue);
+            _validTiles.Clear();
+            for (int i = 0; i < _line.Count; i++)
+            {
+                (int x, int y) = _line[i];
+                string problem = EconomyRules.WallLineTileProblem(sim, _workers[0], x, y);
+                Color color = problem != null ? invalidColor
+                    : _validTiles.Count >= affordable ? invalidColor
+                    : UnitOnTile(sim, x, y) ? occupiedColor : validColor;
+                if (problem == null)
+                {
+                    _validTiles.Add((x, y));
+                }
+                PlaceGhost(LineGhost(i), sim, x, y, color);
+            }
+            HideLineGhosts(_line.Count);
+            // Cost of the valid tiles; rare is shown only when the wall costs rare.
+            string cost = wall.CostCommon + "c" + (wall.CostRare > 0 ? " " + wall.CostRare + "r" : "");
+            string total = (_validTiles.Count * wall.CostCommon) + "c" + (wall.CostRare > 0 ? " " + (_validTiles.Count * wall.CostRare) + "r" : "");
+            _reason.text = _validTiles.Count + " x " + cost + " = " + total;
+            _reason.color = _validTiles.Count > affordable ? new Color(1f, 0.4f, 0.35f, 1f) : HudBuild.TextColor;
+            PlaceLabelAtCursor();
+            if (_dragging && GameInput.GetMouseButtonUp(0))
+            {
+                _dragging = false;
+                SendLine(sim);
+                if (!GameInput.GetKey(KeyCode.LeftShift) && !GameInput.GetKey(KeyCode.RightShift))
+                {
+                    Cancel();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Splits _validTiles into contiguous chunks, one per worker (earlier chunks larger), and sends one BuildWallLineCommand per chunk to the
+        /// unassigned worker nearest its first tile (ties lowest EntityId), reversing the chunk when that worker is nearer its last tile.
+        /// </summary>
+        /// <param name="sim">The running match.</param>
+        private void SendLine(Simulation sim)
+        {
+            int count = _validTiles.Count;
+            if (count == 0)
+            {
+                return;
+            }
+            // Number of chunks and the base chunk size; the first (count % chunks) chunks get one more tile. Unit: tiles.
+            int chunks = Mathf.Min(_workers.Count, count);
+            int baseSize = count / chunks;
+            int extra = count % chunks;
+            // Workers not yet given a chunk, ascending EntityId.
+            List<Unit> unassigned = new List<Unit>(_workers);
+            int start = 0;
+            for (int c = 0; c < chunks; c++)
+            {
+                int size = baseSize + (c < extra ? 1 : 0);
+                List<(int X, int Y)> chunk = _validTiles.GetRange(start, size);
+                start += size;
+                Unit worker = null;
+                Fix64 best = Fix64.Zero;
+                foreach (Unit candidate in unassigned)
+                {
+                    Fix64 distance = DistanceSquared(sim, candidate, chunk[0].X, chunk[0].Y);
+                    // unassigned is in ascending ID order, so a strict comparison keeps the lowest ID on a tie.
+                    if (worker == null || distance < best)
+                    {
+                        worker = candidate;
+                        best = distance;
+                    }
+                }
+                unassigned.Remove(worker);
+                if (DistanceSquared(sim, worker, chunk[size - 1].X, chunk[size - 1].Y) < best)
+                {
+                    chunk.Reverse();
+                }
+                _commands.Submit(new BuildWallLineCommand(_commands.Tick, _commands.LocalPlayer, _commands.NextSequence(), worker.Id, _definitionId, chunk));
+            }
+        }
+
+        /// <summary>Squared distance from a worker to a tile centre, in fixed point (the clamped tile when outside the map). Unit: tiles squared.</summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="worker">A unit.</param>
+        /// <param name="tileX">Tile X. Unit: tiles.</param>
+        /// <param name="tileY">Tile Y. Unit: tiles.</param>
+        private static Fix64 DistanceSquared(Simulation sim, Unit worker, int tileX, int tileY)
+        {
+            FixVec2 centre = sim.Terrain.CentreOf(sim.Terrain.IndexOf(Mathf.Clamp(tileX, 0, sim.Terrain.Width - 1), Mathf.Clamp(tileY, 0, sim.Terrain.Height - 1)));
+            Fix64 dx = worker.Position.X - centre.X;
+            Fix64 dy = worker.Position.Y - centre.Y;
+            return dx * dx + dy * dy;
+        }
+
+        /// <summary>Puts the reason or line label just right of and above the cursor, in canvas units.</summary>
+        private void PlaceLabelAtCursor()
+        {
+            _reason.rectTransform.anchoredPosition = (Vector2)GameInput.mousePosition / Mathf.Max(0.01f, GetComponent<Canvas>().scaleFactor) + new Vector2(18f, 12f);
+        }
+
+        /// <summary>Wall line ghost number <paramref name="index"/>, created when the pool is too small.</summary>
+        /// <param name="index">Pool index. Range: 0 to the pool size.</param>
+        private Renderer LineGhost(int index)
+        {
+            if (index == _lineGhosts.Count)
+            {
+                _lineGhosts.Add(CreateGhost("Wall Line Ghost " + index));
+            }
+            return _lineGhosts[index];
+        }
+
+        /// <summary>Hides the wall line ghosts from <paramref name="first"/> on.</summary>
+        /// <param name="first">First ghost to hide. Range: 0 upward.</param>
+        private void HideLineGhosts(int first)
+        {
+            for (int i = first; i < _lineGhosts.Count; i++)
+            {
+                _lineGhosts[i].gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>Starts a red flash on each skipped tile of the local player's wall lines.</summary>
+        /// <param name="simEvent">An event of the tick that just ran.</param>
+        private void OnSimEvent(SimEvent simEvent)
+        {
+            if (simEvent is BuildLineTileSkippedEvent skipped && skipped.Owner == _commands.LocalPlayer)
+            {
+                _flashes.Add((skipped.TileX, skipped.TileY, Time.unscaledTime + FlashSeconds));
             }
         }
 
@@ -207,15 +428,12 @@ namespace Rts.Game.Hud
         /// <param name="tileY">Tile Y. Unit: tiles.</param>
         private Unit NearestWorker(Simulation sim, int tileX, int tileY)
         {
-            // Tile centre; outside the map the clamped tile's centre is close enough for choosing a worker (the order is refused anyway).
-            FixVec2 centre = sim.Terrain.CentreOf(sim.Terrain.IndexOf(Mathf.Clamp(tileX, 0, sim.Terrain.Width - 1), Mathf.Clamp(tileY, 0, sim.Terrain.Height - 1)));
             Unit best = null;
             Fix64 bestDistance = Fix64.Zero;
             foreach (Unit worker in _workers)
             {
-                Fix64 dx = worker.Position.X - centre.X;
-                Fix64 dy = worker.Position.Y - centre.Y;
-                Fix64 distance = dx * dx + dy * dy;
+                // Outside the map the clamped tile's centre is close enough for choosing a worker (the order is refused anyway).
+                Fix64 distance = DistanceSquared(sim, worker, tileX, tileY);
                 // _workers is in ascending ID order, so a strict comparison keeps the lowest ID on a tie.
                 if (best == null || distance < bestDistance)
                 {
@@ -264,6 +482,13 @@ namespace Rts.Game.Hud
                 {
                     PlaceGhost(PendingGhost(used++), sim, tile % sim.Terrain.Width, tile / sim.Terrain.Width, pendingColor);
                 }
+            }
+            // Real time now, for the skipped-tile flashes. Unit: seconds.
+            float now = Time.unscaledTime;
+            _flashes.RemoveAll(flash => flash.Until <= now);
+            foreach ((int x, int y, float _) in _flashes)
+            {
+                PlaceGhost(PendingGhost(used++), sim, x, y, invalidColor);
             }
             for (int i = used; i < _pending.Count; i++)
             {

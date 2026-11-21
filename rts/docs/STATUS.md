@@ -40,7 +40,7 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 | 6 | Map checklist test | Built |
 | 7 | Two more 1v1 maps (three in total) | Built; both pass the checklist |
 | 8 | Campaign scripting layer and the first tutorial mission | **Not built.** Spec: `specs/campaign_scripting.md`. `rts/campaign` holds only a README. |
-| 9 | Unity: timeline bar, HUD, menus, lobby, surrender, Steam transport | **In progress** (PC session, build spec `specs/player_interface.md`, order in `HANDOFF_UNITY.md` section 5). UI-0 done 21 Nov 2026: one local command path (`LocalCommands`), the HUD canvas with the rejection message line, and a replay of every Play session for `ReplayCheck`. UI-1 done 21 Nov: resource, supply and clock bar; selected-unit panel; HQ and field notices. UI-2 and the research panel done 21 Nov: command card with train and research buttons, queue strip (research completion not yet exercised in Play Mode: the test scripts give no Rare). UI-3 done 21 Nov: build menu, ghost placement, pending-site ghosts, build notices. Waiting on the cloud for the placement query (I1), cancel (I4) and rally points (I5); next: UI-4 (wall and gate drag). |
+| 9 | Unity: timeline bar, HUD, menus, lobby, surrender, Steam transport | **In progress** (PC session, build spec `specs/player_interface.md`, order in `HANDOFF_UNITY.md` section 5). UI-0 done 21 Nov 2026: one local command path (`LocalCommands`), the HUD canvas with the rejection message line, and a replay of every Play session for `ReplayCheck`. UI-1 done 21 Nov: resource, supply and clock bar; selected-unit panel; HQ and field notices. UI-2 and the research panel done 21 Nov: command card with train and research buttons, queue strip (research completion not yet exercised in Play Mode: the test scripts give no Rare). UI-3 done 21 Nov: build menu, ghost placement, pending-site ghosts, build notices. UI-4 done 21 Nov: wall and gate line drag, skipped-tile flashes, gates drawn open next to friends. Waiting on the cloud for the placement query (I1), cancel (I4) and rally points (I5), and see "Needed from the cloud session" below; next: UI-5 (Downdraft and the wave; partly waits on I2 and I3). |
 | 10 | Unity compile and tests in CI (GameCI) | Not done; needs a `UNITY_LICENSE` secret from the developer |
 | 11 | Review of every simulation, net and replay change | Ongoing rule |
 
@@ -53,6 +53,13 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
   - Hash parity: Unity printed `script finished at tick 1500, final hash dac9a5db27e3fdb4`; the headless runner with `--script rts/data/scripts/economy_smoke.json` printed `STATE_HASH=dac9a5db27e3fdb4`, and all 75 per-interval hashes matched. **Stale since P-003 packages A and B:** the headless hash for that script is now `38db6dd44d0ec48b` (17 Nov, Reef Runner); the PC session must repeat the Unity check against it.
   - Not confirmed: unit count and movement in Play mode. Funplay lost its connection when Play mode reloaded scripts (its server moved from port 29309 to 29310 while the session still pointed at 29309).
 - Unity's `SimulationHost` plays `scripts/economy_smoke.json` by default, not the harness default `smoke.json`. Compare Unity with the harness run on the same script, as `UNITY_SETUP.md` describes. `CLAUDE.md` said otherwise until 16 Nov 2026 and was corrected.
+
+## Needed from the cloud session
+
+Questions the PC session found while building the player interface; it builds around them meanwhile.
+
+1. **Walls can be built on resource fields** (found 21 Nov, UI-4). `player_interface.md` UI-4 expects a wall line dragged across a resource field to show that tile red and skip it. On `main` the field tile passes `EconomyRules.WallLineTileProblem` and the simulation builds the wall on it: in Play Mode a Wind Baffle stood on field (4, 10) of `greybox_1v1` and the field kept 3000. Either fields should block structures (a simulation change, hashes move) or the spec check should change. The Unity ghost follows whatever `WallLineTileProblem` answers, so no Unity change is needed either way.
+2. **Spec contradiction, settled in Unity for now:** UI-3's table calls a `new_order` build cancellation silent, but its check expects a refund notice when Stop is pressed on a walking builder (Stop cancels with `new_order`). Unity shows the refund without a reason. Say if that is wrong.
 
 ## What comes next, in order
 

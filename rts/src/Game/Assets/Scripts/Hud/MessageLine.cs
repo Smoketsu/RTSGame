@@ -3,7 +3,7 @@
 // notices of each package, each shown for a few seconds. Reads SimulationHost.EventRaised: CommandRejectedEvent whose command the
 // local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
 // Stand, depletion of a field an own worker gathers from; UI-2: units trained by own producers, own research completed; UI-3:
-// own build orders cancelled with their refund, own structures placed and completed). Other HUD code may post with Show. Builds its own uGUI Text under the
+// own build orders cancelled with their refund, own structures placed and completed; UI-4: own wall tiles skipped). Other HUD code may post with Show. Builds its own uGUI Text under the
 // HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using System.Text;
@@ -185,6 +185,15 @@ namespace Rts.Game.Hud
                 if (cancelled.Owner == _commands.LocalPlayer && (reason != null || refund.Length > 0))
                 {
                     Show(HudBuild.NameOf(sim, cancelled.DefinitionId) + " cancelled" + (reason != null ? ": " + reason : "") + refund);
+                }
+            }
+            else if (simEvent is BuildLineTileSkippedEvent skipped)
+            {
+                // A tile dropped because the worker got a new order is the player's own doing and stays silent.
+                string reason = RejectionTexts.For(skipped.Reason);
+                if (skipped.Owner == _commands.LocalPlayer && reason != null)
+                {
+                    Show(HudBuild.NameOf(sim, skipped.DefinitionId) + " tile skipped: " + reason + RefundText(skipped.RefundCommon, skipped.RefundRare));
                 }
             }
             else if (simEvent is StructurePlacedEvent placed)

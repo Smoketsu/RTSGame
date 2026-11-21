@@ -9,8 +9,8 @@
 // from the simulation when drawn. Shortcut: the cost, supply, time and "Requires" text is printed on the button instead of a
 // hover tooltip, so a Play Mode check can read it.
 // Workers (UI-3): with own workers selected and no producer, the card shows one "Build" button (key B); B or the button opens the
-// build menu, one button per structure of the local faction (faction UnitIds with a footprint that are neither walls nor HQs, in
-// file order, same greying rules), and picking one starts BuildPlacement. Esc or B closes the menu. Part of Rts.Game (presentation only).
+// build menu, one button per structure of the local faction (faction UnitIds with a footprint that are not HQs, walls and gates
+// included, in file order, same greying rules), and picking one starts BuildPlacement (a drag for walls and gates, UI-4). Esc or B closes the menu. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
@@ -296,7 +296,7 @@ namespace Rts.Game.Hud
                 {
                     foreach (string id in faction.UnitIds)
                     {
-                        if (sim.Content.Units.TryGetValue(id, out UnitDefinition structure) && structure.Economy.FootprintTiles > 0 && !structure.Economy.IsWall && structure.Hq == null)
+                        if (sim.Content.Units.TryGetValue(id, out UnitDefinition structure) && structure.Economy.FootprintTiles > 0 && structure.Hq == null)
                         {
                             _entries.Add(id);
                         }
