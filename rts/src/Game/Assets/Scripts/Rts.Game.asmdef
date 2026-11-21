@@ -2,7 +2,10 @@
   "name": "Rts.Game",
   "rootNamespace": "Rts.Game",
   "references": [
-    "Rts.Sim"
+    "Rts.Sim",
+    "Rts.Replay",
+    "UnityEngine.UI",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -1,7 +1,7 @@
 // rts/src/Game/Assets/Scripts/Bootstrap/AutoBootstrap.cs
 // Makes pressing Play in ANY scene show the simulation: after the first scene has loaded it adds a
-// SimulationHost, a camera with its RtsCameraController, a directional light, a TerrainView and a SelectionController
-// if the scene does not already have them. The flat grey ground plane of Phase 0 is no longer added (TerrainView draws the
+// SimulationHost with its LocalCommands (the one local command path), a camera with its RtsCameraController, a directional
+// light, a TerrainView, a SelectionController and the HUD canvas if the scene does not already have them. The flat grey ground plane of Phase 0 is no longer added (TerrainView draws the
 // real terrain at the same height as layer 0 and the two would overlap); EnsureGround stays available as a fallback.
 // Part of Rts.Game (Unity side, presentation only). Delete this file once a real entry scene exists; the
 // Ensure* helpers are also used by the editor menu item RTS > Create Bootstrap Scene.
@@ -10,9 +10,11 @@
 // (32, 0, 32), but RtsCameraController takes over on the first frame (55 degree pitch, focus on the map centre, pan and zoom).
 // Simulation tile (x, y) is Unity world (x, layer height, y), one tile = one world unit.
 using Rts.Game.CameraRig;
+using Rts.Game.Hud;
 using Rts.Game.TerrainDisplay;
 using Rts.Game.UnitSelection;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rts.Game.Bootstrap
 {
@@ -36,11 +38,51 @@ namespace Rts.Game.Bootstrap
         private static void Run()
         {
             EnsureHost();
+            EnsureLocalCommands();
             EnsureCamera();
             EnsureCameraController();
             EnsureLight();
             EnsureTerrainView();
             EnsureSelection();
+            EnsureHud();
+        }
+
+        /// <summary>Adds LocalCommands, the one local command path, to the SimulationHost object unless it already has one.</summary>
+        /// <returns>The existing or new component.</returns>
+        public static LocalCommands EnsureLocalCommands()
+        {
+            // The host object (created first if there is none).
+            SimulationHost host = EnsureHost();
+            LocalCommands existing = host.GetComponent<LocalCommands>();
+            if (existing != null)
+            {
+                return existing;
+            }
+            return host.gameObject.AddComponent<LocalCommands>();
+        }
+
+        /// <summary>
+        /// Creates the "HUD" object unless a MessageLine already exists: one screen-space Canvas scaled from a 1920 x 1080 landscape
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels. Built from code so no scene or prefab is edited by text.
+        /// </summary>
+        /// <returns>The existing or new message line, the first HUD panel.</returns>
+        public static MessageLine EnsureHud()
+        {
+            MessageLine existing = Object.FindAnyObjectByType<MessageLine>();
+            if (existing != null)
+            {
+                return existing;
+            }
+            GameObject hud = new GameObject("HUD", typeof(RectTransform));
+            Canvas canvas = hud.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            CanvasScaler scaler = hud.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+            hud.AddComponent<GraphicRaycaster>();
+            return hud.AddComponent<MessageLine>();
         }
 
         /// <summary>Adds the RTS camera controller (pan, zoom, bounds) to the scene's camera unless it already has one.</summary>

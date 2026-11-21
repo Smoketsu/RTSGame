@@ -23,7 +23,7 @@
 
 Data files under `rts/data/scripts/`, parsed by `CommandScript`, header and per-key comments as usual. Positions and counts are placeholders.
 
-- `ui_sandbox.json`: `greybox_1v1`, the spawns of `ai_vs_ai.json` (HQ plus four workers per side) without `ai` keys and without orders, `ticks` 72000 (placeholder, one hour). Slot 0 Skai, slot 1 Water. Set `SelectionController`'s "Local Player Slot" to 1 to play Water.
+- `ui_sandbox.json`: `greybox_1v1`, the spawns of `ai_vs_ai.json` (HQ plus four workers per side) without `ai` keys and without orders, `ticks` 72000 (placeholder, one hour). Slot 0 Skai, slot 1 Water. Set `LocalCommands`' "Local Player Slot" to 1 to play Water.
 - `ui_tech.json`: `ui_sandbox.json` plus script `spawn_unit`s at tick 0 of complete structures and casters beside each HQ: for slot 0 a Windspire, a Storm Spire and two Stormcallers; for slot 1 a Shell Forge, a Reef Workshop and two Tidecallers; and two Skai Windrunners owned by slot 1 near slot 0's base as grounding targets (`spawn_unit` does not check factions). Structures spawned by script are complete at once.
 - `ui_core.json`: `ui_sandbox.json` plus four armed units per side spawned 3 tiles from the Core centre (`sim.Map.Core.Centre`).
 

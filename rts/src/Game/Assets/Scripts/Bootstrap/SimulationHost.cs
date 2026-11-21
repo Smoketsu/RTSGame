@@ -13,8 +13,12 @@
 //   - Rendering interpolates between the previous and current tick state (ADR-004), one tick behind the sim.
 //   - Phase 1 interaction: the host exposes read-only views for presentation code (TryGetViewTransform, UnitViews,
 //     EventRaised, LayerHeightWorldUnits). TerrainView, SelectionController and RtsCameraController read them; the
-//     only way player input reaches the simulation is SelectionController calling Simulation.Submit.
+//     only way player input reaches the simulation is LocalCommands.Submit, which calls SimulationHost.Submit.
 //   - Cubes stand on the terrain: world Y = tile elevation layer x LayerHeightWorldUnits + the cube's offset above ground.
+//   - Session recording (player_interface.md UI-0): with "Record Session" on, a Rts.Replay.ReplayRecorder is attached right
+//     after Start, every scripted and player command goes through it (Submit) and every tick is stepped through it. When the
+//     host is destroyed (leaving Play Mode, quitting) it writes <repo>/rts/build/replays/<local time>.rtsreplay in the editor,
+//     <persistentDataPath>/replays in a player; check it with rts/tools/ReplayCheck. The wall clock only names the file.
 //
 // Data directory (where every *.json under it is read and handed to Rts.Sim.Data.DataLoader):
 //   Editor:  <repo>/rts/data, resolved as Application.dataPath + "/../../../data" (dataPath is
@@ -41,6 +45,7 @@ using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Units;
+using Rts.Replay;
 using UnityEngine;
 // Unity 6.6 added UnityEngine.EntityId; this alias makes every EntityId in this file the simulation's entity ID.
 using EntityId = Rts.Sim.Core.EntityId;
@@ -136,6 +141,9 @@ namespace Rts.Game.Bootstrap
         /// <summary>Log every StateHashedEvent to the Console as "tick=N hash=XXXXXXXXXXXXXXXX". Unit: on/off.</summary>
         [SerializeField] private bool logStateHashes = true;
 
+        /// <summary>Record every command and hash checkpoint and write a replay file when the host is destroyed. Unit: on/off. Default on.</summary>
+        [SerializeField] private bool recordSession = true;
+
         /// <summary>Absolute path of a data directory to use instead of the default lookup. Unit: file path. Range: empty (default lookup) or an existing folder.</summary>
         [SerializeField] private string dataDirectoryOverride = "";
 
@@ -165,6 +173,9 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>The match. Null until Awake succeeds. Read-only from the host's point of view except for Submit.</summary>
         private Simulation _sim;
+
+        /// <summary>Records the session for the replay file. Null when recordSession is off or before Awake succeeds.</summary>
+        private ReplayRecorder _recorder;
 
         /// <summary>Seconds of real time not yet turned into ticks. Unit: seconds. Range: 0 up to one tick duration after each Update.</summary>
         private float _accumulatorSeconds;
@@ -267,6 +278,11 @@ namespace Rts.Game.Bootstrap
                     dataSet.Cycles.Values);
                 _sim = new Simulation(config);
                 _sim.Start();
+                if (recordSession)
+                {
+                    // Attached before any command is queued: the recorder refuses a simulation that already holds commands.
+                    _recorder = new ReplayRecorder(_sim, script.Players, BuiltInMechanics.CreateCodecRegistry());
+                }
 
                 _tickSeconds = 1f / settings.TicksPerSecond;
                 _unitRoot = new GameObject("Simulation Units").transform;
@@ -279,7 +295,7 @@ namespace Rts.Game.Bootstrap
                     {
                         Debug.LogWarning("[SimulationHost] " + command + " is scheduled at or after the last tick (" + _scriptTicks + ") and will not run.");
                     }
-                    _sim.Submit(command);
+                    Submit(command);
                 }
                 ProcessEvents();
                 if (_scriptTicks == 0)
@@ -349,9 +365,28 @@ namespace Rts.Game.Bootstrap
             }
         }
 
-        /// <summary>Releases the cubes, materials and simulation reference.</summary>
+        /// <summary>
+        /// Queues a command for its tick, through the session recorder when recording. The only way commands enter the match; player
+        /// input reaches it through LocalCommands.Submit. Throws InvalidOperationException for a tick in the past and ArgumentException
+        /// for a command the replay codec cannot encode.
+        /// </summary>
+        /// <param name="command">The command; not null.</param>
+        public void Submit(Command command)
+        {
+            if (_recorder != null)
+            {
+                _recorder.Submit(command);
+            }
+            else
+            {
+                _sim.Submit(command);
+            }
+        }
+
+        /// <summary>Writes the recorded session, then releases the cubes, materials and simulation reference.</summary>
         private void OnDestroy()
         {
+            WriteReplay();
             foreach (Material material in _playerMaterials.Values)
             {
                 if (material != null)
@@ -372,7 +407,14 @@ namespace Rts.Game.Bootstrap
         /// <summary>Runs exactly one simulation tick and updates the picture state from it.</summary>
         private void StepOnce()
         {
-            _sim.Step();
+            if (_recorder != null)
+            {
+                _recorder.Step();
+            }
+            else
+            {
+                _sim.Step();
+            }
             // Shift every existing cube's blend window forward before new events add or remove cubes.
             RefreshViewStates();
             ProcessEvents();
@@ -383,6 +425,37 @@ namespace Rts.Game.Bootstrap
                 _scriptFinished = true;
                 Debug.Log("[SimulationHost] script finished at tick " + _sim.Clock.Tick + ", final hash " + _sim.ComputeStateHash().ToString("x16"));
             }
+        }
+
+        /// <summary>
+        /// Writes the recorded session to a replay file named after the local time. Does nothing when nothing was recorded or no tick ran.
+        /// Failures are logged; they never stop the editor leaving Play Mode.
+        /// </summary>
+        private void WriteReplay()
+        {
+            if (_recorder == null || _sim == null || _sim.Clock.Tick == 0)
+            {
+                return;
+            }
+            try
+            {
+#if UNITY_EDITOR
+                // rts/build/replays as seen from rts/src/Game/Assets (git-ignored build output folder).
+                string folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "..", "build", "replays"));
+#else
+                string folder = Path.Combine(Application.persistentDataPath, "replays");
+#endif
+                Directory.CreateDirectory(folder);
+                // Replay file path; the wall clock is read here only to name the file, never by the simulation.
+                string path = Path.Combine(folder, DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".rtsreplay");
+                File.WriteAllBytes(path, ReplayWriter.Write(_recorder.Finish(), BuiltInMechanics.CreateCodecRegistry()));
+                Debug.Log("[SimulationHost] Replay written: " + path + " (" + _sim.Clock.Tick + " ticks, " + _recorder.CommandCount + " commands).");
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[SimulationHost] Could not write the replay: " + exception.Message);
+            }
+            _recorder = null;
         }
 
         /// <summary>For each cube: previous := current, current := the unit's position after the tick that just ran.</summary>

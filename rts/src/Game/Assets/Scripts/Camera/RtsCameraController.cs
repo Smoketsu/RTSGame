@@ -5,9 +5,8 @@
 // camera each frame at focus - forward x distance. Part of Rts.Game (Unity side, presentation only): it never writes to the
 // simulation and nothing here becomes a command.
 //
-// Input uses the LEGACY Input Manager (Input.GetKey, Input.GetMouseButton, Input.mousePosition, Input.mouseScrollDelta), so no
-// Input System package is needed. If you install the Input System package, set Project Settings > Player > Active Input Handling to
-// "Both" or these calls throw InvalidOperationException.
+// Input goes through GameInput (Input System package, legacy-shaped calls: GetKey, GetMouseButton, mousePosition, mouseScrollDelta),
+// so the Funplay MCP input tools can drive it in Play Mode checks.
 //
 // Key conflict: A and S are also the attack-move and stop commands (SelectionController). While units are selected the letter keys
 // W A S D do not pan; the arrow keys, edge scrolling and middle-mouse drag always do. With nothing selected WASD pans.
@@ -15,6 +14,7 @@
 // Geometry: world X is simulation X, world Z is simulation Y, world Y is up. The camera looks along +Z tilted down by pitchDegrees,
 // never rotated around Y, so "up on screen" is always +Z.
 using Rts.Game.Bootstrap;
+using Rts.Game.Controls;
 using Rts.Game.UnitSelection;
 using UnityEngine;
 
@@ -188,7 +188,7 @@ namespace Rts.Game.CameraRig
         private void ApplyZoom(float dt)
         {
             // Wheel notches this frame; positive scrolls away from the user, which zooms in. Unit: notches.
-            float notches = Input.mouseScrollDelta.y;
+            float notches = GameInput.mouseScrollDelta.y;
             if (notches != 0f)
             {
                 _targetHeight = Mathf.Clamp(_targetHeight - notches * zoomStepWorldUnits, minHeight, maxHeight);
@@ -206,12 +206,12 @@ namespace Rts.Game.CameraRig
                 _dragging = false;
                 return;
             }
-            if (Input.GetMouseButtonDown(2))
+            if (GameInput.GetMouseButtonDown(2))
             {
                 _dragging = true;
-                _dragPrevious = Input.mousePosition;
+                _dragPrevious = GameInput.mousePosition;
             }
-            if (!Input.GetMouseButton(2))
+            if (!GameInput.GetMouseButton(2))
             {
                 _dragging = false;
             }
@@ -220,7 +220,7 @@ namespace Rts.Game.CameraRig
                 return;
             }
             // Mouse position now. Unit: screen pixels.
-            Vector3 current = Input.mousePosition;
+            Vector3 current = GameInput.mousePosition;
             if (TryGroundPoint(_dragPrevious, out Vector3 before) && TryGroundPoint(current, out Vector3 after))
             {
                 _focus += new Vector2(before.x - after.x, before.z - after.z);
@@ -242,27 +242,27 @@ namespace Rts.Game.CameraRig
             {
                 // WASD yields to the unit commands (A attack-move, S stop) while something is selected.
                 bool lettersPan = _selection == null || !_selection.HasSelection;
-                if (Input.GetKey(KeyCode.RightArrow) || (lettersPan && Input.GetKey(KeyCode.D)))
+                if (GameInput.GetKey(KeyCode.RightArrow) || (lettersPan && GameInput.GetKey(KeyCode.D)))
                 {
                     direction.x += 1f;
                 }
-                if (Input.GetKey(KeyCode.LeftArrow) || (lettersPan && Input.GetKey(KeyCode.A)))
+                if (GameInput.GetKey(KeyCode.LeftArrow) || (lettersPan && GameInput.GetKey(KeyCode.A)))
                 {
                     direction.x -= 1f;
                 }
-                if (Input.GetKey(KeyCode.UpArrow) || (lettersPan && Input.GetKey(KeyCode.W)))
+                if (GameInput.GetKey(KeyCode.UpArrow) || (lettersPan && GameInput.GetKey(KeyCode.W)))
                 {
                     direction.y += 1f;
                 }
-                if (Input.GetKey(KeyCode.DownArrow) || (lettersPan && Input.GetKey(KeyCode.S)))
+                if (GameInput.GetKey(KeyCode.DownArrow) || (lettersPan && GameInput.GetKey(KeyCode.S)))
                 {
                     direction.y -= 1f;
                 }
             }
-            if (edgeScrollEnabled && Application.isFocused)
+            if (edgeScrollEnabled && Application.isFocused && GameInput.PointerOverGame)
             {
                 // Cursor position. Unit: screen pixels, origin bottom-left.
-                Vector3 mouse = Input.mousePosition;
+                Vector3 mouse = GameInput.mousePosition;
                 // True when the cursor is inside the window; outside it (the editor Game view border, a second monitor) must not scroll.
                 bool inside = mouse.x >= 0f && mouse.y >= 0f && mouse.x <= Screen.width - 1f && mouse.y <= Screen.height - 1f;
                 if (inside)

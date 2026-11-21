@@ -1,6 +1,6 @@
 // rts/src/Game/Assets/Scripts/Editor/CreateBootstrapScene.cs
 // Editor-only menu item "RTS > Create Bootstrap Scene": builds and saves Assets/Scenes/Bootstrap.unity containing
-// the SimulationHost object, a three-quarter top-down camera with its RtsCameraController, a directional light, a TerrainView
+// the SimulationHost object with its LocalCommands, the HUD canvas, a three-quarter top-down camera with its RtsCameraController, a directional light, a TerrainView
 // and a SelectionController (so their Inspector fields can be tuned and saved), then adds the scene to the
 // Build Settings if it is not there. Part of Rts.Game.Editor (never included in a player build).
 // The scene is optional: AutoBootstrap makes Play work in any scene without it.
@@ -38,11 +38,13 @@ namespace Rts.Game.EditorTools
             }
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             AutoBootstrap.EnsureHost();
+            AutoBootstrap.EnsureLocalCommands();
             AutoBootstrap.EnsureCamera();
             AutoBootstrap.EnsureCameraController();
             AutoBootstrap.EnsureLight();
             AutoBootstrap.EnsureTerrainView();
             AutoBootstrap.EnsureSelection();
+            AutoBootstrap.EnsureHud();
 
             Directory.CreateDirectory(ScenesFolder);
             if (!EditorSceneManager.SaveScene(scene, ScenePath))
