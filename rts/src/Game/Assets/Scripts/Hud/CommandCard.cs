@@ -10,7 +10,11 @@
 // hover tooltip, so a Play Mode check can read it.
 // Workers (UI-3): with own workers selected and no producer, the card shows one "Build" button (key B); B or the button opens the
 // build menu, one button per structure of the local faction (faction UnitIds with a footprint that are not HQs, walls and gates
-// included, in file order, same greying rules), and picking one starts BuildPlacement (a drag for walls and gates, UI-4). Esc or B closes the menu. Part of Rts.Game (presentation only).
+// included, in file order, same greying rules), and picking one starts BuildPlacement (a drag for walls and gates, UI-4).
+// Abilities (UI-5): with own casters selected and no producer, one button per ability any of them has (Downdraft, then the wave),
+// showing "Ready" or the shortest remaining cooldown; a click or its key starts AbilityTargeting. The buttons stay clickable on
+// cooldown (the simulation answers "Not ready"). Shortcut: the ability names are Unity-side labels; read them from the unit data
+// (interface support I3) once they are on main. Esc or B closes the menu. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
@@ -74,7 +78,16 @@ namespace Rts.Game.Hud
 
             /// <summary>The build menu: one button per structure of the local faction.</summary>
             BuildMenu,
+
+            /// <summary>Casters selected, no producer: one button per ability.</summary>
+            Abilities,
         }
+
+        /// <summary>Entry placeholder of the Downdraft button (not a unit or research ID).</summary>
+        private const string GroundingEntry = "#grounding";
+
+        /// <summary>Entry placeholder of the wave button (not a unit or research ID).</summary>
+        private const string WaveEntry = "#wave";
 
         /// <summary>Key that opens and closes the build menu (player_interface.md key table, placeholder).</summary>
         private const KeyCode BuildMenuKey = KeyCode.B;
@@ -139,6 +152,9 @@ namespace Rts.Game.Hud
         /// <summary>The placement mode on the same HUD object. Range: null when the HUD has none.</summary>
         private BuildPlacement _placement;
 
+        /// <summary>The ability targeting mode on the same HUD object. Range: null when the HUD has none.</summary>
+        private AbilityTargeting _abilities;
+
         /// <summary>The local command path. Range: null until found.</summary>
         private LocalCommands _commands;
 
@@ -177,6 +193,10 @@ namespace Rts.Game.Hud
             if (_placement == null)
             {
                 _placement = GetComponent<BuildPlacement>();
+            }
+            if (_abilities == null)
+            {
+                _abilities = GetComponent<AbilityTargeting>();
             }
             Simulation sim = _commands != null && _selection != null && _commands.IsReady ? _commands.Host.Match : null;
             _mode = sim == null ? CardMode.Hidden : ChooseMode(sim);
@@ -240,7 +260,26 @@ namespace Rts.Game.Hud
             {
                 return CardMode.Producer;
             }
+            if (SelectedCaster(sim, AbilityKind.Grounding) || SelectedCaster(sim, AbilityKind.Wave))
+            {
+                return CardMode.Abilities;
+            }
             return _workers.Count > 0 ? CardMode.Workers : CardMode.Hidden;
+        }
+
+        /// <summary>True when the selection holds an own unit with the ability.</summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="kind">The ability.</param>
+        private bool SelectedCaster(Simulation sim, AbilityKind kind)
+        {
+            foreach (EntityId id in _selection.Selected)
+            {
+                if (sim.Units.TryGet(id, out Unit unit) && unit.Owner == _commands.LocalPlayer && AbilityTargeting.Has(unit.Definition, kind))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -288,6 +327,18 @@ namespace Rts.Game.Hud
             if (_mode == CardMode.Workers)
             {
                 _entries.Add("");
+                return;
+            }
+            if (_mode == CardMode.Abilities)
+            {
+                if (SelectedCaster(sim, AbilityKind.Grounding))
+                {
+                    _entries.Add(GroundingEntry);
+                }
+                if (SelectedCaster(sim, AbilityKind.Wave))
+                {
+                    _entries.Add(WaveEntry);
+                }
                 return;
             }
             if (_mode == CardMode.BuildMenu)
@@ -343,6 +394,25 @@ namespace Rts.Game.Hud
                 slot.Button.interactable = true;
                 slot.Name.text = BuildMenuKey + "  Build";
                 slot.Info.text = "Structures";
+                slot.Info.color = HudBuild.TextColor;
+                return;
+            }
+            if (_mode == CardMode.Abilities)
+            {
+                AbilityKind kind = id == GroundingEntry ? AbilityKind.Grounding : AbilityKind.Wave;
+                // Shortest remaining cooldown among the selected casters of this ability. Unit: ticks. Range: 0 upward.
+                int cooldown = int.MaxValue;
+                foreach (EntityId casterId in _selection.Selected)
+                {
+                    if (sim.Units.TryGet(casterId, out Unit caster) && caster.Owner == _commands.LocalPlayer && AbilityTargeting.Has(caster.Definition, kind))
+                    {
+                        cooldown = Mathf.Min(cooldown, AbilityTargeting.CooldownTicks(sim, caster, kind));
+                    }
+                }
+                slot.Background.color = ResearchColor;
+                slot.Button.interactable = true;
+                slot.Name.text = SlotKeys[index] + "  " + (kind == AbilityKind.Grounding ? "Downdraft" : "Wave");
+                slot.Info.text = cooldown == 0 ? "Ready" : HudBuild.Seconds(cooldown, rate);
                 slot.Info.color = HudBuild.TextColor;
                 return;
             }
@@ -410,6 +480,14 @@ namespace Rts.Game.Hud
             if (_mode == CardMode.Workers)
             {
                 _buildMenuOpen = true;
+                return;
+            }
+            if (_mode == CardMode.Abilities)
+            {
+                if (_abilities != null)
+                {
+                    _abilities.Begin(_entries[index] == GroundingEntry ? AbilityKind.Grounding : AbilityKind.Wave);
+                }
                 return;
             }
             if (_mode == CardMode.BuildMenu)

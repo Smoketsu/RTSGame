@@ -1,7 +1,7 @@
-// rts/data/scripts/ui_tech.json: the player-interface tech script (rts/docs/specs/player_interface.md section 2). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (set its "Script Relative Path" to scripts/ui_tech.json) and the headless harness (--script rts/data/scripts/ui_tech.json). ui_sandbox.json plus complete tech structures and casters beside each HQ at tick 0 (script spawns skip costs, requirements and construction): Skai gets a Windspire, a Storm Spire and two Stormcallers; Water gets a Shell Forge, a Reef Workshop and two Tidecallers; and two Skai Windrunners owned by Water stand near the Skai base as grounding targets (spawn_unit does not check factions). Used by the train, research and ability checks (UI-2, research panel, UI-5). Slot 0 is Skai, slot 1 is Water; set LocalCommands' "Local Player Slot" to 1 to play Water.
+// rts/data/scripts/ui_tech.json: the player-interface tech script (rts/docs/specs/player_interface.md section 2). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (set its "Script Relative Path" to scripts/ui_tech.json) and the headless harness (--script rts/data/scripts/ui_tech.json). ui_sandbox.json plus complete tech structures and casters beside each HQ at tick 0 (script spawns skip costs, requirements and construction): Skai gets a Windspire, a Storm Spire and two Stormcallers; Water gets a Shell Forge, a Reef Workshop and two Tidecallers; and two Skai Roc Riders owned by Water hover near the Skai base as Downdraft targets (spawn_unit does not check factions; the spec named Windrunners, but they are ground units and cannot be grounded). Used by the train, research and ability checks (UI-2, research panel, UI-5). Slot 0 is Skai, slot 1 is Water; set LocalCommands' "Local Player Slot" to 1 to play Water.
 {
   "$schema_version": 1,
-  "$doc": "Interface tech sandbox: ui_sandbox.json plus tech structures and casters. Entity IDs: 1 Great Aerie, 2 to 5 Fledglings, 6 Grand Shell, 7 to 10 Tenders, 11 Windspire, 12 Storm Spire, 13 and 14 Stormcallers, 15 Shell Forge, 16 Reef Workshop, 17 and 18 Tidecallers, 19 and 20 Windrunners owned by Water.",
+  "$doc": "Interface tech sandbox: ui_sandbox.json plus tech structures and casters. Entity IDs: 1 Great Aerie, 2 to 5 Fledglings, 6 Grand Shell, 7 to 10 Tenders, 11 Windspire, 12 Storm Spire, 13 and 14 Stormcallers, 15 Shell Forge, 16 Reef Workshop, 17 and 18 Tidecallers, 19 and 20 Roc Riders owned by Water.",
   // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md; same as ai_vs_ai.json.
   "seed": 1234,
   // Most ticks to simulate. Unit: ticks (20 per second, so 72000 is one hour). Range: 0 to 1000000. Source: player_interface.md section 2; placeholder.
@@ -13,7 +13,7 @@
     { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
     { "id": 1, "team": 1, "faction": "water", "name": "Water" }
   ],
-  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter; x, y: position in tiles (structures at a tile centre). The spawns of ui_sandbox.json, then the tech structures and casters (positions are placeholders on open ground near each base). Source: player_interface.md section 2.
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter; x, y: position in tiles (structures at a tile centre). The first Stormcaller stands 6.9 tiles from the point between the two Roc Riders, inside its Downdraft range (7) and outside their weapon reach. The spawns of ui_sandbox.json, then the tech structures and casters (positions are placeholders on open ground near each base). Source: player_interface.md section 2.
   "commands": [
     { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
     { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
@@ -27,13 +27,13 @@
     { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "56", "y": "59" },
     { "tick": 0, "issuer": 255, "sequence": 10, "type": "spawn_unit", "definition": "skai.windspire", "owner": 0, "x": "13.5", "y": "11.5" },
     { "tick": 0, "issuer": 255, "sequence": 11, "type": "spawn_unit", "definition": "skai.storm_spire", "owner": 0, "x": "11.5", "y": "13.5" },
-    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "skai.stormcaller", "owner": 0, "x": "12", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "skai.stormcaller", "owner": 0, "x": "12.5", "y": "12.5" },
     { "tick": 0, "issuer": 255, "sequence": 13, "type": "spawn_unit", "definition": "skai.stormcaller", "owner": 0, "x": "9", "y": "12" },
     { "tick": 0, "issuer": 255, "sequence": 14, "type": "spawn_unit", "definition": "water.shell_forge", "owner": 1, "x": "50.5", "y": "52.5" },
     { "tick": 0, "issuer": 255, "sequence": 15, "type": "spawn_unit", "definition": "water.reef_workshop", "owner": 1, "x": "52.5", "y": "50.5" },
     { "tick": 0, "issuer": 255, "sequence": 16, "type": "spawn_unit", "definition": "water.tidecaller", "owner": 1, "x": "52", "y": "55" },
     { "tick": 0, "issuer": 255, "sequence": 17, "type": "spawn_unit", "definition": "water.tidecaller", "owner": 1, "x": "55", "y": "52" },
-    { "tick": 0, "issuer": 255, "sequence": 18, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 1, "x": "18", "y": "16" },
-    { "tick": 0, "issuer": 255, "sequence": 19, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 1, "x": "16", "y": "18" }
+    { "tick": 0, "issuer": 255, "sequence": 18, "type": "spawn_unit", "definition": "skai.roc_rider", "owner": 1, "x": "18", "y": "16" },
+    { "tick": 0, "issuer": 255, "sequence": 19, "type": "spawn_unit", "definition": "skai.roc_rider", "owner": 1, "x": "16", "y": "18" }
   ]
 }

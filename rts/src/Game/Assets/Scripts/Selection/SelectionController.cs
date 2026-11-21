@@ -598,9 +598,9 @@ namespace Rts.Game.UnitSelection
             return found;
         }
 
-        /// <summary>Turns a picked ground point into a simulation position through integers only (cell index, then an exact fraction).</summary>
+        /// <summary>Turns a picked ground point into a simulation position through integers only (cell index, then an exact fraction). Also used for ability targets.</summary>
         /// <param name="point">World point from TryPickGround.</param>
-        private FixVec2 ToSimPoint(Vector3 point)
+        public FixVec2 ToSimPoint(Vector3 point)
         {
             // Cell indices along X and Y. Unit: cells (1/targetCellsPerTile tile). Range: 0 to map size x targetCellsPerTile.
             int cellX = Mathf.FloorToInt(point.x * targetCellsPerTile);
