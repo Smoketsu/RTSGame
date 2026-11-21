@@ -42,9 +42,10 @@ rts/src/Game/      Unity 6 project
 rts/src/Ai/        skirmish AI
 rts/src/Net/       lockstep networking over Steam
 rts/src/Replay/    replays
-rts/tools/         BalanceHarness, ReplayCheck
+rts/src/Campaign/  campaign scripting layer (Rts.Campaign): mission loader, mission runner
+rts/tools/         BalanceHarness, ReplayCheck, MissionRunner
 rts/data/          tuning, units, factions, maps, cycles (JSON)
-rts/campaign/      campaign scripting
+rts/campaign/      mission data (missions/, inputs/)
 rts/tests/         NUnit tests (Sim.Tests)
 rts/docs/          plans, ADRs, specs/, proposals/, art/ (concept brief, approved concept art, 3D trials), CHANGELOG.md, ASSET_STORE.md, UNITY_SETUP.md, CI.md
 ```
