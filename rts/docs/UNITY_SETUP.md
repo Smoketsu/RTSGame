@@ -33,7 +33,7 @@ The files in this repository were written without Unity available, so the first 
 6. **Commit the generated files.** Unity creates a `.meta` file next to every file and folder, including all of `rts/src/Sim/` (hundreds of them), `rts/src/Sim/README.md`, and everything under `rts/src/Game/Assets/`. **Commit all `.meta` files**: they hold the GUIDs assets reference each other by, and without them every teammate gets different GUIDs and broken references. Also commit `rts/src/Game/ProjectSettings/*`, `rts/src/Game/Packages/packages-lock.json` and any scenes. Never commit `Library/`, `Temp/`, `Logs/`, `UserSettings/` or the generated `*.csproj`/`*.sln` (already in `.gitignore`).
 7. **Press Play** in the open scene (an empty untitled scene is fine), or first run **RTS > Create Bootstrap Scene** to save `Assets/Scenes/Bootstrap.unity` (host, camera, light) and add it to the Build Settings. Commit the scene and its `.meta`. Either way `AutoBootstrap` fills in whatever is missing at Play, so the menu item is optional. The saved scene also contains the camera controller, terrain view and selection controller so you can tune their Inspector fields.
 
-**Input.** The scripts use the **legacy Input Manager** (`Input.GetKey`, `Input.GetMouseButton`, `Input.mousePosition`, `Input.mouseScrollDelta`), so no Input System package is needed. Unity 6.6 added `com.unity.inputsystem` to `Packages/manifest.json` on first open; that is harmless while Edit > Project Settings > Player > Other Settings > **Active Input Handling** stays **Input Manager (Old)** (the committed setting) or **Both**; with only the new system selected these calls throw `InvalidOperationException`.
+**Input.** The scripts read keyboard and mouse through `Assets/Scripts/Controls/GameInput.cs`, which uses the Input System package (`com.unity.inputsystem`) behind calls shaped like the legacy ones. The Funplay MCP input tools (`simulate_key_press`, `simulate_mouse_click`, `simulate_mouse_drag`) inject only Input System events, so this is what lets a Play Mode check drive the match. Edit > Project Settings > Player > Other Settings > **Active Input Handling** must be **Input System Package (New)** or **Both** (the committed setting is Both).
 
 ## What you should see
 
@@ -56,7 +56,7 @@ The command script is read from the same data folder (`scripts/economy_smoke.jso
 
 ## Controls
 
-All controls act on **player 0** (Inspector field `Local Player Slot` on `SelectionController`; the slot must exist in the script). Orders are submitted as commands for the current tick with a sequence number counted from 1,000,000, so they never clash with the script's own numbers.
+All controls act on **player 0** (Inspector field `Local Player Slot` on `LocalCommands`, on the `SimulationHost` object; the slot must exist in the script). Every order goes through `LocalCommands`, the one local command path: it is submitted as a command for the current tick with a sequence number counted from 1,000,000, so it never clashes with the script's own numbers, and is recorded for the session replay (see "Session replay" below).
 
 | Input | Action |
 | --- | --- |
@@ -99,7 +99,7 @@ The state hash is a function of the match state only, so Unity and the headless 
 
 ## Known limitations (Phase 0)
 
-- Camera, selection and orders are a hand-written fallback (legacy Input Manager, IMGUI drag box); nothing from the Asset Store is installed. Better packages are optional polish and are tracked in `rts/docs/ASSET_STORE.md`; anything chosen there must stay presentation only.
+- Camera, selection and orders are a hand-written fallback (Input System through `GameInput`, IMGUI drag box); nothing from the Asset Store is installed. Better packages are optional polish and are tracked in `rts/docs/ASSET_STORE.md`; anything chosen there must stay presentation only.
 - No fog of war in the view (the simulation computes vision; drawing it is a later step), no minimap, no building placement or training UI yet (the scripts still train and build), and no formation: all selected units get the same target point and the simulation separates them.
 - Ramps are drawn as flat grey tiles at their own layer, so a ramp looks like a step; units standing on it use the same height.
 - Placeholder cubes only; no animation, no health bars; the only UI is the small status text and the drag rectangle.
@@ -108,6 +108,19 @@ The state hash is a function of the match state only, so Unity and the headless 
 - The host steps at most 10 ticks per frame (Inspector `Max Steps Per Frame`) and drops the rest, so a very slow machine runs the match slower than real time. That is correct for a local match and must be replaced by lockstep waiting when networking arrives (Phase 2).
 - Player builds need `rts/data` copied to `Assets/StreamingAssets/data` by hand (desktop only).
 - Not yet run in the Unity editor by the author of these files. Treat the first compile as a test and report anything that fails.
+
+## Session replay and the message line
+
+- **Message line** (top centre of the HUD): when the simulation refuses one of your orders, the reason appears there for a few seconds (for example "Too far from resources to root"); the Console warning from `SimulationHost` still names the raw reason code. Texts live in `Assets/Scripts/Hud/RejectionTexts.cs`.
+- **Replay of every session**: with `Record Session` on (on `SimulationHost`, default on), leaving Play Mode writes `rts/build/replays/<yyyyMMdd-HHmmss>.rtsreplay` (git-ignored) and logs its path. Check that Unity and the headless simulation agree on the whole session:
+
+```
+dotnet run --project rts/tools/ReplayCheck -- --data rts/data --replay rts/build/replays/<file>.rtsreplay
+```
+
+It prints `REPLAY OK final=<hash>`. A `REPLAY DESYNC` means the Unity session diverged from the simulation: report it with the file.
+
+- **Playing a different script** (for example `scripts/ui_sandbox.json`, the interface sandbox with no AI and no orders): create the Bootstrap scene (RTS > Create Bootstrap Scene), set `Script Relative Path` on `SimulationHost` and `Local Player Slot` on `LocalCommands`, and save the scene.
 
 ## Troubleshooting
 
@@ -123,9 +136,9 @@ The state hash is a function of the match state only, so Unity and the headless 
 | Nothing visible, no errors | Check the Game tab (not Scene), that the scene has no other camera pointing elsewhere (`AutoBootstrap` only adds a camera when none exists, and `RtsCameraController` takes over the one it finds), and that `Time.timeScale` is not 0. |
 | Terrain is one flat colour, Console warns `Shader '...' ignores vertex colours` | `Assets/Resources/Shaders/RtsVertexColorUnlit.shader` did not compile or was not imported (look for shader errors in the Console, then Assets > Reimport). Without it the material falls back to `Sprites/Default`, which does draw vertex colours; the flat look means only a shader without vertex-colour support was found. |
 | Terrain pink or invisible | The project uses a render pipeline whose materials cannot use the shader chain in `RtsMaterials`. Check the Console for the `[RtsMaterials]` message and report it with your pipeline (Built-in is the tested target). |
-| `InvalidOperationException: You are trying to read Input using the UnityEngine.Input class, but you have switched active Input handling to Input System package` | Project Settings > Player > Active Input Handling must be Input Manager (Old) or Both; see the Input note in the Steps. |
+| `InvalidOperationException` about reading input with the Input System package disabled, or keys and clicks do nothing | Project Settings > Player > Active Input Handling must be Input System Package (New) or Both; see the Input note in the Steps. |
 | WASD does not pan | Something is selected (A and S are commands then). Press Esc or click empty ground to deselect, or use the arrow keys. |
-| Orders do nothing, Console warns `Player slot N does not exist` | `Local Player Slot` on `SelectionController` must be a slot of the script (0 or 1 in the shipped scripts). |
+| Orders do nothing, Console warns `Player slot N does not exist` | `Local Player Slot` on `LocalCommands` (on the `SimulationHost` object) must be a slot of the script (0 or 1 in the shipped scripts). |
 | Clicking selects nothing | You can only select your own units (player 0, the blue cubes); enemy cubes are targets for right-click. Small units need a click within about 0.6 tiles of the cube centre (`Min Pick Radius Tiles`). |
 | Pink cubes | The project was switched to URP or HDRP and the default material is not valid for it. Phase 0 is Built-in Render Pipeline; either convert materials (Edit > Rendering > Materials) or remove the pipeline asset. |
 | Hash lines never appear | `Log State Hashes` is off on `SimulationHost`, or the Console filter hides info messages. |

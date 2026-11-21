@@ -1,9 +1,9 @@
 // rts/src/Game/Assets/Scripts/Selection/SelectionController.cs
 // Player input for the local player: selecting own units (click, shift-click, drag rectangle, control groups) and turning orders into
-// simulation commands. This is the ONLY place in the Unity project where input reaches the simulation, and it does so only through
-// Simulation.Submit (architecture rule 2: everything is a command). Part of Rts.Game (Unity side, presentation only).
+// simulation commands, which it sends only through LocalCommands.Submit, the one local command path (architecture rule 2: everything
+// is a command). Part of Rts.Game (Unity side, presentation only).
 //
-// Controls (legacy Input Manager, so no Input System package is needed):
+// Controls (read through GameInput, Input System package, so the Funplay input tools can drive them):
 //   Left click            select the nearest own unit under the cursor (Shift adds); click on nothing clears
 //   Left drag             draw a rectangle and select every own unit inside it (Shift adds)
 //   Ctrl + 0..9           store the selection in a control group;  0..9 recalls it (Shift adds)
@@ -17,12 +17,12 @@
 // intersecting the mouse ray with the terrain layer planes (float maths, presentation), then quantised to an INTEGER sub-tile cell
 // (default quarter tiles) and converted with Fix64.FromFraction(int, int), so no float ever enters a command.
 //
-// Commands are submitted for the current tick (Simulation.Clock.Tick), which Submit accepts and the next Step applies, with a
-// per-player sequence number kept here. Sequences start at firstSequence (default 1,000,000) so they never collide with the
-// sequence numbers of a scripted command file, which the queue would reject as duplicates.
+// Commands are submitted for the current tick (Simulation.Clock.Tick), which Submit accepts and the next Step applies, through
+// LocalCommands (player_interface.md UI-0), which owns the local player slot and the one sequence counter shared by every panel.
 using System.Collections.Generic;
 using System.Text;
 using Rts.Game.Bootstrap;
+using Rts.Game.Controls;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Economy;
@@ -47,12 +47,6 @@ namespace Rts.Game.UnitSelection
             /// <summary>Only units owned by a player on a different team than the local player.</summary>
             Enemy,
         }
-
-        /// <summary>Player slot this machine controls. Unit: player slot. Range: 0 to 254; must exist in the match (default 0, the first player of the script).</summary>
-        [SerializeField, Range(0, 254)] private int localPlayerSlot = 0;
-
-        /// <summary>First sequence number of the commands this controller issues. Unit: sequence number. Range: 0 to 2147483647; default 1000000, above any scripted sequence.</summary>
-        [SerializeField, Min(0)] private int firstSequence = 1000000;
 
         /// <summary>Mouse travel before a left press counts as a drag rather than a click. Unit: pixels. Range: 1 to 50; default 6.</summary>
         [SerializeField, Range(1f, 50f)] private float dragThresholdPixels = 6f;
@@ -84,8 +78,8 @@ namespace Rts.Game.UnitSelection
         /// <summary>Outline colour of the drag rectangle. Unit: RGBA, each channel 0 to 1; default green.</summary>
         [SerializeField] private Color boxBorderColor = new Color(0.25f, 1f, 0.35f, 0.9f);
 
-        /// <summary>Show the small selection/status text at the top left of the screen. Unit: on/off.</summary>
-        [SerializeField] private bool showStatusText = true;
+        /// <summary>Show the small selection/status text at the top left of the screen (debug overlay; the HUD replaces it). Unit: on/off. Default off.</summary>
+        [SerializeField] private bool showStatusText = false;
 
         /// <summary>Number of control groups, keys 0 to 9. Unit: groups.</summary>
         private const int ControlGroupCount = 10;
@@ -102,20 +96,14 @@ namespace Rts.Game.UnitSelection
         /// <summary>The camera used for picking and for projecting units to the screen. Range: null until found.</summary>
         private Camera _camera;
 
-        /// <summary>The player this controller commands. Range: valid once the host is running and the slot exists.</summary>
+        /// <summary>The one local command path on the host object (local player, sequence counter, Submit). Range: null until found.</summary>
+        private LocalCommands _commands;
+
+        /// <summary>The player this controller commands, copied from LocalCommands. Range: valid once the host is running and the slot exists.</summary>
         private PlayerId _localPlayer;
 
         /// <summary>Frame number of the last search for the host and camera. Unit: frames. Range: any; starts far in the past so the first search runs at once.</summary>
         private int _lastSearchFrame = -1000;
-
-        /// <summary>True once the local player slot has been checked against the match. Unit: on/off.</summary>
-        private bool _playerChecked;
-
-        /// <summary>True when the checked slot exists in the match; commands are only issued then. Unit: on/off.</summary>
-        private bool _playerValid;
-
-        /// <summary>Next sequence number to use. Unit: sequence number. Range: firstSequence upward, wraps never in practice.</summary>
-        private uint _nextSequence;
 
         /// <summary>Selected units in selection order. Presentation state, never hashed.</summary>
         private readonly List<EntityId> _selected = new List<EntityId>();
@@ -165,14 +153,13 @@ namespace Rts.Game.UnitSelection
         /// <summary>The selected unit IDs in selection order (read-only view; do not keep it across frames).</summary>
         public IReadOnlyList<EntityId> Selected => _selected;
 
-        /// <summary>Prepares the empty control groups and the first sequence number.</summary>
+        /// <summary>Prepares the empty control groups.</summary>
         private void Awake()
         {
             for (int i = 0; i < ControlGroupCount; i++)
             {
                 _groups[i] = new List<EntityId>();
             }
-            _nextSequence = (uint)firstSequence;
         }
 
         /// <summary>Reads input and issues commands. Does nothing until the simulation is running.</summary>
@@ -252,21 +239,20 @@ namespace Rts.Game.UnitSelection
                     _camera = Camera.main != null ? Camera.main : FindAnyObjectByType<Camera>();
                 }
             }
-            if (_host == null || _host.Match == null || _camera == null)
+            if (_host == null || _camera == null)
             {
                 return false;
             }
-            if (!_playerChecked)
+            if (_commands == null)
             {
-                _playerChecked = true;
-                _localPlayer = new PlayerId((byte)localPlayerSlot);
-                _playerValid = _host.Match.Players.Contains(_localPlayer);
-                if (!_playerValid)
-                {
-                    Debug.LogWarning("[SelectionController] Player slot " + localPlayerSlot + " does not exist in this match, so orders are disabled. Set 'Local Player Slot' to a slot of the script.");
-                }
+                _commands = _host.GetComponent<LocalCommands>();
             }
-            return _playerValid;
+            if (_commands == null || !_commands.IsReady)
+            {
+                return false;
+            }
+            _localPlayer = _commands.LocalPlayer;
+            return true;
         }
 
         // ------------------------------------------------------------------ keyboard
@@ -275,13 +261,13 @@ namespace Rts.Game.UnitSelection
         private void HandleKeyboard()
         {
             // Modifier state this frame.
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool ctrl = GameInput.GetKey(KeyCode.LeftControl) || GameInput.GetKey(KeyCode.RightControl);
+            bool shift = GameInput.GetKey(KeyCode.LeftShift) || GameInput.GetKey(KeyCode.RightShift);
 
             for (int group = 0; group < ControlGroupCount; group++)
             {
                 // Alpha0 .. Alpha9 are consecutive key codes.
-                if (Input.GetKeyDown(KeyCode.Alpha0 + group))
+                if (GameInput.GetKeyDown(KeyCode.Alpha0 + group))
                 {
                     if (ctrl)
                     {
@@ -293,7 +279,7 @@ namespace Rts.Game.UnitSelection
                     }
                 }
             }
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (GameInput.GetKeyDown(KeyCode.Escape))
             {
                 SetAttackMoveArmed(false);
             }
@@ -301,23 +287,23 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.A) && HasSelection)
+            if (GameInput.GetKeyDown(KeyCode.A) && HasSelection)
             {
                 SetAttackMoveArmed(true);
             }
-            if (Input.GetKeyDown(KeyCode.S))
+            if (GameInput.GetKeyDown(KeyCode.S))
             {
                 IssueStop();
             }
-            if (Input.GetKeyDown(KeyCode.R))
+            if (GameInput.GetKeyDown(KeyCode.R))
             {
                 IssueHqToggle(true);
             }
-            if (Input.GetKeyDown(KeyCode.U))
+            if (GameInput.GetKeyDown(KeyCode.U))
             {
                 IssueHqToggle(false);
             }
-            if (Input.GetKeyDown(KeyCode.G))
+            if (GameInput.GetKeyDown(KeyCode.G))
             {
                 IssueGather();
             }
@@ -361,10 +347,21 @@ namespace Rts.Game.UnitSelection
 
         // ------------------------------------------------------------------ mouse
 
-        /// <summary>Left button: select or attack-move; right button: order.</summary>
+        /// <summary>
+        /// Left button: select or attack-move; right button: order. A press over a HUD panel belongs to the HUD, and while a targeting
+        /// mode holds PointerCapture (build placement) the buttons are its; both are ignored here.
+        /// </summary>
         private void HandleMouse()
         {
-            if (Input.GetMouseButtonDown(0))
+            if (PointerCapture.IsCaptured)
+            {
+                _leftDown = false;
+                _dragging = false;
+                return;
+            }
+            // True while the cursor is over a HUD panel or button (they are raycast targets of the HUD canvas).
+            bool overHud = UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+            if (GameInput.GetMouseButtonDown(0) && !overHud)
             {
                 if (_attackMoveArmed)
                 {
@@ -375,19 +372,19 @@ namespace Rts.Game.UnitSelection
                 {
                     _leftDown = true;
                     _dragging = false;
-                    _dragStart = Input.mousePosition;
+                    _dragStart = GameInput.mousePosition;
                 }
             }
-            if (_leftDown && Input.GetMouseButton(0) && !_dragging)
+            if (_leftDown && GameInput.GetMouseButton(0) && !_dragging)
             {
-                if (((Vector2)Input.mousePosition - _dragStart).magnitude >= dragThresholdPixels)
+                if (((Vector2)GameInput.mousePosition - _dragStart).magnitude >= dragThresholdPixels)
                 {
                     _dragging = true;
                 }
             }
-            if (_leftDown && Input.GetMouseButtonUp(0))
+            if (_leftDown && GameInput.GetMouseButtonUp(0))
             {
-                bool add = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                bool add = GameInput.GetKey(KeyCode.LeftShift) || GameInput.GetKey(KeyCode.RightShift);
                 if (_dragging)
                 {
                     BoxSelect(add);
@@ -399,7 +396,7 @@ namespace Rts.Game.UnitSelection
                 _leftDown = false;
                 _dragging = false;
             }
-            if (Input.GetMouseButtonDown(1))
+            if (GameInput.GetMouseButtonDown(1) && !overHud)
             {
                 if (_attackMoveArmed)
                 {
@@ -418,7 +415,7 @@ namespace Rts.Game.UnitSelection
         /// <param name="add">True (Shift held) to add to the selection instead of replacing it.</param>
         private void ClickSelect(bool add)
         {
-            Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = _camera.ScreenPointToRay(GameInput.mousePosition);
             bool found = TryPickUnit(ray, PickFilter.Own, out EntityId id);
             if (!add)
             {
@@ -564,11 +561,11 @@ namespace Rts.Game.UnitSelection
         /// </summary>
         /// <param name="ray">Ray from the camera through the cursor.</param>
         /// <param name="point">World hit point when found. Unit: world units; X and Z are tile coordinates.</param>
-        /// <returns>True when the ray hits a tile of the map.</returns>
-        private bool TryPickGround(Ray ray, out Vector3 point)
+        /// <returns>True when the ray hits a tile of the map; false also while the match is not running.</returns>
+        public bool TryPickGround(Ray ray, out Vector3 point)
         {
             point = Vector3.zero;
-            if (Mathf.Abs(ray.direction.y) < MinRayDirectionY)
+            if (_host == null || _host.Match == null || Mathf.Abs(ray.direction.y) < MinRayDirectionY)
             {
                 return false;
             }
@@ -623,7 +620,7 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
-            Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = _camera.ScreenPointToRay(GameInput.mousePosition);
             if (TryPickUnit(ray, PickFilter.Enemy, out EntityId target))
             {
                 foreach (EntityId id in _selected)
@@ -657,7 +654,7 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
-            Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = _camera.ScreenPointToRay(GameInput.mousePosition);
             if (!TryPickGround(ray, out Vector3 point))
             {
                 return;
@@ -716,7 +713,7 @@ namespace Rts.Game.UnitSelection
         /// <summary>Sends every selected worker to gather from the resource field nearest the cursor (within one tile of the cursor's tile).</summary>
         private void IssueGather()
         {
-            Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = _camera.ScreenPointToRay(GameInput.mousePosition);
             if (!TryPickGround(ray, out Vector3 point))
             {
                 return;
@@ -764,30 +761,23 @@ namespace Rts.Game.UnitSelection
                 && (unit.Definition.Hq == null || unit.HqState == HqState.Uprooted);
         }
 
-        /// <summary>The tick new commands are scheduled for: the current clock tick, which the next Step applies. Unit: ticks. Range: 0 upward.</summary>
+        /// <summary>The tick new commands are scheduled for (LocalCommands.Tick). Unit: ticks. Range: 0 upward.</summary>
         private int CurrentTick()
         {
-            return _host.Match.Clock.Tick;
+            return _commands.Tick;
         }
 
-        /// <summary>Returns the next per-player sequence number and advances it. Unit: sequence number.</summary>
+        /// <summary>The next local sequence number from the one shared counter (LocalCommands.NextSequence). Unit: sequence number.</summary>
         private uint NextSequence()
         {
-            return _nextSequence++;
+            return _commands.NextSequence();
         }
 
-        /// <summary>The single entry into the simulation: Simulation.Submit. A refusal (a host bug such as a past tick) is logged, not thrown.</summary>
+        /// <summary>Sends a command through the one local command path (LocalCommands.Submit).</summary>
         /// <param name="command">The command to queue.</param>
         private void Submit(Command command)
         {
-            try
-            {
-                _host.Match.Submit(command);
-            }
-            catch (System.InvalidOperationException exception)
-            {
-                Debug.LogWarning("[SelectionController] Submit refused " + command + ": " + exception.Message);
-            }
+            _commands.Submit(command);
         }
 
         // ------------------------------------------------------------------ rings
@@ -871,7 +861,7 @@ namespace Rts.Game.UnitSelection
         private Rect CurrentDragRect()
         {
             // Cursor now. Unit: screen pixels.
-            Vector2 now = Input.mousePosition;
+            Vector2 now = GameInput.mousePosition;
             Vector2 min = Vector2.Min(_dragStart, now);
             Vector2 max = Vector2.Max(_dragStart, now);
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);

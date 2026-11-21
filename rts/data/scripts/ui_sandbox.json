@@ -1,0 +1,29 @@
+// rts/data/scripts/ui_sandbox.json: the player-interface sandbox script (rts/docs/specs/player_interface.md section 2). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (set its "Script Relative Path" to scripts/ui_sandbox.json) and the headless harness (--script rts/data/scripts/ui_sandbox.json). The same start as ai_vs_ai.json, a Rooted HQ and four workers per side on greybox_1v1, but with no AI and no orders, so a human plays every action through the interface. Slot 0 is Skai, slot 1 is Water; set LocalCommands' "Local Player Slot" to 1 to play Water.
+{
+  "$schema_version": 1,
+  "$doc": "Interface sandbox: Skai (slot 0) against Water (slot 1) on greybox_1v1, no AI, no orders, at most 72000 ticks (one hour). Entity IDs: 1 Great Aerie, 2 to 5 Fledglings, 6 Grand Shell, 7 to 10 Tenders.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md; same as ai_vs_ai.json.
+  "seed": 1234,
+  // Most ticks to simulate. Unit: ticks (20 per second, so 72000 is one hour). Range: 0 to 1000000. Source: player_interface.md section 2; placeholder.
+  "ticks": 72000,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: player_interface.md section 2 (greybox_1v1).
+  "map": "greybox_1v1",
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. No ai key: nobody plays a slot except the player. Source: player_interface.md section 2.
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter. The spawns of ai_vs_ai.json: each HQ lands within hq_root_max_distance_to_field_tiles of its main common fields, so it starts Rooted; four workers stand beside it. Source: player_interface.md section 2; ai_vs_ai.json.
+  "commands": [
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "9", "y": "6" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "5", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "8", "y": "5" },
+    { "tick": 0, "issuer": 255, "sequence": 5, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "57", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 6, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "58", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 7, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "55", "y": "58" },
+    { "tick": 0, "issuer": 255, "sequence": 8, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "59", "y": "56" },
+    { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "56", "y": "59" }
+  ]
+}
