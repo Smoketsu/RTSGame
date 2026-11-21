@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Research and unlocks, package R1 (`docs/specs/research_and_unlocks.md`): research items in `data/research`, the `researches` key on the tech buildings, queued through `train_unit`, a per-player research set that `requires` can name, `ResearchCompletedEvent`, queries `IsResearchQueued`, `QueueEntryTicks` and `Player.HasResearched`. Stormcaller, Thunderhead, Ink Lobber and Leviathan now need research; the AI does not research until R2. Every state hash and the content digest moved (smoke `45aad722858eb562`, economy_smoke `72128f50a116322b`).
 - Spec `docs/specs/interface_support.md`: what the player interface needs from the simulation (I1 placement-problem query, I2 wave preview, I3 ability display names, I4 `cancel_production` with full refund, I5 `set_rally_point`); built after research package R1.
 - Spec `docs/specs/research_and_unlocks.md` (P-007 option a): research queued through `train_unit` at the tech buildings, equal trees of two items per faction (50 common and 300 rare in total), packages R1 (simulation, data, queries) and R2 (AI, later).
 - Spec `docs/specs/player_interface.md` for the PC session: Unity packages UI-0 to UI-10 that make every simulation feature usable by a player (each names the command sent and the query or event read), the simulation gaps a UI needs filled, and open questions.
