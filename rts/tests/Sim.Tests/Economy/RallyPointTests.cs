@@ -17,6 +17,7 @@ using Rts.Sim.Teams;
 using Rts.Sim.Terrain;
 using Rts.Sim.Tests.Statuses;
 using Rts.Sim.Units;
+using Rts.Sim.Economy;
 using static Rts.Sim.Tests.Economy.EconomyTestKit;
 
 namespace Rts.Sim.Tests.Economy
@@ -259,6 +260,32 @@ namespace Rts.Sim.Tests.Economy
             Assert.That((clear.Clear, clear.Point), Is.EqualTo((true, FixVec2.Zero)));
             Expect.Throws<DataValidationException>(() => CommandScript.Parse(head + "{ " + common + ", \"clear\": true, \"x\": 1 } ] }", "test/rally.json"));
             Expect.Throws<DataValidationException>(() => CommandScript.Parse(head + "{ " + common + " } ] }", "test/rally.json"));
+        }
+
+        /// <summary>S4: a trained unit that is movement-locked (a Rooted HQ) gets no rally move order. Test-local catalog: a building that trains the test HQ.</summary>
+        [Test]
+        public void Is27_MovementLockedUnitGetsNoRallyOrder()
+        {
+            const string hqFactory = "test.hq_factory";
+            ContentCatalog catalog = TestWorld.Catalog();
+            catalog.AddUnit(new UnitDefinition(hqFactory, "HQ factory", TestWorld.TestFactionId, MovementLayer.Ground, Fix64.FromInt(200), Fix64.Zero, 0, Fix64.Half, 0, 0,
+                "armoured", Fix64.FromInt(8), null, null, new UnitEconomyDefinition(Fix64.FromInt(5), false, false, new List<string> { TestWorld.HqId }, false, 1, 0)));
+            Simulation sim = new Simulation(new SimulationConfig(new MatchSettings(1234, TestWorld.TicksPerSecond, TestWorld.HashInterval), catalog, TestWorld.TwoPlayers(),
+                BuiltInMechanics.CreateRegistry(), TestWorld.Tuning, TestWorld.EconomyMap()));
+            sim.Start();
+            EntityId factory = Spawn(sim, hqFactory, P0, 12, 16);
+            AssertAccepted(sim, Rally(sim, factory, Point));
+            AssertAccepted(sim, new TrainUnitCommand(sim.Clock.Tick, P0, Seq(), factory, TestWorld.HqId));
+            // Ticks stepped while waiting for the HQ to appear. Unit: ticks. Range: 0 to 2000.
+            Unit? hq = null;
+            for (int i = 0; i < 2000 && hq == null; i++)
+            {
+                sim.Step();
+                hq = sim.Units.All.FirstOrDefault(u => u.Definition.Id == TestWorld.HqId);
+            }
+            Assert.That(hq, Is.Not.Null);
+            Assert.That(HqSystem.IsMovementLocked(hq!), Is.True);
+            Assert.That(hq!.HasMoveTarget, Is.False);
         }
     }
 }

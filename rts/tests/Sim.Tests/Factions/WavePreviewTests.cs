@@ -56,7 +56,7 @@ namespace Rts.Sim.Tests.Factions
                 FloodingMechanic mechanic = Mechanic(sim);
                 List<int> area = new List<int>();
                 List<int> floods = new List<int>();
-                Assert.That(mechanic.PreviewWave(sim, StatusTestWorld.UnitOf(sim, 1), target, area, floods), Is.Null);
+                Assert.That(mechanic.PreviewWave(sim, P0, StatusTestWorld.UnitOf(sim, 1), target, area, floods), Is.Null);
                 // Strip size away from the map edges: wave_length_tiles * (2 * ((wave_width_tiles - 1) / 2) + 1).
                 Assert.That(area.Count, Is.EqualTo(sim.Tuning.Flood.WaveLengthTiles * (2 * ((sim.Tuning.Flood.WaveWidthTiles - 1) / 2) + 1)), target.ToString());
                 Assert.That(area, Is.Ordered);
@@ -93,17 +93,17 @@ namespace Rts.Sim.Tests.Factions
             Unit caster = StatusTestWorld.UnitOf(sim, 1);
             List<int> area = new List<int> { 1, 2, 3 };
             List<int> floods = new List<int> { 4, 5 };
-            Assert.That(mechanic.PreviewWave(sim, caster, caster.Position + FixVec2.Zero, area, floods), Is.EqualTo("no_direction"));
+            Assert.That(mechanic.PreviewWave(sim, P0, caster, caster.Position + FixVec2.Zero, area, floods), Is.EqualTo("no_direction"));
             Assert.That(area, Is.Empty);
             Assert.That(floods, Is.Empty);
             area.Add(1);
             floods.Add(2);
-            Assert.That(mechanic.PreviewWave(sim, caster, new FixVec2(Fix64.FromInt(20000), Fix64.Zero), area, floods), Is.EqualTo("out_of_bounds"));
+            Assert.That(mechanic.PreviewWave(sim, P0, caster, new FixVec2(Fix64.FromInt(20000), Fix64.Zero), area, floods), Is.EqualTo("out_of_bounds"));
             Assert.That(area, Is.Empty);
             Assert.That(floods, Is.Empty);
             area.Add(1);
             floods.Add(2);
-            Assert.That(mechanic.PreviewWave(sim, StatusTestWorld.UnitOf(sim, 2), StatusTestWorld.Centre(40, 30), area, floods), Is.EqualTo("not_wave_caster"));
+            Assert.That(mechanic.PreviewWave(sim, P0, StatusTestWorld.UnitOf(sim, 2), StatusTestWorld.Centre(40, 30), area, floods), Is.EqualTo("not_wave_caster"));
             Assert.That(area, Is.Empty);
             Assert.That(floods, Is.Empty);
             // Right after a cast the wave is on cooldown, the preview still shows the strip.
@@ -111,7 +111,7 @@ namespace Rts.Sim.Tests.Factions
             sim.Step();
             Assert.That(mechanic.TryGetNextWaveTick(new EntityId(1), out int next), Is.True);
             Assert.That(next, Is.GreaterThan(sim.Clock.Tick));
-            Assert.That(mechanic.PreviewWave(sim, caster, StatusTestWorld.Centre(40, 30), area, floods), Is.Null);
+            Assert.That(mechanic.PreviewWave(sim, P0, caster, StatusTestWorld.Centre(40, 30), area, floods), Is.Null);
             Assert.That(area, Is.Not.Empty);
         }
 
@@ -131,7 +131,7 @@ namespace Rts.Sim.Tests.Factions
             Assert.That(sim.Vision.IsTileVisible(team, 9, 6), Is.True);
             List<int> area = new List<int>();
             List<int> floods = new List<int>();
-            Assert.That(Mechanic(sim).PreviewWave(sim, StatusTestWorld.UnitOf(sim, 1), StatusTestWorld.Centre(20, 5), area, floods), Is.Null);
+            Assert.That(Mechanic(sim).PreviewWave(sim, P0, StatusTestWorld.UnitOf(sim, 1), StatusTestWorld.Centre(20, 5), area, floods), Is.Null);
             // Hidden area tiles: in the area, not in the floods.
             int hidden = 0;
             foreach (int tile in area)
@@ -169,10 +169,43 @@ namespace Rts.Sim.Tests.Factions
             List<int> floods = new List<int>();
             for (int i = 0; i < 100; i++)
             {
-                Mechanic(sim).PreviewWave(sim, caster, StatusTestWorld.Centre(40, 30 + i % 10), area, floods);
+                Mechanic(sim).PreviewWave(sim, P0, caster, StatusTestWorld.Centre(40, 30 + i % 10), area, floods);
             }
             Assert.That(sim.ComputeStateHash(), Is.EqualTo(before));
             Assert.That(sim.Events.Current.Count, Is.EqualTo(events));
+        }
+
+        /// <summary>S2: a preview between a cast being submitted and applied leaves the resulting state hash equal to a control run without the preview.</summary>
+        [Test]
+        public void Is09b_PreviewDoesNotDisturbAStep()
+        {
+            ulong Run(bool preview)
+            {
+                Simulation sim = PreviewMatch();
+                sim.Submit(new CastWaveCommand(sim.Clock.Tick, P0, 0, new EntityId(1), StatusTestWorld.Centre(40, 30)));
+                if (preview)
+                {
+                    Mechanic(sim).PreviewWave(sim, P0, StatusTestWorld.UnitOf(sim, 1), StatusTestWorld.Centre(30, 40), new List<int>(), new List<int>());
+                }
+                sim.Step();
+                sim.Step();
+                return sim.ComputeStateHash();
+            }
+            Assert.That(Run(true), Is.EqualTo(Run(false)));
+        }
+
+        /// <summary>S3: an enemy caster (or any caster the viewer does not own) gives not_wave_caster and empty lists, whatever the viewer could see.</summary>
+        [Test]
+        public void Is09c_EnemyCasterRevealsNothing()
+        {
+            Simulation sim = PreviewMatch();
+            Unit caster = StatusTestWorld.UnitOf(sim, 1);
+            List<int> area = new List<int> { 1 };
+            List<int> floods = new List<int> { 2 };
+            Assert.That(Mechanic(sim).PreviewWave(sim, P1, caster, StatusTestWorld.Centre(40, 30), area, floods), Is.EqualTo("not_wave_caster"));
+            Assert.That(area, Is.Empty);
+            Assert.That(floods, Is.Empty);
+            Assert.That(Mechanic(sim).PreviewWave(sim, P0, caster, StatusTestWorld.Centre(40, 30), area, floods), Is.Null);
         }
     }
 }

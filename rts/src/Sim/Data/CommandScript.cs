@@ -220,7 +220,7 @@ namespace Rts.Sim.Data
                         node.RequireNonEmptyString("definition"));
                 case "cancel_production":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "producer", "index", "definition");
-                    // Queue position, at most the largest max_queue_length the tuning schema accepts. Unit: entries. Range: 0 to 19.
+                    // Queue position. Unit: entries. Range: 0 to 19; the upper bound mirrors the schema maximum of max_queue_length (20, tuning/economy.json) minus one, and must change with it.
                     return new CancelProductionCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue)),
                         node.RequireInt("index", 0, 19), node.RequireNonEmptyString("definition"));
                 case "set_rally_point":
@@ -228,9 +228,11 @@ namespace Rts.Sim.Data
                     // Producer building. Range: 1 upward.
                     EntityId rallyProducer = new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue));
                     // True to remove the rally point; then x and y must be absent. Range: true or false; false when absent.
+                    // The clear member when present (clearNode), read as true or false. Range: JSON true or false; absent means false.
                     bool clearRally = node.TryGetMember("clear", out JsonValue? clearNode) && clearNode.AsBool();
                     if (clearRally)
                     {
+                        // The x or y member found next to clear (extraX), named in the error. Range: a JSON value; unused when neither is present.
                         if (node.TryGetMember("x", out JsonValue? extraX) || node.TryGetMember("y", out extraX))
                         {
                             throw extraX.Fail("is not allowed with clear true");

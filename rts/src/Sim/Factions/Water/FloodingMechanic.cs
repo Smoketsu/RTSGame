@@ -242,13 +242,13 @@ namespace Rts.Sim.Factions.Water
             return sim.Players.TryGet(unit.Owner, out Player? player) && _floodFactions.Contains(player.FactionId);
         }
 
-        /// <summary>Copies the terrain into the reusable working field and clears its no-flood masks.</summary>
-        private FloodField ReadField(Simulation sim)
+        /// <summary>Copies the terrain into <paramref name="field"/> (the reusable working field, or a fresh one for the preview) and clears its no-flood masks. Returns the same field.</summary>
+        /// <param name="sim">The simulation (terrain is only read).</param>
+        /// <param name="field">The field to fill; map-sized.</param>
+        private static FloodField ReadField(Simulation sim, FloodField field)
         {
             // The live terrain grid this method reads and (through SetWater) changes.
             TerrainGrid terrain = sim.Terrain;
-            // The reusable working field this method fills.
-            FloodField field = _field ?? throw new InvalidOperationException("The flooding mechanic has not started.");
             // Tile index being copied. Unit: tile index. Range: 0 to TileCount - 1.
             for (int i = 0; i < field.TileCount; i++)
             {
@@ -394,7 +394,7 @@ namespace Rts.Sim.Factions.Water
             // The live terrain grid that receives the written-back water.
             TerrainGrid terrain = sim.Terrain;
             // The working field for this update.
-            FloodField field = ReadField(sim);
+            FloodField field = ReadField(sim, _field ?? throw new InvalidOperationException("The flooding mechanic has not started."));
             // Water state before this update, to find the changed tiles at the end.
             int[] originalDrops = (int[])field.Drops.Clone();
             int[] originalTeam = (int[])field.Team.Clone();
@@ -608,7 +608,7 @@ namespace Rts.Sim.Factions.Water
             // Team of the caster's owner; the water it adds belongs to it.
             TeamId team = TeamOfOwner(sim, caster.Owner);
             // The working field for this cast.
-            FloodField field = ReadField(sim);
+            FloodField field = ReadField(sim, _field ?? throw new InvalidOperationException("The flooding mechanic has not started."));
             BuildMasks(sim, field, TeamId.None);
             // Covered tiles in ascending index order, each once.
             SortedSet<int> area = new SortedSet<int>();
@@ -715,21 +715,22 @@ namespace Rts.Sim.Factions.Water
 
         /// <summary>
         /// Wave preview for Unity (specs/interface_support.md I2): what a cast_wave of <paramref name="caster"/> towards <paramref name="target"/> would cover and flood,
-        /// from the caster's team's point of view. Clears both lists. Returns the first of not_wave_caster, out_of_bounds, no_direction (lists left empty), else null
+        /// from the caster's team's point of view. Clears both lists. Returns the first of not_wave_caster (also when the caster is not owned by the viewer), out_of_bounds, no_direction (lists left empty), else null
         /// (on_cooldown is not checked: the strip is the same). <paramref name="area"/> gets every covered tile; <paramref name="floods"/> the covered tiles that are visible
         /// now to the caster's team and that the wave would flood, using only drop-offs the team can see for the no-flood masks. Both ascending tile index. Works between
-        /// steps, changes no simulation state, and allocates a map-sized field per call (call it only when the caster or target tile changes).
+        /// steps, changes no simulation state, and allocates a fresh map-sized field per call (it never touches the field a step uses) (call it only when the caster or target tile changes).
         /// </summary>
         /// <param name="sim">The simulation.</param>
+        /// <param name="viewer">The player asking (the local player). A caster not owned by the viewer gives not_wave_caster and empty lists, so an enemy caster reveals nothing. Range: any player ID.</param>
         /// <param name="caster">The would-be caster.</param>
         /// <param name="target">The target point. Unit: tiles (fixed-point).</param>
         /// <param name="area">Receives the covered tile indices. Unit: tile index.</param>
         /// <param name="floods">Receives the tile indices that would be flooded. Unit: tile index.</param>
-        public string? PreviewWave(Simulation sim, Unit caster, FixVec2 target, List<int> area, List<int> floods)
+        public string? PreviewWave(Simulation sim, PlayerId viewer, Unit caster, FixVec2 target, List<int> area, List<int> floods)
         {
             area.Clear();
             floods.Clear();
-            if (!CanCast(sim, caster))
+            if (caster.Owner != viewer || !CanCast(sim, caster))
             {
                 return "not_wave_caster";
             }
@@ -748,7 +749,7 @@ namespace Rts.Sim.Factions.Water
             // The caster's team, whose view limits the answer.
             TeamId team = TeamOfOwner(sim, caster.Owner);
             // Working field and masks as the cast would build them, limited to what the team sees.
-            FloodField field = ReadField(sim);
+            FloodField field = ReadField(sim, new FloodField(terrain.Width, terrain.Height, LayerDrops, MaxDrops));
             BuildMasks(sim, field, team);
             // Covered tiles, ascending, each once.
             SortedSet<int> covered = new SortedSet<int>();
