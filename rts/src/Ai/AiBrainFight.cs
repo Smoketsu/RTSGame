@@ -105,13 +105,6 @@ namespace Rts.Ai
                 return FightPredictor.Predict(a, b, context, _view.Content.Combat, _predictorSettings);
             }
 
-            /// <summary>The context of the retreat test: the group is already engaged with the enemies near it, so the gap is 0 (fight_predictor_v2.md 4). Internal for the tests.</summary>
-            /// <param name="aUphill">True when the group shoots uphill.</param>
-            internal static FightContext RetreatContext(bool aUphill)
-            {
-                return new FightContext(aUphill, FightWater.None, -1, Fix64.Zero);
-            }
-
             /// <summary>True when the tile of <paramref name="to"/> lies on a higher height layer than the tile of <paramref name="from"/> (the predictor's "uphill").</summary>
             private bool IsUphill(FixVec2 to, FixVec2 from)
             {
@@ -243,7 +236,7 @@ namespace Rts.Ai
                     return false;
                 }
                 // The group's prediction against those enemies.
-                FightPrediction prediction = PredictFight(FightPredictor.Group(group), FightPredictor.Group(engaged), RetreatContext(IsUphill(MeanPosition(engaged), MeanPosition(group))));
+                FightPrediction prediction = PredictFight(FightPredictor.Group(group), FightPredictor.Group(engaged), FightContext.Engaged(IsUphill(MeanPosition(engaged), MeanPosition(group))));
                 return prediction.Advantage < _profile.RetreatMaxAdvantage;
             }
 

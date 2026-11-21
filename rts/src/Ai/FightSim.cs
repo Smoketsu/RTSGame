@@ -197,21 +197,7 @@ namespace Rts.Ai
         public static FightPrediction Predict(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, in FightContext c, FightSimRules rules, PredictorSettings s)
         {
             // Units per entry (rounded count, health each) for both sides, scaled down when the larger side is over the cap (3.1).
-            List<int> countsA = new List<int>();
-            List<int> countsB = new List<int>();
-            List<Fix64> healthA = new List<Fix64>();
-            List<Fix64> healthB = new List<Fix64>();
-            List<FightEntry> entriesA = Expand(a, countsA, healthA);
-            List<FightEntry> entriesB = Expand(b, countsB, healthB);
-            // Units in each side before scaling, and the larger one. Unit: units.
-            int totalA = Sum(countsA);
-            int totalB = Sum(countsB);
-            int larger = Math.Max(totalA, totalB);
-            if (larger > s.SimMaxUnitsPerSide)
-            {
-                Scale(countsA, s.SimMaxUnitsPerSide, larger);
-                Scale(countsB, s.SimMaxUnitsPerSide, larger);
-            }
+            Sizes(a, b, s, out List<FightEntry> entriesA, out List<int> countsA, out List<Fix64> healthA, out List<FightEntry> entriesB, out List<int> countsB, out List<Fix64> healthB);
             if (Sum(countsA) == 0)
             {
                 // Nothing on side A: it never wins; the times are as the formula gives them (an empty B as well makes both the shortest time).
@@ -236,17 +222,52 @@ namespace Rts.Ai
             // Result of the run: winner side (-1 none) and the end time. Unit: side index; seconds.
             Lane lane = new Lane(sideA, sideB, c, rules, s);
             lane.Run();
-            if (lane.Winner < 0)
+            // Value left of the winner over its start value (3.3). Unit: fraction. Range: 0 to 1.
+            Fix64 f = lane.Winner < 0 ? Fix64.Zero : lane.Winner == 0 ? ValueLeft(sideA) / startA : ValueLeft(sideB) / startB;
+            return Map(lane.Winner, f, lane.Time, s);
+        }
+
+        /// <summary>
+        /// The entries kept, their unit counts (count rounded half up, at least one unit; scaled by cap / larger side when the larger side is over the cap) and the health of each unit
+        /// (3.1). Internal so the tests can check the set-up; <see cref="Predict"/> uses it.
+        /// </summary>
+        internal static void Sizes(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, PredictorSettings s, out List<FightEntry> entriesA, out List<int> countsA, out List<Fix64> healthA,
+            out List<FightEntry> entriesB, out List<int> countsB, out List<Fix64> healthB)
+        {
+            countsA = new List<int>();
+            countsB = new List<int>();
+            healthA = new List<Fix64>();
+            healthB = new List<Fix64>();
+            entriesA = Expand(a, countsA, healthA);
+            entriesB = Expand(b, countsB, healthB);
+            // The larger side's unit count before scaling. Unit: units.
+            int larger = Math.Max(Sum(countsA), Sum(countsB));
+            if (larger > s.SimMaxUnitsPerSide)
+            {
+                Scale(countsA, s.SimMaxUnitsPerSide, larger);
+                Scale(countsB, s.SimMaxUnitsPerSide, larger);
+            }
+        }
+
+        /// <summary>
+        /// The mapping of 3.3: the winner (0 A, 1 B, -1 none), the value left f of the winner and the end time give the prediction. A wins: advantage 1 / (1 - f^2) capped, times as in 3.3;
+        /// B wins: advantage 1 - f^2; no winner: both times the longest, advantage 1. Internal so the tests can check it.
+        /// </summary>
+        /// <param name="winner">Winning side: 0, 1 or -1.</param>
+        /// <param name="f">Value left of the winner over its start value. Unit: fraction. Range: 0 to 1.</param>
+        /// <param name="time">End time of the fight. Unit: seconds. Range: 0 upward.</param>
+        /// <param name="s">The predictor numbers.</param>
+        internal static FightPrediction Map(int winner, Fix64 f, Fix64 time, PredictorSettings s)
+        {
+            if (winner < 0)
             {
                 return new FightPrediction(s.MaxSeconds, s.MaxSeconds, false, Fix64.One);
             }
-            // Value left of the winner over its start value (3.3). Unit: fraction. Range: 0 to 1.
-            Fix64 f = lane.Winner == 0 ? ValueLeft(sideA) / startA : ValueLeft(sideB) / startB;
             // One minus f squared: the share of strength the loser's force ratio leaves out. Unit: fraction. Range: 0 to 1.
             Fix64 rest = Fix64.One - f * f;
             // Seconds the winner needed, at least the shortest time. Unit: seconds. Range: predictor_min_seconds upward.
-            Fix64 seconds = Fix64.Max(s.MinSeconds, lane.Time);
-            if (lane.Winner == 0)
+            Fix64 seconds = Fix64.Max(s.MinSeconds, time);
+            if (winner == 0)
             {
                 // Advantage 1 / (1 - f^2), capped (a rest at or below 1 / cap is the cap itself).
                 Fix64 advantage = rest * s.MaxAdvantage <= Fix64.One ? s.MaxAdvantage : Fix64.Min(s.MaxAdvantage, Fix64.One / rest);
@@ -592,7 +613,9 @@ namespace Rts.Ai
                         {
                             unit.Health = Fix64.Min(unit.Def.MaxHealth, unit.Health + _rules.Flood.WaterUnitHealPerSecond * dt);
                         }
-                        unit.Timer -= dt;
+                        // A running cooldown counts down and may overshoot below 0 (the overshoot carries into the next shot); a ready unit that did not fire keeps 0, so waiting never stores up shots
+                        // (the literal "timer -= dt" lets an approaching unit fire a burst the moment it arrives).
+                        unit.Timer = unit.Timer > Fix64.Zero ? unit.Timer - dt : Fix64.Zero;
                     }
                 }
             }

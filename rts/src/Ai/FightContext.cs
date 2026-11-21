@@ -47,6 +47,13 @@ namespace Rts.Ai
             GapTiles = gapTiles;
         }
 
+        /// <summary>A dry lane with no gap: the armies are already engaged (the retreat test of the AI, fight_predictor_v2.md 4).</summary>
+        /// <param name="aUphill">True when side A shoots uphill.</param>
+        public static FightContext Engaged(bool aUphill)
+        {
+            return new FightContext(aUphill, FightWater.None, -1, Fix64.Zero);
+        }
+
         /// <summary>A dry lane with the default gap: what the callers of the original <c>Predict</c> signature mean.</summary>
         /// <param name="aUphill">True when side A shoots uphill.</param>
         public static FightContext Dry(bool aUphill)
