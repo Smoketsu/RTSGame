@@ -34,8 +34,14 @@ namespace Rts.Game.Bootstrap
         /// <summary>True when the checked slot exists in the match; commands are only issued then. Unit: on/off.</summary>
         private bool _valid;
 
-        /// <summary>The player this machine commands. Range: the Inspector slot; only meaningful while <see cref="IsReady"/>.</summary>
-        public PlayerId LocalPlayer => new PlayerId((byte)localPlayerSlot);
+        /// <summary>True once a dropped command for an AI-played local slot has been logged, so it is logged once. Unit: on/off.</summary>
+        private bool _aiSlotWarned;
+
+        /// <summary>
+        /// The player this machine commands: the skirmish's human slot when the host started a skirmish, else the Inspector slot.
+        /// Range: a player slot; only meaningful while <see cref="IsReady"/>.
+        /// </summary>
+        public PlayerId LocalPlayer => new PlayerId((byte)(_host != null && _host.LocalSlotOverride.HasValue ? _host.LocalSlotOverride.Value : localPlayerSlot));
 
         /// <summary>The host whose match the commands go to. Range: non-null after Awake.</summary>
         public SimulationHost Host => _host;
@@ -85,6 +91,16 @@ namespace Rts.Game.Bootstrap
         /// <param name="command">A command built for <see cref="Tick"/> with <see cref="NextSequence"/> and issued by <see cref="LocalPlayer"/>.</param>
         public void Submit(Command command)
         {
+            if (_host.IsAiPlayer(LocalPlayer))
+            {
+                // The local slot is played by an AI (a script with an "ai" key on it): input must not compete with it.
+                if (!_aiSlotWarned)
+                {
+                    _aiSlotWarned = true;
+                    Debug.LogWarning("[LocalCommands] Player " + LocalPlayer + " is played by an AI, so local orders are dropped.");
+                }
+                return;
+            }
             try
             {
                 _host.Submit(command);

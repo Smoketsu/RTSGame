@@ -120,6 +120,7 @@ dotnet run --project rts/tools/ReplayCheck -- --data rts/data --replay rts/build
 
 It prints `REPLAY OK final=<hash>`. A `REPLAY DESYNC` means the Unity session diverged from the simulation: report it with the file.
 
+- **Skirmish against the AI**: set `Start Mode` on `SimulationHost` to Skirmish (in the saved Bootstrap scene); Play shows the setup screen. Script mode (the default) plays `Script Relative Path` as before and is what every hash check uses.
 - **Playing a different script** (for example `scripts/ui_sandbox.json`, the interface sandbox with no AI and no orders): create the Bootstrap scene (RTS > Create Bootstrap Scene), set `Script Relative Path` on `SimulationHost` and `Local Player Slot` on `LocalCommands`, and save the scene.
 
 ## Troubleshooting

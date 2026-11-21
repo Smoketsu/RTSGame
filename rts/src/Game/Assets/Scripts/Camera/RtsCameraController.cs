@@ -177,7 +177,8 @@ namespace Rts.Game.CameraRig
                 maxZ = _host.Match.Terrain.Height;
                 if (!_focusInitialised)
                 {
-                    _focus = new Vector2(maxX * 0.5f, maxZ * 0.5f);
+                    // The local player's spawn in a skirmish, else the map centre.
+                    _focus = _host.StartFocus ?? new Vector2(maxX * 0.5f, maxZ * 0.5f);
                     _focusInitialised = true;
                 }
             }

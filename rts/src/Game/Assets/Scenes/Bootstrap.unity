@@ -169,6 +169,8 @@ MonoBehaviour:
   layerHeightWorldUnits: 0.5
   maxStepsPerFrame: 10
   logStateHashes: 1
+  startMode: 0
+  logAiRejections: 0
   recordSession: 1
   dataDirectoryOverride: 
   cubeScalePerRadius: 2

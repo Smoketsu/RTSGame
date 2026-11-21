@@ -1,8 +1,10 @@
 // rts/src/Game/Assets/Scripts/Bootstrap/AutoBootstrap.cs
-// Makes pressing Play in ANY scene show the simulation: after the first scene has loaded it adds a
+// Makes pressing Play in ANY scene show the simulation: after every scene load (the first, and each reload MatchLauncher causes) it adds a
 // SimulationHost with its LocalCommands (the one local command path), GateView, FogView, EventView and CoreView, a camera with its RtsCameraController, a directional
 // light, a TerrainView, a SelectionController and the HUD canvas if the scene does not already have them. The flat grey ground plane of Phase 0 is no longer added (TerrainView draws the
 // real terrain at the same height as layer 0 and the two would overlap); EnsureGround stays available as a fallback.
+// While the host is idle (no match: the setup screen's turn, player_interface_2.md UI-12) it adds only the camera, light, EventSystem
+// and the menu canvas with the setup screen, none of the match views.
 // Part of Rts.Game (Unity side, presentation only). Delete this file once a real entry scene exists; the
 // Ensure* helpers are also used by the editor menu item RTS > Create Bootstrap Scene.
 //
@@ -17,6 +19,7 @@ using Rts.Game.UnitSelection;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Rts.Game.Bootstrap
@@ -36,11 +39,37 @@ namespace Rts.Game.Bootstrap
         /// <summary>Name of the ground plane object, used to avoid creating it twice.</summary>
         private const string GroundName = "Greybox Ground";
 
-        /// <summary>Runs once after the first scene has loaded in Play mode (editor and players).</summary>
+        /// <summary>Runs once after the first scene has loaded in Play mode: sets it up and subscribes to every later scene load.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Run()
         {
-            EnsureHost();
+            // Removed first so a Play session with domain reload off does not subscribe twice.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            EnsureAll();
+        }
+
+        /// <summary>Sets up each scene loaded after the first (the reloads MatchLauncher.Load causes).</summary>
+        /// <param name="scene">The loaded scene.</param>
+        /// <param name="mode">How it was loaded.</param>
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            EnsureAll();
+        }
+
+        /// <summary>Adds what the scene lacks: the menu set while the host is idle, else the full match set.</summary>
+        private static void EnsureAll()
+        {
+            SimulationHost host = EnsureHost();
+            if (host.IsIdle)
+            {
+                EnsureCamera();
+                EnsureCameraController();
+                EnsureLight();
+                EnsureEventSystem();
+                EnsureMenu();
+                return;
+            }
             EnsureLocalCommands();
             EnsureComponent<GateView>(EnsureHost().gameObject);
             EnsureComponent<FogView>(EnsureHost().gameObject);
@@ -77,7 +106,7 @@ namespace Rts.Game.Bootstrap
         {
             // The HUD object: the one holding a MessageLine (a saved scene may have an older HUD missing newer panels), else a new canvas.
             MessageLine existing = Object.FindAnyObjectByType<MessageLine>();
-            GameObject hud = existing != null ? existing.gameObject : CreateHudCanvas();
+            GameObject hud = existing != null ? existing.gameObject : CreateHudCanvas("HUD");
             EnsureComponent<ResourceBar>(hud);
             EnsureComponent<TimelineBar>(hud);
             EnsureComponent<CoreWidget>(hud);
@@ -86,18 +115,33 @@ namespace Rts.Game.Bootstrap
             EnsureComponent<BuildPlacement>(hud);
             EnsureComponent<AbilityTargeting>(hud);
             EnsureComponent<GameMenu>(hud);
-            if (Object.FindAnyObjectByType<EventSystem>() == null)
-            {
-                // Routes Input System pointer events (real and Funplay's synthetic ones) to the HUD buttons.
-                new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            }
+            EnsureEventSystem();
             return EnsureComponent<MessageLine>(hud);
         }
 
-        /// <summary>Creates the "HUD" object: a screen-space overlay Canvas scaled from 1920 x 1080 (match 0.5) with a GraphicRaycaster.</summary>
-        private static GameObject CreateHudCanvas()
+        /// <summary>Adds an EventSystem with the Input System UI module unless one exists.</summary>
+        public static void EnsureEventSystem()
         {
-            GameObject hud = new GameObject("HUD", typeof(RectTransform));
+            if (Object.FindAnyObjectByType<EventSystem>() == null)
+            {
+                // Routes Input System pointer events (real and Funplay's synthetic ones) to the HUD and menu buttons.
+                new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            }
+        }
+
+        /// <summary>Creates the "Menu" canvas with the skirmish setup screen unless the setup screen exists.</summary>
+        /// <returns>The existing or new setup screen.</returns>
+        public static SkirmishSetup EnsureMenu()
+        {
+            SkirmishSetup existing = Object.FindAnyObjectByType<SkirmishSetup>();
+            return existing != null ? existing : CreateHudCanvas("Menu").AddComponent<SkirmishSetup>();
+        }
+
+        /// <summary>Creates a canvas object (the HUD or the menu): a screen-space overlay Canvas scaled from 1920 x 1080 (match 0.5) with a GraphicRaycaster.</summary>
+        /// <param name="name">Object name in the Hierarchy ("HUD" or "Menu").</param>
+        private static GameObject CreateHudCanvas(string name)
+        {
+            GameObject hud = new GameObject(name, typeof(RectTransform));
             Canvas canvas = hud.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler scaler = hud.AddComponent<CanvasScaler>();
