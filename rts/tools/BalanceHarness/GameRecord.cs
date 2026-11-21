@@ -103,10 +103,14 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Slot the candidate (profile B) plays in a paired ladder game, g % 2, or -1 for an unpaired game. Unit: slot. Range: -1, 0 or 1.</summary>
         public int CandidateSlot { get; }
 
+        /// <summary>ID of the opponent-pool member that played the baseline side (balance_measurement.md M.3.3), or "" for any other game (the line then has no "member" key). Range: empty, or 1 to 48 lower-case letters, digits or underscores.</summary>
+        public string Member { get; }
+
         /// <summary>Bundles the values.</summary>
         public GameRecord(string map, string matchup, int game, ulong seed, string slot0Faction, string slot1Faction, string slot0Profile, string slot1Profile, string result,
-            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "", int pair = -1, int candidateSlot = -1)
+            int endTick, ulong stateHash, ulong playSignature, ulong contentDigest, IReadOnlyList<HqKill> hqKills, string opening0 = "", string opening1 = "", int pair = -1, int candidateSlot = -1, string member = "")
         {
+            Member = member;
             Pair = pair;
             CandidateSlot = candidateSlot;
             Opening0 = opening0;
@@ -159,6 +163,10 @@ namespace Rts.Tools.BalanceHarness
                 // Paired ladder games carry the pair and the candidate's slot after the last existing key (M.1.4); unpaired lines are unchanged.
                 sb.Append(",\"pair\":").Append(Pair.ToString(CultureInfo.InvariantCulture)).Append(",\"candidate_slot\":").Append(CandidateSlot.ToString(CultureInfo.InvariantCulture));
             }
+            if (Member.Length > 0)
+            {
+                sb.Append(",\"member\":").Append(Quote(Member));
+            }
             return sb.Append('}').ToString();
         }
 
@@ -190,7 +198,8 @@ namespace Rts.Tools.BalanceHarness
                     ulong.Parse(root.RequireString("content_digest"), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture), kills,
                     root.RequireString("opening0"), root.RequireString("opening1"),
                     root.TryGetMember("pair", out JsonValue? pairNode) ? pairNode.AsInt(0, int.MaxValue) : -1,
-                    root.TryGetMember("candidate_slot", out JsonValue? slotNode) ? slotNode.AsInt(0, 1) : -1);
+                    root.TryGetMember("candidate_slot", out JsonValue? slotNode) ? slotNode.AsInt(0, 1) : -1,
+                    root.TryGetMember("member", out JsonValue? memberNode) ? memberNode.AsString() : string.Empty);
             }
             catch (Exception ex) when (ex is DataValidationException || ex is FormatException || ex is OverflowException)
             {

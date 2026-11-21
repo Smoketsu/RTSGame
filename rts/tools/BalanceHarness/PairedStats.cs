@@ -89,7 +89,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="w">Pairs the candidate won twice. Unit: pairs. Range: 0 upward.</param>
         /// <param name="l">Pairs the baseline won twice. Unit: pairs. Range: 0 upward.</param>
         /// <param name="alphaPt">Two-sided level in parts per 10 000. Unit: parts per 10 000. Range: 1 to 5000.</param>
-        public static SignTestResult SignTest(int w, int l, int alphaPt)
+        /// <param name="alphaDivisor">The level is divided by this (a Bonferroni correction over this many tests; exact, the comparison is multiplied up). Unit: tests. Range: 1 upward.</param>
+        public static SignTestResult SignTest(int w, int l, int alphaPt, int alphaDivisor = 1)
         {
             // Discordant pairs and the 2^D denominator.
             int d = w + l;
@@ -99,7 +100,7 @@ namespace Rts.Tools.BalanceHarness
             // p x 10 000 rounded half up, capped at 10 000.
             BigInteger rounded = (twice * 20000 + denominator) / (denominator * 2);
             int pPt = rounded > 10000 ? 10000 : (int)rounded;
-            return new SignTestResult(d, w, l, pPt, twice * 10000 <= alphaPt * denominator);
+            return new SignTestResult(d, w, l, pPt, twice * 10000 * alphaDivisor <= alphaPt * denominator);
         }
 
         /// <summary>
