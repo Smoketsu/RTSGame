@@ -194,6 +194,19 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(PlayerOf(off, P0).Common, Is.EqualTo(200));
         }
 
+        /// <summary>A wall line across the field tile (10, 10) skips that tile on_resource_field, pays for the others and queues the rest.</summary>
+        [Test]
+        public void D3b_FieldTileIsSkipped()
+        {
+            Simulation sim = EconomySim();
+            EntityId worker = Spawn(sim, TestWorld.WorkerId, P0, 14, 14);
+            List<SimEvent> events = Do(sim, LineOrder(sim, worker, Line(10, 9, 10, 11)));
+            Assert.That(Reasons(events), Is.Empty);
+            Assert.That(Of<BuildLineTileSkippedEvent>(events).Select(e => (e.TileX, e.TileY, e.Reason)).ToList(), Is.EqualTo(new List<(int, int, string)> { (10, 10, "on_resource_field") }));
+            Assert.That(PlayerOf(sim, P0).Common, Is.EqualTo(150));
+            Assert.That(Get(sim, worker).BuildQueue, Is.EqualTo(new List<int> { sim.Terrain.IndexOf(10, 11) }));
+        }
+
         // ------------------------------------------------------------------ D-4
 
         /// <summary>D-4: an enemy unit on the middle tile leaves a hole: (20, 15) is cancelled site_occupied with a refund on t0 + 65, (20, 16) goes on and is placed t0 + 109; common 150; the same line again fills only the hole.</summary>

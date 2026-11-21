@@ -26,8 +26,27 @@ namespace Rts.Sim.Economy
         }
 
         /// <summary>
+        /// True when a resource field sits on the tile, depleted or not (fields are never removed and are static map data, so the answer
+        /// depends on no hidden state). Scans the fields in ascending index order.
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="tileX">Tile X. Unit: tiles. Range: any int.</param>
+        /// <param name="tileY">Tile Y. Unit: tiles. Range: any int.</param>
+        private static bool HasResourceField(Simulation sim, int tileX, int tileY)
+        {
+            foreach (ResourceFieldState field in sim.Resources.All)
+            {
+                if (field.X == tileX && field.Y == tileY)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Static check of one tile of a dragged wall line (walls_and_tech.md D.2 rule 2), returning why the tile is left out or null when it may be
-        /// built: out_of_bounds, site_unexplored (the worker owner's team has never seen it), tile_blocked (any blocker on it), site_pending
+        /// built: out_of_bounds, site_unexplored (the worker owner's team has never seen it), tile_blocked (any blocker on it), on_resource_field (a resource field, depleted or not, is on it), site_pending
         /// (another own unit, not <paramref name="worker"/>, has an active order or a queued tile there). A unit standing on the tile is not a problem here
         /// (units move; the arrival and placement checks handle it). Unity calls this for the ghost preview; duplicate_tile is added by the command.
         /// </summary>
@@ -50,6 +69,10 @@ namespace Rts.Sim.Economy
             if (sim.Terrain[tile].IsBlocked)
             {
                 return "tile_blocked";
+            }
+            if (HasResourceField(sim, tileX, tileY))
+            {
+                return "on_resource_field";
             }
             foreach (Unit other in sim.Units.All)
             {
@@ -280,7 +303,7 @@ namespace Rts.Sim.Economy
 
         /// <summary>
         /// Why a structure cannot be placed on a tile for a player, or null when it can (specs/interface_support.md I1). Reasons, first match wins,
-        /// in the order the command always used: unknown_definition, not_a_structure, wrong_faction, missing_prerequisite, out_of_bounds, site_unexplored, tile_blocked,
+        /// in the order the command always used: unknown_definition, not_a_structure, wrong_faction, missing_prerequisite, out_of_bounds, site_unexplored, tile_blocked, on_resource_field,
         /// tile_occupied, site_pending, no_base and static_defence_cap (static defences only), insufficient_resources, supply_cap (reads the stored supply figures; never
         /// recomputes them). Pure: it changes nothing. With <paramref name="fogSafe"/> and a tile the owner's team cannot see now, tile_blocked is reported only for map
         /// walls and tile_occupied counts only the team's own units, so the answer reveals nothing hidden (the command passes false and keeps its old checks).
@@ -330,6 +353,10 @@ namespace Rts.Sim.Economy
             if (blockers != TileBlockers.None)
             {
                 return "tile_blocked";
+            }
+            if (HasResourceField(sim, tileX, tileY))
+            {
+                return "on_resource_field";
             }
             foreach (Unit other in sim.Units.All)
             {
