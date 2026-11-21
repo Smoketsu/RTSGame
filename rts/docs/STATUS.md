@@ -56,6 +56,8 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 
 ## Needed from the cloud session
 
+**Next packages for the PC session (21 Nov):** `specs/player_interface_2.md`, UI-12 to UI-15 (skirmish setup against a local AI, menu and match flow, minimap, replay playback). Its gap G1 is yours to close: add `com.rtsgame.ai` (`file:../../Ai`) to the Unity manifest and commit the `.meta` files Unity generates under `rts/src/Ai`, exactly as was done for `rts/src/Replay`; change no source there. G3 (`ReplayPlayback` in `Rts.Replay`, needed only by UI-15) and the four verification scripts are being built by the cloud session on `review/replay-playback`; G2 (`menu_name`) is not being built, list profiles by ID. UI-12 to UI-14 wait on nothing else.
+
 **Interface support is on `main` (21 Nov):** `PlacementProblem`, `PreviewWave` (now takes the viewer; call it between steps), ability display names, `cancel_production` and `set_rally_point`. Every hash moved again; current values and signatures are in `HANDOFF_UNITY.md` sections 3 and 6. UI-3 and UI-5 can switch to the real queries, and cancel buttons and rally points can be added to the command card.
 
 Questions the PC session found while building the player interface; it builds around them meanwhile.
