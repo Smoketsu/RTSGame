@@ -20,7 +20,7 @@
 // Production: each producer has one queue, head first. The head counts down build_seconds (in ticks) while the producer is
 //   complete (and, for an HQ, Rooted); at 0 the unit appears on the first free tile next to the producer (EconomyRules.
 //   TryFindSpawnPosition) and UnitTrainedEvent is emitted; with no free tile it waits and retries next tick. A queued unit
-//   reserves its supply and its cost is paid when queued; there is no refund (placeholder).
+//   reserves its supply and its cost is paid when queued; cancel_production refunds an entry in full; a lost producer refunds nothing.
 //   A research item (research_and_unlocks.md) sits in the same queue: it counts down research_seconds, needs no spawn tile, and at 0 adds its ID
 //   to the owner's research set and emits ResearchCompletedEvent; the next entry then starts with its own length (EconomyRules.QueueEntryTicks).
 // Build orders (BuildOrderState; specs/worker_construction.md): BuildStructureCommand pays the cost, records the order on the

@@ -30,6 +30,7 @@ namespace Rts.Sim.Commands.Codec
             registry.Register(new PickCycleCodec());
             registry.Register(new GatherCodec());
             registry.Register(new TrainUnitCodec());
+            registry.Register(new CancelProductionCodec());
             registry.Register(new BuildStructureCodec());
             registry.Register(new BuildWallLineCodec());
             registry.Register(new ApplyStatusCodec());
@@ -289,6 +290,31 @@ namespace Rts.Sim.Commands.Codec
             EntityId producer = reader.ReadEntityId();
             string definition = reader.ReadString();
             return new TrainUnitCommand(tick, issuer, sequence, producer, definition);
+        }
+    }
+
+    /// <summary>Codec for <see cref="CancelProductionCommand"/>: producer, queue index, definition id.</summary>
+    public sealed class CancelProductionCodec : CommandCodec<CancelProductionCommand>
+    {
+        /// <summary>"cancel_production".</summary>
+        public override string Kind => "cancel_production";
+
+        /// <summary>Writes producer, queue index and definition id.</summary>
+        protected override void Write(CancelProductionCommand command, CommandWriter writer)
+        {
+            writer.WriteEntityId(command.Producer);
+            writer.WriteInt32(command.Index);
+            writer.WriteString(command.DefinitionId);
+        }
+
+        /// <summary>Reads producer, queue index and definition id.</summary>
+        protected override CancelProductionCommand Read(CommandReader reader, int tick, PlayerId issuer, uint sequence)
+        {
+            // Fields in wire order.
+            EntityId producer = reader.ReadEntityId();
+            int index = reader.ReadInt32();
+            string definition = reader.ReadString();
+            return new CancelProductionCommand(tick, issuer, sequence, producer, index, definition);
         }
     }
 

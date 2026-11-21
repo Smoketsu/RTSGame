@@ -6,7 +6,7 @@
 //
 // Step order (fixed, documented here and in rts/src/Sim/README.md):
 //   1. clear the event log
-//   2. apply this tick's commands in (issuer, sequence) order (train and build orders need the definition's requires buildings, standing and complete, and research items finished; train orders may also queue a research item listed in the producer's researches, once per player; build_wall_line pays for a whole line and queues its tiles on the worker; cast_grounding grounds the enemy flyers around its point at once, StatusSystem.CastGrounding; an accepted move, attack, stop, gather or build order cancels a
+//   2. apply this tick's commands in (issuer, sequence) order (cancel_production removes a queued entry and refunds it in full; train and build orders need the definition's requires buildings, standing and complete, and research items finished; train orders may also queue a research item listed in the producer's researches, once per player; build_wall_line pays for a whole line and queues its tiles on the worker; cast_grounding grounds the enemy flyers around its point at once, StatusSystem.CastGrounding; an accepted move, attack, stop, gather or build order cancels a
 //      worker's pending build order and refunds it)
 //   3. statuses (StatusSystem.BeginTick: Grounded and slow expiry, drench counter reset; units in ascending ID order)
 //   4. HQ timers (HqSystem: Rooting and Uprooting countdowns, Last Stand countdown; HQs in ascending ID order)

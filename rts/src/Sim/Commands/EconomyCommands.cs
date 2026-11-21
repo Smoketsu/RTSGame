@@ -320,6 +320,98 @@ namespace Rts.Sim.Commands
     }
 
     /// <summary>
+    /// Cancels one entry of a producer's production queue (a unit or a research item) and refunds it in full (specs/interface_support.md I4). Script name
+    /// <c>cancel_production</c>. Rejections, in order: unknown_unit, not_owner (the issuer is a player other than the owner; the issuer None may command any unit),
+    /// not_owner (the owner has no player record), no_entry (the index is outside the queue, an empty queue included), entry_mismatch (the entry at the index is not
+    /// <see cref="DefinitionId"/>). A rejection changes nothing. Allowed while the producer is paused (an Uprooted HQ) and when the head waits for a spawn tile.
+    /// On acceptance: the cost is refunded to the producer's current owner, the entry is removed (removing the head loses its progress and the next entry starts
+    /// at its full length), supply is recomputed and ProductionCancelledEvent is emitted.
+    /// </summary>
+    public sealed class CancelProductionCommand : Command
+    {
+        /// <summary>The producing building. Must exist and belong to the issuer (or the issuer is None).</summary>
+        public EntityId Producer { get; }
+
+        /// <summary>Queue position to cancel. Unit: entries. Range: 0 (the head) to the queue length - 1, else rejected no_entry.</summary>
+        public int Index { get; }
+
+        /// <summary>The unit or research ID the player saw at that position; guards against the queue having shifted under input delay. Non-empty.</summary>
+        public string DefinitionId { get; }
+
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
+        public CancelProductionCommand(int tick, PlayerId issuer, uint sequence, EntityId producer, int index, string definitionId) : base(tick, issuer, sequence)
+        {
+            Producer = producer;
+            Index = index;
+            DefinitionId = definitionId ?? string.Empty;
+        }
+
+        /// <summary>Machine-readable kind name: "cancel_production".</summary>
+        public override string Kind => "cancel_production";
+
+        /// <summary>Applies the command; see the class summary for the rejections and the effects.</summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Producer, out Unit? producer))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && producer.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (!sim.Players.TryGet(producer.Owner, out Player? owner))
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (Index < 0 || Index >= producer.ProductionQueue.Count)
+            {
+                return CommandResult.Reject("no_entry");
+            }
+            if (!string.Equals(producer.ProductionQueue[Index], DefinitionId, System.StringComparison.Ordinal))
+            {
+                return CommandResult.Reject("entry_mismatch");
+            }
+            // Refund amounts: the entry's full cost from the unit or the research definition. Unit: resource units. Range: 0 to 100000.
+            int refundCommon = 0;
+            int refundRare = 0;
+            if (sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? unit))
+            {
+                refundCommon = unit.CostCommon;
+                refundRare = unit.CostRare;
+            }
+            else if (sim.Content.Researches.TryGetValue(DefinitionId, out ResearchDefinition? research))
+            {
+                refundCommon = research.CostCommon;
+                refundRare = research.CostRare;
+            }
+            owner.AddResource(ResourceKind.Common, refundCommon);
+            owner.AddResource(ResourceKind.Rare, refundRare);
+            if (Index == 0)
+            {
+                // The head's progress is lost; the next entry, if any, starts at its full length.
+                producer.FinishProductionHead(producer.ProductionQueue.Count > 1 ? EconomyRules.QueueEntryTicks(sim, producer.ProductionQueue[1]) : 0);
+            }
+            else
+            {
+                producer.RemoveQueuedProduction(Index);
+            }
+            EconomySystem.RecomputeSupply(sim);
+            sim.Events.Add(new ProductionCancelledEvent(sim.Clock.Tick, producer.Id, producer.Owner, DefinitionId, Index, refundCommon, refundRare));
+            return CommandResult.Ok;
+        }
+
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Producer);
+            hasher.Write(Index);
+            hasher.Write(DefinitionId);
+        }
+    }
+
+    /// <summary>
     /// Orders a worker to build a dragged line of walls (or gates) one tile after another (walls_and_tech.md D.2). The whole line is paid when
     /// the order is given; the first tile becomes the worker's order and the others wait on <see cref="Unit.BuildQueue"/>.
     /// </summary>

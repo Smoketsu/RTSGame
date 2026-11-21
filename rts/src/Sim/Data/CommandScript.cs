@@ -28,7 +28,7 @@ namespace Rts.Sim.Data
         private static readonly string[] CoreKinds =
         {
             "noop", "spawn_unit", "move_unit", "remove_unit", "attack_move", "attack_unit", "stop", "root_hq", "uproot_hq",
-            "gather", "train_unit", "build_structure", "build_wall_line", "apply_status", "pick_cycle", "cast_grounding",
+            "gather", "train_unit", "cancel_production", "build_structure", "build_wall_line", "apply_status", "pick_cycle", "cast_grounding",
         };
 
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
@@ -171,7 +171,7 @@ namespace Rts.Sim.Data
         /// <param name="extras">Extra readers by type, tried when the type is not a core kind.</param>
         private static Command ReadCommand(JsonValue node, string sourceName, SortedDictionary<string, IScriptCommandParser> extras)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, cancel_production, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -218,6 +218,11 @@ namespace Rts.Sim.Data
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "producer", "definition");
                     return new TrainUnitCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue)),
                         node.RequireNonEmptyString("definition"));
+                case "cancel_production":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "producer", "index", "definition");
+                    // Queue position, at most the largest max_queue_length the tuning schema accepts. Unit: entries. Range: 0 to 19.
+                    return new CancelProductionCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue)),
+                        node.RequireInt("index", 0, 19), node.RequireNonEmptyString("definition"));
                 case "build_structure":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "definition", "x", "y");
                     return new BuildStructureCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),

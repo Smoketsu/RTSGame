@@ -23,7 +23,7 @@ namespace Rts.Sim.Tests.Economy
 {
     /// <summary>Research: simulation rules, queries, loader and shipped data.</summary>
     [TestFixture]
-    public sealed class ResearchTests
+    public sealed partial class ResearchTests
     {
         /// <summary>Research item A: 25 common, 50 rare, 2 s (40 ticks).</summary>
         private const string PlansA = "test.plans_a";

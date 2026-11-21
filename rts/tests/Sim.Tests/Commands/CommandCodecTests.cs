@@ -51,6 +51,7 @@ namespace Rts.Sim.Tests
                 new PickCycleCommand(15, P0, 9, "quake"),
                 new GatherCommand(16, P0, 10, new EntityId(50), -3),
                 new TrainUnitCommand(17, P1, 11, new EntityId(51), "water.tender"),
+                new CancelProductionCommand(17, P0, 11, new EntityId(51), 2, "water.tender"),
                 new BuildStructureCommand(18, P0, 12, new EntityId(52), "skai.roost", 21, -34),
                 new ApplyStatusCommand(19, PlayerId.None, 13, new EntityId(53), StatusKind.Slowed, Fix64.Parse("0.6"), Fix64.Parse("2.5"), "test.slow"),
                 new SurrenderCommand(20, P1, 14, P1),
@@ -133,13 +134,13 @@ namespace Rts.Sim.Tests
             CommandCodecRegistry core = new CommandCodecRegistry();
             CoreCommandCodecs.RegisterAll(core);
             Assert.That(core.Contains(CastWaveCommand.KindName), Is.False);
-            Assert.That(core.Count, Is.EqualTo(18));
+            Assert.That(core.Count, Is.EqualTo(19));
             CommandCodecException ex = Expect.Throws<CommandCodecException>(() => core.EncodePayload(new CastWaveCommand(1, P1, 1, new EntityId(1), Spot)));
             Assert.That(ex.Message, Does.Contain("CastWaveCommand"), "the error names the command type");
             // The built-in registry is core plus the faction codecs.
             CommandCodecRegistry builtIn = Registry;
             Assert.That(builtIn.Contains(CastWaveCommand.KindName), Is.True);
-            Assert.That(builtIn.Count, Is.EqualTo(19));
+            Assert.That(builtIn.Count, Is.EqualTo(20));
         }
 
         /// <summary>The byte layout keeps the field order the network codecs had: pinned for move_unit, spawn_unit and apply_status.</summary>
@@ -366,7 +367,7 @@ namespace Rts.Sim.Tests
             Expect.Throws<ArgumentNullException>(() => registry.Register(null!));
             Expect.Throws<ArgumentException>(() => registry.Register(new AbstractTypeCodec()));
             // A failed registration leaves the registry as it was.
-            Assert.That(registry.Count, Is.EqualTo(19));
+            Assert.That(registry.Count, Is.EqualTo(20));
             Assert.That(registry.Contains("noop_again"), Is.False);
             // Lookup failures name the kind and the type.
             Assert.That(Expect.Throws<CommandCodecException>(() => registry.GetByKind("warp")).Message, Does.Contain("warp"));

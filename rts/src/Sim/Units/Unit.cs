@@ -449,6 +449,17 @@ namespace Rts.Sim.Units
             }
         }
 
+        /// <summary>Removes one waiting entry (not the head) of the production queue; the head and its countdown are untouched. Internal: cancel_production only.</summary>
+        /// <param name="index">Queue position of the entry. Unit: entries. Range: 1 to Count - 1 (the head is removed with <see cref="FinishProductionHead"/>).</param>
+        internal void RemoveQueuedProduction(int index)
+        {
+            if (index < 1 || index >= _productionQueue.Count)
+            {
+                throw new System.ArgumentOutOfRangeException(nameof(index), "Only a waiting entry, 1 to Count - 1, can be removed this way.");
+            }
+            _productionQueue.RemoveAt(index);
+        }
+
         /// <summary>Removes the finished head of the queue and starts the next entry's countdown. Internal: economy system only.</summary>
         /// <param name="nextTicks">Build time of the new head in ticks, or 0 when the queue is now empty. Unit: ticks.</param>
         internal void FinishProductionHead(int nextTicks)
