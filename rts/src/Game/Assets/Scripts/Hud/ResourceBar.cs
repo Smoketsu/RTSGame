@@ -28,7 +28,7 @@ namespace Rts.Game.Hud
         private void Awake()
         {
             // Bar size and inset from the top-right corner. Unit: reference pixels.
-            Vector2 size = new Vector2(560f, 44f);
+            Vector2 size = new Vector2(480f, 44f);
             Vector2 inset = new Vector2(-12f, -10f);
             Image background = HudBuild.Image(transform, "Resource Bar", new Vector2(1f, 1f), inset, size, HudBuild.PanelColor);
             background.raycastTarget = true;

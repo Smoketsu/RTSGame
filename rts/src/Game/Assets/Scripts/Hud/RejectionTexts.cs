@@ -79,6 +79,13 @@ namespace Rts.Game.Hud
             { "not_a_producer", null },
             // Structures on resource fields are refused (cloud fix on review/field-block, answering the UI-4 question).
             { "on_resource_field", "Cannot build on a resource field" },
+            // UI-8: the cycle pick.
+            { "cycles_disabled", null },
+            { "player_out_of_match", "You are out of the match" },
+            { "not_holder", "Hold the Core to pick" },
+            { "unknown_cycle", null },
+            { "pick_locked", "The next cycle is already locked" },
+            { "repeats_play_style", "Cannot repeat the current play style" },
         };
 
         /// <summary>

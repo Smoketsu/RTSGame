@@ -4,7 +4,7 @@
 // local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
 // Stand, depletion of a field an own worker gathers from; UI-2: units trained by own producers, own research completed; UI-3:
 // own build orders cancelled with their refund, own structures placed and completed; UI-4: own wall tiles skipped; UI-5: own
-// Downdraft casts with the number of units grounded; I4: own queue entries cancelled with their refund; UI-7: the tide turning, own flood water removed, quake paths
+// Downdraft casts with the number of units grounded; I4: own queue entries cancelled with their refund; UI-8: the local team's cycle pick, cycle warnings and starts; UI-7: the tide turning, own flood water removed, quake paths
 // closing or opening, own units relocated). Other HUD code may post with Show. Builds its own uGUI Text under the
 // HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
@@ -39,8 +39,8 @@ namespace Rts.Game.Hud
         /// <summary>Most lines shown at once; the oldest is dropped first. Unit: lines. Range: 1 to 10; default 4.</summary>
         [SerializeField, Range(1, 10)] private int maxLines = 4;
 
-        /// <summary>Distance of the line block's top edge below the top of the screen, leaving room for the timeline bar and Core widget. Unit: reference pixels (1920 x 1080). Range: 0 to 540; default 150.</summary>
-        [SerializeField, Range(0f, 540f)] private float topOffset = 150f;
+        /// <summary>Distance of the line block's top edge below the top of the screen, leaving room for the timeline bar and Core widget. Unit: reference pixels (1920 x 1080). Range: 0 to 540; default 200.</summary>
+        [SerializeField, Range(0f, 540f)] private float topOffset = 200f;
 
         /// <summary>Font size of the lines. Unit: reference pixels. Range: 10 to 48; default 22.</summary>
         [SerializeField, Range(10, 48)] private int fontSize = 22;
@@ -226,6 +226,22 @@ namespace Rts.Game.Hud
                     Show("Downdraft: " + grounding.UnitsGrounded + " grounded");
                 }
             }
+            else if (simEvent is CyclePickedEvent picked)
+            {
+                // Only the local team's pick is shown; an enemy pick stays hidden until the lock (spec section 5, question 5).
+                if (picked.Team == sim.Players.TeamOf(_commands.LocalPlayer))
+                {
+                    Show("Your team picked " + CycleName(sim, picked.CycleId));
+                }
+            }
+            else if (simEvent is CycleWarningEvent warning)
+            {
+                Show("Next cycle: " + CycleName(sim, warning.CycleId) + " in " + HudBuild.Seconds(warning.ShiftTick - sim.Clock.Tick, sim.Clock.TicksPerSecond));
+            }
+            else if (simEvent is CycleStartedEvent started)
+            {
+                Show("Cycle started: " + CycleName(sim, started.CycleId));
+            }
             else if (simEvent is TideTurnedEvent tide)
             {
                 Show("The tide turns: " + tide.Phase);
@@ -263,6 +279,21 @@ namespace Rts.Game.Hud
         private static string RefundText(int common, int rare)
         {
             return common > 0 || rare > 0 ? " (refund " + common + "c " + rare + "r)" : "";
+        }
+
+        /// <summary>The display name of a cycle ID, or the ID when the match has no such cycle.</summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="cycleId">A cycle ID.</param>
+        private static string CycleName(Simulation sim, string cycleId)
+        {
+            foreach (Rts.Sim.Data.CycleDefinition cycle in sim.Cycles.Definitions)
+            {
+                if (cycle.Id == cycleId)
+                {
+                    return cycle.DisplayName;
+                }
+            }
+            return cycleId;
         }
 
         /// <summary>Finds a living unit of the local player.</summary>

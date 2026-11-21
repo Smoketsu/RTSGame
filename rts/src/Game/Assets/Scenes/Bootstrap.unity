@@ -401,7 +401,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Rts.Game::Rts.Game.Hud.MessageLine
   secondsPerMessage: 4
   maxLines: 4
-  topOffset: 150
+  topOffset: 200
   fontSize: 22
 --- !u!114 &1294027319
 MonoBehaviour:

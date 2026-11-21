@@ -69,7 +69,7 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Makes sure the "HUD" object exists with every panel (adding missing ones to an existing HUD): one screen-space Canvas scaled from a 1920 x 1080 landscape
-        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, selected-unit panel, command card, build placement, ability targeting, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, selected-unit panel, command card, build placement, ability targeting, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
         /// </summary>
         /// <returns>The existing or new message line, the first HUD panel.</returns>
         public static MessageLine EnsureHud()
@@ -78,6 +78,7 @@ namespace Rts.Game.Bootstrap
             MessageLine existing = Object.FindAnyObjectByType<MessageLine>();
             GameObject hud = existing != null ? existing.gameObject : CreateHudCanvas();
             EnsureComponent<ResourceBar>(hud);
+            EnsureComponent<TimelineBar>(hud);
             EnsureComponent<SelectionPanel>(hud);
             EnsureComponent<CommandCard>(hud);
             EnsureComponent<BuildPlacement>(hud);
