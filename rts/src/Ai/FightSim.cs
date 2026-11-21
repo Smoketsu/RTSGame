@@ -5,8 +5,8 @@
 // mutable state, lists walked in index order, every tie broken by the lower index. Part of Rts.Ai. It names no faction or unit: the Momentum units are found through the faction mechanic ID.
 // Left out on purpose (3.4): choke width and the number of melee units that can reach one target; the ramp and the high-ground vision rule (only the uphill damage multiplier); formation
 // depth (all units of a side start at one point); hit delay; Windstorm range; the AI's own focus-fire and kiting micro; Downdraft casts; pathing and unit separation; the footprints of
-// structures. Also not modelled, because the spec states no rule for it: the dry-ground speed factor of water-layer units (TerrainTuning water_unit_dry_speed_multiplier) and structure
-// damage multipliers (structures fight as speed-0 units).
+// structures. Also not modelled: structure
+// damage multipliers (structures fight as speed-0 units). Water-layer units on a dry lane get the game's dry-ground speed factor (reviewer fix).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Combat;
@@ -43,6 +43,9 @@ namespace Rts.Ai
         /// <summary>Flood speed multipliers for enemy ground units and the water-unit healing rate (tuning/flood.json).</summary>
         public FloodTuning Flood { get; }
 
+        /// <summary>Speed multiplier of a water-layer unit on dry ground (tuning/terrain.json). Unit: multiplier of speed. Range: above 0.</summary>
+        public Fix64 WaterUnitDrySpeed { get; }
+
         /// <summary>Speed multiplier of a water-layer unit in shallow water (tuning/terrain.json). Unit: multiplier of speed. Range: above 0.</summary>
         public Fix64 WaterUnitShallowSpeed { get; }
 
@@ -72,6 +75,7 @@ namespace Rts.Ai
             Momentum = momentum;
             Status = status;
             Flood = flood;
+            WaterUnitDrySpeed = terrain.WaterUnitDrySpeedMultiplier;
             WaterUnitShallowSpeed = terrain.WaterUnitShallowSpeedMultiplier;
             WaterUnitDeepSpeed = terrain.WaterUnitDeepSpeedMultiplier;
             _momentumUnits = new SortedSet<string>(momentumUnits, StringComparer.Ordinal);
@@ -109,6 +113,9 @@ namespace Rts.Ai
 
             /// <summary>Its weapon, or null when unarmed.</summary>
             public WeaponDefinition? Weapon;
+
+            /// <summary>Position in the side's list (the index that breaks every tie). Unit: index. Range: 0 upward.</summary>
+            public int Index;
 
             /// <summary>Side: 0 is A, 1 is B. Unit: side index. Range: 0 or 1.</summary>
             public int Side;
@@ -196,6 +203,18 @@ namespace Rts.Ai
         /// <param name="s">The predictor numbers; <see cref="PredictorSettings.Model"/> and the Sim values are read.</param>
         public static FightPrediction Predict(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, in FightContext c, FightSimRules rules, PredictorSettings s)
         {
+            return Simulate(a, b, c, rules, s, false);
+        }
+
+        /// <summary>The same prediction with target finding and blasts by a plain scan of every enemy instead of the per-side front index; internal, the reference the tests compare the index with.</summary>
+        internal static FightPrediction PredictByScan(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, in FightContext c, FightSimRules rules, PredictorSettings s)
+        {
+            return Simulate(a, b, c, rules, s, true);
+        }
+
+        /// <summary>Runs the prediction with the front index (<paramref name="scan"/> false) or the reference scan (true); the results are identical.</summary>
+        private static FightPrediction Simulate(IReadOnlyList<FightEntry> a, IReadOnlyList<FightEntry> b, in FightContext c, FightSimRules rules, PredictorSettings s, bool scan)
+        {
             // Units per entry (rounded count, health each) for both sides, scaled down when the larger side is over the cap (3.1).
             Sizes(a, b, s, out List<FightEntry> entriesA, out List<int> countsA, out List<Fix64> healthA, out List<FightEntry> entriesB, out List<int> countsB, out List<Fix64> healthB);
             if (Sum(countsA) == 0)
@@ -220,7 +239,7 @@ namespace Rts.Ai
             Fix64 startA = StartValue(sideA);
             Fix64 startB = StartValue(sideB);
             // Result of the run: winner side (-1 none) and the end time. Unit: side index; seconds.
-            Lane lane = new Lane(sideA, sideB, c, rules, s);
+            Lane lane = new Lane(sideA, sideB, c, rules, s, scan);
             lane.Run();
             // Value left of the winner over its start value (3.3). Unit: fraction. Range: 0 to 1.
             Fix64 f = lane.Winner < 0 ? Fix64.Zero : lane.Winner == 0 ? ValueLeft(sideA) / startA : ValueLeft(sideB) / startB;
@@ -266,7 +285,7 @@ namespace Rts.Ai
             // One minus f squared: the share of strength the loser's force ratio leaves out. Unit: fraction. Range: 0 to 1.
             Fix64 rest = Fix64.One - f * f;
             // Seconds the winner needed, at least the shortest time. Unit: seconds. Range: predictor_min_seconds upward.
-            Fix64 seconds = Fix64.Max(s.MinSeconds, time);
+            Fix64 seconds = Fix64.Min(s.MaxSeconds, Fix64.Max(s.MinSeconds, time));
             if (winner == 0)
             {
                 // Advantage 1 / (1 - f^2), capped (a rest at or below 1 / cap is the cap itself).
@@ -275,6 +294,34 @@ namespace Rts.Ai
             }
             // B wins: advantage 1 - f^2 and A's time to kill B scaled the other way (the longest time when the advantage is 0).
             return new FightPrediction(rest <= Fix64.Zero ? s.MaxSeconds : Fix64.Min(s.MaxSeconds, seconds / rest), seconds, false, rest);
+        }
+
+        /// <summary>True while a drench slow lasts at <paramref name="now"/> (the one test the speed factor and the Momentum loss rule share).</summary>
+        /// <param name="slowUntil">Second the slow ends. Unit: seconds of simulated time.</param>
+        /// <param name="now">Start of the current step. Unit: seconds of simulated time.</param>
+        internal static bool IsSlowed(Fix64 slowUntil, Fix64 now)
+        {
+            return slowUntil > now;
+        }
+
+        /// <summary>True when a shot loses damage uphill: side A's ranged shot with neither unit in the air, by effective layer (a Grounded flyer counts as ground, as in the game).</summary>
+        /// <param name="aUphill">True when side A shoots uphill.</param>
+        /// <param name="side">The shooter's side: 0 is A.</param>
+        /// <param name="melee">True for a melee weapon.</param>
+        /// <param name="shooterLayer">The shooter's effective layer.</param>
+        /// <param name="targetLayer">The target's effective layer.</param>
+        internal static bool IsUphillShot(bool aUphill, int side, bool melee, MovementLayer shooterLayer, MovementLayer targetLayer)
+        {
+            return aUphill && side == 0 && !melee && shooterLayer != MovementLayer.Air && targetLayer != MovementLayer.Air;
+        }
+
+        /// <summary>True when a unit at <paramref name="distance"/> from the blast centre is reached: blast radius plus the victim's own radius (CombatSystem.Blast).</summary>
+        /// <param name="distance">Distance along the lane. Unit: tiles. Range: 0 upward.</param>
+        /// <param name="weapon">The weapon with the blast.</param>
+        /// <param name="victim">The victim's type.</param>
+        internal static bool InBlastReach(Fix64 distance, WeaponDefinition weapon, UnitDefinition victim)
+        {
+            return distance <= weapon.SplashRadiusTiles + victim.Radius;
         }
 
         /// <summary>The entries with units (count rounded half up to at least 1): the entries kept, with their unit counts and the health of each unit (3.1).</summary>
@@ -342,6 +389,7 @@ namespace Rts.Ai
                         Def = def,
                         Weapon = def.Weapon,
                         Side = side,
+                        Index = units.Count,
                         X = Fix64.Zero,
                         Health = health[e],
                         Alive = true,
@@ -434,13 +482,161 @@ namespace Rts.Ai
             /// <summary>Second of the last damage to any unit's health. Unit: seconds. Range: 0 upward.</summary>
             private Fix64 _lastDamage;
 
+            /// <summary>True to find targets and blast victims by scanning every enemy (the reference), false to use the front index.</summary>
+            private readonly bool _scan;
+
+            /// <summary>Per side and layer (0 ground, 1 water, 2 air): the living units sorted by position then index; rebuilt at the start of the step and after damage.</summary>
+            private readonly List<SimUnit>[,] _fronts = new List<SimUnit>[2, 3];
+
+            /// <summary>For each entry of <see cref="_fronts"/>, the position of the first entry with the same X (so the lowest index at that X is found without a walk). Unit: position. Range: 0 upward.</summary>
+            private readonly List<int>[,] _firsts = new List<int>[2, 3];
+
+            /// <summary>Per side, its units with a shield dome in index order. Fixed for the fight.</summary>
+            private readonly List<SimUnit>[] _domes = { new List<SimUnit>(), new List<SimUnit>() };
+
+            /// <summary>Largest radius of any unit in the fight (the window a blast search widens by). Unit: tiles. Range: 0 upward.</summary>
+            private readonly Fix64 _maxRadius;
+
             /// <summary>Starts a lane.</summary>
-            public Lane(List<SimUnit> a, List<SimUnit> b, FightContext context, FightSimRules rules, PredictorSettings s)
+            public Lane(List<SimUnit> a, List<SimUnit> b, FightContext context, FightSimRules rules, PredictorSettings s, bool scan)
             {
                 _sides = new[] { a, b };
                 _context = context;
                 _rules = rules;
                 _s = s;
+                _scan = scan;
+                for (int side = 0; side < 2; side++)
+                {
+                    for (int layer = 0; layer < 3; layer++)
+                    {
+                        _fronts[side, layer] = new List<SimUnit>();
+                        _firsts[side, layer] = new List<int>();
+                    }
+                    foreach (SimUnit unit in _sides[side])
+                    {
+                        _maxRadius = Fix64.Max(_maxRadius, unit.Def.Radius);
+                        if (unit.Def.ShieldDome != null)
+                        {
+                            _domes[side].Add(unit);
+                        }
+                    }
+                }
+            }
+
+            /// <summary>Rebuilds the front index from the living units and their current positions.</summary>
+            private void BuildFronts()
+            {
+                for (int side = 0; side < 2; side++)
+                {
+                    for (int layer = 0; layer < 3; layer++)
+                    {
+                        _fronts[side, layer].Clear();
+                    }
+                    foreach (SimUnit unit in _sides[side])
+                    {
+                        if (unit.Alive)
+                        {
+                            _fronts[side, (int)unit.Layer].Add(unit);
+                        }
+                    }
+                    for (int layer = 0; layer < 3; layer++)
+                    {
+                        List<SimUnit> front = _fronts[side, layer];
+                        front.Sort((p, q) =>
+                        {
+                            int byX = p.X.CompareTo(q.X);
+                            return byX != 0 ? byX : p.Index.CompareTo(q.Index);
+                        });
+                        List<int> first = _firsts[side, layer];
+                        first.Clear();
+                        for (int i = 0; i < front.Count; i++)
+                        {
+                            first.Add(i > 0 && front[i].X == front[i - 1].X ? first[i - 1] : i);
+                        }
+                    }
+                }
+            }
+
+            /// <summary>The first position in a front whose X is at least <paramref name="x"/>. Unit: position. Range: 0 to the front's length.</summary>
+            private static int LowerBound(List<SimUnit> front, Fix64 x)
+            {
+                // Search window. Unit: position.
+                int lo = 0;
+                int hi = front.Count;
+                while (lo < hi)
+                {
+                    int mid = (lo + hi) / 2;
+                    if (front[mid].X < x)
+                    {
+                        lo = mid + 1;
+                    }
+                    else
+                    {
+                        hi = mid;
+                    }
+                }
+                return lo;
+            }
+
+            /// <summary>The nearest living enemy of <paramref name="unit"/> that its weapon can hit, ties to the lower index, or null; <paramref name="distance"/> is its distance. Index and scan give the same answer.</summary>
+            private SimUnit? Nearest(SimUnit unit, out Fix64 distance)
+            {
+                // Best enemy and its distance so far. Unit: tiles.
+                SimUnit? best = null;
+                distance = Fix64.Zero;
+                if (_scan)
+                {
+                    foreach (SimUnit enemy in _sides[1 - unit.Side])
+                    {
+                        if (!enemy.Alive || !CanHit(unit.Weapon!, enemy.Layer))
+                        {
+                            continue;
+                        }
+                        // Distance along the lane. Unit: tiles.
+                        Fix64 d = (enemy.X - unit.X).Abs();
+                        if (best == null || d < distance)
+                        {
+                            best = enemy;
+                            distance = d;
+                        }
+                    }
+                    return best;
+                }
+                for (int layer = 0; layer < 3; layer++)
+                {
+                    List<SimUnit> front = _fronts[1 - unit.Side, layer];
+                    if (front.Count == 0 || !CanHit(unit.Weapon!, (MovementLayer)layer))
+                    {
+                        continue;
+                    }
+                    // The first unit at or right of the shooter, and the lowest-index unit at the nearest X to its left.
+                    int p = LowerBound(front, unit.X);
+                    SimUnit? right = p < front.Count ? front[p] : null;
+                    SimUnit? left = p > 0 ? front[_firsts[1 - unit.Side, layer][p - 1]] : null;
+                    SimUnit pick;
+                    if (right == null)
+                    {
+                        pick = left!;
+                    }
+                    else if (left == null)
+                    {
+                        pick = right;
+                    }
+                    else
+                    {
+                        // Distances to the two candidates; the nearer wins, a tie goes to the lower index.
+                        Fix64 dr = right.X - unit.X;
+                        Fix64 dl = unit.X - left.X;
+                        pick = dl < dr || (dl == dr && left.Index < right.Index) ? left : right;
+                    }
+                    Fix64 pd = (pick.X - unit.X).Abs();
+                    if (best == null || pd < distance || (pd == distance && pick.Index < best.Index))
+                    {
+                        best = pick;
+                        distance = pd;
+                    }
+                }
+                return best;
             }
 
             /// <summary>Runs steps until one side is gone, nothing can happen, nothing was damaged for the idle window or the time cap is reached (3.2 step 7).</summary>
@@ -533,6 +729,10 @@ namespace Rts.Ai
                     }
                 }
                 // 2. Targets from the state at the start of the step.
+                if (!_scan)
+                {
+                    BuildFronts();
+                }
                 for (int side = 0; side < 2; side++)
                 {
                     foreach (SimUnit unit in _sides[side])
@@ -576,6 +776,11 @@ namespace Rts.Ai
                         }
                         unit.Pending = Fix64.Zero;
                     }
+                }
+                if (!_scan)
+                {
+                    // The living units after this step's damage, for units whose target died.
+                    BuildFronts();
                 }
                 for (int side = 0; side < 2; side++)
                 {
@@ -645,27 +850,9 @@ namespace Rts.Ai
             /// <summary>Finds the nearest living enemy the unit can hit (ties to the lower index) and whether it is in reach (step 2).</summary>
             private void Acquire(SimUnit unit)
             {
-                // Best enemy index and its distance so far. Unit: index; tiles.
-                int best = -1;
-                Fix64 bestDistance = Fix64.Zero;
-                List<SimUnit> enemies = _sides[1 - unit.Side];
-                for (int i = 0; i < enemies.Count; i++)
-                {
-                    SimUnit enemy = enemies[i];
-                    if (!enemy.Alive || !CanHit(unit.Weapon!, enemy.Layer))
-                    {
-                        continue;
-                    }
-                    // Distance along the lane. Unit: tiles.
-                    Fix64 distance = (enemy.X - unit.X).Abs();
-                    if (best < 0 || distance < bestDistance)
-                    {
-                        best = i;
-                        bestDistance = distance;
-                    }
-                }
-                unit.Target = best;
-                unit.InReach = best >= 0 && bestDistance <= unit.Weapon!.RangeTiles + unit.Def.Radius + enemies[best].Def.Radius;
+                SimUnit? best = Nearest(unit, out Fix64 bestDistance);
+                unit.Target = best == null ? -1 : best.Index;
+                unit.InReach = best != null && bestDistance <= unit.Weapon!.RangeTiles + unit.Def.Radius + best.Def.Radius;
             }
 
             /// <summary>Moves the unit towards its nearest enemy, stopping where it comes in reach (step 4); the new position goes to NextX.</summary>
@@ -676,21 +863,7 @@ namespace Rts.Ai
                 SimUnit? goal = enemies[unit.Target].Alive ? enemies[unit.Target] : null;
                 if (goal == null)
                 {
-                    // Nearest living enemy it can hit now. Unit: tiles.
-                    Fix64 bestDistance = Fix64.Zero;
-                    foreach (SimUnit enemy in enemies)
-                    {
-                        if (!enemy.Alive || !CanHit(unit.Weapon!, enemy.Layer))
-                        {
-                            continue;
-                        }
-                        Fix64 distance = (enemy.X - unit.X).Abs();
-                        if (goal == null || distance < bestDistance)
-                        {
-                            goal = enemy;
-                            bestDistance = distance;
-                        }
-                    }
+                    goal = Nearest(unit, out Fix64 unused);
                     if (goal == null)
                     {
                         return;
@@ -721,11 +894,16 @@ namespace Rts.Ai
                 {
                     factor *= Fix64.One + Fix64.FromInt(unit.Stacks.FloorToInt()) * _rules.Momentum.SpeedBonusPerStack;
                 }
-                if (unit.SlowUntil > now)
+                if (IsSlowed(unit.SlowUntil, now))
                 {
                     factor *= _rules.Status.DrenchSlowMultiplier;
                 }
-                if (_context.Water != FightWater.None)
+                if (_context.Water == FightWater.None)
+                {
+                    // The game's dry-ground factor of a water-layer unit (TerrainGrid speed rule).
+                    factor *= unit.Layer == MovementLayer.Water ? _rules.WaterUnitDrySpeed : Fix64.One;
+                }
+                else
                 {
                     // True for shallow water, false for deep.
                     bool shallow = _context.Water == FightWater.Shallow;
@@ -746,7 +924,7 @@ namespace Rts.Ai
             {
                 MomentumTuning m = _rules.Momentum;
                 // True while the unit is slowed by a drench.
-                bool slowed = unit.SlowUntil > now + dt;
+                bool slowed = IsSlowed(unit.SlowUntil, now);
                 if ((m.LostOnGrounded && unit.Grounded) || (m.LostOnSlowed && slowed))
                 {
                     unit.Stacks = Fix64.Zero;
@@ -774,7 +952,7 @@ namespace Rts.Ai
                 // Damage multiplier of the shooter's Momentum stacks. Unit: multiplier. Range: 1 upward.
                 Fix64 momentum = shooter.Momentum ? Fix64.One + Fix64.FromInt(shooter.Stacks.FloorToInt()) * _rules.Momentum.DamageBonusPerStack : Fix64.One;
                 // Uphill factor, as FightPredictor.Dps: only A's ranged ground-or-water shots lose damage, by the damage table's multiplier.
-                Fix64 uphill = _context.AUphill && shooter.Side == 0 && !weapon.IsMelee && shooter.Def.Layer != MovementLayer.Air && target.Def.Layer != MovementLayer.Air
+                Fix64 uphill = IsUphillShot(_context.AUphill, shooter.Side, weapon.IsMelee, shooter.Layer, target.Layer)
                     ? table.UphillRangedDamageMultiplier : Fix64.One;
                 // Damage to the target before domes. Unit: health points. Range: 0 upward.
                 Fix64 damage = weapon.Damage * table.GetMultiplier(weapon.DamageType, target.Def.ArmourType) * uphill * momentum;
@@ -805,12 +983,36 @@ namespace Rts.Ai
                 List<SimUnit> enemies = _sides[1 - shooter.Side];
                 // Indices of the victims in reach of the blast, then ordered nearest first.
                 List<int> victims = new List<int>();
-                for (int i = 0; i < enemies.Count; i++)
+                if (_scan)
                 {
-                    SimUnit enemy = enemies[i];
-                    if (enemy != target && enemy.Alive && CanHit(weapon, enemy.Layer) && (enemy.X - target.X).Abs() <= weapon.SplashRadiusTiles)
+                    for (int i = 0; i < enemies.Count; i++)
                     {
-                        victims.Add(i);
+                        SimUnit enemy = enemies[i];
+                        if (enemy != target && enemy.Alive && CanHit(weapon, enemy.Layer) && InBlastReach((enemy.X - target.X).Abs(), weapon, enemy.Def))
+                        {
+                            victims.Add(i);
+                        }
+                    }
+                }
+                else
+                {
+                    // Window around the target in which a victim of any radius can lie. Unit: tiles.
+                    Fix64 window = weapon.SplashRadiusTiles + _maxRadius;
+                    for (int layer = 0; layer < 3; layer++)
+                    {
+                        List<SimUnit> front = _fronts[1 - shooter.Side, layer];
+                        if (front.Count == 0 || !CanHit(weapon, (MovementLayer)layer))
+                        {
+                            continue;
+                        }
+                        for (int p = LowerBound(front, target.X - window); p < front.Count && front[p].X <= target.X + window; p++)
+                        {
+                            SimUnit enemy = front[p];
+                            if (enemy != target && InBlastReach((enemy.X - target.X).Abs(), weapon, enemy.Def))
+                            {
+                                victims.Add(enemy.Index);
+                            }
+                        }
                     }
                 }
                 victims.Sort((x, y) =>
@@ -838,7 +1040,7 @@ namespace Rts.Ai
             {
                 // Damage still to place. Unit: health points.
                 Fix64 remaining = damage;
-                foreach (SimUnit dome in _sides[victim.Side])
+                foreach (SimUnit dome in _domes[victim.Side])
                 {
                     if (remaining <= Fix64.Zero)
                     {

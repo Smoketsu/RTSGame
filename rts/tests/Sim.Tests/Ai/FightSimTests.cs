@@ -440,6 +440,116 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Expect.Throws<ArgumentException>(() => PredictorSettings.From(AiProfile.FromDataSet(Data, "aggressive_s5_fp2"))).Message, Does.Contain("FightSimRules"));
         }
 
+        /// <summary>Review fix 1: FightRunner counts its no_damage stalemate from army spawn (lastDamage starts at spawnTick), so the sim counts idle time from t = 0 too: an approach longer than the idle window is no winner in both.</summary>
+        [Test]
+        public void Idle_CountsFromSpawn_AsTheFightRunnerDoes()
+        {
+            string runner = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "..", "tools", "BalanceHarness", "FightRunner.cs"));
+            Assert.That(runner, Does.Contain("int lastDamage = spawnTick;"));
+            UnitDefinition shooter = U("t.shooter", range: "8", damage: 10);
+            UnitDefinition target = U("t.target", armed: false, speed: "0", health: 50);
+            // 100 tiles at speed 2 is 46 s of walking, past the 30 s idle window.
+            FightPrediction far = P(new[] { E(shooter, 1) }, new[] { E(target, 1) }, new FightContext(false, FightWater.None, -1, Fix64.FromInt(100)));
+            Assert.That(far.AWins, Is.False);
+            Assert.That(far.Advantage, Is.EqualTo(Fix64.One));
+            Assert.That(P(new[] { E(shooter, 1) }, new[] { E(target, 1) }, new FightContext(false, FightWater.None, -1, Fix64.FromInt(40))).AWins, Is.True);
+        }
+
+        /// <summary>Review fix 2: a blast reaches the blast radius plus the victim's radius.</summary>
+        [Test]
+        public void Splash_ReachAddsVictimRadius()
+        {
+            UnitDefinition blaster = U("t.blaster", range: "6", splash: "2");
+            UnitDefinition victim = U("t.victim");
+            Assert.That(FightSim.InBlastReach(F("2.5"), blaster.Weapon!, victim), Is.True, "radius 2 + victim radius 0.5");
+            Assert.That(FightSim.InBlastReach(F("2.51"), blaster.Weapon!, victim), Is.False);
+        }
+
+        /// <summary>Review fix 3: a water-layer unit on a dry lane walks at the dry-ground factor, so it needs longer than with the factor at 1; a ground unit is unaffected.</summary>
+        [Test]
+        public void DrySpeed_WaterLayerUnitsOnDryLane()
+        {
+            Assert.That(Rules.WaterUnitDrySpeed, Is.EqualTo(Data.Tuning.Terrain.WaterUnitDrySpeedMultiplier));
+            Assert.That(Rules.WaterUnitDrySpeed, Is.LessThan(Fix64.One));
+            string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "tuning", "terrain.json"));
+            Assert.That(text, Does.Contain("\"water_unit_dry_speed_multiplier\": 0.85"));
+            TerrainTuning unit = new TerrainTuning(JsonReader.Parse(text.Replace("\"water_unit_dry_speed_multiplier\": 0.85", "\"water_unit_dry_speed_multiplier\": 1.0"), "tuning/terrain.json"));
+            FightSimRules fast = new FightSimRules(Data.Content.Combat, Data.Tuning.Momentum, Data.Tuning.Status, Data.Tuning.Flood, unit, new string[0]);
+            UnitDefinition swimmer = U("t.swimmer", MovementLayer.Water, range: "1", damage: 10);
+            UnitDefinition walker = U("t.walker", range: "1", damage: 10);
+            UnitDefinition wall = U("t.wall", health: 30, speed: "0", armed: false);
+            FightContext far = new FightContext(false, FightWater.None, -1, Fix64.FromInt(20));
+            Assert.That(P(new[] { E(swimmer, 1) }, new[] { E(wall, 1) }, far).TimeAKillsB, Is.GreaterThan(P(new[] { E(swimmer, 1) }, new[] { E(wall, 1) }, far, fast).TimeAKillsB));
+            Assert.That(P(new[] { E(walker, 1) }, new[] { E(wall, 1) }, far).TimeAKillsB, Is.EqualTo(P(new[] { E(walker, 1) }, new[] { E(wall, 1) }, far, fast).TimeAKillsB));
+        }
+
+        /// <summary>Review fix 4: both returned times stay within predictor_max_seconds even when it is below predictor_sim_max_seconds.</summary>
+        [Test]
+        public void Times_CappedAtPredictorMaxSeconds()
+        {
+            PredictorSettings s = new PredictorSettings(Fix64.FromInt(20), F("0.5"), Fix64.Zero, Fix64.Zero, Fix64.Zero, Fix64.FromInt(100), PredictorModel.Sim, F("0.25"), Fix64.FromInt(180), Fix64.FromInt(100), 64, Fix64.One, Fix64.FromInt(4), Rules);
+            UnitDefinition shooter = U("t.shooter", range: "8", damage: 10);
+            UnitDefinition target = U("t.target", armed: false, speed: "0", health: 50);
+            FightContext far = new FightContext(false, FightWater.None, -1, Fix64.FromInt(60));
+            FightEntry[] a = { E(shooter, 1) };
+            FightEntry[] b = { E(target, 1) };
+            FightPrediction r = FightPredictor.Predict(a, b, far, Data.Content.Combat, s);
+            Assert.That(r.AWins, Is.True);
+            Assert.That(r.TimeAKillsB, Is.LessThanOrEqualTo(Fix64.FromInt(20)));
+            Assert.That(r.TimeBKillsA, Is.LessThanOrEqualTo(Fix64.FromInt(20)));
+            FightPrediction mirrored = FightPredictor.Predict(b, a, far, Data.Content.Combat, s);
+            Assert.That(mirrored.TimeAKillsB, Is.LessThanOrEqualTo(Fix64.FromInt(20)));
+            Assert.That(mirrored.TimeBKillsA, Is.LessThanOrEqualTo(Fix64.FromInt(20)));
+        }
+
+        /// <summary>Review fix 5: the uphill penalty uses effective layers (a Grounded flyer is ground), and the Momentum slow test is the speed factor's own test.</summary>
+        [Test]
+        public void EffectiveLayerAndSlowTest()
+        {
+            Assert.That(FightSim.IsUphillShot(true, 0, false, MovementLayer.Ground, MovementLayer.Ground), Is.True, "a Grounded flyer shooting or hit counts as ground");
+            Assert.That(FightSim.IsUphillShot(true, 0, false, MovementLayer.Air, MovementLayer.Ground), Is.False);
+            Assert.That(FightSim.IsUphillShot(true, 0, false, MovementLayer.Ground, MovementLayer.Air), Is.False);
+            Assert.That(FightSim.IsUphillShot(true, 1, false, MovementLayer.Ground, MovementLayer.Ground), Is.False);
+            Assert.That(FightSim.IsUphillShot(true, 0, true, MovementLayer.Ground, MovementLayer.Ground), Is.False);
+            Assert.That(FightSim.IsUphillShot(false, 0, false, MovementLayer.Ground, MovementLayer.Ground), Is.False);
+            Assert.That(FightSim.IsSlowed(F("4"), F("3.75")), Is.True);
+            Assert.That(FightSim.IsSlowed(F("4"), F("4")), Is.False, "a slow that ends at the step start no longer holds");
+            string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "..", "src", "Ai", "FightSim.cs"));
+            Assert.That(Regex.Matches(text, @"IsSlowed\(unit\.SlowUntil, now\)").Count, Is.EqualTo(2), "speed factor and Momentum use the same test and the same time");
+        }
+
+        /// <summary>Review fix 6: the front index gives exactly the results of the plain scan, on armies with domes, blasts, drench, Momentum, flyers, water and uphill, and on hand-built armies with units at several positions.</summary>
+        [Test]
+        public void FrontIndex_EqualsScan()
+        {
+            (FightEntry[] A, FightEntry[] B)[] pairs =
+            {
+                (new[] { Shipped("skai.windrunner", 40) }, new[] { Shipped("water.grasper", 50) }),
+                (new[] { Shipped("water.ink_lobber", 30), Shipped("water.shellback", 6) }, new[] { Shipped("skai.roc_rider", 20), Shipped("skai.talon_archer", 20) }),
+                (new[] { Shipped("skai.roc_rider", 12), Shipped("skai.thunderhead", 6) }, new[] { Shipped("water.spoutling", 30), Shipped("water.grasper", 20) }),
+                (new[] { Shipped("water.leviathan", 3), Shipped("water.reef_runner", 30) }, new[] { Shipped("skai.windrunner", 30), Shipped("skai.stormcaller", 6) }),
+                (new[] { Shipped("skai.windrunner", 100) }, new[] { Shipped("water.grasper", 100) }),
+                (new[] { E(U("t.fast", speed: "3"), 7), E(U("t.slow", speed: "1", range: "4"), 9) }, new[] { E(U("t.mid", speed: "2", range: "2", splash: "1.5"), 11), E(U("t.wall", speed: "0", armed: false), 4) }),
+            };
+            FightContext[] contexts =
+            {
+                FightContext.Dry(false), FightContext.Dry(true), FightContext.Engaged(false), new FightContext(false, FightWater.Deep, -1, -Fix64.One), new FightContext(false, FightWater.Shallow, 0, Fix64.FromInt(9)),
+            };
+            foreach ((FightEntry[] a, FightEntry[] b) in pairs)
+            {
+                foreach (FightContext context in contexts)
+                {
+                    FightPrediction index = FightSim.Predict(a, b, context, Rules, Settings());
+                    FightPrediction scan = FightSim.PredictByScan(a, b, context, Rules, Settings());
+                    string what = a[0].Definition.Id + " v " + b[0].Definition.Id + " " + context.Water + " gap " + context.GapTiles;
+                    Assert.That(index.TimeAKillsB, Is.EqualTo(scan.TimeAKillsB), what);
+                    Assert.That(index.TimeBKillsA, Is.EqualTo(scan.TimeBKillsA), what);
+                    Assert.That(index.AWins, Is.EqualTo(scan.AWins), what);
+                    Assert.That(index.Advantage, Is.EqualTo(scan.Advantage), what);
+                }
+            }
+        }
+
         /// <summary>The candidate profile plays a whole fixed-seed game without error and twice to the same final state hash (the sim predictor is deterministic inside a match).</summary>
         [Test]
         public void CandidateProfile_PlaysDeterministically()
