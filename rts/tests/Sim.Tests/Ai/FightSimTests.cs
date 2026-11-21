@@ -273,12 +273,51 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(splash.AWins, Is.True);
             Assert.That(single.AWins, Is.True);
             Assert.That(splash.TimeAKillsB, Is.LessThan(single.TimeAKillsB));
-            // 12 units die to the first blast (the target and 11 others at 10 damage each); a 13th needs a second shot one cooldown later: the blast reaches at most 12.
-            FightPrediction twelve = P(new[] { E(blaster, 1) }, new[] { E(target, 12) });
-            FightPrediction thirteen = P(new[] { E(blaster, 1) }, new[] { E(target, 13) });
-            FightPrediction twentyFour = P(new[] { E(blaster, 1) }, new[] { E(target, 24) });
-            Assert.That(thirteen.TimeAKillsB - twelve.TimeAKillsB, Is.EqualTo(Fix64.One));
-            Assert.That(twentyFour.TimeAKillsB, Is.EqualTo(thirteen.TimeAKillsB));
+            // The blast disc is the blast radius plus the victim's radius (2 + 0.5): floor(pi x 2.5^2) = 19 units, the target among them. 19 units die to the first blast
+            // (the target at 20 damage and 18 others at 10); a 20th needs a second shot one cooldown later.
+            FightPrediction nineteen = P(new[] { E(blaster, 1) }, new[] { E(target, 19) });
+            FightPrediction twenty = P(new[] { E(blaster, 1) }, new[] { E(target, 20) });
+            FightPrediction thirtyEight = P(new[] { E(blaster, 1) }, new[] { E(target, 38) });
+            Assert.That(twenty.TimeAKillsB - nineteen.TimeAKillsB, Is.EqualTo(Fix64.One));
+            Assert.That(thirtyEight.TimeAKillsB, Is.EqualTo(twenty.TimeAKillsB));
+        }
+
+        /// <summary>
+        /// Diagnosis fix A: the blast disc includes the victim's radius, as CombatSystem.Blast does (src/Sim/Combat/CombatSystem.cs line 619: reach = SplashRadiusTiles + victim radius), so the cap
+        /// on blast victims counts the units in that wider disc: floor(density x pi x (radius + victim radius)^2) - 1.
+        /// </summary>
+        [Test]
+        public void BlastCap_CountsTheWholeDisc()
+        {
+            UnitDefinition blaster = U("t.blaster", range: "6", splash: "1");
+            UnitDefinition victim = U("t.victim");
+            Assert.That(FightSim.BlastCap(Fix64.One, blaster.Weapon!, victim), Is.EqualTo(6), "pi x 1.5^2 = 7.07 units, the target among them");
+            Assert.That(FightSim.BlastCap(F("0.1"), blaster.Weapon!, victim), Is.EqualTo(0), "never negative");
+            UnitDefinition wide = U("t.wide", range: "6", splash: "2");
+            Assert.That(FightSim.BlastCap(Fix64.One, wide.Weapon!, victim), Is.EqualTo(18));
+        }
+
+        /// <summary>
+        /// Diagnosis fix B: a unit picks an armed enemy before an unarmed one, whatever the distance order, as CombatSystem does (src/Sim/Combat/CombatSystem.cs lines 338 to 340:
+        /// rank 0 armed, 1 unarmed, rank before distance). The shooter kills the armed enemy first, so it takes less return fire and wins with more left.
+        /// </summary>
+        [Test]
+        public void Targets_ArmedBeforeUnarmed()
+        {
+            // The unarmed wall sorts first (index 0) and stands at the same distance; the armed turret shoots back.
+            UnitDefinition wall = U("t.a_wall", health: 50, speed: "0", armed: false);
+            UnitDefinition turret = U("t.b_turret", health: 50, speed: "0", range: "8", damage: 5, cooldown: "1");
+            UnitDefinition shooter = U("t.shooter", health: 100, range: "8", damage: 10, cooldown: "1");
+            FightPrediction r = P(new[] { E(shooter, 1) }, new[] { E(wall, 1), E(turret, 1) });
+            FightPrediction scan = FightSim.PredictByScan(new[] { E(shooter, 1) }, new[] { E(wall, 1), E(turret, 1) }, FightContext.Dry(false), Rules, Settings());
+            Assert.That(r.AWins, Is.True);
+            Assert.That(scan.Advantage, Is.EqualTo(r.Advantage), "the index and the scan rank the same way");
+            // With the turret sorting first the answer must be the same: the rank, not the list order, decides.
+            UnitDefinition wall2 = U("t.b_wall", health: 50, speed: "0", armed: false);
+            UnitDefinition turret2 = U("t.a_turret", health: 50, speed: "0", range: "8", damage: 5, cooldown: "1");
+            FightPrediction other = P(new[] { E(shooter, 1) }, new[] { E(turret2, 1), E(wall2, 1) });
+            Assert.That(other.Advantage, Is.EqualTo(r.Advantage));
+            Assert.That(other.TimeAKillsB, Is.EqualTo(r.TimeAKillsB));
         }
 
         /// <summary>FP2-2-8: a ranged ground side that wins on the flat has a lower advantage uphill; melee and air shooters are unaffected.</summary>

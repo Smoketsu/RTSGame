@@ -607,5 +607,36 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(equal, Is.EqualTo(1360));
             Expect.DoesNotThrow(() => FightMatchups.Load(TestData.FindDataDirectory(), settings, data));
         }
+
+        /// <summary>heldout2.json (the second held-out set, made after the first failed its gate) parses and plans with the shipped data, uses a new seed and army values no earlier set played, and nothing is played.</summary>
+        [Test]
+        public void HeldOut2Settings_ParseAndPlan_NewSeedAndValues()
+        {
+            DataSet data = TestData.LoadAll();
+            FightSettings first = FightSettings.Parse(File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "scripts/fights/heldout.json")), data, "heldout.json");
+            FightSettings second = FightSettings.Parse(File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "scripts/fights/heldout2.json")), data, "heldout2.json");
+            FightSettings sweep = FightSettings.Load(TestData.FindDataDirectory(), data);
+            Assert.That(second.BaseSeed, Is.Not.EqualTo(first.BaseSeed));
+            Assert.That(second.BaseSeed, Is.Not.EqualTo(sweep.BaseSeed));
+            // Army values of the earlier sets.
+            SortedSet<int> used = new SortedSet<int>();
+            foreach (FightSettings earlier in new[] { first, sweep })
+            {
+                foreach (FightCase fightCase in earlier.Cases)
+                {
+                    used.UnionWith(fightCase.ArmyValues);
+                }
+            }
+            foreach (FightCase fightCase in second.Cases)
+            {
+                foreach (int value in fightCase.ArmyValues)
+                {
+                    Assert.That(used.Contains(value), Is.False, fightCase.Id + " " + value);
+                }
+            }
+            Assert.That(second.ExtendedRecords, Is.True);
+            Assert.That(FightPlan.Build(data, second).Fights.Count, Is.EqualTo(1904));
+            Expect.DoesNotThrow(() => FightMatchups.Load(TestData.FindDataDirectory(), second, data));
+        }
     }
 }
