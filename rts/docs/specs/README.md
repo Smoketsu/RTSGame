@@ -74,6 +74,7 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [player_interface.md](player_interface.md) | Unity packages UI-0 to UI-10: local command path and session recording, resource bar, train, build, wall drag, abilities, fog, event drawing, timeline and cycle pick, Core, surrender and match end; sim gaps and open questions | 9 | everything built so far; research slot waits for P-007 |
+| [player_interface_2.md](player_interface_2.md) | Unity packages UI-12 to UI-15: skirmish setup with a local AI opponent (AI commands through the session recorder), main menu and match flow, minimap, replay playback; four verification scripts; cloud gaps G1 to G3 and open questions | 9 | G1 (Rts.Ai Unity package) before UI-12, G3 (ReplayPlayback) before UI-15 |
 
 ## Shared decisions (resolved across specs)
 
