@@ -5,6 +5,11 @@
 // (the UI filters it before sending). A reason missing from the table is shown raw, so a new simulation reason is visible
 // at once. Packages add their rows here. Part of Rts.Game (Unity side, presentation only).
 using System.Collections.Generic;
+using Rts.Sim;
+using Rts.Sim.Commands;
+using Rts.Sim.Economy;
+using Rts.Sim.Events;
+using Rts.Sim.Units;
 
 namespace Rts.Game.Hud
 {
@@ -31,7 +36,38 @@ namespace Rts.Game.Hud
             { "already_uprooted", null },
             { "transition_in_progress", "The HQ is still moving its roots" },
             { "not_near_resources", "Too far from resources to root" },
+            // UI-2: training (and research, which is a train order with a research ID, research_and_unlocks.md R1.10).
+            { "under_construction", "Still under construction" },
+            { "cannot_train", "This building cannot train that" },
+            { "hq_not_rooted", "Root the HQ first" },
+            { "missing_prerequisite", "Missing a requirement" },
+            { "queue_full", "Queue is full" },
+            { "insufficient_resources", "Not enough resources" },
+            { "supply_cap", "Not enough supply" },
+            { "unknown_definition", null },
+            { "already_researched", "Already researched" },
+            { "already_queued", "Already being researched" },
         };
+
+        /// <summary>
+        /// The text to show for a rejection event: like <see cref="For(string)"/>, but a missing prerequisite names the first missing
+        /// building or research ("Requires Storm Spire") when the command says which definition it wanted.
+        /// </summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="rejected">The rejection of a local command.</param>
+        public static string For(Simulation sim, CommandRejectedEvent rejected)
+        {
+            if (rejected.Reason == "missing_prerequisite" && rejected.Command is TrainUnitCommand train
+                && sim.Content.Units.TryGetValue(train.DefinitionId, out UnitDefinition definition))
+            {
+                string missing = EconomyRules.FirstMissingRequirement(sim, rejected.Command.Issuer, definition);
+                if (missing != null)
+                {
+                    return "Requires " + HudBuild.NameOf(sim, missing);
+                }
+            }
+            return For(rejected.Reason);
+        }
 
         /// <summary>The text to show for a rejection reason: the table entry, the raw reason when it is not in the table, or null when it must not be shown.</summary>
         /// <param name="reason">The CommandRejectedEvent reason string.</param>

@@ -14,6 +14,8 @@ using Rts.Game.Hud;
 using Rts.Game.TerrainDisplay;
 using Rts.Game.UnitSelection;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace Rts.Game.Bootstrap
@@ -63,7 +65,7 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Makes sure the "HUD" object exists with every panel (adding missing ones to an existing HUD): one screen-space Canvas scaled from a 1920 x 1080 landscape
-        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, selected-unit panel, message line. Built from code so no scene or prefab is edited by text.
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, selected-unit panel, command card, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
         /// </summary>
         /// <returns>The existing or new message line, the first HUD panel.</returns>
         public static MessageLine EnsureHud()
@@ -73,6 +75,12 @@ namespace Rts.Game.Bootstrap
             GameObject hud = existing != null ? existing.gameObject : CreateHudCanvas();
             EnsureComponent<ResourceBar>(hud);
             EnsureComponent<SelectionPanel>(hud);
+            EnsureComponent<CommandCard>(hud);
+            if (Object.FindAnyObjectByType<EventSystem>() == null)
+            {
+                // Routes Input System pointer events (real and Funplay's synthetic ones) to the HUD buttons.
+                new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            }
             return EnsureComponent<MessageLine>(hud);
         }
 

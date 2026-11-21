@@ -2,7 +2,9 @@
 // Small helpers that build the uGUI pieces every HUD panel uses (a rect, a text, a flat image), so panels are made from code
 // under the one HUD canvas (player_interface.md rule 7) without repeating the same setup. Sizes are reference pixels of the
 // 1920 x 1080 canvas. Also the shared formatting of ticks as seconds and health numbers. Part of Rts.Game (presentation only).
+using Rts.Sim;
 using Rts.Sim.Core;
+using Rts.Sim.Units;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -90,6 +92,18 @@ namespace Rts.Game.Hud
         public static string Seconds(int ticks, int ticksPerSecond)
         {
             return (ticks / (float)ticksPerSecond).ToString("0.0") + " s";
+        }
+
+        /// <summary>The display name of a unit or research ID (production queues and requirements hold both), or the ID itself when neither catalog has it.</summary>
+        /// <param name="sim">The running match (for its content catalog).</param>
+        /// <param name="id">A unit or research ID.</param>
+        public static string NameOf(Simulation sim, string id)
+        {
+            if (sim.Content.Units.TryGetValue(id, out UnitDefinition unit))
+            {
+                return unit.DisplayName;
+            }
+            return sim.Content.Researches.TryGetValue(id, out ResearchDefinition research) ? research.DisplayName : id;
         }
 
         /// <summary>A fixed-point amount as a whole number for display, rounded up so a unit with any health left never shows 0.</summary>

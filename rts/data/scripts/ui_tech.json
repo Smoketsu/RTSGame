@@ -1,0 +1,39 @@
+// rts/data/scripts/ui_tech.json: the player-interface tech script (rts/docs/specs/player_interface.md section 2). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (set its "Script Relative Path" to scripts/ui_tech.json) and the headless harness (--script rts/data/scripts/ui_tech.json). ui_sandbox.json plus complete tech structures and casters beside each HQ at tick 0 (script spawns skip costs, requirements and construction): Skai gets a Windspire, a Storm Spire and two Stormcallers; Water gets a Shell Forge, a Reef Workshop and two Tidecallers; and two Skai Windrunners owned by Water stand near the Skai base as grounding targets (spawn_unit does not check factions). Used by the train, research and ability checks (UI-2, research panel, UI-5). Slot 0 is Skai, slot 1 is Water; set LocalCommands' "Local Player Slot" to 1 to play Water.
+{
+  "$schema_version": 1,
+  "$doc": "Interface tech sandbox: ui_sandbox.json plus tech structures and casters. Entity IDs: 1 Great Aerie, 2 to 5 Fledglings, 6 Grand Shell, 7 to 10 Tenders, 11 Windspire, 12 Storm Spire, 13 and 14 Stormcallers, 15 Shell Forge, 16 Reef Workshop, 17 and 18 Tidecallers, 19 and 20 Windrunners owned by Water.",
+  // Seed for the simulation's one random number generator. Unit: unsigned integer. Range: 0 to 18446744073709551615. Source: docs/decisions/ADR-005-state-hash.md; same as ai_vs_ai.json.
+  "seed": 1234,
+  // Most ticks to simulate. Unit: ticks (20 per second, so 72000 is one hour). Range: 0 to 1000000. Source: player_interface.md section 2; placeholder.
+  "ticks": 72000,
+  // The map to play on. Unit: map ID. Range: an ID under rts/data/maps. Source: player_interface.md section 2 (greybox_1v1).
+  "map": "greybox_1v1",
+  // Player slots. id: slot 0 to 254; team: 0 to 254 (different teams are enemies); faction: an ID from rts/data/factions; name: display text. No ai key: nobody plays a slot except the player. Source: player_interface.md section 2.
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
+    { "id": 1, "team": 1, "faction": "water", "name": "Water" }
+  ],
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter; x, y: position in tiles (structures at a tile centre). The spawns of ui_sandbox.json, then the tech structures and casters (positions are placeholders on open ground near each base). Source: player_interface.md section 2.
+  "commands": [
+    { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
+    { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 2, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "9", "y": "6" },
+    { "tick": 0, "issuer": 255, "sequence": 3, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "5", "y": "8" },
+    { "tick": 0, "issuer": 255, "sequence": 4, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "8", "y": "5" },
+    { "tick": 0, "issuer": 255, "sequence": 5, "type": "spawn_unit", "definition": "water.grand_shell", "owner": 1, "x": "57", "y": "57" },
+    { "tick": 0, "issuer": 255, "sequence": 6, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "58", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 7, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "55", "y": "58" },
+    { "tick": 0, "issuer": 255, "sequence": 8, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "59", "y": "56" },
+    { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "56", "y": "59" },
+    { "tick": 0, "issuer": 255, "sequence": 10, "type": "spawn_unit", "definition": "skai.windspire", "owner": 0, "x": "13.5", "y": "11.5" },
+    { "tick": 0, "issuer": 255, "sequence": 11, "type": "spawn_unit", "definition": "skai.storm_spire", "owner": 0, "x": "11.5", "y": "13.5" },
+    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "skai.stormcaller", "owner": 0, "x": "12", "y": "9" },
+    { "tick": 0, "issuer": 255, "sequence": 13, "type": "spawn_unit", "definition": "skai.stormcaller", "owner": 0, "x": "9", "y": "12" },
+    { "tick": 0, "issuer": 255, "sequence": 14, "type": "spawn_unit", "definition": "water.shell_forge", "owner": 1, "x": "50.5", "y": "52.5" },
+    { "tick": 0, "issuer": 255, "sequence": 15, "type": "spawn_unit", "definition": "water.reef_workshop", "owner": 1, "x": "52.5", "y": "50.5" },
+    { "tick": 0, "issuer": 255, "sequence": 16, "type": "spawn_unit", "definition": "water.tidecaller", "owner": 1, "x": "52", "y": "55" },
+    { "tick": 0, "issuer": 255, "sequence": 17, "type": "spawn_unit", "definition": "water.tidecaller", "owner": 1, "x": "55", "y": "52" },
+    { "tick": 0, "issuer": 255, "sequence": 18, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 1, "x": "18", "y": "16" },
+    { "tick": 0, "issuer": 255, "sequence": 19, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 1, "x": "16", "y": "18" }
+  ]
+}

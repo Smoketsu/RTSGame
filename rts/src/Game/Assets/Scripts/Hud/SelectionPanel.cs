@@ -100,6 +100,8 @@ namespace Rts.Game.Hud
         private void Awake()
         {
             _panel = HudBuild.Image(transform, "Selection Panel", new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(panelWidth, panelHeight), HudBuild.PanelColor);
+            // The panel blocks clicks so they do not select or order through it.
+            _panel.raycastTarget = true;
             Transform panel = _panel.transform;
             // Inner width left for content. Unit: reference pixels.
             float inner = panelWidth - 32f;

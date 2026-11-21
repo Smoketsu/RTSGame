@@ -31,6 +31,7 @@ namespace Rts.Game.Hud
             Vector2 size = new Vector2(560f, 44f);
             Vector2 inset = new Vector2(-12f, -10f);
             Image background = HudBuild.Image(transform, "Resource Bar", new Vector2(1f, 1f), inset, size, HudBuild.PanelColor);
+            background.raycastTarget = true;
             _text = HudBuild.Text(background.transform, "Resource Bar Text", new Vector2(0.5f, 0.5f), Vector2.zero, size - new Vector2(20f, 0f), fontSize, TextAnchor.MiddleRight);
         }
 

@@ -347,10 +347,12 @@ namespace Rts.Game.UnitSelection
 
         // ------------------------------------------------------------------ mouse
 
-        /// <summary>Left button: select or attack-move; right button: order.</summary>
+        /// <summary>Left button: select or attack-move; right button: order. A press over a HUD panel belongs to the HUD and is ignored here.</summary>
         private void HandleMouse()
         {
-            if (GameInput.GetMouseButtonDown(0))
+            // True while the cursor is over a HUD panel or button (they are raycast targets of the HUD canvas).
+            bool overHud = UnityEngine.EventSystems.EventSystem.current != null && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+            if (GameInput.GetMouseButtonDown(0) && !overHud)
             {
                 if (_attackMoveArmed)
                 {
@@ -385,7 +387,7 @@ namespace Rts.Game.UnitSelection
                 _leftDown = false;
                 _dragging = false;
             }
-            if (GameInput.GetMouseButtonDown(1))
+            if (GameInput.GetMouseButtonDown(1) && !overHud)
             {
                 if (_attackMoveArmed)
                 {

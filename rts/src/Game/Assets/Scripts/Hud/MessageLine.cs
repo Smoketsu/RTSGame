@@ -2,7 +2,7 @@
 // The HUD message line, top centre (player_interface.md UI-0): the last few refusals of the local player's commands and the
 // notices of each package, each shown for a few seconds. Reads SimulationHost.EventRaised: CommandRejectedEvent whose command the
 // local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
-// Stand, depletion of a field an own worker gathers from). Other HUD code may post with Show. Builds its own uGUI Text under the
+// Stand, depletion of a field an own worker gathers from; UI-2: units trained by own producers, own research completed). Other HUD code may post with Show. Builds its own uGUI Text under the
 // HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using System.Text;
@@ -143,7 +143,7 @@ namespace Rts.Game.Hud
             {
                 if (rejected.Command.Issuer == _commands.LocalPlayer)
                 {
-                    Show(RejectionTexts.For(rejected.Reason));
+                    Show(RejectionTexts.For(sim, rejected));
                 }
             }
             else if (simEvent is HqStateChangedEvent hqChanged)
@@ -158,6 +158,21 @@ namespace Rts.Game.Hud
                 if (TryGetOwn(sim, lastStand.Unit, out Unit hq))
                 {
                     Show(hq.Definition.DisplayName + ": Last Stand (" + HudBuild.Seconds(lastStand.InvulnerableTicks, sim.Clock.TicksPerSecond) + ")");
+                }
+            }
+            else if (simEvent is UnitTrainedEvent trained)
+            {
+                if (TryGetOwn(sim, trained.Producer, out Unit _))
+                {
+                    Show(HudBuild.NameOf(sim, trained.DefinitionId) + " ready");
+                }
+            }
+            else if (simEvent is ResearchCompletedEvent research)
+            {
+                // Only the local player's own research is ever shown (research_and_unlocks.md decision 6).
+                if (research.Owner == _commands.LocalPlayer)
+                {
+                    Show("Research complete: " + HudBuild.NameOf(sim, research.ResearchId));
                 }
             }
             else if (simEvent is FieldDepletedEvent depleted)
