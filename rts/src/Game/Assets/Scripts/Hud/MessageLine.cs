@@ -3,7 +3,8 @@
 // notices of each package, each shown for a few seconds. Reads SimulationHost.EventRaised: CommandRejectedEvent whose command the
 // local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
 // Stand, depletion of a field an own worker gathers from; UI-2: units trained by own producers, own research completed; UI-3:
-// own build orders cancelled with their refund, own structures placed and completed; UI-4: own wall tiles skipped). Other HUD code may post with Show. Builds its own uGUI Text under the
+// own build orders cancelled with their refund, own structures placed and completed; UI-4: own wall tiles skipped; UI-5: own
+// Downdraft casts with the number of units grounded). Other HUD code may post with Show. Builds its own uGUI Text under the
 // HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using System.Text;
@@ -208,6 +209,13 @@ namespace Rts.Game.Hud
                 if (TryGetOwn(sim, completed.Structure, out Unit _))
                 {
                     Show(HudBuild.NameOf(sim, completed.DefinitionId) + " complete");
+                }
+            }
+            else if (simEvent is GroundingCastEvent grounding)
+            {
+                if (grounding.Owner == _commands.LocalPlayer)
+                {
+                    Show("Downdraft: " + grounding.UnitsGrounded + " grounded");
                 }
             }
             else if (simEvent is FieldDepletedEvent depleted)

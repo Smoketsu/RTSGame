@@ -67,6 +67,12 @@ namespace Rts.Game.Hud
             { "no_tiles", null },
             { "too_many_tiles", null },
             { "duplicate_tile", null },
+            // UI-5: Downdraft and the wave.
+            { "no_ability", null },
+            { "not_wave_caster", null },
+            { "out_of_range", "Out of range" },
+            { "on_cooldown", "Not ready" },
+            { "no_direction", "Aim away from the caster" },
         };
 
         /// <summary>

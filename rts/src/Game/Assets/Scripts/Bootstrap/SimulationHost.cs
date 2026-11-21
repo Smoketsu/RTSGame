@@ -471,7 +471,7 @@ namespace Rts.Game.Bootstrap
             }
         }
 
-        /// <summary>Reads the events of the tick that just ran: spawns, removals, hashes and rejections.</summary>
+        /// <summary>Reads the events of the tick that just ran: spawns, removals, hashes, rejections, layer changes (grounding) and wave pushes.</summary>
         private void ProcessEvents()
         {
             // Events of the latest tick, oldest first; valid until the next Step.
@@ -499,6 +499,32 @@ namespace Rts.Game.Bootstrap
                 {
                     Debug.LogWarning("[SimulationHost] " + rejected.Describe());
                 }
+                else if (simEvent is UnitLayerChangedEvent layerChanged)
+                {
+                    // A grounded flyer drops to ground height (and rises again when the status ends), without a blend.
+                    SnapView(layerChanged.Unit, layerChanged.To == MovementLayer.Air ? AirHeight : GroundHeight);
+                }
+                else if (simEvent is UnitPushedEvent pushed)
+                {
+                    // A wave push is instant in the simulation, so the cube jumps instead of sliding.
+                    if (_views.TryGetValue(pushed.Unit, out UnitView pushedView))
+                    {
+                        SnapView(pushed.Unit, pushedView.Height);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Puts a unit's cube at its current simulation position with a new height above ground, with no blend from the previous tick.</summary>
+        /// <param name="id">The unit.</param>
+        /// <param name="height">Cube centre height above the terrain. Unit: world units. Range: GroundHeight or AirHeight.</param>
+        private void SnapView(EntityId id, float height)
+        {
+            if (_views.TryGetValue(id, out UnitView view) && _sim.Units.TryGet(id, out Unit unit))
+            {
+                view.Height = height;
+                view.Current = ToWorld(unit.Position, height);
+                view.Previous = view.Current;
             }
         }
 
