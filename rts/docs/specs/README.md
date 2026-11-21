@@ -69,6 +69,12 @@ Build order for Phase 2: planetary_cycles first (it changes the step order, the 
 | --- | --- | --- | --- |
 | [micro_benchmark.md](micro_benchmark.md) | Harness `--fights`: equal-value army fights without strategic AI (attack-move, both seats, flat, high ground, flooded and choke arenas), value-exchange matrix, design-rule checks 1 to 6 with the 15 s Rooted HQ floor, the matchups file (rule 7) outside the content digest; no `rts/src/Sim` change | P-005 decision 9 (built first) | balance harness (built); build F0 to F4 in order |
 
+## Player interface (21 Nov 2026, PC session)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [player_interface.md](player_interface.md) | Unity packages UI-0 to UI-10: local command path and session recording, resource bar, train, build, wall drag, abilities, fog, event drawing, timeline and cycle pick, Core, surrender and match end; sim gaps and open questions | 9 | everything built so far; research slot waits for P-007 |
+
 ## Shared decisions (resolved across specs)
 
 **Step order** (the `Simulation.cs` header is authoritative; Phase 2 adds step 9, the coordinator makes the edit): 1. clear events; 2. apply commands in (issuer, sequence) order; 3. statuses (`StatusSystem.BeginTick`); 4. HQ timers (`HqSystem.Step`); 5. movement, then separation (`UnitSeparation`); 6. combat; 7. economy; 8. faction mechanics in ascending ordinal ID (`flooding` before `momentum`); 9. **cycles and Core** (`CycleSystem.Step`: out-of-match sides, presence, capture, hold accrual, Core win, lock, shift and quake paths, quake damage); 10. vision recompute; 11. state hash every interval; 12. advance the clock. A status applied by combat on tick t wipes Momentum on tick t and changes movement from tick t+1; a cycle that starts on tick S changes movement and combat from tick S+1; the hash and the AI read end-of-tick vision and Core state.
