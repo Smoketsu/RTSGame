@@ -1,0 +1,65 @@
+// rts/campaign/missions/tutorial_01.json: first tutorial mission (camera, selection, movement, gathering, building). Part of rts/campaign/missions; read by Rts.Campaign.MissionLoader and played by Rts.Campaign.MissionRunner (rts/docs/specs/campaign_scripting.md).
+{
+  "$schema_version": 1,
+  "$doc": "Tutorial 1, First Flight: pan the camera to the Core, select the Windrunner, fly it off the plateau, gather with two Fledglings and build a Roost. One human Skai player on greybox_1v1, no enemy, no Planetary Cycles. Entity IDs: 1 Great Aerie, 2 and 3 Fledglings, 4 Windrunner, 5 the Fledgling hatched when gathering starts.",
+  "id": "tutorial_01",
+  "display_name": "First Flight",
+  "map": "greybox_1v1",
+  // Simulation seed. Unit: integer. Range: 0 to 2147483647. Source: placeholder (any fixed seed; nothing random happens without cycles or AI).
+  "seed": 1,
+  // Time limit after which the mission is lost with reason timeout. Unit: seconds. Range: 30 to 7200. Source: placeholder for the tutorial length.
+  "max_seconds": 900,
+  // Planetary Cycles off, so no warning interrupts the lesson. Unit: boolean. Range: true or false. Source: tutorial design choice.
+  "planetary_cycles": false,
+  "players": [
+    { "id": 0, "team": 0, "faction": "skai", "name": "You", "controller": "human" }
+  ],
+  // Starting units on the south-west plateau; positions match rts/data/scripts/ai_vs_ai.json so the HQ starts Rooted. Unit: tiles. Source: Core gameplay loop (Opening).
+  "setup": [
+    { "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
+    { "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
+    { "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "9", "y": "6" },
+    { "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "10.5", "y": "10.5" }
+  ],
+  "objectives": [
+    { "id": "look_around", "text": "Move the camera to the Core at the centre of the map.", "requires": [],
+      // Camera focus within this circle around the Core. Unit: tiles. Range: radius 0.5 to 64. Source: tutorial placeholder.
+      "complete_when": { "type": "camera_in_area", "x": "32", "y": "32", "radius_tiles": "6" },
+      "hint_area": { "x": "32", "y": "32", "radius_tiles": "4" } },
+    { "id": "select_rider", "text": "Select your Windrunner.", "requires": ["look_around"],
+      "complete_when": { "type": "selection_contains", "owner": 0, "definition": "skai.windrunner", "min_count": 1 } },
+    { "id": "move_rider", "text": "Ride the Windrunner down the east ramp to the marked spot.", "requires": ["select_rider"],
+      // Arrival circle just below the east ramp (tiles 14,6 to 14,9). Unit: tiles. Range: radius 0.5 to 64. Source: tutorial placeholder.
+      "complete_when": { "type": "units_in_area", "owner": 0, "definition": "skai.windrunner", "x": "18.5", "y": "8.5", "radius_tiles": "1.5", "min_count": 1 },
+      "hint_area": { "x": "18.5", "y": "8.5", "radius_tiles": "1.5" } },
+    { "id": "gather", "text": "Send your Fledglings to gather. Bring back two loads.", "requires": ["move_rider"],
+      // Deliveries needed. Unit: resource_deposited events. Range: 1 to 1000. Source: tutorial placeholder.
+      "complete_when": { "type": "event_count", "event": "resource_deposited", "owner": 0, "min_count": 2 } },
+    { "id": "build_roost", "text": "Have a Fledgling build a Roost on the plateau.", "requires": ["gather"],
+      "complete_when": { "type": "event_count", "event": "structure_completed", "owner": 0, "definition": "skai.roost", "min_count": 1 } }
+  ],
+  "triggers": [
+    { "id": "welcome", "when": { "mission_started": true }, "actions": [
+      // Message length on screen. Unit: seconds. Range: 1 to 60. Source: tutorial placeholder.
+      { "type": "show_message", "text": "Welcome, rider. Drag the screen edge or use the arrow keys to look around.", "seconds": 8 } ] },
+    { "id": "explain_select", "when": { "objective_activated": "select_rider" }, "actions": [
+      { "type": "show_message", "text": "Left-click a unit to select it.", "seconds": 6 },
+      { "type": "highlight_units", "units": [4], "seconds": 6 } ] },
+    { "id": "explain_move", "when": { "objective_activated": "move_rider" }, "actions": [
+      { "type": "show_message", "text": "Right-click the ground to move. Ramps lead off the high ground.", "seconds": 6 },
+      { "type": "camera_focus", "x": "16", "y": "8" } ] },
+    { "id": "hatch_helper", "when": { "objective_activated": "gather" }, "actions": [
+      { "type": "show_message", "text": "A new Fledgling hatches. Right-click a crystal field with Fledglings selected to gather.", "seconds": 6 },
+      // A third worker joins; scripted through the command pipeline (issuer: script). Unit: tiles. Source: tutorial placeholder.
+      { "type": "commands", "issuer": "script", "delay_seconds": 0, "commands": [
+        { "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "8.5", "y": "9.5" } ] },
+      { "type": "highlight_area", "x": "4.5", "y": "10.5", "radius_tiles": "1.5", "seconds": 6 } ] },
+    { "id": "explain_build", "when": { "objective_activated": "build_roost" }, "actions": [
+      { "type": "show_message", "text": "Select a Fledgling, open the build menu and place a Roost. It trains Windrunners.", "seconds": 8 } ] },
+    { "id": "farewell", "when": { "objective_completed": "build_roost" }, "actions": [
+      { "type": "show_message", "text": "Well flown. Your aerie grows.", "seconds": 6 } ] }
+  ],
+  "victory_objective": "build_roost",
+  // Losing the HQ (removed by any means) ends the lesson. Source: The mobile HQ unit (a player loses when their HQ is destroyed).
+  "defeat_when": { "type": "player_state", "player": 0, "state": "defeated" }
+}

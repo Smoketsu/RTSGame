@@ -1,0 +1,16 @@
+// rts/campaign/inputs/tutorial_01.json: scripted player inputs that play tutorial_01 headless to its last objective. Part of rts/campaign/inputs; read by Rts.Campaign.MissionInputs in the MissionRunner tool and the tutorial tests (rts/docs/specs/campaign_scripting.md).
+{
+  "$schema_version": 1,
+  "$doc": "Plays tutorial_01 as player 0: camera to the Core, select the Windrunner (ID 4), move it to (18.5, 8.5), Fledglings 2 and 3 to fields 0 and 1, Fledgling 3 builds a Roost at tile (11, 11).",
+  "mission": "tutorial_01",
+  "player": 0,
+  // Each delay is a reaction time after the objective becomes active. Unit: seconds. Range: 0 to 3600. Source: test placeholder.
+  "inputs": [
+    { "on_objective": "look_around", "delay_seconds": 1, "signal": { "type": "camera_moved", "x": "32", "y": "32" } },
+    { "on_objective": "select_rider", "delay_seconds": 0.5, "signal": { "type": "selection_changed", "units": [4] } },
+    { "on_objective": "move_rider", "delay_seconds": 0.5, "command": { "type": "move_unit", "unit": 4, "x": "18.5", "y": "8.5" } },
+    { "on_objective": "gather", "delay_seconds": 0.5, "command": { "type": "gather", "unit": 2, "field": 0 } },
+    { "on_objective": "gather", "delay_seconds": 0.5, "command": { "type": "gather", "unit": 3, "field": 1 } },
+    { "on_objective": "build_roost", "delay_seconds": 0.5, "command": { "type": "build_structure", "unit": 3, "definition": "skai.roost", "x": 11, "y": 11 } }
+  ]
+}
