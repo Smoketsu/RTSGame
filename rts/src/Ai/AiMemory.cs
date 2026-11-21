@@ -70,6 +70,18 @@ namespace Rts.Ai
     /// <summary>Everything one controller remembers between thinks. Mutable; owned by one controller.</summary>
     public sealed class AiMemory
     {
+        /// <summary>Package B: the budget account of each queue and resource (index queue x 2 + resource, queue order of <see cref="AiBudget"/>), as closed by the last think. Unit: resource units. Range: 0 upward each; never above the matching want.</summary>
+        public int[] BudgetAccounts { get; } = new int[AiBudget.Cells];
+
+        /// <summary>Package B: the want of each queue and resource (the cost of the head item that failed on money in the last think; 0 for none), same layout. Unit: resource units. Range: 0 upward each.</summary>
+        public int[] BudgetWants { get; } = new int[AiBudget.Cells];
+
+        /// <summary>Package B: cumulative spending of each queue and resource since match start, same layout (read by the defence ceiling and the tests). Unit: resource units. Range: 0 upward each.</summary>
+        public int[] BudgetSpent { get; } = new int[AiBudget.Cells];
+
+        /// <summary>Package B: true while the free rare bank is idle (at or above budget_rare_surplus_on and not yet below budget_rare_surplus_off), so rare-cost units weigh more in the composition. Unit: boolean.</summary>
+        public bool RareSurplusActive { get; set; }
+
         /// <summary>AI-P P2 hysteresis: true while rule SD step SD-4 is armed (it fired and its thresholds, relaxed by threat_defence_release_fraction, still hold).</summary>
         public bool ThreatDefenceArmed { get; set; }
 

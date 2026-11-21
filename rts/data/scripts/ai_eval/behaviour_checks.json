@@ -28,6 +28,24 @@
       "min_gain_fraction": 0.10,
       // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: balance_measurement.md M.6; placeholder.
       "max_violation_fraction": 0
+    },
+    "workers_at": {
+      // Run this check. Unit: boolean. Range: true or false. Source: specs/ai_budget_queues.md B.4.1.
+      "enabled": true,
+      // Second of the bank snapshot at which own workers are counted. Unit: seconds. Range: one of summary_bank_times_seconds in ai_eval.json. Source: specs/ai_budget_queues.md B.4.1 (bar BB-3 compares the printed medians).
+      "at_seconds": 300,
+      // Fewest workers that hold. Unit: workers. Range: 0 to 200. Source: specs/ai_budget_queues.md B.4.1 (0: always holds; the bar is on the median).
+      "min_workers": 0,
+      // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: specs/ai_budget_queues.md B.4.1.
+      "max_violation_fraction": 0
+    },
+    "first_drop_off": {
+      // Run this check. Unit: boolean. Range: true or false. Source: specs/ai_budget_queues.md B.4.1.
+      "enabled": true,
+      // Latest second at which the first own non-HQ drop-off may complete. Unit: seconds. Range: 0 to 7200. Source: specs/ai_budget_queues.md B.4.1 (7200: always holds; bar BB-4 compares the printed medians).
+      "max_seconds": 7200,
+      // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: specs/ai_budget_queues.md B.4.1.
+      "max_violation_fraction": 0
     }
   }
 }

@@ -37,6 +37,8 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `FightPredictor.cs` | Static fight predictor over unit definitions and the damage table (skirmish_ai_v3.md C.1) |
 | `AiCounter.cs` | Unit pool, counter scores and counter-mix weights (skirmish_ai_v3.md C.3 and C.4) |
 | `AiBrainFight.cs` | The package D fight choices (second half of the brain's working state): attack and retreat by prediction, target choice, rule HR harassment, measured defence, unit control (skirmish_ai_v3.md D) |
+| `AiBudget.cs` | Package B: the budget queue arithmetic on arrays (Open, Distribute, Close, the defence ceiling, the rare surplus helpers) |
+| `AiBrainBudget.cs` | Package B: the Open and Close steps of a think and the buying helpers of the six queues (part of `AiBrain.Turn`) |
 | `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
 | `AiProximity.cs` | Grid index over a unit list so spatial tests look only at nearby cells (bounded by the army size), not at every pair |
 | `AiIntent.cs` | Intents and `AiCommandWriter` (intents to commands with sequence numbers) |
@@ -106,3 +108,9 @@ determinism review.
   speed: the count-weighted mean speed of the enemy model's armed types that can hit its layer, else the mean over the enemy factions'
   armed mobile definitions, else it qualifies. The flyer exemption and `harass_min_speed_tiles_per_second` then do not apply.
   `aggressive_s5` has 1.2; `abl_s5_no_h` is the same file with AI-H off. `AiWorldView.EnemyFactionIds` lists the enemy factions.
+- Budget queues (rts/docs/specs/ai_budget_queues.md package B, `AiBudget.cs` and `AiBrainBudget.cs`): the root keys `use_budget_queues`,
+  `budget_common_weights`, `budget_rare_weights` (objects with the six queue IDs economy, expansion, production, army, tech, defence),
+  `budget_opening_production_factor`, `budget_threat_defence_factor`, `budget_worker_floor`, `budget_defence_max_spend_share` and the three
+  `budget_rare_surplus_*` keys (every profile carries them; the switch false plays exactly as before). With the switch on the AI divides its bank between
+  the queues in proportion to the weights and each rule buys only from its own queue's account (see the header of `AiBrain.cs`); `aggressive_s5_b` has
+  it on and `abl_s5b_no_b` is the same file with it off (it plays exactly as `aggressive_s5`). Queue state lives in `AiMemory` (never hashed).

@@ -306,6 +306,26 @@
   "threat_defence_release_fraction": 1,
   // AI-H: a unit may join the harass squad when its speed is at least this multiple of the chaser speed (the count-weighted mean speed of the enemy model's armed types that can hit its layer; the enemy faction's roster mean when the model has none; it qualifies when nothing can hit its layer); replaces the fixed harass_min_speed_tiles_per_second and the flyer exemption. 0 keeps that old rule. Shipped at 0 in this profile since 21 Nov 2026: the paired ladder (docs/reports/paired_first/README.md) found no measurable effect, so the package is switched off (P-006 decision 3); set 1.2 to switch it on. Unit: ratio. Range: 0 to 4. Source: field_saturation.md AI-H; placeholder.
   "harass_speed_ratio": 0,
+  // Package B: the AI divides its bank between six budget queues (economy, expansion, production, army, tech, defence) instead of rule R's shared reservations; false plays exactly as before. Unit: boolean. Range: true or false. Source: specs/ai_budget_queues.md B.2; placeholder (the switch is a measurement, shipped true only in aggressive_s5_b).
+  "use_budget_queues": false,
+  // Package B: weight of each queue in the split of free common (relative; the army's 60 is the reference): economy 120 (a worker per 12 s needs 125 common per 30 s), expansion 120 (a depot is income like two workers), production 10 and tech 4 (about 0.21 of the army together, from the measured structure share), army 60, defence 6 (0.09 against the army, under the 0.15 behaviour bar). Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder beyond those anchors.
+  "budget_common_weights": { "economy": 120, "expansion": 120, "production": 10, "army": 60, "tech": 4, "defence": 6 },
+  // Package B: the same for free rare: production 30 (Storm Spire, Reef Workshop), army 60, tech 30 (half the army); 0 where no item costs rare. Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_rare_weights": { "economy": 0, "expansion": 0, "production": 30, "army": 60, "tech": 30, "defence": 0 },
+  // Package B: multiplier on the production queue's weights before the drawn opening's handover, so a due build-order step keeps the claim rule R gave it (10 x 12 = 120, twice the army). Unit: factor. Range: 1 to 20 (integer). Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_opening_production_factor": 12,
+  // Package B: multiplier on the defence queue's weights while a threat is inside the base (0.09 to 0.17 of the contested share); the ceiling still holds. Unit: factor. Range: 1 to 20 (integer). Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_threat_defence_factor": 2,
+  // Package B: own workers (alive, not queued) below which the army and defence queues pause; the starting worker count is 4, so only losses pause them. 0 means never. Unit: workers. Range: 0 to 200. Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_worker_floor": 4,
+  // Package B: ceiling on the defence queue's share of all spending, checked before each defence purchase (the 0.15 static_defence_share bar less 0.03 for orders the simulation refuses); 0 means no ceiling. Unit: fraction. Range: 0 to 1. Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_defence_max_spend_share": 0.12,
+  // Package B: free rare at or above which rare-cost units are boosted in the composition (above the dearest rare item, 80, below the 150 unspent bar); 0 switches the rule off. Unit: resource units (rare). Range: 0 to 100000. Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_rare_surplus_on": 100,
+  // Package B: free rare below which the boost ends (one Leviathan, 80). Unit: resource units (rare). Range: 0 to budget_rare_surplus_on. Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_rare_surplus_off": 80,
+  // Package B: multiplier on the composition weight of units with a rare cost while the surplus is active (3 is the smallest integer at which the Water mix asks for the rare income it receives). Unit: factor. Range: 1 to 20 (integer). Source: specs/ai_budget_queues.md B.3; placeholder.
+  "budget_rare_surplus_weight_factor": 3,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

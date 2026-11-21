@@ -42,10 +42,17 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Mechanic uses by mechanic ID.</summary>
             public SortedDictionary<string, int> Mechanics { get; } = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
-            /// <summary>Bundles the bank array.</summary>
+            /// <summary>Own workers at each bank time, null until the time is reached. Unit: workers. Range: 0 upward.</summary>
+            public int?[] Workers { get; }
+
+            /// <summary>Completion ticks of own non-HQ drop-offs, in event order (ascending). Unit: ticks. Range: 0 upward.</summary>
+            public List<int> DropOffs { get; } = new List<int>();
+
+            /// <summary>Bundles the bank and worker arrays.</summary>
             public Slot(int bankTimes)
             {
                 Bank = new int[bankTimes][];
+                Workers = new int?[bankTimes];
             }
         }
 
@@ -217,6 +224,16 @@ namespace Rts.Tools.BalanceHarness
                     foreach (Player player in sim.Players.All)
                     {
                         _slots[player.Id.Value].Bank[i] = new[] { player.Common, player.Rare };
+                        // Own workers now alive: can gather, no footprint. Unit: workers. Range: 0 upward.
+                        int workers = 0;
+                        foreach (Unit unit in sim.Units.All)
+                        {
+                            if (unit.Owner == player.Id && unit.Definition.Economy.CanGather && unit.Definition.Economy.FootprintTiles == 0)
+                            {
+                                workers++;
+                            }
+                        }
+                        _slots[player.Id.Value].Workers[i] = workers;
                     }
                 }
             }
@@ -235,7 +252,7 @@ namespace Rts.Tools.BalanceHarness
                 {
                     slot.Income.Add(new int[2]);
                 }
-                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics));
+                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs));
             }
             return summaries.ToArray();
         }
@@ -316,6 +333,10 @@ namespace Rts.Tools.BalanceHarness
             else if (simEvent is StructureCompletedEvent done && _known.TryGetValue(done.Structure, out Known? built) && _slots.TryGetValue(built.Owner.Value, out Slot? builder))
             {
                 builder.Completed[done.DefinitionId] = (builder.Completed.TryGetValue(done.DefinitionId, out int count) ? count : 0) + 1;
+                if (built.Definition.Economy.IsDropOff && built.Definition.Hq == null)
+                {
+                    builder.DropOffs.Add(done.Tick);
+                }
             }
             else if (simEvent is HqStateChangedEvent hq && _known.TryGetValue(hq.Unit, out Known? hqKnown) && _slots.TryGetValue(hqKnown.Owner.Value, out Slot? hqSlot) && sim.Units.TryGet(hq.Unit, out Unit? hqUnit))
             {

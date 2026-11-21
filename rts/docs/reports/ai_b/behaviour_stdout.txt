@@ -1,0 +1,17 @@
+chunk 1/3 prototype_1v1 skai_vs_skai 24/24
+chunk 2/3 prototype_1v1 skai_vs_water 24/24
+chunk 3/3 prototype_1v1 water_vs_water 24/24
+BEHAVIOUR static_defence_share profile=aggressive_s5_b games=72 held=72 violated=0 unjudged=0 metric_median=0.039 metric_max=0.076 bar=0.150 PASS
+BEHAVIOUR static_defence_share profile=abl_s5b_no_b games=72 held=72 violated=0 unjudged=0 metric_median=0.026 metric_max=0.048 bar=0.150 PASS
+BEHAVIOUR hq_move_new_income profile=aggressive_s5_b games=72 held=62 violated=7 unjudged=3 metric_median=0.000 metric_max=1.000 bar=0.000 FAIL moves=16 violating_moves=7 unjudged_moves=3
+BEHAVIOUR hq_move_new_income profile=abl_s5b_no_b games=72 held=18 violated=36 unjudged=18 metric_median=1.000 metric_max=1.000 bar=0.000 FAIL moves=57 violating_moves=36 unjudged_moves=19
+BEHAVIOUR workers_at profile=aggressive_s5_b games=72 held=72 violated=0 unjudged=0 metric_median=21.000 metric_max=24.000 bar=0.000 PASS
+BEHAVIOUR workers_at profile=abl_s5b_no_b games=72 held=72 violated=0 unjudged=0 metric_median=24.000 metric_max=26.000 bar=0.000 PASS
+BEHAVIOUR first_drop_off profile=aggressive_s5_b games=72 held=72 violated=0 unjudged=0 metric_median=82.000 metric_max=119.000 bar=7200.000 PASS
+BEHAVIOUR first_drop_off profile=abl_s5b_no_b games=72 held=72 violated=0 unjudged=0 metric_median=102.000 metric_max=114.000 bar=7200.000 PASS
+BEHAVIOUR_SUMMARY candidate=aggressive_s5_b passed=3 of=4
+elapsed 1635.7 s
+
+real	27m16.268s
+user	49m15.752s
+sys	0m2.192s

@@ -168,7 +168,7 @@ namespace Rts.Sim.Tests.Harness
         public void Registry_AndDataFile()
         {
             BehaviourSettings shipped = BehaviourSettings.Load(TestData.FindDataDirectory());
-            Assert.That(shipped.Entries.Count, Is.EqualTo(2));
+            Assert.That(shipped.Entries.Count, Is.EqualTo(4));
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), BehaviourSettings.RelativePath));
             DataValidationException unknown = Expect.Throws<DataValidationException>(() => BehaviourSettings.Parse(text.Replace("\"static_defence_share\": {", "\"no_such_check\": {")));
             Assert.That(unknown.Message, Does.StartWith(BehaviourSettings.SourceName).And.Contain("no_such_check"));
@@ -179,7 +179,7 @@ namespace Rts.Sim.Tests.Harness
             List<string> notDeclared = new List<string>();
             List<IBehaviourCheck> checks = one.Checks(null, BucketTicks, notDeclared);
             Assert.That(checks.Count, Is.EqualTo(1));
-            Assert.That(notDeclared, Is.EqualTo(new[] { "hq_move_new_income" }));
+            Assert.That(notDeclared, Is.EqualTo(new[] { "hq_move_new_income", "workers_at", "first_drop_off" }));
             Expect.Throws<HarnessException>(() => one.Checks(new[] { "no_such_check" }, BucketTicks, new List<string>()));
         }
 

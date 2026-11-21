@@ -57,11 +57,19 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Length of one income bucket of the summary. Unit: ticks. Range: 1 upward.</summary>
         public int BucketTicks { get; }
 
-        /// <summary>Bundles the values.</summary>
-        public BehaviourContext(int rareWeightPt, int bucketTicks)
+        /// <summary>Seconds of the summary's bank snapshots (summary_bank_times_seconds), or empty when not known (settings validation without a run). Unit: seconds. Range: 0 to 8 entries of 1 to 7200.</summary>
+        public IReadOnlyList<int> BankSeconds { get; }
+
+        /// <summary>Simulation ticks per second (the match tuning), or 1 when not known. Unit: ticks per second. Range: 1 upward.</summary>
+        public int TicksPerSecond { get; }
+
+        /// <summary>Bundles the values; the last two are optional (unknown while only validating settings).</summary>
+        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1)
         {
             RareWeightPt = rareWeightPt;
             BucketTicks = bucketTicks;
+            BankSeconds = bankSeconds ?? Array.Empty<int>();
+            TicksPerSecond = ticksPerSecond;
         }
 
         /// <summary>common x 10 000 + rare weight x rare, one amount in the weighted unit (parts per 10 000 of a common unit).</summary>
@@ -109,6 +117,8 @@ namespace Rts.Tools.BalanceHarness
         {
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(StaticDefenceShare.CheckId, c => new StaticDefenceShare(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(HqMoveNewIncome.CheckId, c => new HqMoveNewIncome(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(WorkersAt.CheckId, c => new WorkersAt(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(FirstDropOff.CheckId, c => new FirstDropOff(c)),
         };
 
         /// <summary>True when <paramref name="id"/> is a registered check.</summary>
@@ -308,6 +318,143 @@ namespace Rts.Tools.BalanceHarness
                 long unjudged = moves - judged;
                 CheckOutcome outcome = violating > 0 ? CheckOutcome.Violated : moves > 0 && judged == 0 ? CheckOutcome.Unjudged : CheckOutcome.Held;
                 return new BehaviourResult(outcome, violating, 1, new[] { moves, violating, unjudged });
+            }
+        }
+
+        /// <summary>
+        /// Package B (ai_budget_queues.md B.4.1): own workers at one bank time. Metric = the workers the summary recorded at at_seconds; Unjudged when the game ended before it (or the record has no workers field);
+        /// Held when at least min_workers, else Violated. at_seconds must be one of summary_bank_times_seconds (checked when the context knows them).
+        /// </summary>
+        private sealed class WorkersAt : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "workers_at";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Index of at_seconds in the bank times. Unit: index. Range: 0 to 7; 0 when the bank times are not known.</summary>
+            private int _index;
+
+            /// <summary>Fewest workers that hold. Unit: workers. Range: 0 to 200.</summary>
+            private int _minWorkers;
+
+            /// <summary>Bundles the context.</summary>
+            public WorkersAt(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => PredictEvaluator.Ratio3(_minWorkers, 1);
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "at_seconds", "min_workers", "max_violation_fraction");
+                Enabled = entry.RequireBool("enabled");
+                JsonValue at = entry.Require("at_seconds");
+                // Seconds of the snapshot. Unit: seconds. Range: 1 to 7200.
+                int seconds = at.AsInt(1, 7200);
+                if (_context.BankSeconds.Count > 0)
+                {
+                    _index = -1;
+                    for (int i = 0; i < _context.BankSeconds.Count; i++)
+                    {
+                        if (_context.BankSeconds[i] == seconds)
+                        {
+                            _index = i;
+                        }
+                    }
+                    if (_index < 0)
+                    {
+                        throw at.Fail("must be one of summary_bank_times_seconds (found " + seconds.ToString(CultureInfo.InvariantCulture) + ")");
+                    }
+                }
+                _minWorkers = entry.RequireInt("min_workers", 0, 200);
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                if (_index >= slot.Workers.Count || slot.Workers[_index] == null)
+                {
+                    return new BehaviourResult(CheckOutcome.Unjudged, 0, 1);
+                }
+                // Workers alive at the snapshot. Unit: workers. Range: 0 upward.
+                int workers = slot.Workers[_index]!.Value;
+                return new BehaviourResult(workers >= _minWorkers ? CheckOutcome.Held : CheckOutcome.Violated, workers, 1);
+            }
+        }
+
+        /// <summary>
+        /// Package B (ai_budget_queues.md B.4.1): when the first own non-HQ drop-off completed. Metric = seconds of the first entry of drop_off_ticks (integer division by the ticks per second);
+        /// Unjudged when there is none; Held when at most max_seconds.
+        /// </summary>
+        private sealed class FirstDropOff : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "first_drop_off";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Latest second that holds. Unit: seconds. Range: 0 to 7200.</summary>
+            private int _maxSeconds;
+
+            /// <summary>Bundles the context.</summary>
+            public FirstDropOff(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => PredictEvaluator.Ratio3(_maxSeconds, 1);
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "max_seconds", "max_violation_fraction");
+                Enabled = entry.RequireBool("enabled");
+                _maxSeconds = entry.RequireInt("max_seconds", 0, 7200);
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                if (slot.DropOffTicks.Count == 0)
+                {
+                    return new BehaviourResult(CheckOutcome.Unjudged, 0, 1);
+                }
+                // Second of the first drop-off, integer division. Unit: seconds. Range: 0 upward.
+                int seconds = slot.DropOffTicks[0] / _context.TicksPerSecond;
+                return new BehaviourResult(seconds <= _maxSeconds ? CheckOutcome.Held : CheckOutcome.Violated, seconds, 1);
             }
         }
     }
