@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Research notes `docs/research/rts_ai_papers.md`: what the build-order search paper, the StarCraft AI survey and the agents-for-balancing paper say, what packages E, S and A can borrow, and nine sourcing corrections to P-006 (P-006 section 7 updated).
 - Balance harness: `--predict-fights` scores `FightPredictor` against measured fights (headline accuracy, breakdowns by terrain, value, unit pair and unmodelled mechanic, calibration, and the SIMULATE / FIX_FORMULA / DEVELOPER_CHOICE rule); settings in `data/scripts/fights/predict.json`; first report `docs/reports/predict_fights/` (0.735 on 765 decided fights, SIMULATE).
 - Balance harness: `--ladder --paired` plays the paired layout (shared seed and factions per pair, candidate slot in the record) and reports the exact sign test, Clopper-Pearson interval, advantage, minimum detectable effect and the PASS / FAIL / NO_MEASURABLE_EFFECT / INCOMPLETE verdict (exit 4 for no measurable effect). Unpaired ladders print one new `EFFECT` line with the same statistics; `ai_eval.json` gains `effect_alpha`, `effect_z_alpha`, `effect_z_power` and `paired_min_complete_fraction`.
 - First paired ladder, `docs/reports/paired_first/` (`aggressive_s5` against `abl_s5_no_h`, 108 pairs): discordant share 0.231, minimum detectable effect 6.5 points (9.8 on mirror cells), no measurable effect of AI-H.

@@ -128,7 +128,7 @@ Read (through page summaries, so close paraphrase, not quotation):
 - 0 A.D. Petra source: `config.js`, `queueManager.js`, `defenseManager.js`, `attackManager.js`, and the first parts of `headquarters.js` and `attackPlan.js`. https://github.com/0ad/0ad/tree/master/binaries/data/mods/public/simulation/ai/petra . Not read: `baseManager.js`, `buildManager.js`, the code that enforces tower counts.
 - Halo Wars 2 commander AI, summary only. https://gamedeveloper.com/design/atriox-s-commander-ai-in-halo-wars-2
 
-Known by title and abstract only (search summaries; the full texts were not reachable from the build environment):
+Read in full on 21 Nov 2026 (the first, third and fourth below; notes and nine corrections to this proposal's sourcing are in `rts/docs/research/rts_ai_papers.md`, section 5). The Robertson and Watson review is still known by abstract only (its site needs a login):
 
 - Ontañón and others, "A Survey of Real-Time Strategy Game AI Research and Competition in StarCraft". https://hal.archives-ouvertes.fr/hal-00871001
 - Robertson and Watson, "A Review of Real-Time Strategy Game AI". https://ojs.aaai.org/index.php/aimagazine/article/view/2478
