@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Spec `docs/specs/player_interface.md` for the PC session: Unity packages UI-0 to UI-10 that make every simulation feature usable by a player (each names the command sent and the query or event read), the simulation gaps a UI needs filled, and open questions.
 - Proposal P-007 (`docs/proposals/P-007-research-and-unlocks.md`): research and unlocks as a rare-resource sink, sized from the measured rare banks; awaiting the developer's decision.
 - Balance harness: summary fields `workers` (own workers at each bank time) and `drop_off_ticks`, and behaviour checks `workers_at` and `first_drop_off` (P-006 B0).
 - AI budget queues (`AiBudget`, `AiBrainBudget`, `use_budget_queues` plus nine `budget_*` keys in every AI profile, off everywhere), profiles `aggressive_s5_b` (on) and `abl_s5b_no_b` (off, plays as `aggressive_s5`), tests BQ-1 to BQ-13 (P-006 B1). Measured with the queues on (`docs/reports/ai_b/`): static-defence share and first depot pass, unspent rare and workers at 300 s (24 to 21) fail; pool not run, queues stay off.
