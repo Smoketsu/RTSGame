@@ -132,3 +132,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [balance_measurement.md](balance_measurement.md) | M: paired ladder games with an exact sign test, stated power (MDE) and the verdict NO_MEASURABLE_EFFECT, an opponent pool with forced openings (`AiProfile.WithForcedOpenings`, the only `rts/src/Ai` change), behaviour checks over per-game summaries, the standing `--balance` report. C (first half): `--predict-fights` scores `FightPredictor` against the `--fights` sweep, with a proposed fix-or-simulate rule. No `rts/src/Sim` change, no change to AI play | P-006 | balance harness, fights, opening library (built); build M1, M3, M4, M5 in order, C in parallel before M5 |
+
+## Fight predictor v2 (P-006 package C second half, 21 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [fight_predictor_v2.md](fight_predictor_v2.md) | A deterministic lane simulation (`FightSim`, `rts/src/Ai`) behind the profile switch `predictor_model` (`formula` in every existing profile; candidate `aggressive_s5_fp2`, ablation `aggressive_s5`); held-out fight set (`heldout.json`: new army values, AI mixes, uneven sizes, damaged-army snapshots) with bars B1 to B7 and C1 stated before results; attack ledger and mirror-only paired ladder. No `rts/src/Sim` change, no number changes | P-006 | `--predict-fights`, `--ladder --paired` (built); FP2-1 and FP2-2 in parallel, then FP2-3, then FP2-4; sim-reviewer on `FightSim` |
