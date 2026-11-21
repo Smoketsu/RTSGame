@@ -99,7 +99,7 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Makes sure the "HUD" object exists with every panel (adding missing ones to an existing HUD): one screen-space Canvas scaled from a 1920 x 1080 landscape
-        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, Core widget, selected-unit panel, command card, build placement, ability targeting, game menu and end screen, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, Core widget, selected-unit panel, minimap, command card, build placement, ability targeting, game menu and end screen, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
         /// </summary>
         /// <returns>The existing or new message line, the first HUD panel.</returns>
         public static MessageLine EnsureHud()
@@ -111,6 +111,7 @@ namespace Rts.Game.Bootstrap
             EnsureComponent<TimelineBar>(hud);
             EnsureComponent<CoreWidget>(hud);
             EnsureComponent<SelectionPanel>(hud);
+            EnsureComponent<Minimap>(hud);
             EnsureComponent<CommandCard>(hud);
             EnsureComponent<BuildPlacement>(hud);
             EnsureComponent<AbilityTargeting>(hud);
@@ -129,12 +130,14 @@ namespace Rts.Game.Bootstrap
             }
         }
 
-        /// <summary>Creates the "Menu" canvas with the skirmish setup screen unless the setup screen exists.</summary>
+        /// <summary>Creates the "Menu" canvas with the main menu and the skirmish setup screen unless they exist.</summary>
         /// <returns>The existing or new setup screen.</returns>
         public static SkirmishSetup EnsureMenu()
         {
             SkirmishSetup existing = Object.FindAnyObjectByType<SkirmishSetup>();
-            return existing != null ? existing : CreateHudCanvas("Menu").AddComponent<SkirmishSetup>();
+            GameObject menu = existing != null ? existing.gameObject : CreateHudCanvas("Menu");
+            EnsureComponent<MainMenu>(menu);
+            return EnsureComponent<SkirmishSetup>(menu);
         }
 
         /// <summary>Creates a canvas object (the HUD or the menu): a screen-space overlay Canvas scaled from 1920 x 1080 (match 0.5) with a GraphicRaycaster.</summary>

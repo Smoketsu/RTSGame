@@ -325,9 +325,12 @@ namespace Rts.Game.TerrainDisplay
             _colors[first + 3] = colour;
         }
 
-        /// <summary>Ground colour of a tile's top face from its layer, ramp flag, blockers and water depth class.</summary>
+        /// <summary>True once the view has the match's terrain, so TileColour may be called. Unit: on/off.</summary>
+        public bool HasTerrain => _grid != null;
+
+        /// <summary>Ground colour of a tile's top face from its layer, ramp flag, blockers and water depth class. The minimap uses it too.</summary>
         /// <param name="index">Tile index. Range: 0 to tile count - 1.</param>
-        private Color32 TileColour(int index)
+        public Color32 TileColour(int index)
         {
             TerrainTile tile = _grid[index];
             // Colour before water and the checker shade.

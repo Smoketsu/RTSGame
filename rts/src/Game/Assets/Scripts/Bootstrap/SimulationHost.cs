@@ -20,8 +20,9 @@
 //     host is destroyed (leaving Play Mode, quitting) it writes <repo>/rts/build/replays/<local time>.rtsreplay in the editor,
 //     <persistentDataPath>/replays in a player; check it with rts/tools/ReplayCheck. The wall clock only names the file.
 //   - Start modes (player_interface_2.md UI-12): Awake always loads the data. Script mode starts the Inspector script at once, as
-//     before; Skirmish mode starts MatchLauncher.Pending when the setup screen has stored one (after the scene reload it causes)
-//     and otherwise stays idle so AutoBootstrap shows the setup screen. StartMatch builds either kind the same way.
+//     before; Menu mode (UI-13, the default) starts MatchLauncher.Pending when one is stored (after the scene reload it causes)
+//     and otherwise stays idle so AutoBootstrap shows the main menu. A pending request (restart) starts in either mode, and
+//     after Load(null) (Main Menu) even Script mode stays idle. StartMatch builds either kind the same way.
 //   - Local AI (UI-12): one SkirmishAiController per AI slot (the script's "ai" keys or the setup's AI slots), sorted by player.
 //     Each controller's Think runs exactly once immediately before every stepped tick, inside StepOnce, in ascending player order,
 //     as the harness does; its commands go through Submit, so the recorder has them and the replay passes ReplayCheck. AiHost.ThinkAll
@@ -158,12 +159,12 @@ namespace Rts.Game.Bootstrap
             /// <summary>Start the Inspector command script at once (hash checks, verification scripts).</summary>
             Script,
 
-            /// <summary>Start MatchLauncher.Pending if the setup screen stored one, else stay idle and let the setup screen show.</summary>
-            Skirmish,
+            /// <summary>Start MatchLauncher.Pending if one is stored, else stay idle and let the main menu show (player_interface_2.md UI-13).</summary>
+            Menu,
         }
 
-        /// <summary>How the match starts when the scene loads. Default Script (UI-12; UI-13 adds a menu mode).</summary>
-        [SerializeField] private StartMode startMode = StartMode.Script;
+        /// <summary>How the match starts when the scene loads. Default Menu; Script for hash checks and verification scripts.</summary>
+        [SerializeField] private StartMode startMode = StartMode.Menu;
 
         /// <summary>Log the simulation's refusals of AI commands to the Console. Unit: on/off. Default off (they are frequent and expected).</summary>
         [SerializeField] private bool logAiRejections = false;
@@ -339,15 +340,15 @@ namespace Rts.Game.Bootstrap
                 return;
             }
             MatchRequest pending = MatchLauncher.Pending;
-            if (pending != null && pending.Kind == MatchKind.Skirmish)
+            if (pending != null)
             {
                 StartMatch(pending);
             }
-            else if (startMode == StartMode.Script)
+            else if (startMode == StartMode.Script && !MatchLauncher.ShowMenu)
             {
                 StartMatch(new MatchRequest { Kind = MatchKind.Script });
             }
-            // Otherwise the host stays idle and AutoBootstrap shows the setup screen.
+            // Otherwise the host stays idle and AutoBootstrap shows the main menu.
         }
 
         /// <summary>
