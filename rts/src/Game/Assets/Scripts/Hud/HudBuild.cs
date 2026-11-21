@@ -106,6 +106,23 @@ namespace Rts.Game.Hud
             return sim.Content.Researches.TryGetValue(id, out ResearchDefinition research) ? research.DisplayName : id;
         }
 
+        /// <summary>How the HUD names a team to the local player: "your team", "the enemy" in a two-team match, else "team N"; "nobody" for None.</summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="localTeam">The local player's team.</param>
+        /// <param name="team">The team to name.</param>
+        public static string TeamLabel(Simulation sim, TeamId localTeam, TeamId team)
+        {
+            if (!team.IsValid)
+            {
+                return "nobody";
+            }
+            if (team == localTeam)
+            {
+                return "your team";
+            }
+            return sim.Players.TeamCount == 2 ? "the enemy" : "team " + team.Value;
+        }
+
         /// <summary>A fixed-point amount as a whole number for display, rounded up so a unit with any health left never shows 0.</summary>
         /// <param name="value">Amount, for example health. Unit: fixed-point. Range: 0 upward.</param>
         public static int Whole(Fix64 value)

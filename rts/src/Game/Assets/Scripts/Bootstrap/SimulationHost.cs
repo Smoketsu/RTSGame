@@ -615,6 +615,13 @@ namespace Rts.Game.Bootstrap
             }
         }
 
+        /// <summary>The colour that marks a player everywhere (cubes, Core ring, HUD): slot 0 blue, 1 red, then the fallbacks; grey for no owner.</summary>
+        /// <param name="owner">A player, or None.</param>
+        public static Color ColorOf(PlayerId owner)
+        {
+            return owner.IsValid ? PlayerColors[owner.Value % PlayerColors.Length] : NeutralColor;
+        }
+
         /// <summary>The shared material for a player slot, created on first use.</summary>
         /// <param name="owner">Owning player, or None for neutral.</param>
         private Material GetPlayerMaterial(PlayerId owner)
@@ -625,7 +632,7 @@ namespace Rts.Game.Bootstrap
             {
                 material = new Material(_templateMaterial);
                 material.name = "Player " + key;
-                material.color = owner.IsValid ? PlayerColors[key % PlayerColors.Length] : NeutralColor;
+                material.color = ColorOf(owner);
                 _playerMaterials.Add(key, material);
             }
             return material;

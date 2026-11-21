@@ -1,4 +1,4 @@
-// rts/data/scripts/ui_core.json: the player-interface Core script (rts/docs/specs/player_interface.md section 2). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (set its "Script Relative Path" to scripts/ui_core.json) and the headless harness (--script rts/data/scripts/ui_core.json). ui_sandbox.json plus four armed units per side 3 tiles from the Core centre (32, 32) of greybox_1v1: Skai on the west side, Water on the east side. Used by the combat drawing, cycle pick, Core capture and match end checks (UI-7 to UI-10). Slot 0 is Skai, slot 1 is Water; set LocalCommands' "Local Player Slot" to 1 to play Water.
+// rts/data/scripts/ui_core.json: the player-interface Core script (rts/docs/specs/player_interface.md section 2). Parsed by Rts.Sim.Data.CommandScript in the Unity SimulationHost (set its "Script Relative Path" to scripts/ui_core.json) and the headless harness (--script rts/data/scripts/ui_core.json). ui_sandbox.json plus four armed units per side 6 to 7 tiles from the Core centre (32, 32) of greybox_1v1, just outside its radius (4) so the Core starts neutral and uncontested: Skai on the west side, Water on the east side (the spec said 3 tiles, which puts both sides inside the ring and contests it from the first tick). Used by the combat drawing, cycle pick, Core capture and match end checks (UI-7 to UI-10). Slot 0 is Skai, slot 1 is Water; set LocalCommands' "Local Player Slot" to 1 to play Water.
 {
   "$schema_version": 1,
   "$doc": "Interface Core sandbox: ui_sandbox.json plus four armed units per side by the Core. Entity IDs: 1 Great Aerie, 2 to 5 Fledglings, 6 Grand Shell, 7 to 10 Tenders, 11 and 12 Talon Marksmen, 13 and 14 Windrunners, 15 and 16 Shellbacks, 17 and 18 Spoutlings.",
@@ -13,7 +13,7 @@
     { "id": 0, "team": 0, "faction": "skai", "name": "Skai" },
     { "id": 1, "team": 1, "faction": "water", "name": "Water" }
   ],
-  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter; x, y: position in tiles. The spawns of ui_sandbox.json, then four armed units per side 3 tiles west (Skai) and east (Water) of the Core centre (32, 32). Source: player_interface.md section 2.
+  // Commands. tick: tick the command is applied on (0 to 1000000); issuer: 255 for the script itself; sequence: per-issuer counter; x, y: position in tiles. The spawns of ui_sandbox.json, then four armed units per side 6 to 7 tiles west (Skai) and east (Water) of the Core centre (32, 32), outside the Core radius. Source: player_interface.md section 2.
   "commands": [
     { "tick": 0, "issuer": 255, "sequence": 0, "type": "spawn_unit", "definition": "skai.great_aerie", "owner": 0, "x": "7", "y": "7" },
     { "tick": 0, "issuer": 255, "sequence": 1, "type": "spawn_unit", "definition": "skai.fledgling", "owner": 0, "x": "6", "y": "9" },
@@ -25,13 +25,13 @@
     { "tick": 0, "issuer": 255, "sequence": 7, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "55", "y": "58" },
     { "tick": 0, "issuer": 255, "sequence": 8, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "59", "y": "56" },
     { "tick": 0, "issuer": 255, "sequence": 9, "type": "spawn_unit", "definition": "water.tender", "owner": 1, "x": "56", "y": "59" },
-    { "tick": 0, "issuer": 255, "sequence": 10, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 0, "x": "29", "y": "31" },
-    { "tick": 0, "issuer": 255, "sequence": 11, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 0, "x": "29", "y": "33" },
-    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "28", "y": "30" },
-    { "tick": 0, "issuer": 255, "sequence": 13, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "28", "y": "34" },
-    { "tick": 0, "issuer": 255, "sequence": 14, "type": "spawn_unit", "definition": "water.shellback", "owner": 1, "x": "35", "y": "31" },
-    { "tick": 0, "issuer": 255, "sequence": 15, "type": "spawn_unit", "definition": "water.shellback", "owner": 1, "x": "35", "y": "33" },
-    { "tick": 0, "issuer": 255, "sequence": 16, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "36", "y": "30" },
-    { "tick": 0, "issuer": 255, "sequence": 17, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "36", "y": "34" }
+    { "tick": 0, "issuer": 255, "sequence": 10, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 0, "x": "26", "y": "31" },
+    { "tick": 0, "issuer": 255, "sequence": 11, "type": "spawn_unit", "definition": "skai.talon_archer", "owner": 0, "x": "26", "y": "33" },
+    { "tick": 0, "issuer": 255, "sequence": 12, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "25", "y": "30" },
+    { "tick": 0, "issuer": 255, "sequence": 13, "type": "spawn_unit", "definition": "skai.windrunner", "owner": 0, "x": "25", "y": "34" },
+    { "tick": 0, "issuer": 255, "sequence": 14, "type": "spawn_unit", "definition": "water.shellback", "owner": 1, "x": "38", "y": "31" },
+    { "tick": 0, "issuer": 255, "sequence": 15, "type": "spawn_unit", "definition": "water.shellback", "owner": 1, "x": "38", "y": "33" },
+    { "tick": 0, "issuer": 255, "sequence": 16, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "39", "y": "30" },
+    { "tick": 0, "issuer": 255, "sequence": 17, "type": "spawn_unit", "definition": "water.spoutling", "owner": 1, "x": "39", "y": "34" }
   ]
 }

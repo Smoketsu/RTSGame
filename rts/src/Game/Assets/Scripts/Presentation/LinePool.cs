@@ -75,6 +75,29 @@ namespace Rts.Game.Presentation
             }
         }
 
+        /// <summary>Draws part of a horizontal circle, counter-clockwise from the +X side.</summary>
+        /// <param name="centre">World centre (its height is the arc's height).</param>
+        /// <param name="radius">Radius. Unit: world units (tiles).</param>
+        /// <param name="fraction">Part of the full circle. Unit: fraction. Range: 0 to 1 (0 draws nothing).</param>
+        /// <param name="color">Colour, RGBA 0 to 1.</param>
+        /// <param name="width">Line width. Unit: world units. Range: 0.01 to 1.</param>
+        public void Arc(Vector3 centre, float radius, float fraction, Color color, float width)
+        {
+            fraction = Mathf.Clamp01(fraction);
+            // Vertices of the arc: at least two. Unit: line vertices.
+            int points = Mathf.Max(2, Mathf.CeilToInt(CircleSegments * fraction) + 1);
+            if (fraction <= 0f)
+            {
+                return;
+            }
+            LineRenderer line = Next(color, points, false, width);
+            for (int i = 0; i < points; i++)
+            {
+                float angle = Mathf.PI * 2f * fraction * i / (points - 1);
+                line.SetPosition(i, centre + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
+            }
+        }
+
         /// <summary>Destroys every pooled line and the material.</summary>
         public void Dispose()
         {

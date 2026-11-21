@@ -1,6 +1,6 @@
 // rts/src/Game/Assets/Scripts/Bootstrap/AutoBootstrap.cs
 // Makes pressing Play in ANY scene show the simulation: after the first scene has loaded it adds a
-// SimulationHost with its LocalCommands (the one local command path), GateView, FogView and EventView, a camera with its RtsCameraController, a directional
+// SimulationHost with its LocalCommands (the one local command path), GateView, FogView, EventView and CoreView, a camera with its RtsCameraController, a directional
 // light, a TerrainView, a SelectionController and the HUD canvas if the scene does not already have them. The flat grey ground plane of Phase 0 is no longer added (TerrainView draws the
 // real terrain at the same height as layer 0 and the two would overlap); EnsureGround stays available as a fallback.
 // Part of Rts.Game (Unity side, presentation only). Delete this file once a real entry scene exists; the
@@ -45,6 +45,7 @@ namespace Rts.Game.Bootstrap
             EnsureComponent<GateView>(EnsureHost().gameObject);
             EnsureComponent<FogView>(EnsureHost().gameObject);
             EnsureComponent<EventView>(EnsureHost().gameObject);
+            EnsureComponent<CoreView>(EnsureHost().gameObject);
             EnsureCamera();
             EnsureCameraController();
             EnsureLight();
@@ -69,7 +70,7 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Makes sure the "HUD" object exists with every panel (adding missing ones to an existing HUD): one screen-space Canvas scaled from a 1920 x 1080 landscape
-        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, selected-unit panel, command card, build placement, ability targeting, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, Core widget, selected-unit panel, command card, build placement, ability targeting, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
         /// </summary>
         /// <returns>The existing or new message line, the first HUD panel.</returns>
         public static MessageLine EnsureHud()
@@ -79,6 +80,7 @@ namespace Rts.Game.Bootstrap
             GameObject hud = existing != null ? existing.gameObject : CreateHudCanvas();
             EnsureComponent<ResourceBar>(hud);
             EnsureComponent<TimelineBar>(hud);
+            EnsureComponent<CoreWidget>(hud);
             EnsureComponent<SelectionPanel>(hud);
             EnsureComponent<CommandCard>(hud);
             EnsureComponent<BuildPlacement>(hud);

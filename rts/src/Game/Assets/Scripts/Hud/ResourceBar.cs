@@ -15,8 +15,8 @@ namespace Rts.Game.Hud
     [DisallowMultipleComponent]
     public sealed class ResourceBar : MonoBehaviour
     {
-        /// <summary>Font size of the bar. Unit: reference pixels. Range: 12 to 40; default 24.</summary>
-        [SerializeField, Range(12, 40)] private int fontSize = 24;
+        /// <summary>Font size of the bar. Unit: reference pixels. Range: 12 to 40; default 22.</summary>
+        [SerializeField, Range(12, 40)] private int fontSize = 22;
 
         /// <summary>The bar's text. Range: non-null after Awake.</summary>
         private Text _text;
@@ -28,7 +28,7 @@ namespace Rts.Game.Hud
         private void Awake()
         {
             // Bar size and inset from the top-right corner. Unit: reference pixels.
-            Vector2 size = new Vector2(480f, 44f);
+            Vector2 size = new Vector2(500f, 44f);
             Vector2 inset = new Vector2(-12f, -10f);
             Image background = HudBuild.Image(transform, "Resource Bar", new Vector2(1f, 1f), inset, size, HudBuild.PanelColor);
             background.raycastTarget = true;
@@ -55,8 +55,8 @@ namespace Rts.Game.Hud
             }
             // Whole seconds of match time. Unit: seconds. Range: 0 upward.
             int seconds = sim.Clock.Tick / sim.Clock.TicksPerSecond;
-            _text.text = "Common " + player.Common + "    Rare " + player.Rare + "    Supply " + player.SupplyUsed + "/" + player.SupplyCap
-                + "    " + (seconds / 60) + ":" + (seconds % 60).ToString("00");
+            _text.text = "Common " + player.Common + "   Rare " + player.Rare + "   Supply " + player.SupplyUsed + "/" + player.SupplyCap
+                + "   " + (seconds / 60) + ":" + (seconds % 60).ToString("00");
         }
     }
 }

@@ -4,7 +4,7 @@
 // local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
 // Stand, depletion of a field an own worker gathers from; UI-2: units trained by own producers, own research completed; UI-3:
 // own build orders cancelled with their refund, own structures placed and completed; UI-4: own wall tiles skipped; UI-5: own
-// Downdraft casts with the number of units grounded; I4: own queue entries cancelled with their refund; UI-8: the local team's cycle pick, cycle warnings and starts; UI-7: the tide turning, own flood water removed, quake paths
+// Downdraft casts with the number of units grounded; I4: own queue entries cancelled with their refund; UI-9: Core capture started, reset, captured, lost, contested and won; UI-8: the local team's cycle pick, cycle warnings and starts; UI-7: the tide turning, own flood water removed, quake paths
 // closing or opening, own units relocated). Other HUD code may post with Show. Builds its own uGUI Text under the
 // HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
@@ -226,6 +226,30 @@ namespace Rts.Game.Hud
                     Show("Downdraft: " + grounding.UnitsGrounded + " grounded");
                 }
             }
+            else if (simEvent is CoreCaptureStartedEvent captureStarted)
+            {
+                Show(Capitalised(HudBuild.TeamLabel(sim, LocalTeam(sim), captureStarted.Team)) + " started capturing the Core");
+            }
+            else if (simEvent is CoreCaptureResetEvent captureReset)
+            {
+                Show("Core capture by " + HudBuild.TeamLabel(sim, LocalTeam(sim), captureReset.Team) + " reset (" + captureReset.Reason + ")");
+            }
+            else if (simEvent is CoreCapturedEvent captured)
+            {
+                Show(Capitalised(HudBuild.TeamLabel(sim, LocalTeam(sim), captured.Team)) + " captured the Core");
+            }
+            else if (simEvent is CoreLostEvent coreLost)
+            {
+                Show(Capitalised(HudBuild.TeamLabel(sim, LocalTeam(sim), coreLost.Team)) + " lost the Core (" + coreLost.Reason + ")");
+            }
+            else if (simEvent is CoreContestedChangedEvent contested)
+            {
+                Show(contested.IsContested ? "The Core is contested" : "The Core is no longer contested");
+            }
+            else if (simEvent is CoreWinEvent coreWin)
+            {
+                Show(Capitalised(HudBuild.TeamLabel(sim, LocalTeam(sim), coreWin.Team)) + " held the Core long enough to win");
+            }
             else if (simEvent is CyclePickedEvent picked)
             {
                 // Only the local team's pick is shown; an enemy pick stays hidden until the lock (spec section 5, question 5).
@@ -279,6 +303,20 @@ namespace Rts.Game.Hud
         private static string RefundText(int common, int rare)
         {
             return common > 0 || rare > 0 ? " (refund " + common + "c " + rare + "r)" : "";
+        }
+
+        /// <summary>The local player's team.</summary>
+        /// <param name="sim">The running match.</param>
+        private Rts.Sim.Core.TeamId LocalTeam(Simulation sim)
+        {
+            return sim.Players.TeamOf(_commands.LocalPlayer);
+        }
+
+        /// <summary>The text with its first letter in upper case (team labels start sentences).</summary>
+        /// <param name="text">Non-empty text.</param>
+        private static string Capitalised(string text)
+        {
+            return char.ToUpperInvariant(text[0]) + text.Substring(1);
         }
 
         /// <summary>The display name of a cycle ID, or the ID when the match has no such cycle.</summary>
