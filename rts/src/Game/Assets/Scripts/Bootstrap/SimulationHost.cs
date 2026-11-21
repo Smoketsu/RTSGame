@@ -27,6 +27,9 @@
 //     Each controller's Think runs exactly once immediately before every stepped tick, inside StepOnce, in ascending player order,
 //     as the harness does; its commands go through Submit, so the recorder has them and the replay passes ReplayCheck. AiHost.ThinkAll
 //     is not used because its sink submits around the recorder.
+//   - Replay playback (player_interface_2.md UI-15): a request of kind Replay reads the file and steps a Rts.Replay.ReplayPlayback
+//     instead of a recorder: no recorder, no AI, LocalCommands drops every order, fog is off (FogView.Observer), and stepping stops
+//     at the replay's last tick or its first desync. PlaybackSpeed scales real time into ticks (0 pauses); maxStepsPerFrame stays.
 //   - Match end (UI-10): after each step MatchOutcome.Evaluate; once decided the host stops stepping (as the harness does), logs the
 //     result and writes the replay at once. Outcome exposes the result to the HUD.
 //
@@ -57,6 +60,7 @@ using Rts.Sim.Factions;
 using Rts.Sim.Teams;
 using Rts.Sim.Units;
 using Rts.Ai;
+using Rts.Game.Presentation;
 using Rts.Replay;
 using UnityEngine;
 // Unity 6.6 added UnityEngine.EntityId; this alias makes every EntityId in this file the simulation's entity ID.
@@ -202,6 +206,9 @@ namespace Rts.Game.Bootstrap
         /// <summary>The match. Null until Awake succeeds. Read-only from the host's point of view except for Submit.</summary>
         private Simulation _sim;
 
+        /// <summary>The replay being played (kind Replay), else null.</summary>
+        private ReplayPlayback _playback;
+
         /// <summary>Folder the data was read from. Range: an existing folder after Awake succeeds.</summary>
         private string _dataDirectory;
 
@@ -265,6 +272,28 @@ namespace Rts.Game.Bootstrap
         /// <summary>Where the camera should start (the local player's spawn in a skirmish), or null for the map centre. Unit: tiles (x, y).</summary>
         public Vector2? StartFocus { get; private set; }
 
+        /// <summary>The replay playback of a Replay request, else null.</summary>
+        public ReplayPlayback Playback => _playback;
+
+        /// <summary>The replay file's data of a Replay request (players, recorded final hash), else null.</summary>
+        public ReplayData PlaybackData { get; private set; }
+
+        /// <summary>True while a replay plays: no input reaches the simulation. Unit: on/off.</summary>
+        public bool IsPlayback => _playback != null;
+
+        /// <summary>Real-time multiplier of a replay's stepping. Unit: times real time. Range: 0 (paused) to 8; 1 outside playback.</summary>
+        public float PlaybackSpeed { get; set; } = 1f;
+
+        /// <summary>Shows another player's resources and units (replay viewpoint). Ignored outside playback.</summary>
+        /// <param name="slot">A player slot of the replay.</param>
+        public void ViewPlayer(int slot)
+        {
+            if (IsPlayback)
+            {
+                LocalSlotOverride = slot;
+            }
+        }
+
         /// <summary>True while the host has loaded data but runs no match (the setup screen shows).</summary>
         public bool IsIdle => _sim == null && Data != null;
 
@@ -325,6 +354,8 @@ namespace Rts.Game.Bootstrap
         private void Awake()
         {
             _aiSink = new HostCommandSink(this);
+            // Observer view belongs to playback only; a static, so reset on every load.
+            FogView.Observer = false;
             try
             {
                 // Folder holding the data tree (tuning/, units/, factions/, ...).
@@ -380,6 +411,11 @@ namespace Rts.Game.Bootstrap
         /// <param name="request">The match to start.</param>
         public void StartMatch(MatchRequest request)
         {
+            if (request.Kind == MatchKind.Replay)
+            {
+                StartPlayback(request);
+                return;
+            }
             try
             {
                 IReadOnlyList<PlayerSetup> players;
@@ -433,7 +469,7 @@ namespace Rts.Game.Bootstrap
                 }
                 else
                 {
-                    throw new InvalidOperationException("Replay playback is not built yet (player_interface_2.md UI-15).");
+                    throw new InvalidOperationException("Unknown match kind " + request.Kind + ".");
                 }
                 // Controllers are made before the simulation, so a profile that fails to parse stops the start cleanly. Ascending slot.
                 List<IPlayerController> controllers = new List<IPlayerController>();
@@ -500,6 +536,46 @@ namespace Rts.Game.Bootstrap
             }
         }
 
+        /// <summary>
+        /// Starts playing a replay file: reads it, builds a ReplayPlayback (which refuses other data, map or hash interval with a
+        /// ReplayRefusedException), and shows it from the first player's view with fog off. No recorder, no AI. A failure is kept in StartError.
+        /// </summary>
+        /// <param name="request">A Replay request with its file path.</param>
+        private void StartPlayback(MatchRequest request)
+        {
+            try
+            {
+                ReplayData replay = ReplayReader.Read(File.ReadAllBytes(request.ReplayPath), BuiltInMechanics.CreateCodecRegistry());
+                ReplayPlayback playback = new ReplayPlayback(replay, Data);
+                _playback = playback;
+                PlaybackData = replay;
+                _sim = playback.Sim;
+                _recorder = null;
+                _scriptTicks = int.MaxValue;
+                _scriptFinished = false;
+                PlaybackSpeed = 1f;
+                LocalSlotOverride = replay.Players.Count > 0 ? replay.Players[0].Id.Value : 0;
+                FogView.Observer = true;
+                _tickSeconds = 1f / _sim.Clock.TicksPerSecond;
+                _unitRoot = new GameObject("Simulation Units").transform;
+                ProcessEvents();
+                CurrentRequest = request;
+                StartError = null;
+                Debug.Log("[SimulationHost] Replay started: " + Path.GetFileName(request.ReplayPath) + " on " + replay.MapId + ", " + replay.TickCount + " ticks, "
+                    + replay.Players.Count + " players.");
+            }
+            catch (Exception exception) when (exception is ReplayException || exception is IOException || exception is InvalidOperationException || exception is DataValidationException)
+            {
+                StartError = exception.Message;
+                Debug.LogError("[SimulationHost] Could not play the replay: " + exception.Message);
+                _playback = null;
+                PlaybackData = null;
+                _sim = null;
+                LocalSlotOverride = null;
+                FogView.Observer = false;
+            }
+        }
+
         /// <summary>The AI controllers' sink: schedules for the current tick and submits through the host (and so through the recorder).</summary>
         private sealed class HostCommandSink : ICommandSink
         {
@@ -544,8 +620,8 @@ namespace Rts.Game.Bootstrap
                 _alpha = 1f;
                 return;
             }
-            // Real time since the previous frame; zero while Time.timeScale is 0, which pauses the match.
-            _accumulatorSeconds += Time.deltaTime;
+            // Real time since the previous frame, times the replay speed in playback; zero while Time.timeScale is 0, which pauses the match.
+            _accumulatorSeconds += Time.deltaTime * (IsPlayback ? PlaybackSpeed : 1f);
             // Ticks stepped this frame.
             int steps = 0;
             while (_accumulatorSeconds >= _tickSeconds && steps < maxStepsPerFrame && ShouldStep)
@@ -568,7 +644,7 @@ namespace Rts.Game.Bootstrap
         }
 
         /// <summary>True while ticks should still run: the script has not finished, or continueAfterScript keeps the match going. Unit: on/off.</summary>
-        private bool ShouldStep => _outcome == null && (!_scriptFinished || continueAfterScript);
+        private bool ShouldStep => IsPlayback ? !_playback.IsFinished : _outcome == null && (!_scriptFinished || continueAfterScript);
 
         /// <summary>Positions every cube between its previous and current tick position. Runs after all Update calls.</summary>
         private void LateUpdate()
@@ -626,7 +702,11 @@ namespace Rts.Game.Bootstrap
             {
                 controller.Think(_sim, _aiSink);
             }
-            if (_recorder != null)
+            if (_playback != null)
+            {
+                _playback.Step();
+            }
+            else if (_recorder != null)
             {
                 _recorder.Step();
             }
@@ -645,8 +725,9 @@ namespace Rts.Game.Bootstrap
                 Debug.Log("[SimulationHost] script finished at tick " + _sim.Clock.Tick + ", final hash " + _sim.ComputeStateHash().ToString("x16"));
             }
             // As the headless harness does: after each step, stop once one team or none is left standing, and write the replay then.
+            // A replay stops at its own last tick instead.
             MatchOutcome outcome = MatchOutcome.Evaluate(_sim.Players);
-            if (outcome.IsDecided)
+            if (!IsPlayback && outcome.IsDecided)
             {
                 _outcome = outcome;
                 Debug.Log("[SimulationHost] match decided at tick " + _sim.Clock.Tick + ": " + outcome + ", final hash " + _sim.ComputeStateHash().ToString("x16"));
@@ -666,15 +747,8 @@ namespace Rts.Game.Bootstrap
             }
             try
             {
-#if UNITY_EDITOR
-                // rts/build/replays as seen from rts/src/Game/Assets (git-ignored build output folder).
-                string folder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "..", "build", "replays"));
-#else
-                string folder = Path.Combine(Application.persistentDataPath, "replays");
-#endif
-                Directory.CreateDirectory(folder);
-                // Replay file path; the wall clock is read here only to name the file, never by the simulation.
-                string path = Path.Combine(folder, DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".rtsreplay");
+// Replay file path in the shared replay folder; the wall clock only names the file, never feeds the simulation.
+                string path = ReplayFiles.NewPath();
                 File.WriteAllBytes(path, ReplayWriter.Write(_recorder.Finish(), BuiltInMechanics.CreateCodecRegistry()));
                 Debug.Log("[SimulationHost] Replay written: " + path + " (" + _sim.Clock.Tick + " ticks, " + _recorder.CommandCount + " commands).");
             }
