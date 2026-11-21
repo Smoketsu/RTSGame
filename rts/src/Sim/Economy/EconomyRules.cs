@@ -277,5 +277,141 @@ namespace Rts.Sim.Economy
             position = producerPosition;
             return false;
         }
+
+        /// <summary>
+        /// Why a structure cannot be placed on a tile for a player, or null when it can (specs/interface_support.md I1). Reasons, first match wins,
+        /// in the order the command always used: unknown_definition, not_a_structure, wrong_faction, missing_prerequisite, out_of_bounds, site_unexplored, tile_blocked,
+        /// tile_occupied, site_pending, no_base and static_defence_cap (static defences only), insufficient_resources, supply_cap (reads the stored supply figures; never
+        /// recomputes them). Pure: it changes nothing. With <paramref name="fogSafe"/> and a tile the owner's team cannot see now, tile_blocked is reported only for map
+        /// walls and tile_occupied counts only the team's own units, so the answer reveals nothing hidden (the command passes false and keeps its old checks).
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="owner">The player who would pay and own the structure; must have a record.</param>
+        /// <param name="definitionId">Definition ID of the structure; any text.</param>
+        /// <param name="tileX">Tile X of the site. Unit: tiles. Range: any int (out of range gives out_of_bounds).</param>
+        /// <param name="tileY">Tile Y of the site. Unit: tiles. Range: any int (out of range gives out_of_bounds).</param>
+        /// <param name="fogSafe">True for the ghost query, false for the command.</param>
+        internal static string? BuildSiteProblem(Simulation sim, Player owner, string definitionId, int tileX, int tileY, bool fogSafe)
+        {
+            if (!sim.Content.Units.TryGetValue(definitionId, out UnitDefinition? definition))
+            {
+                return "unknown_definition";
+            }
+            if (definition.Economy.FootprintTiles <= 0)
+            {
+                return "not_a_structure";
+            }
+            if (!string.Equals(definition.FactionId, owner.FactionId, StringComparison.Ordinal))
+            {
+                return "wrong_faction";
+            }
+            if (FirstMissingRequirement(sim, owner.Id, definition) != null)
+            {
+                return "missing_prerequisite";
+            }
+            if (!sim.Terrain.Contains(tileX, tileY))
+            {
+                return "out_of_bounds";
+            }
+            // Site tile index. Range: 0 to tile count - 1.
+            int tile = sim.Terrain.IndexOf(tileX, tileY);
+            // Centre of the site tile. Unit: tiles (fixed-point).
+            FixVec2 centre = sim.Terrain.CentreOf(tile);
+            // The owner's team.
+            TeamId team = sim.Players.TeamOf(owner.Id);
+            if (!sim.Vision.IsTileExplored(team, tileX, tileY))
+            {
+                return "site_unexplored";
+            }
+            // True when the answer must not use what the team cannot see now.
+            bool hidden = fogSafe && !sim.Vision.IsTileVisible(team, tileX, tileY);
+            // Blockers that count: all of them, or only map walls on a hidden tile.
+            TileBlockers blockers = hidden ? sim.Terrain[tile].Blockers & TileBlockers.Wall : sim.Terrain[tile].Blockers;
+            if (blockers != TileBlockers.None)
+            {
+                return "tile_blocked";
+            }
+            foreach (Unit other in sim.Units.All)
+            {
+                if (other.EffectiveLayer != MovementLayer.Air && sim.Terrain.TileOf(other.Position) == tile && (!hidden || sim.Players.TeamOf(other.Owner) == team))
+                {
+                    return "tile_occupied";
+                }
+            }
+            foreach (Unit other in sim.Units.All)
+            {
+                if (other.Owner == owner.Id && ((other.BuildState != BuildOrderState.None && other.BuildTileX == tileX && other.BuildTileY == tileY) || other.QueuesTile(tile)))
+                {
+                    return "site_pending";
+                }
+            }
+            if (definition.Economy.IsStaticDefence)
+            {
+                // The static defence problem, if any.
+                string? defenceProblem = StaticDefenceProblem(sim, owner.Id, centre);
+                if (defenceProblem != null)
+                {
+                    return defenceProblem;
+                }
+            }
+            if (!owner.CanAfford(definition.CostCommon, definition.CostRare))
+            {
+                return "insufficient_resources";
+            }
+            if (owner.SupplyUsed + SupplyOf(sim, definition) > owner.SupplyCap)
+            {
+                return "supply_cap";
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Placement query for Unity's ghost (specs/interface_support.md I1): why <paramref name="player"/> cannot place the structure on the tile, or null when it can.
+        /// cannot_build when the player has no record; otherwise <see cref="BuildSiteProblem"/> with fog-safe answers. The stored supply figures are those of the last step,
+        /// so it can say supply_cap where the command (which recomputes them) accepts. Works between steps; mutates nothing.
+        /// </summary>
+        /// <param name="sim">The simulation.</param>
+        /// <param name="player">The player who would build. Must be a player of the match, else cannot_build.</param>
+        /// <param name="definitionId">Definition ID of the structure; any text.</param>
+        /// <param name="tileX">Tile X. Unit: tiles. Range: any int.</param>
+        /// <param name="tileY">Tile Y. Unit: tiles. Range: any int.</param>
+        public static string? PlacementProblem(Simulation sim, PlayerId player, string definitionId, int tileX, int tileY)
+        {
+            return sim.Players.TryGet(player, out Player? owner) ? BuildSiteProblem(sim, owner, definitionId ?? string.Empty, tileX, tileY, true) : "cannot_build";
+        }
+
+        /// <summary>
+        /// Checks the per-base static defence limit for a site. Returns null when the site is fine, otherwise no_base when the owner has no drop-off within
+        /// base_radius_tiles of the site, or static_defence_cap when that drop-off's base already holds static_defences_per_base_max of the owner's static defences
+        /// (under construction ones and pending build orders for static defences sited in that base count).
+        /// </summary>
+        private static string? StaticDefenceProblem(Simulation sim, PlayerId owner, FixVec2 site)
+        {
+            // Squared base radius. Unit: squared tiles.
+            Fix64 radius = sim.Tuning.Economy.BaseRadiusTiles;
+            Fix64 radiusSquared = radius * radius;
+            Unit? dropOff = NearestDropOff(sim, owner, site);
+            if (dropOff == null || (dropOff.Position - site).LengthSquared() > radiusSquared)
+            {
+                return "no_base";
+            }
+            // Static defences the owner already has in that base. Unit: count.
+            int count = 0;
+            foreach (Unit other in sim.Units.All)
+            {
+                if (other.Owner == owner && other.Definition.Economy.IsStaticDefence && (other.Position - dropOff.Position).LengthSquared() <= radiusSquared)
+                {
+                    count++;
+                }
+                // Definition of another worker's pending structure (the out value is unused without an order).
+                if (other.Owner == owner && other.BuildState != BuildOrderState.None
+                    && sim.Content.Units.TryGetValue(other.BuildDefinitionId, out UnitDefinition? pending) && pending.Economy.IsStaticDefence
+                    && (sim.Terrain.CentreOf(sim.Terrain.IndexOf(other.BuildTileX, other.BuildTileY)) - dropOff.Position).LengthSquared() <= radiusSquared)
+                {
+                    count++;
+                }
+            }
+            return count >= sim.Tuning.Supply.StaticDefencesPerBaseMax ? "static_defence_cap" : null;
+        }
     }
 }

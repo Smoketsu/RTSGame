@@ -260,8 +260,8 @@ namespace Rts.Sim.Commands
         public override string Kind => "build_structure";
 
         /// <summary>
-        /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker),
-        /// unknown_definition, not_a_structure (no footprint), wrong_faction, missing_prerequisite (the owner lacks a complete building the definition requires), out_of_bounds, site_unexplored (the worker owner's team
+        /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker), then the site checks of
+        /// <see cref="EconomyRules.BuildSiteProblem"/> (shared with the placement query), in order: unknown_definition, not_a_structure (no footprint), wrong_faction, missing_prerequisite (the owner lacks a complete building the definition requires), out_of_bounds, site_unexplored (the worker owner's team
         /// has never seen the tile; checked before tile_blocked so a rejection reveals nothing), tile_blocked, tile_occupied (a ground
         /// or water unit stands on the tile), site_pending (an own unit already has a build order for the tile), no_base (a static
         /// defence needs an own drop-off within base_radius_tiles of the site), static_defence_cap (static_defences_per_base_max of them,
@@ -283,68 +283,17 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("cannot_build");
             }
-            if (!sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? definition))
-            {
-                return CommandResult.Reject("unknown_definition");
-            }
-            if (definition.Economy.FootprintTiles <= 0)
-            {
-                return CommandResult.Reject("not_a_structure");
-            }
-            if (!string.Equals(definition.FactionId, owner.FactionId, System.StringComparison.Ordinal))
-            {
-                return CommandResult.Reject("wrong_faction");
-            }
-            if (EconomyRules.FirstMissingRequirement(sim, worker.Owner, definition) != null)
-            {
-                return CommandResult.Reject("missing_prerequisite");
-            }
-            if (!sim.Terrain.Contains(TileX, TileY))
-            {
-                return CommandResult.Reject("out_of_bounds");
-            }
-            // Site tile and its centre.
-            int tile = sim.Terrain.IndexOf(TileX, TileY);
-            FixVec2 centre = sim.Terrain.CentreOf(tile);
-            if (!sim.Vision.IsTileExplored(sim.Players.TeamOf(worker.Owner), TileX, TileY))
-            {
-                return CommandResult.Reject("site_unexplored");
-            }
-            if (sim.Terrain[tile].IsBlocked)
-            {
-                return CommandResult.Reject("tile_blocked");
-            }
-            foreach (Unit other in sim.Units.All)
-            {
-                if (other.EffectiveLayer != MovementLayer.Air && sim.Terrain.TileOf(other.Position) == tile)
-                {
-                    return CommandResult.Reject("tile_occupied");
-                }
-            }
-            foreach (Unit other in sim.Units.All)
-            {
-                if (other.Owner == worker.Owner && ((other.BuildState != BuildOrderState.None && other.BuildTileX == TileX && other.BuildTileY == TileY) || other.QueuesTile(tile)))
-                {
-                    return CommandResult.Reject("site_pending");
-                }
-            }
-            if (definition.Economy.IsStaticDefence)
-            {
-                CommandResult? defenceProblem = CheckStaticDefenceCap(sim, worker.Owner, centre);
-                if (defenceProblem.HasValue)
-                {
-                    return defenceProblem.Value;
-                }
-            }
-            if (!owner.CanAfford(definition.CostCommon, definition.CostRare))
-            {
-                return CommandResult.Reject("insufficient_resources");
-            }
             EconomySystem.RecomputeSupply(sim);
-            if (owner.SupplyUsed + EconomyRules.SupplyOf(sim, definition) > owner.SupplyCap)
+            // The first reason the site cannot be used, or null; the same code the placement query runs.
+            string? problem = EconomyRules.BuildSiteProblem(sim, owner, DefinitionId, TileX, TileY, false);
+            if (problem != null)
             {
-                return CommandResult.Reject("supply_cap");
+                return CommandResult.Reject(problem);
             }
+            // The structure's definition (BuildSiteProblem found it).
+            UnitDefinition definition = sim.Content.Units[DefinitionId];
+            // Site centre. Unit: tiles (fixed-point).
+            FixVec2 centre = sim.Terrain.CentreOf(sim.Terrain.IndexOf(TileX, TileY));
             // Gather field to resume afterwards. Unit: field index. Range: -1 or 0 to field count - 1.
             int resume = worker.GatherState != GatherState.Idle ? worker.GatherFieldIndex : worker.BuildResumeFieldIndex;
             // A replaced order is refunded first (its event comes before the accepted event).
@@ -357,45 +306,6 @@ namespace Rts.Sim.Commands
             EconomySystem.RecomputeSupply(sim);
             sim.Events.Add(new BuildOrderAcceptedEvent(sim.Clock.Tick, worker.Id, worker.Owner, DefinitionId, TileX, TileY, definition.CostCommon, definition.CostRare));
             return CommandResult.Ok;
-        }
-
-        /// <summary>
-        /// Checks the per-base static defence limit for a site. Returns null when the site is fine, otherwise the rejection:
-        /// no_base when the owner has no drop-off within base_radius_tiles of the site, static_defence_cap when that drop-off's base
-        /// already holds static_defences_per_base_max of the owner's static defences (under construction ones and pending build
-        /// orders for static defences sited in that base count).
-        /// </summary>
-        private static CommandResult? CheckStaticDefenceCap(Simulation sim, PlayerId owner, FixVec2 site)
-        {
-            // Squared base radius. Unit: squared tiles.
-            Fix64 radius = sim.Tuning.Economy.BaseRadiusTiles;
-            Fix64 radiusSquared = radius * radius;
-            Unit? dropOff = EconomyRules.NearestDropOff(sim, owner, site);
-            if (dropOff == null || (dropOff.Position - site).LengthSquared() > radiusSquared)
-            {
-                return CommandResult.Reject("no_base");
-            }
-            // Static defences the owner already has in that base. Unit: count.
-            int count = 0;
-            foreach (Unit other in sim.Units.All)
-            {
-                if (other.Owner == owner && other.Definition.Economy.IsStaticDefence && (other.Position - dropOff.Position).LengthSquared() <= radiusSquared)
-                {
-                    count++;
-                }
-                // Definition of another worker's pending structure (the out value is unused without an order).
-                if (other.Owner == owner && other.BuildState != BuildOrderState.None
-                    && sim.Content.Units.TryGetValue(other.BuildDefinitionId, out UnitDefinition? pending) && pending.Economy.IsStaticDefence
-                    && (sim.Terrain.CentreOf(sim.Terrain.IndexOf(other.BuildTileX, other.BuildTileY)) - dropOff.Position).LengthSquared() <= radiusSquared)
-                {
-                    count++;
-                }
-            }
-            if (count >= sim.Tuning.Supply.StaticDefencesPerBaseMax)
-            {
-                return CommandResult.Reject("static_defence_cap");
-            }
-            return null;
         }
 
         /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
