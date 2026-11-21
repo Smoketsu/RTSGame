@@ -94,13 +94,13 @@ namespace Rts.Sim.Events
     /// <summary>A producer finished a research item (research_and_unlocks.md R1.4); the owner's research set now holds it. Emitted in step 7b.</summary>
     public sealed class ResearchCompletedEvent : SimEvent
     {
-        /// <summary>The building that researched it.</summary>
+        /// <summary>The building that researched it. Range: an entity ID allocated by the simulation, never reused (it may be gone by the time the event is read).</summary>
         public EntityId Producer { get; }
 
-        /// <summary>The producer's owner, who now has the research.</summary>
+        /// <summary>The producer's owner, who now has the research. Range: a player ID of this match (never None).</summary>
         public PlayerId Owner { get; }
 
-        /// <summary>Research ID, for example "skai.thunderhead_plans".</summary>
+        /// <summary>Research ID, for example "skai.thunderhead_plans". Range: non-empty; the ID of an item in Content.Researches.</summary>
         public string ResearchId { get; }
 
         /// <summary>Builds the event from its fields.</summary>
@@ -116,6 +116,45 @@ namespace Rts.Sim.Events
 
         /// <summary>One-line description for logs.</summary>
         public override string Describe() => Producer + " finished research " + ResearchId + " for " + Owner + ".";
+    }
+
+    /// <summary>A queued production entry (a unit or a research item) was cancelled by cancel_production and refunded in full.</summary>
+    public sealed class ProductionCancelledEvent : SimEvent
+    {
+        /// <summary>The producing building. Range: an entity ID of a live unit.</summary>
+        public EntityId Producer { get; }
+
+        /// <summary>The producer's owner, who got the refund. Range: a player ID of this match.</summary>
+        public PlayerId Owner { get; }
+
+        /// <summary>Definition or research ID of the cancelled entry. Range: non-empty.</summary>
+        public string DefinitionId { get; }
+
+        /// <summary>Queue position the entry had. Unit: entries. Range: 0 (the head) to the queue length - 1.</summary>
+        public int Index { get; }
+
+        /// <summary>Common resource refunded. Unit: resource units. Range: 0 to 100000.</summary>
+        public int RefundCommon { get; }
+
+        /// <summary>Rare resource refunded. Unit: resource units. Range: 0 to 100000.</summary>
+        public int RefundRare { get; }
+
+        /// <summary>Builds the event from its fields.</summary>
+        public ProductionCancelledEvent(int tick, EntityId producer, PlayerId owner, string definitionId, int index, int refundCommon, int refundRare) : base(tick)
+        {
+            Producer = producer;
+            Owner = owner;
+            DefinitionId = definitionId;
+            Index = index;
+            RefundCommon = refundCommon;
+            RefundRare = refundRare;
+        }
+
+        /// <summary>Machine-readable kind name: "production_cancelled".</summary>
+        public override string Kind => "production_cancelled";
+
+        /// <summary>One-line description for logs.</summary>
+        public override string Describe() => Producer + " cancelled " + DefinitionId + " at queue position " + Index + ", refund " + RefundCommon + "/" + RefundRare + ".";
     }
 
     /// <summary>A structure placed by a worker reached full construction and is now active (producer, drop-off, supply).</summary>

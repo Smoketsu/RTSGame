@@ -53,6 +53,10 @@
   },
   // Grounding ability (Downdraft): an order to slam every enemy flyer near a point to the ground for grounded_duration_seconds (tuning/statuses.json). Source: P-005 developer decision 6 (18 Nov 2026); Factions / Grounded (Stormcaller Downdraft).
   "grounding_ability": {
+    // Name of the ability shown to players. Unit: text. Range: non-empty, 1 to 40 characters. Source: Factions / Grounded (Stormcaller Downdraft).
+    "display_name": "Downdraft",
+    // One-line ability description shown to players. Unit: text. Range: non-empty, 1 to 200 characters. Source: placeholder, developer to confirm (rts/docs/specs/interface_support.md I3).
+    "description": "Slams enemy flyers near the target point to the ground.",
     // Farthest point the ability can be aimed at, from the caster's centre. Unit: tiles. Range: 0.5 to 32. Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 4.3).
     "range_tiles": 7,
     // Radius around the aimed point; a flyer whose edge is inside it is grounded. Unit: tiles. Range: 0.5 to 8. Source: placeholder, developer to confirm (rts/docs/specs/combat_mechanics.md 4.3).

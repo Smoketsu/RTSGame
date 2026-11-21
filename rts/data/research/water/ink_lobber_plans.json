@@ -8,9 +8,9 @@
   "display_name": "Brinecaster Plans",
   // Faction that can research this; must equal the folder name and match a file in rts/data/factions. Unit: faction ID. Range: an existing faction ID. Source: Factions.
   "faction_id": "water",
-  // Cost in the common resource, paid when queued, not refunded. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  // Cost in the common resource, paid when queued, refunded in full only by cancel_production. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
   "cost_common": 25,
-  // Cost in the rare resource, paid when queued, not refunded. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
+  // Cost in the rare resource, paid when queued, refunded in full only by cancel_production. Unit: resource units. Range: 0 to 100000. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
   "cost_rare": 125,
   // Time the item takes at the head of its building's queue. Unit: seconds. Range: 0.05 to 3600. Source: placeholder, developer to confirm (rts/docs/specs/research_and_unlocks.md R1.2).
   "research_seconds": 30

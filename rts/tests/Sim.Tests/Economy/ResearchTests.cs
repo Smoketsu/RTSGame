@@ -3,6 +3,7 @@
 // building through train_unit, finishing into a per-player set that `requires` can name, rejections, queue lengths, lost buildings, hashes,
 // queries, the script path, the loader and the shipped data. Part of Rts.Sim.Tests. Economy setup: TestWorld's economy map, shipped tuning,
 // 20 ticks per second, P0 (test faction) starts with 200 common; rare is granted with the internal Player.AddResource before the first step.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
@@ -22,7 +23,7 @@ namespace Rts.Sim.Tests.Economy
 {
     /// <summary>Research: simulation rules, queries, loader and shipped data.</summary>
     [TestFixture]
-    public sealed class ResearchTests
+    public sealed partial class ResearchTests
     {
         /// <summary>Research item A: 25 common, 50 rare, 2 s (40 ticks).</summary>
         private const string PlansA = "test.plans_a";
@@ -477,6 +478,10 @@ namespace Rts.Sim.Tests.Economy
             AssertLoadFails(TestData.WithEdit(PlansPath, "\"id\": \"skai.thunderhead_plans\"", "\"id\": \"skai.other\""), "thunderhead_plans.json", "id", "skai.thunderhead_plans");
             AssertLoadFails(TestData.WithEdit(PlansPath, "\"faction_id\": \"skai\"", "\"faction_id\": \"water\""), "thunderhead_plans.json", "faction_id", "match the folder");
             AssertLoadFails(TestData.WithEdit(PlansPath, "\"cost_rare\": 175", "\"cost_rare\": 100001"), "thunderhead_plans.json", "cost_rare", "100000");
+            AssertLoadFails(TestData.WithEdit(PlansPath, "\"display_name\": \"Thunderhead Plans\"", "\"display_name\": \"" + new string('x', 41) + "\""), "thunderhead_plans.json", "display_name", "1 to 40 characters");
+            Assert.That(DataLoader.Load(TestData.WithEdit(PlansPath, "\"display_name\": \"Thunderhead Plans\"", "\"display_name\": \"" + new string('x', 40) + "\"")).Content.Researches["skai.thunderhead_plans"].DisplayName.Length, Is.EqualTo(40));
+            ArgumentOutOfRangeException rare = Expect.Throws<ArgumentOutOfRangeException>(() => new ResearchDefinition("a.b", "n", "a", 0, 100001, Fix64.One));
+            Assert.That(rare.ParamName, Is.EqualTo("costRare"));
             AssertLoadFails(TestData.WithEdit(PlansPath, "\"research_seconds\": 45", "\"research_seconds\": 0"), "thunderhead_plans.json", "research_seconds", "0.05");
             AssertLoadFails(WithFile("research/skai/windrunner.json", plans.Replace("skai.thunderhead_plans", "skai.windrunner")), "research/skai/windrunner.json", "id",
                 "research and unit IDs share one namespace");

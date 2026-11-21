@@ -157,7 +157,7 @@ namespace Rts.Sim.Data
                 dome.RequireFix64("regen_per_second", "0.01", "10000"));
         }
 
-        /// <summary>Reads the optional grounding_ability object (all three keys required inside it). Returns null when absent.</summary>
+        /// <summary>Reads the optional grounding_ability object (all five keys required inside it: display_name, description, range_tiles, radius_tiles, cooldown_seconds). Returns null when absent.</summary>
         /// <param name="root">The unit file's root object.</param>
         public static GroundingAbilityDefinition? ReadGroundingAbility(JsonValue root)
         {
@@ -165,11 +165,30 @@ namespace Rts.Sim.Data
             {
                 return null;
             }
-            ability.RejectUnknownKeys("range_tiles", "radius_tiles", "cooldown_seconds");
+            ability.RejectUnknownKeys("display_name", "description", "range_tiles", "radius_tiles", "cooldown_seconds");
+            // Player-facing name and description. Unit: text. Range: 1 to 40 and 1 to 200 characters.
+            string displayName = RequireText(ability, "display_name", 40);
+            string description = RequireText(ability, "description", 200);
             return new GroundingAbilityDefinition(
                 ability.Require("range_tiles").AsFix64(GroundingAbilityDefinition.MinRangeTiles, GroundingAbilityDefinition.MaxRangeTiles),
                 ability.Require("radius_tiles").AsFix64(GroundingAbilityDefinition.MinRadiusTiles, GroundingAbilityDefinition.MaxRadiusTiles),
-                ability.Require("cooldown_seconds").AsFix64(GroundingAbilityDefinition.MinCooldownSeconds, GroundingAbilityDefinition.MaxCooldownSeconds));
+                ability.Require("cooldown_seconds").AsFix64(GroundingAbilityDefinition.MinCooldownSeconds, GroundingAbilityDefinition.MaxCooldownSeconds),
+                displayName, description);
+        }
+
+        /// <summary>Reads a required text member of 1 to <paramref name="maxLength"/> characters, failing with a file-and-field error otherwise.</summary>
+        /// <param name="node">The object holding the member.</param>
+        /// <param name="key">Member name.</param>
+        /// <param name="maxLength">Longest accepted text. Unit: characters. Range: 1 upward.</param>
+        private static string RequireText(JsonValue node, string key, int maxLength)
+        {
+            // The member's text, non-empty.
+            string text = node.RequireNonEmptyString(key);
+            if (text.Length > maxLength)
+            {
+                throw node.Require(key).Fail("must be 1 to " + maxLength + " characters (found " + text.Length + ")");
+            }
+            return text;
         }
 
         /// <summary>
@@ -315,11 +334,29 @@ namespace Rts.Sim.Data
             }
             // Wave switch (Tidecaller). Range: true or false; false when absent.
             bool canCastWave = root.TryGetMember("can_cast_wave", out JsonValue? waveNode) && waveNode.AsBool();
+            // Wave name and description: both required with can_cast_wave true, rejected otherwise. Unit: text. Range: 1 to 40 and 1 to 200 characters; empty without the wave.
+            string waveName = string.Empty;
+            string waveDescription = string.Empty;
+            if (canCastWave)
+            {
+                waveName = RequireText(root, "wave_display_name", 40);
+                waveDescription = RequireText(root, "wave_description", 200);
+            }
+            else
+            {
+                foreach (string key in new[] { "wave_display_name", "wave_description" })
+                {
+                    if (root.TryGetMember(key, out JsonValue? extra))
+                    {
+                        throw extra.Fail("is only allowed with can_cast_wave true");
+                    }
+                }
+            }
             if (output == Fix64.Zero && capacity == Fix64.Zero && !canCastWave)
             {
                 return UnitFloodDefinition.None;
             }
-            return new UnitFloodDefinition(output, capacity, canCastWave);
+            return new UnitFloodDefinition(output, capacity, canCastWave, waveName, waveDescription);
         }
 
         /// <summary>True when <paramref name="name"/> is in <paramref name="names"/> (ordinal comparison).</summary>

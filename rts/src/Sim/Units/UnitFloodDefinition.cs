@@ -36,6 +36,12 @@ namespace Rts.Sim.Units
         /// <summary>True when the unit may be given the cast_wave command (the Tidecaller). Range: true or false.</summary>
         public bool CanCastWave { get; }
 
+        /// <summary>Name of the wave ability shown to players. Presentation only; not hashed. Unit: text. Range: 1 to 40 characters when loaded from data and <see cref="CanCastWave"/>; empty otherwise.</summary>
+        public string WaveDisplayName { get; }
+
+        /// <summary>One-line wave description shown to players. Presentation only; not hashed. Unit: text. Range: 1 to 200 characters when loaded from data and <see cref="CanCastWave"/>; empty otherwise.</summary>
+        public string WaveDescription { get; }
+
         /// <summary>True when the unit releases water (output above 0).</summary>
         public bool IsSource => OutputPerSecond > Fix64.Zero;
 
@@ -43,7 +49,9 @@ namespace Rts.Sim.Units
         /// <param name="outputPerSecond">Output in depth-unit tiles per second, 0 to 64.</param>
         /// <param name="capacity">Capacity in depth-unit tiles, 0 to 4096, above 0 when the output is above 0.</param>
         /// <param name="canCastWave">True for units that can cast the wave.</param>
-        public UnitFloodDefinition(Fix64 outputPerSecond, Fix64 capacity, bool canCastWave)
+        /// <param name="waveDisplayName">Wave name shown to players. Unit: text. Range: any text; null becomes empty (the loader enforces 1 to 40 characters).</param>
+        /// <param name="waveDescription">Wave description shown to players. Unit: text. Range: any text; null becomes empty (the loader enforces 1 to 200 characters).</param>
+        public UnitFloodDefinition(Fix64 outputPerSecond, Fix64 capacity, bool canCastWave, string waveDisplayName = "", string waveDescription = "")
         {
             if (outputPerSecond < Fix64.Zero || outputPerSecond > MaxOutputPerSecond)
             {
@@ -60,9 +68,11 @@ namespace Rts.Sim.Units
             OutputPerSecond = outputPerSecond;
             Capacity = capacity;
             CanCastWave = canCastWave;
+            WaveDisplayName = waveDisplayName ?? string.Empty;
+            WaveDescription = waveDescription ?? string.Empty;
         }
 
-        /// <summary>Feeds every field into a hash in a fixed order (used by the content digest).</summary>
+        /// <summary>Feeds output, capacity and the wave switch into a hash in a fixed order (used by the content digest). The wave name and description are left out.</summary>
         public void WriteHash(StateHasher hasher)
         {
             hasher.Write(OutputPerSecond);

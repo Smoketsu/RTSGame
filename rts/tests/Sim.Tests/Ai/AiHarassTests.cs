@@ -205,11 +205,12 @@ namespace Rts.Sim.Tests.Ai
         {
             // (matchup, game, expected final state hash) of the recorded games.
             // Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): the AI never researches, so its mixes lose the Stormcaller, Ink Lobber, Thunderhead and Leviathan. Old values skai_vs_water 0xae4f362f8bdc9885, skai_vs_skai 0x235626745316a81d, water_vs_water 0xb171e5cd2bf0bfeb; end ticks were not recorded.
+            // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hashes only; end ticks and winners are unchanged (10997 slot 0, 9559 slot 0, 10907 slot 1). Old values skai_vs_water 0x31dbd80f94a26eae, skai_vs_skai 0x311eec87f47b4d4e, water_vs_water 0x4b44414af49e53e4.
             (string Matchup, int Game, ulong Hash)[] recorded =
             {
-                ("skai_vs_water", 2, 0x31dbd80f94a26eaeUL),
-                ("skai_vs_skai", 3, 0x311eec87f47b4d4eUL),
-                ("water_vs_water", 2, 0x4b44414af49e53e4UL),
+                ("skai_vs_water", 2, 0x31de6615e47a5804UL),
+                ("skai_vs_skai", 3, 0xc4b816b03df9c616UL),
+                ("water_vs_water", 2, 0xa24b5faa0015c722UL),
             };
             foreach ((string matchup, int game, ulong hash) in recorded)
             {

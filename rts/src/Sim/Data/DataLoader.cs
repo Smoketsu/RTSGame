@@ -341,7 +341,7 @@ namespace Rts.Sim.Data
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
                 "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "airborne_sight_range_tiles", "weapon",
                 "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "requires", "researches", "is_static_defence", "is_wall", "is_gate", "footprint", "provides_supply",
-                "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave", "shield_dome", "grounding_ability");
+                "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave", "wave_display_name", "wave_description", "shield_dome", "grounding_ability");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
             // Display name text. Range: non-empty string.
@@ -412,16 +412,21 @@ namespace Rts.Sim.Data
             root.RejectUnknownKeys("id", "display_name", "faction_id", "cost_common", "cost_rare", "research_seconds");
             // ID implied by the path: the folder is the faction, the file name is the item.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
-            // Display name text. Range: non-empty string.
+            // Display name text. Unit: text. Range: 1 to 40 characters.
             string displayName = root.RequireNonEmptyString("display_name");
+            if (displayName.Length > 40)
+            {
+                throw root.Require("display_name").Fail("must be 1 to 40 characters (found " + displayName.Length + ")");
+            }
             // Owning faction ID; must equal the folder name checked below.
             string factionId = root.RequireNonEmptyString("faction_id");
             if (!string.Equals(factionId, parts[1], StringComparison.Ordinal))
             {
                 throw root.Require("faction_id").Fail("must be '" + parts[1] + "' to match the folder the file is in (found '" + factionId + "')");
             }
-            // Costs. Unit: resource units. Range: 0 to 100000.
+            // Common-resource cost, paid when queued. Unit: resource units. Range: 0 to 100000.
             int costCommon = root.Require("cost_common").AsInt(0, 100000);
+            // Rare-resource cost, paid when queued. Unit: resource units. Range: 0 to 100000.
             int costRare = root.Require("cost_rare").AsInt(0, 100000);
             // Research time. Unit: seconds (fixed-point). Range: 0.05 to 3600.
             Fix64 seconds = root.Require("research_seconds").AsFix64(Fix64.Parse("0.05"), Fix64.FromInt(3600));
@@ -595,7 +600,7 @@ namespace Rts.Sim.Data
                         {
                             throw new DataValidationException(unitFiles[pair.Key], field, "names '" + required + "' of faction '" + requiredResearch.FactionId + "'; requirements must be of the same faction");
                         }
-                        // True when some building of the same faction lists this research in researches.
+                        // True when some building of the same faction lists this research in researches. Range: true or false; starts false.
                         bool listedByBuilding = false;
                         foreach (UnitDefinition building in content.Units.Values)
                         {

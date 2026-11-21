@@ -41,6 +41,8 @@ namespace Rts.Replay.Tests
                 new StopCommand(7, new PlayerId(0), 6, new EntityId(11)),
                 new GatherCommand(8, new PlayerId(1), 7, new EntityId(12), -3),
                 new TrainUnitCommand(9, new PlayerId(1), 8, new EntityId(13), "water.tender"),
+                new CancelProductionCommand(9, new PlayerId(1), 8, new EntityId(13), 4, "water.tender"),
+                new SetRallyPointCommand(9, new PlayerId(1), 8, new EntityId(13), false, new FixVec2(Fix64.FromInt(3), Fix64.FromInt(-4))),
                 new BuildStructureCommand(10, new PlayerId(1), 9, new EntityId(14), "water.pump", -5, 2000000000),
                 new RootHqCommand(11, new PlayerId(0), 10, new EntityId(15)),
                 new UprootHqCommand(12, new PlayerId(0), 11, new EntityId(16)),

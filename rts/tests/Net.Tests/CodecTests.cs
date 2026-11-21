@@ -50,6 +50,8 @@ namespace Rts.Net.Tests
                 new PickCycleCommand(15, P0, 9, "quake"),
                 new GatherCommand(16, P0, 10, new EntityId(50), 3),
                 new TrainUnitCommand(17, P1, 11, new EntityId(51), "water.tender"),
+                new CancelProductionCommand(17, P1, 11, new EntityId(51), 2, "water.tender"),
+                new SetRallyPointCommand(17, P0, 12, new EntityId(52), false, new FixVec2(Fix64.FromInt(21), Fix64.FromInt(-34))),
                 new BuildStructureCommand(18, P0, 12, new EntityId(52), "skai.roost", 21, 34),
                 new ApplyStatusCommand(19, PlayerId.None, 13, new EntityId(53), StatusKind.Slowed, Fix64.Parse("0.6"), Fix64.Parse("2.5"), "test.slow"),
                 new SurrenderCommand(20, P1, 14, P1),

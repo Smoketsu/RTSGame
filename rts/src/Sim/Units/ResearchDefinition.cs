@@ -45,9 +45,13 @@ namespace Rts.Sim.Units
             {
                 throw new ArgumentException("A research faction ID cannot be empty.", nameof(factionId));
             }
-            if (costCommon < 0 || costCommon > 100000 || costRare < 0 || costRare > 100000)
+            if (costCommon < 0 || costCommon > 100000)
             {
                 throw new ArgumentOutOfRangeException(nameof(costCommon), "Research costs must be 0 to 100000.");
+            }
+            if (costRare < 0 || costRare > 100000)
+            {
+                throw new ArgumentOutOfRangeException(nameof(costRare), "Research costs must be 0 to 100000.");
             }
             if (researchSeconds < Fix64.Parse("0.05") || researchSeconds > Fix64.FromInt(3600))
             {

@@ -260,8 +260,8 @@ namespace Rts.Sim.Commands
         public override string Kind => "build_structure";
 
         /// <summary>
-        /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker),
-        /// unknown_definition, not_a_structure (no footprint), wrong_faction, missing_prerequisite (the owner lacks a complete building the definition requires), out_of_bounds, site_unexplored (the worker owner's team
+        /// Applies the command. Rejections, in order: unknown_unit (the worker), not_owner, cannot_build (not a worker), then the site checks of
+        /// <see cref="EconomyRules.BuildSiteProblem"/> (shared with the placement query), in order: unknown_definition, not_a_structure (no footprint), wrong_faction, missing_prerequisite (the owner lacks a complete building the definition requires), out_of_bounds, site_unexplored (the worker owner's team
         /// has never seen the tile; checked before tile_blocked so a rejection reveals nothing), tile_blocked, tile_occupied (a ground
         /// or water unit stands on the tile), site_pending (an own unit already has a build order for the tile), no_base (a static
         /// defence needs an own drop-off within base_radius_tiles of the site), static_defence_cap (static_defences_per_base_max of them,
@@ -283,68 +283,17 @@ namespace Rts.Sim.Commands
             {
                 return CommandResult.Reject("cannot_build");
             }
-            if (!sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? definition))
-            {
-                return CommandResult.Reject("unknown_definition");
-            }
-            if (definition.Economy.FootprintTiles <= 0)
-            {
-                return CommandResult.Reject("not_a_structure");
-            }
-            if (!string.Equals(definition.FactionId, owner.FactionId, System.StringComparison.Ordinal))
-            {
-                return CommandResult.Reject("wrong_faction");
-            }
-            if (EconomyRules.FirstMissingRequirement(sim, worker.Owner, definition) != null)
-            {
-                return CommandResult.Reject("missing_prerequisite");
-            }
-            if (!sim.Terrain.Contains(TileX, TileY))
-            {
-                return CommandResult.Reject("out_of_bounds");
-            }
-            // Site tile and its centre.
-            int tile = sim.Terrain.IndexOf(TileX, TileY);
-            FixVec2 centre = sim.Terrain.CentreOf(tile);
-            if (!sim.Vision.IsTileExplored(sim.Players.TeamOf(worker.Owner), TileX, TileY))
-            {
-                return CommandResult.Reject("site_unexplored");
-            }
-            if (sim.Terrain[tile].IsBlocked)
-            {
-                return CommandResult.Reject("tile_blocked");
-            }
-            foreach (Unit other in sim.Units.All)
-            {
-                if (other.EffectiveLayer != MovementLayer.Air && sim.Terrain.TileOf(other.Position) == tile)
-                {
-                    return CommandResult.Reject("tile_occupied");
-                }
-            }
-            foreach (Unit other in sim.Units.All)
-            {
-                if (other.Owner == worker.Owner && ((other.BuildState != BuildOrderState.None && other.BuildTileX == TileX && other.BuildTileY == TileY) || other.QueuesTile(tile)))
-                {
-                    return CommandResult.Reject("site_pending");
-                }
-            }
-            if (definition.Economy.IsStaticDefence)
-            {
-                CommandResult? defenceProblem = CheckStaticDefenceCap(sim, worker.Owner, centre);
-                if (defenceProblem.HasValue)
-                {
-                    return defenceProblem.Value;
-                }
-            }
-            if (!owner.CanAfford(definition.CostCommon, definition.CostRare))
-            {
-                return CommandResult.Reject("insufficient_resources");
-            }
             EconomySystem.RecomputeSupply(sim);
-            if (owner.SupplyUsed + EconomyRules.SupplyOf(sim, definition) > owner.SupplyCap)
+            // The first reason the site cannot be used, or null; the same code the placement query runs.
+            string? problem = EconomyRules.BuildSiteProblem(sim, owner, DefinitionId, TileX, TileY, false);
+            if (problem != null)
             {
-                return CommandResult.Reject("supply_cap");
+                return CommandResult.Reject(problem);
             }
+            // The structure's definition (BuildSiteProblem found it).
+            UnitDefinition definition = sim.Content.Units[DefinitionId];
+            // Site centre. Unit: tiles (fixed-point).
+            FixVec2 centre = sim.Terrain.CentreOf(sim.Terrain.IndexOf(TileX, TileY));
             // Gather field to resume afterwards. Unit: field index. Range: -1 or 0 to field count - 1.
             int resume = worker.GatherState != GatherState.Idle ? worker.GatherFieldIndex : worker.BuildResumeFieldIndex;
             // A replaced order is refunded first (its event comes before the accepted event).
@@ -359,45 +308,6 @@ namespace Rts.Sim.Commands
             return CommandResult.Ok;
         }
 
-        /// <summary>
-        /// Checks the per-base static defence limit for a site. Returns null when the site is fine, otherwise the rejection:
-        /// no_base when the owner has no drop-off within base_radius_tiles of the site, static_defence_cap when that drop-off's base
-        /// already holds static_defences_per_base_max of the owner's static defences (under construction ones and pending build
-        /// orders for static defences sited in that base count).
-        /// </summary>
-        private static CommandResult? CheckStaticDefenceCap(Simulation sim, PlayerId owner, FixVec2 site)
-        {
-            // Squared base radius. Unit: squared tiles.
-            Fix64 radius = sim.Tuning.Economy.BaseRadiusTiles;
-            Fix64 radiusSquared = radius * radius;
-            Unit? dropOff = EconomyRules.NearestDropOff(sim, owner, site);
-            if (dropOff == null || (dropOff.Position - site).LengthSquared() > radiusSquared)
-            {
-                return CommandResult.Reject("no_base");
-            }
-            // Static defences the owner already has in that base. Unit: count.
-            int count = 0;
-            foreach (Unit other in sim.Units.All)
-            {
-                if (other.Owner == owner && other.Definition.Economy.IsStaticDefence && (other.Position - dropOff.Position).LengthSquared() <= radiusSquared)
-                {
-                    count++;
-                }
-                // Definition of another worker's pending structure (the out value is unused without an order).
-                if (other.Owner == owner && other.BuildState != BuildOrderState.None
-                    && sim.Content.Units.TryGetValue(other.BuildDefinitionId, out UnitDefinition? pending) && pending.Economy.IsStaticDefence
-                    && (sim.Terrain.CentreOf(sim.Terrain.IndexOf(other.BuildTileX, other.BuildTileY)) - dropOff.Position).LengthSquared() <= radiusSquared)
-                {
-                    count++;
-                }
-            }
-            if (count >= sim.Tuning.Supply.StaticDefencesPerBaseMax)
-            {
-                return CommandResult.Reject("static_defence_cap");
-            }
-            return null;
-        }
-
         /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
         public override void WriteHash(StateHasher hasher)
         {
@@ -406,6 +316,165 @@ namespace Rts.Sim.Commands
             hasher.Write(DefinitionId);
             hasher.Write(TileX);
             hasher.Write(TileY);
+        }
+    }
+
+    /// <summary>
+    /// Cancels one entry of a producer's production queue (a unit or a research item) and refunds it in full (specs/interface_support.md I4). Script name
+    /// <c>cancel_production</c>. Rejections, in order: unknown_unit, not_owner (the issuer is a player other than the owner; the issuer None may command any unit),
+    /// not_owner (the owner has no player record), no_entry (the index is outside the queue, an empty queue included), entry_mismatch (the entry at the index is not
+    /// <see cref="DefinitionId"/>). A rejection changes nothing. Allowed while the producer is paused (an Uprooted HQ) and when the head waits for a spawn tile.
+    /// On acceptance: the cost is refunded to the producer's current owner, the entry is removed (removing the head loses its progress and the next entry starts
+    /// at its full length), supply is recomputed and ProductionCancelledEvent is emitted.
+    /// </summary>
+    public sealed class CancelProductionCommand : Command
+    {
+        /// <summary>The producing building. Must exist and belong to the issuer (or the issuer is None).</summary>
+        public EntityId Producer { get; }
+
+        /// <summary>Queue position to cancel. Unit: entries. Range: 0 (the head) to the queue length - 1, else rejected no_entry.</summary>
+        public int Index { get; }
+
+        /// <summary>The unit or research ID the player saw at that position; guards against the queue having shifted under input delay. Non-empty.</summary>
+        public string DefinitionId { get; }
+
+        /// <summary>Builds the command from its scheduling fields and parameters.</summary>
+        public CancelProductionCommand(int tick, PlayerId issuer, uint sequence, EntityId producer, int index, string definitionId) : base(tick, issuer, sequence)
+        {
+            Producer = producer;
+            Index = index;
+            DefinitionId = definitionId ?? string.Empty;
+        }
+
+        /// <summary>Machine-readable kind name: "cancel_production".</summary>
+        public override string Kind => "cancel_production";
+
+        /// <summary>Applies the command; see the class summary for the rejections and the effects.</summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Producer, out Unit? producer))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && producer.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (!sim.Players.TryGet(producer.Owner, out Player? owner))
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (Index < 0 || Index >= producer.ProductionQueue.Count)
+            {
+                return CommandResult.Reject("no_entry");
+            }
+            if (!string.Equals(producer.ProductionQueue[Index], DefinitionId, System.StringComparison.Ordinal))
+            {
+                return CommandResult.Reject("entry_mismatch");
+            }
+            // Refund amounts: the entry's full cost from the unit or the research definition. Unit: resource units. Range: 0 to 100000.
+            int refundCommon = 0;
+            int refundRare = 0;
+            if (sim.Content.Units.TryGetValue(DefinitionId, out UnitDefinition? unit))
+            {
+                refundCommon = unit.CostCommon;
+                refundRare = unit.CostRare;
+            }
+            else if (sim.Content.Researches.TryGetValue(DefinitionId, out ResearchDefinition? research))
+            {
+                refundCommon = research.CostCommon;
+                refundRare = research.CostRare;
+            }
+            owner.AddResource(ResourceKind.Common, refundCommon);
+            owner.AddResource(ResourceKind.Rare, refundRare);
+            if (Index == 0)
+            {
+                // The head's progress is lost; the next entry, if any, starts at its full length.
+                producer.FinishProductionHead(producer.ProductionQueue.Count > 1 ? EconomyRules.QueueEntryTicks(sim, producer.ProductionQueue[1]) : 0);
+            }
+            else
+            {
+                producer.RemoveQueuedProduction(Index);
+            }
+            EconomySystem.RecomputeSupply(sim);
+            sim.Events.Add(new ProductionCancelledEvent(sim.Clock.Tick, producer.Id, producer.Owner, DefinitionId, Index, refundCommon, refundRare));
+            return CommandResult.Ok;
+        }
+
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Producer);
+            hasher.Write(Index);
+            hasher.Write(DefinitionId);
+        }
+    }
+
+    /// <summary>
+    /// Sets or clears a producer's rally point (specs/interface_support.md I5): units it trains afterwards get a plain move order to the point. Script name
+    /// <c>set_rally_point</c>. Rejections, in order: unknown_unit, not_owner (the issuer is a player other than the owner; the issuer None may command any unit),
+    /// not_a_producer (the unit trains nothing and is not an HQ), out_of_bounds (the point is beyond <see cref="Simulation.WorldBoundTiles"/>; not checked when
+    /// clearing). Allowed under construction and in any HQ state; any in-bounds point is accepted, blocked or unreachable included. Raises no event: the point is state
+    /// Unity reads.
+    /// </summary>
+    public sealed class SetRallyPointCommand : Command
+    {
+        /// <summary>The producing building. Must exist and belong to the issuer (or the issuer is None).</summary>
+        public EntityId Producer { get; }
+
+        /// <summary>True to remove the rally point; <see cref="Point"/> is then <see cref="FixVec2.Zero"/>.</summary>
+        public bool Clear { get; }
+
+        /// <summary>Where trained units are sent. Unit: tiles (fixed-point). Range: each component within ±<see cref="Simulation.WorldBoundTiles"/>, else rejected; Zero when <see cref="Clear"/>.</summary>
+        public FixVec2 Point { get; }
+
+        /// <summary>Builds the command from its scheduling fields and parameters; the point is stored as Zero when <paramref name="clear"/> is true.</summary>
+        public SetRallyPointCommand(int tick, PlayerId issuer, uint sequence, EntityId producer, bool clear, FixVec2 point) : base(tick, issuer, sequence)
+        {
+            Producer = producer;
+            Clear = clear;
+            Point = clear ? FixVec2.Zero : point;
+        }
+
+        /// <summary>Machine-readable kind name: "set_rally_point".</summary>
+        public override string Kind => "set_rally_point";
+
+        /// <summary>Applies the command; see the class summary for the rejections.</summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Producer, out Unit? producer))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && producer.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (producer.Definition.Economy.Trains.Count == 0 && producer.Definition.Hq == null)
+            {
+                return CommandResult.Reject("not_a_producer");
+            }
+            if (Clear)
+            {
+                producer.ClearRallyPoint();
+                return CommandResult.Ok;
+            }
+            if (!Simulation.IsWithinWorldBounds(Point))
+            {
+                return CommandResult.Reject("out_of_bounds");
+            }
+            producer.SetRallyPoint(Point);
+            return CommandResult.Ok;
+        }
+
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Producer);
+            hasher.Write(Clear);
+            hasher.Write(Point);
         }
     }
 

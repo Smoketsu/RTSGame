@@ -20,7 +20,8 @@
 // Production: each producer has one queue, head first. The head counts down build_seconds (in ticks) while the producer is
 //   complete (and, for an HQ, Rooted); at 0 the unit appears on the first free tile next to the producer (EconomyRules.
 //   TryFindSpawnPosition) and UnitTrainedEvent is emitted; with no free tile it waits and retries next tick. A queued unit
-//   reserves its supply and its cost is paid when queued; there is no refund (placeholder).
+//   reserves its supply and its cost is paid when queued; cancel_production refunds an entry in full; a lost producer refunds nothing.
+//   A producer with a rally point (set_rally_point) sends each unit it trains there with a plain move order, when the unit can move and is not movement-locked (a Rooted HQ).
 //   A research item (research_and_unlocks.md) sits in the same queue: it counts down research_seconds, needs no spawn tile, and at 0 adds its ID
 //   to the owner's research set and emits ResearchCompletedEvent; the next entry then starts with its own length (EconomyRules.QueueEntryTicks).
 // Build orders (BuildOrderState; specs/worker_construction.md): BuildStructureCommand pays the cost, records the order on the
@@ -741,6 +742,11 @@ namespace Rts.Sim.Economy
             // The new unit, owned by the producer's owner.
             Unit created = sim.SpawnUnit(definition, producer.Owner, position);
             sim.Events.Add(new UnitTrainedEvent(sim.Clock.Tick, producer.Id, created.Id, definition.Id));
+            if (producer.HasRallyPoint && definition.SpeedTilesPerSecond > Fix64.Zero && !HqSystem.IsMovementLocked(created))
+            {
+                // The same plain move order move_unit gives a new unit (it has no build, combat or gather order to clear).
+                created.SetMoveTarget(producer.RallyPoint);
+            }
             producer.FinishProductionHead(nextEntryTicks);
         }
     }
