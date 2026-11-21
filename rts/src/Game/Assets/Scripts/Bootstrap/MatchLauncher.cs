@@ -82,11 +82,15 @@ namespace Rts.Game.Bootstrap
         /// <summary>The request the next scene load starts, or null for the menu or the Inspector script.</summary>
         public static MatchRequest Pending { get; private set; }
 
-        /// <summary>Stores the request and reloads the active scene, which starts it (null returns to the menu).</summary>
+        /// <summary>True after Load(null): the next scene load shows the main menu even when the host is in Script mode. Unit: on/off.</summary>
+        public static bool ShowMenu { get; private set; }
+
+        /// <summary>Stores the request and reloads the active scene, which starts it (null returns to the main menu).</summary>
         /// <param name="request">The match to start, or null.</param>
         public static void Load(MatchRequest request)
         {
             Pending = request;
+            ShowMenu = request == null;
             // Build index of the scene to reload; -1 for an unsaved scene, which cannot be reloaded by index.
             int index = SceneManager.GetActiveScene().buildIndex;
             if (index < 0)
@@ -102,6 +106,33 @@ namespace Rts.Game.Bootstrap
         private static void ResetOnPlay()
         {
             Pending = null;
+            ShowMenu = false;
+        }
+
+        /// <summary>
+        /// The request to restart: the same one, with a newly drawn seed when its Random switch is on (UnityEngine.Random: an input to the
+        /// match, never simulation code).
+        /// </summary>
+        /// <param name="request">The request the running match was started from.</param>
+        public static MatchRequest RestartOf(MatchRequest request)
+        {
+            if (request == null || !request.RandomSeed)
+            {
+                return request;
+            }
+            MatchRequest copy = new MatchRequest { Kind = request.Kind, MapId = request.MapId, Seed = Random.Range(0, int.MaxValue), RandomSeed = true, ReplayPath = request.ReplayPath };
+            copy.Slots.AddRange(request.Slots);
+            return copy;
+        }
+
+        /// <summary>Quits the game: stops Play Mode in the editor, quits a player (the replay is written when the host is destroyed).</summary>
+        public static void Quit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.ExitPlaymode();
+#else
+            Application.Quit();
+#endif
         }
     }
 }

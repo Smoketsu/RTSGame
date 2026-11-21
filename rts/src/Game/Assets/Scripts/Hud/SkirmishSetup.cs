@@ -5,7 +5,8 @@
 // StandardMatchStart.Commands so its refusal shows here, draws the seed when Random is on (UnityEngine.Random: an input to the match,
 // never simulation code) and calls MatchLauncher.Load, which reloads the scene; the host then starts the request. Lists come from
 // data in ascending ID order: maps (dataSet.Maps), factions with an HQ, AI profiles that parse and have a plan for the slot's
-// faction (listed by ID: gap G2's menu names are not being built). Choices cycle on click. Built from code under the menu canvas.
+// faction (listed by ID: gap G2's menu names are not being built). Choices cycle on click. Opened from the main menu; Back or Esc
+// returns to it (UI-13). Built from code under the menu canvas.
 // Part of Rts.Game (presentation only).
 using System;
 using System.Collections.Generic;
@@ -101,6 +102,9 @@ namespace Rts.Game.Hud
         /// <summary>True once the lists have been read from the data. Unit: on/off.</summary>
         private bool _loaded;
 
+        /// <summary>True while the setup screen is open (opened from the main menu, closed by Back or Esc). Unit: on/off.</summary>
+        public bool Open { get; set; }
+
         /// <summary>Builds the panel and its controls.</summary>
         private void Awake()
         {
@@ -123,9 +127,10 @@ namespace Rts.Game.Hud
             HudBuild.Text(_panel, "Seed Label", new Vector2(0f, 0f), new Vector2(30f, 92f), new Vector2(120f, 36f), 22, TextAnchor.MiddleLeft).text = "Seed";
             _seedField = CreateSeedField(new Vector2(160f, 92f));
             _randomButton = HudBuild.Button(_panel, "Random Seed", new Vector2(0f, 0f), new Vector2(390f, 92f), new Vector2(180f, 40f), "", ToggleRandom);
-            _status = HudBuild.Text(_panel, "Status", new Vector2(0f, 0f), new Vector2(30f, 24f), new Vector2(Width - 300f, 48f), 18, TextAnchor.MiddleLeft);
+            _status = HudBuild.Text(_panel, "Status", new Vector2(0f, 0f), new Vector2(30f, 24f), new Vector2(Width - 470f, 48f), 18, TextAnchor.MiddleLeft);
             _status.color = ErrorColor;
             _start = HudBuild.Button(_panel, "Start", new Vector2(1f, 0f), new Vector2(-30f, 24f), new Vector2(220f, 52f), "Start", StartMatch);
+            HudBuild.Button(_panel, "Back", new Vector2(1f, 0f), new Vector2(-270f, 24f), new Vector2(150f, 52f), "Back", () => Open = false);
         }
 
         /// <summary>Reads the lists once the host has data, and keeps every label and the Start state current.</summary>
@@ -135,10 +140,15 @@ namespace Rts.Game.Hud
             {
                 _host = FindAnyObjectByType<SimulationHost>();
             }
-            bool visible = _host != null && _host.IsIdle;
+            bool visible = _host != null && _host.IsIdle && Open;
             _panel.gameObject.SetActive(visible);
             if (!visible)
             {
+                return;
+            }
+            if (Controls.GameInput.GetKeyDown(KeyCode.Escape))
+            {
+                Open = false;
                 return;
             }
             if (!_loaded)

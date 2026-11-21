@@ -129,12 +129,14 @@ namespace Rts.Game.Bootstrap
             }
         }
 
-        /// <summary>Creates the "Menu" canvas with the skirmish setup screen unless the setup screen exists.</summary>
+        /// <summary>Creates the "Menu" canvas with the main menu and the skirmish setup screen unless they exist.</summary>
         /// <returns>The existing or new setup screen.</returns>
         public static SkirmishSetup EnsureMenu()
         {
             SkirmishSetup existing = Object.FindAnyObjectByType<SkirmishSetup>();
-            return existing != null ? existing : CreateHudCanvas("Menu").AddComponent<SkirmishSetup>();
+            GameObject menu = existing != null ? existing.gameObject : CreateHudCanvas("Menu");
+            EnsureComponent<MainMenu>(menu);
+            return EnsureComponent<SkirmishSetup>(menu);
         }
 
         /// <summary>Creates a canvas object (the HUD or the menu): a screen-space overlay Canvas scaled from 1920 x 1080 (match 0.5) with a GraphicRaycaster.</summary>
