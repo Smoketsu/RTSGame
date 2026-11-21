@@ -251,7 +251,7 @@ namespace Rts.Sim.Tests.Economy
         /// <summary>The thunderhead file with its requires list replaced.</summary>
         private static List<DataSourceFile> Thunderhead(string list)
         {
-            return TestData.WithEdit("units/skai/thunderhead.json", "\"requires\": [\"skai.storm_spire\"]", "\"requires\": " + list);
+            return TestData.WithEdit("units/skai/thunderhead.json", "\"requires\": [\"skai.storm_spire\", \"skai.thunderhead_plans\"]", "\"requires\": " + list);
         }
 
         /// <summary>T-9: every bad list is rejected naming the file and the field; a chain loads.</summary>
@@ -289,15 +289,16 @@ namespace Rts.Sim.Tests.Economy
             Assert.That(chain.Content.Units["skai.storm_spire"].Economy.Requires, Is.EqualTo(new[] { "skai.wind_baffle" }));
         }
 
-        /// <summary>T-10: shipped data: exactly the Thunderhead and the Leviathan have requires, and the tech buildings have the spec values.</summary>
+        /// <summary>T-10: shipped data: exactly the Stormcaller, Thunderhead, Ink Lobber and Leviathan have requires (research_and_unlocks.md R1.2), and the tech buildings have the spec values.</summary>
         [Test]
         public void T10_ShippedData()
         {
             DataSet data = TestData.LoadAll();
             List<string> gated = data.Content.Units.Values.Where(u => u.Economy.Requires.Count > 0).Select(u => u.Id).ToList();
-            Assert.That(gated, Is.EqualTo(new List<string> { "skai.thunderhead", "water.leviathan" }));
-            Assert.That(data.Content.Units["skai.thunderhead"].Economy.Requires, Is.EqualTo(new[] { "skai.storm_spire" }));
-            Assert.That(data.Content.Units["water.leviathan"].Economy.Requires, Is.EqualTo(new[] { "water.reef_workshop" }));
+            Assert.That(gated, Is.EqualTo(new List<string> { "skai.stormcaller", "skai.thunderhead", "water.ink_lobber", "water.leviathan" }));
+            // Research gates added by research_and_unlocks.md R1.2.
+            Assert.That(data.Content.Units["skai.thunderhead"].Economy.Requires, Is.EqualTo(new[] { "skai.storm_spire", "skai.thunderhead_plans" }));
+            Assert.That(data.Content.Units["water.leviathan"].Economy.Requires, Is.EqualTo(new[] { "water.reef_workshop", "water.leviathan_plans" }));
             foreach ((string faction, string id) in new[] { ("skai", "skai.storm_spire"), ("water", "water.reef_workshop") })
             {
                 Assert.That(data.Content.Factions[faction].UnitIds, Does.Contain(id));

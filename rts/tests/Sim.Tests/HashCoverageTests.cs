@@ -121,6 +121,7 @@ namespace Rts.Sim.Tests
                 Case("Player.Rare", w => PlayerOf(w.Sim, P0).SetStock(PlayerOf(w.Sim, P0).Common, PlayerOf(w.Sim, P0).Rare + 1)),
                 Case("Player.SupplyUsed", w => PlayerOf(w.Sim, P0).SetSupply(PlayerOf(w.Sim, P0).SupplyUsed + 1, PlayerOf(w.Sim, P0).SupplyCap)),
                 Case("Player.SupplyCap", w => PlayerOf(w.Sim, P0).SetSupply(PlayerOf(w.Sim, P0).SupplyUsed, PlayerOf(w.Sim, P0).SupplyCap + 1)),
+                Case("Player._researched", w => PlayerOf(w.Sim, P0).AddResearch("skai.thunderhead_plans")),
                 Case("ResourceFields remaining", w => w.Sim.Resources[0].Take(1)),
             };
         }

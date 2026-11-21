@@ -2929,13 +2929,13 @@ namespace Rts.Ai
                 return FirstUnmetRequirement(definition) == null;
             }
 
-            /// <summary>The first <c>requires</c> entry of <paramref name="definition"/>, in file order, that no own complete unit satisfies, or null.</summary>
+            /// <summary>The first <c>requires</c> entry of <paramref name="definition"/>, in file order, that no own complete unit satisfies and that is not a finished own research item, or null.</summary>
             private string? FirstUnmetRequirement(UnitDefinition definition)
             {
                 foreach (string required in definition.Economy.Requires)
                 {
-                    // True once an own complete unit of the required definition is found.
-                    bool met = false;
+                    // True once an own complete unit of the required definition is found, or the research item is finished (the AI never researches in R1, so for it this stays false).
+                    bool met = _view.OwnResearched.Contains(required);
                     foreach (AiUnitView unit in _view.OwnUnits)
                     {
                         met |= !unit.IsUnderConstruction && string.Equals(unit.Definition.Id, required, StringComparison.Ordinal);
