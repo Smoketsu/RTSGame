@@ -378,5 +378,102 @@ namespace Rts.Sim.Tests.Harness
             string[] traceLines = traced.TrimEnd('\n').Split('\n');
             Assert.That(traceLines[traceLines.Length - 1], Is.EqualTo(lines[3]));
         }
+
+        /// <summary>The check <paramref name="id"/> configured from an entry written as JSON text, with the bank times 300, 600 and 900 and 20 ticks per second.</summary>
+        private static IBehaviourCheck HCheck(string id, string entry)
+        {
+            IBehaviourCheck check = BehaviourChecks.Create(id, new BehaviourContext(10000, 600, new[] { 300, 600, 900 }, 20));
+            check.ReadSettings(JsonReader.Parse(entry, "test"));
+            return check;
+        }
+
+        /// <summary>A synthetic summary that carries only the B0 fields.</summary>
+        private static GameSummary HSummary(int?[] workers, int[] dropOffTicks)
+        {
+            return new GameSummary(0, 0, new SortedDictionary<string, int[]>(), new List<int[]?>(), new List<int[]>(), new List<int[]>(), new SortedDictionary<string, int>(), new SortedDictionary<string, int>(),
+                new SortedDictionary<string, int>(), workers, dropOffTicks);
+        }
+
+        /// <summary>A throwaway game record for checks that read only the summary.</summary>
+        private static GameRecord HGame()
+        {
+            return new GameRecord("prototype_1v1", "water_vs_water", 0, 1UL, "water", "water", "a", "b", GameRecord.Undecided, 1, 1UL, 1UL, 1UL, new List<HqKill>());
+        }
+
+        /// <summary>H-1: one 240 s game has one workers entry per bank time (null after the end), drop_off_ticks ascending and as many as the completed non-HQ drop-offs; the observer is still read-only; the line round-trips and a record without the fields parses with both empty.</summary>
+        [Test]
+        public void Summary_WorkersAndDropOffs()
+        {
+            DataSet data = TestData.LoadAll();
+            ulong seed = SeedDerivation.GameSeed(20261117UL, "prototype_1v1", "skai_vs_water", 0);
+            GameRecord plain = GameRunner.Play(data, "prototype_1v1", "skai_vs_water", 0, seed, "aggressive_s5", "aggressive_s5", 240);
+            GameRecord watched = GameRunner.Play(data, "prototype_1v1", "skai_vs_water", 0, seed, "aggressive_s5", "aggressive_s5", 240, null, -1, -1, new SummaryObserver(30, new[] { 60, 200, 900 }));
+            Assert.That(watched.StateHash, Is.EqualTo(plain.StateHash));
+            Assert.That(watched.PlaySignature, Is.EqualTo(plain.PlaySignature));
+            // Drop-offs seen in some slot, so the ascending check cannot pass on empty lists.
+            int seen = 0;
+            foreach (GameSummary summary in new[] { watched.Summary0!, watched.Summary1! })
+            {
+                Assert.That(summary.Workers.Count, Is.EqualTo(3));
+                Assert.That(summary.Workers[0], Is.GreaterThan(0));
+                Assert.That(summary.Workers[1], Is.GreaterThan(0));
+                Assert.That(summary.Workers[2], Is.Null);
+                // Completed non-HQ drop-offs by definition, from the same events.
+                int completed = 0;
+                foreach (KeyValuePair<string, int> pair in summary.Completed)
+                {
+                    if (data.Content.Units[pair.Key].Economy.IsDropOff && data.Content.Units[pair.Key].Hq == null)
+                    {
+                        completed += pair.Value;
+                    }
+                }
+                Assert.That(summary.DropOffTicks.Count, Is.EqualTo(completed));
+                for (int i = 0; i < summary.DropOffTicks.Count; i++)
+                {
+                    Assert.That(summary.DropOffTicks[i], Is.InRange(0, 240 * 20));
+                    Assert.That(i == 0 || summary.DropOffTicks[i] >= summary.DropOffTicks[i - 1], Is.True);
+                }
+                seen += summary.DropOffTicks.Count;
+            }
+            Assert.That(seen, Is.GreaterThan(0), "some depot was completed");
+            string line = watched.ToJsonLine();
+            Assert.That(GameRecord.Parse(line).ToJsonLine(), Is.EqualTo(line));
+            // An old record: strip the two fields.
+            string old = System.Text.RegularExpressions.Regex.Replace(line, ",\"workers\":\\[[^\\]]*\\],\"drop_off_ticks\":\\[[^\\]]*\\]", "");
+            Assert.That(old, Does.Not.Contain("drop_off_ticks"));
+            GameRecord parsed = GameRecord.Parse(old);
+            Assert.That(parsed.Summary0!.Workers, Is.Empty);
+            Assert.That(parsed.Summary0.DropOffTicks, Is.Empty);
+        }
+
+        /// <summary>H-2: workers_at at 300 s with min 10: 10 holds, 9 violates, null (game ended early) and an old record are unjudged; an at_seconds outside the bank times fails naming the field.</summary>
+        [Test]
+        public void WorkersAt_EdgeAndUnjudged()
+        {
+            IBehaviourCheck check = HCheck("workers_at", "{\"enabled\": true, \"at_seconds\": 300, \"min_workers\": 10, \"max_violation_fraction\": 0}");
+            Assert.That(check.Evaluate(HSummary(new int?[] { 10, 12, 12 }, new int[0]), HGame()).Outcome, Is.EqualTo(CheckOutcome.Held));
+            BehaviourResult below = check.Evaluate(HSummary(new int?[] { 9, 12, 12 }, new int[0]), HGame());
+            Assert.That(below.Outcome, Is.EqualTo(CheckOutcome.Violated));
+            Assert.That(below.Num, Is.EqualTo(9));
+            Assert.That(check.Evaluate(HSummary(new int?[] { null, null, null }, new int[0]), HGame()).Outcome, Is.EqualTo(CheckOutcome.Unjudged));
+            Assert.That(check.Evaluate(HSummary(new int?[0], new int[0]), HGame()).Outcome, Is.EqualTo(CheckOutcome.Unjudged));
+            // The second bank time is read for at_seconds 600.
+            IBehaviourCheck second = HCheck("workers_at", "{\"enabled\": true, \"at_seconds\": 600, \"min_workers\": 0, \"max_violation_fraction\": 0}");
+            Assert.That(second.Evaluate(HSummary(new int?[] { 1, 7, 9 }, new int[0]), HGame()).Num, Is.EqualTo(7));
+            DataValidationException bad = Expect.Throws<DataValidationException>(() => HCheck("workers_at", "{\"enabled\": true, \"at_seconds\": 301, \"min_workers\": 0, \"max_violation_fraction\": 0}"));
+            Assert.That(bad.Message, Does.Contain("at_seconds"));
+        }
+
+        /// <summary>H-3: first_drop_off with max 60 s at 20 ticks per second: tick 1219 is 60 s (integer division) and holds, 1220 is 61 s and violates, no drop-off is unjudged; the first entry is the one read.</summary>
+        [Test]
+        public void FirstDropOff_IntegerSecondsEdgeAndNone()
+        {
+            IBehaviourCheck check = HCheck("first_drop_off", "{\"enabled\": true, \"max_seconds\": 60, \"max_violation_fraction\": 0}");
+            BehaviourResult held = check.Evaluate(HSummary(new int?[0], new[] { 1219, 5000 }), HGame());
+            Assert.That(held.Outcome, Is.EqualTo(CheckOutcome.Held));
+            Assert.That(held.Num, Is.EqualTo(60));
+            Assert.That(check.Evaluate(HSummary(new int?[0], new[] { 1220 }), HGame()).Outcome, Is.EqualTo(CheckOutcome.Violated));
+            Assert.That(check.Evaluate(HSummary(new int?[0], new int[0]), HGame()).Outcome, Is.EqualTo(CheckOutcome.Unjudged));
+        }
     }
 }

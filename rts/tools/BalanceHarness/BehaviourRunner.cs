@@ -261,7 +261,7 @@ namespace Rts.Tools.BalanceHarness
             // Income bucket length in ticks, and the checks to run.
             int bucketTicks = settings.SummaryBucketSeconds * data.Tuning.Match.TicksPerSecond;
             List<string> notDeclared = new List<string>();
-            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared);
+            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond);
 
             List<string> common = new List<string> { "--data", options.DataDirectory, "--seed", baseSeed.ToString(CultureInfo.InvariantCulture), "--max-game-seconds", maxSeconds.ToString(CultureInfo.InvariantCulture),
                 "--games", games.ToString(CultureInfo.InvariantCulture), "--profile-a", options.ProfileA, "--profile-b", options.ProfileB, "--paired", "--summary" };

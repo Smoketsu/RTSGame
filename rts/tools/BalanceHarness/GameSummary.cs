@@ -40,10 +40,19 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Mechanic uses by mechanic ID (MechanicDetectors), ordinal order; an absent key is 0. Unit: uses.</summary>
         public IReadOnlyDictionary<string, int> Mechanics { get; }
 
-        /// <summary>Bundles the values.</summary>
+        /// <summary>Own workers (units with CanGather and no footprint) after the step at each bank time, or null when the game ended earlier; empty for a record written before this field existed. Unit: workers. Range: 0 upward each; one entry per bank time, or none.</summary>
+        public IReadOnlyList<int?> Workers { get; }
+
+        /// <summary>Completion tick of each own non-HQ drop-off structure, ascending. Unit: ticks. Range: 0 upward; empty for none or for an old record.</summary>
+        public IReadOnlyList<int> DropOffTicks { get; }
+
+        /// <summary>Bundles the values; the last two default to empty (a record from before package B0).</summary>
         public GameSummary(int spentCommon, int spentRare, IReadOnlyDictionary<string, int[]> spent, IReadOnlyList<int[]?> bank, IReadOnlyList<int[]> income, IReadOnlyList<int[]> hqMoves,
-            IReadOnlyDictionary<string, int> trained, IReadOnlyDictionary<string, int> completed, IReadOnlyDictionary<string, int> mechanics)
+            IReadOnlyDictionary<string, int> trained, IReadOnlyDictionary<string, int> completed, IReadOnlyDictionary<string, int> mechanics,
+            IReadOnlyList<int?>? workers = null, IReadOnlyList<int>? dropOffTicks = null)
         {
+            Workers = workers ?? Array.Empty<int?>();
+            DropOffTicks = dropOffTicks ?? Array.Empty<int>();
             SpentCommon = spentCommon;
             SpentRare = spentRare;
             Spent = spent;
@@ -82,7 +91,17 @@ namespace Rts.Tools.BalanceHarness
             {
                 sb.Append(i > 0 ? "," : "").Append('[').Append(Int(HqMoves[i][0])).Append(',').Append(Int(HqMoves[i][1])).Append(',').Append(Int(HqMoves[i][2])).Append(']');
             }
-            sb.Append("],\"trained\":").Append(Counts(Trained)).Append(",\"completed\":").Append(Counts(Completed)).Append(",\"mechanics\":").Append(Counts(Mechanics)).Append('}');
+            sb.Append("],\"trained\":").Append(Counts(Trained)).Append(",\"completed\":").Append(Counts(Completed)).Append(",\"mechanics\":").Append(Counts(Mechanics)).Append(",\"workers\":[");
+            for (int i = 0; i < Workers.Count; i++)
+            {
+                sb.Append(i > 0 ? "," : "").Append(Workers[i] == null ? "null" : Int(Workers[i]!.Value));
+            }
+            sb.Append("],\"drop_off_ticks\":[");
+            for (int i = 0; i < DropOffTicks.Count; i++)
+            {
+                sb.Append(i > 0 ? "," : "").Append(Int(DropOffTicks[i]));
+            }
+            sb.Append("]}");
             return sb.ToString();
         }
 
@@ -111,8 +130,25 @@ namespace Rts.Tools.BalanceHarness
             {
                 moves.Add(new[] { item.Items[0].AsInt(), item.Items[1].AsInt(), item.Items[2].AsInt() });
             }
+            // Package B0 fields; a record without them reads as empty.
+            List<int?> workers = new List<int?>();
+            List<int> dropOffs = new List<int>();
+            if (node.TryGetMember("workers", out JsonValue? workerNode))
+            {
+                foreach (JsonValue item in workerNode.Items)
+                {
+                    workers.Add(item.Kind == JsonKind.Null ? (int?)null : item.AsInt());
+                }
+            }
+            if (node.TryGetMember("drop_off_ticks", out JsonValue? dropNode))
+            {
+                foreach (JsonValue item in dropNode.Items)
+                {
+                    dropOffs.Add(item.AsInt());
+                }
+            }
             return new GameSummary(node.RequireInt("spent_common", int.MinValue, int.MaxValue), node.RequireInt("spent_rare", int.MinValue, int.MaxValue), spent, bank, income, moves,
-                ReadCounts(node.Require("trained")), ReadCounts(node.Require("completed")), ReadCounts(node.Require("mechanics")));
+                ReadCounts(node.Require("trained")), ReadCounts(node.Require("completed")), ReadCounts(node.Require("mechanics")), workers, dropOffs);
         }
 
         /// <summary>An integer as invariant text.</summary>
