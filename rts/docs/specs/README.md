@@ -150,3 +150,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [ai_budget_queues.md](ai_budget_queues.md) | Six AI spending queues (economy, expansion, production, army, tech, defence) with per-resource weights; accounts capped at the head item and released when a queue has nothing to buy; a defence spending ceiling; a rare-surplus boost of rare-cost units. Replaces rule R and the defence value-share check behind `use_budget_queues` (off in every existing profile; candidate `aggressive_s5_b`, ablation `abl_s5b_no_b`). Two harness checks (`workers_at`, `first_drop_off`); behaviour bars, then the stage-1 pool gate. No `rts/src/Sim` change, no number changes | P-006 | behaviour checks, `--balance`, `--pool` (built); build B0 and B1 in parallel, then B2; sim-reviewer on B1 |
+
+## Research and unlocks (P-007 option a, 21 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [research_and_unlocks.md](research_and_unlocks.md) | Research items queued at the Storm Spire and Reef Workshop through `train_unit` and the production queue; a finished item sets a per-player flag that `requires` can name. Equal trees (two items, 50 common and 300 rare per faction, placeholders); Stormcaller, Thunderhead, Brinecaster and Leviathan gated. R1: sim, data, loader, queries, the AI kept playing without research. R2 (later): the AI researches behind `use_research`, harness accounting | P-007 | package T (built); R1 now, R2 later; sim-reviewer on each |

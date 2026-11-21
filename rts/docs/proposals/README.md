@@ -9,4 +9,4 @@
 | [P-004](P-004-smarter-skirmish-ai.md) | A skirmish AI that reacts | Stages 1 to 3 approved 17 Nov 2026; spec `specs/skirmish_ai_v3.md` written, build started |
 | [P-005](P-005-roster-holes-and-ai-for-balance.md) | Roster holes, soft counters, and an AI whose games count as balance data | Awaiting decision (18 Nov 2026) |
 | [P-006](P-006-ai-built-for-balancing.md) | An AI built for balancing, by methods other games use | Awaiting decision (21 Nov 2026); the developer decided on 21 Nov that the AI is built for balancing first |
-| [P-007](P-007-research-and-unlocks.md) | Research and unlocks as a rare-resource sink | Awaiting decision (21 Nov 2026) |
+| [P-007](P-007-research-and-unlocks.md) | Research and unlocks as a rare-resource sink | Decided 21 Nov 2026 (option a, equal trees); spec `specs/research_and_unlocks.md` |
