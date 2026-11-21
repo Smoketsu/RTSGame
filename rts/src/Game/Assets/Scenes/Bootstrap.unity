@@ -403,7 +403,6 @@ MonoBehaviour:
   maxLines: 4
   topOffset: 150
   fontSize: 22
-  textColor: {r: 1, g: 0.92, b: 0.75, a: 1}
 --- !u!114 &1294027319
 MonoBehaviour:
   m_ObjectHideFlags: 0

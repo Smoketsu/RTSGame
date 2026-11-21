@@ -40,7 +40,7 @@ The developer deleted every other old branch on 16 Nov 2026, including the dupli
 | 6 | Map checklist test | Built |
 | 7 | Two more 1v1 maps (three in total) | Built; both pass the checklist |
 | 8 | Campaign scripting layer and the first tutorial mission | **Not built.** Spec: `specs/campaign_scripting.md`. `rts/campaign` holds only a README. |
-| 9 | Unity: timeline bar, HUD, menus, lobby, surrender, Steam transport | **In progress** (PC session, build spec `specs/player_interface.md`, order in `HANDOFF_UNITY.md` section 5). UI-0 done 21 Nov 2026: one local command path (`LocalCommands`), the HUD canvas with the rejection message line, and a replay of every Play session for `ReplayCheck`. Next: UI-1 (resource bar, selected-unit panel). |
+| 9 | Unity: timeline bar, HUD, menus, lobby, surrender, Steam transport | **In progress** (PC session, build spec `specs/player_interface.md`, order in `HANDOFF_UNITY.md` section 5). UI-0 done 21 Nov 2026: one local command path (`LocalCommands`), the HUD canvas with the rejection message line, and a replay of every Play session for `ReplayCheck`. UI-1 done 21 Nov: resource, supply and clock bar; selected-unit panel; HQ and field notices. Next: UI-2 (train buttons, queue, prerequisites). |
 | 10 | Unity compile and tests in CI (GameCI) | Not done; needs a `UNITY_LICENSE` secret from the developer |
 | 11 | Review of every simulation, net and replay change | Ongoing rule |
 

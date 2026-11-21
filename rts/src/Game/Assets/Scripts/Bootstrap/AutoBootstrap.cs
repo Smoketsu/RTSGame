@@ -62,17 +62,23 @@ namespace Rts.Game.Bootstrap
         }
 
         /// <summary>
-        /// Creates the "HUD" object unless a MessageLine already exists: one screen-space Canvas scaled from a 1920 x 1080 landscape
-        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels. Built from code so no scene or prefab is edited by text.
+        /// Makes sure the "HUD" object exists with every panel (adding missing ones to an existing HUD): one screen-space Canvas scaled from a 1920 x 1080 landscape
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, selected-unit panel, message line. Built from code so no scene or prefab is edited by text.
         /// </summary>
         /// <returns>The existing or new message line, the first HUD panel.</returns>
         public static MessageLine EnsureHud()
         {
+            // The HUD object: the one holding a MessageLine (a saved scene may have an older HUD missing newer panels), else a new canvas.
             MessageLine existing = Object.FindAnyObjectByType<MessageLine>();
-            if (existing != null)
-            {
-                return existing;
-            }
+            GameObject hud = existing != null ? existing.gameObject : CreateHudCanvas();
+            EnsureComponent<ResourceBar>(hud);
+            EnsureComponent<SelectionPanel>(hud);
+            return EnsureComponent<MessageLine>(hud);
+        }
+
+        /// <summary>Creates the "HUD" object: a screen-space overlay Canvas scaled from 1920 x 1080 (match 0.5) with a GraphicRaycaster.</summary>
+        private static GameObject CreateHudCanvas()
+        {
             GameObject hud = new GameObject("HUD", typeof(RectTransform));
             Canvas canvas = hud.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -82,7 +88,15 @@ namespace Rts.Game.Bootstrap
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0.5f;
             hud.AddComponent<GraphicRaycaster>();
-            return hud.AddComponent<MessageLine>();
+            return hud;
+        }
+
+        /// <summary>Returns the component of type T on the object, adding it first if missing.</summary>
+        /// <param name="target">The object to look on.</param>
+        private static T EnsureComponent<T>(GameObject target) where T : Component
+        {
+            T existing = target.GetComponent<T>();
+            return existing != null ? existing : target.AddComponent<T>();
         }
 
         /// <summary>Adds the RTS camera controller (pan, zoom, bounds) to the scene's camera unless it already has one.</summary>

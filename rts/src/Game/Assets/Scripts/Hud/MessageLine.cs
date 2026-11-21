@@ -1,12 +1,16 @@
 // rts/src/Game/Assets/Scripts/Hud/MessageLine.cs
-// The HUD message line, top centre (player_interface.md UI-0): the last few refusals of the local player's commands and other
-// notices, each shown for a few seconds. Reads CommandRejectedEvent from SimulationHost.EventRaised, keeps only those whose
-// command the local player issued, and words them with RejectionTexts. Other HUD panels post notices with Show. Builds its own
-// uGUI Text under the HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
+// The HUD message line, top centre (player_interface.md UI-0): the last few refusals of the local player's commands and the
+// notices of each package, each shown for a few seconds. Reads SimulationHost.EventRaised: CommandRejectedEvent whose command the
+// local player issued (worded by RejectionTexts), and the notice events of each package (UI-1: own HQ state changes and Last
+// Stand, depletion of a field an own worker gathers from). Other HUD code may post with Show. Builds its own uGUI Text under the
+// HUD canvas (AutoBootstrap.EnsureHud). Never writes to the simulation. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using System.Text;
 using Rts.Game.Bootstrap;
+using Rts.Sim;
+using Rts.Sim.Economy;
 using Rts.Sim.Events;
+using Rts.Sim.Units;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -37,9 +41,6 @@ namespace Rts.Game.Hud
 
         /// <summary>Font size of the lines. Unit: reference pixels. Range: 10 to 48; default 22.</summary>
         [SerializeField, Range(10, 48)] private int fontSize = 22;
-
-        /// <summary>Text colour. Unit: RGBA, each channel 0 to 1; default warm white.</summary>
-        [SerializeField] private Color textColor = new Color(1f, 0.92f, 0.75f, 1f);
 
         /// <summary>Lines currently shown, oldest first. Range: 0 to maxLines entries.</summary>
         private readonly List<Entry> _entries = new List<Entry>();
@@ -78,24 +79,9 @@ namespace Rts.Game.Hud
         /// <summary>Builds the Text child, anchored top centre.</summary>
         private void Awake()
         {
-            GameObject textObject = new GameObject("Message Line Text", typeof(RectTransform));
-            textObject.transform.SetParent(transform, false);
-            RectTransform rect = (RectTransform)textObject.transform;
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -topOffset);
-            // Block size. Unit: reference pixels. Wide enough for one long refusal per line.
-            rect.sizeDelta = new Vector2(1000f, fontSize * 1.4f * maxLines);
-            _text = textObject.AddComponent<Text>();
-            _text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _text.fontSize = fontSize;
-            _text.color = textColor;
-            _text.alignment = TextAnchor.UpperCenter;
-            _text.raycastTarget = false;
-            Outline outline = textObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.8f);
-            _text.text = "";
+            // Block size: wide enough for one long refusal per line. Unit: reference pixels.
+            Vector2 size = new Vector2(1000f, fontSize * 1.4f * maxLines);
+            _text = HudBuild.Text(transform, "Message Line Text", new Vector2(0.5f, 1f), new Vector2(0f, -topOffset), size, fontSize, TextAnchor.UpperCenter);
         }
 
         /// <summary>Subscribes once the host exists and removes expired lines.</summary>
@@ -144,14 +130,70 @@ namespace Rts.Game.Hud
             }
         }
 
-        /// <summary>Shows refusals of the local player's own commands; everything else is ignored.</summary>
+        /// <summary>Shows refusals of the local player's own commands and the local player's notices; everything else is ignored.</summary>
         /// <param name="simEvent">An event of the tick that just ran.</param>
         private void OnSimEvent(SimEvent simEvent)
         {
-            if (simEvent is CommandRejectedEvent rejected && _commands.IsReady && rejected.Command.Issuer == _commands.LocalPlayer)
+            if (!_commands.IsReady)
             {
-                Show(RejectionTexts.For(rejected.Reason));
+                return;
             }
+            Simulation sim = _commands.Host.Match;
+            if (simEvent is CommandRejectedEvent rejected)
+            {
+                if (rejected.Command.Issuer == _commands.LocalPlayer)
+                {
+                    Show(RejectionTexts.For(rejected.Reason));
+                }
+            }
+            else if (simEvent is HqStateChangedEvent hqChanged)
+            {
+                if (TryGetOwn(sim, hqChanged.Unit, out Unit hq))
+                {
+                    Show(hq.Definition.DisplayName + ": " + hqChanged.To);
+                }
+            }
+            else if (simEvent is HqLastStandEvent lastStand)
+            {
+                if (TryGetOwn(sim, lastStand.Unit, out Unit hq))
+                {
+                    Show(hq.Definition.DisplayName + ": Last Stand (" + HudBuild.Seconds(lastStand.InvulnerableTicks, sim.Clock.TicksPerSecond) + ")");
+                }
+            }
+            else if (simEvent is FieldDepletedEvent depleted)
+            {
+                if (OwnWorkerGathersFrom(sim, depleted.FieldIndex))
+                {
+                    Show("A " + depleted.Resource + " field ran out");
+                }
+            }
+        }
+
+        /// <summary>Finds a living unit of the local player.</summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="id">The unit.</param>
+        /// <param name="unit">The unit when it lives and is the local player's; otherwise null.</param>
+        private bool TryGetOwn(Simulation sim, Rts.Sim.Core.EntityId id, out Unit unit)
+        {
+            return sim.Units.TryGet(id, out unit) && unit.Owner == _commands.LocalPlayer;
+        }
+
+        /// <summary>
+        /// True when a worker of the local player is assigned to the field. shortcut: reads the assignment after the depleting tick, so a
+        /// worker the simulation already moved off the field that same tick is missed; upgrade when the event names the gatherers.
+        /// </summary>
+        /// <param name="sim">The running match.</param>
+        /// <param name="fieldIndex">Index of the depleted field. Range: 0 upward.</param>
+        private bool OwnWorkerGathersFrom(Simulation sim, int fieldIndex)
+        {
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == _commands.LocalPlayer && unit.GatherState != GatherState.Idle && unit.GatherFieldIndex == fieldIndex)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
