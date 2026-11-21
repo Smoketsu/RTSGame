@@ -137,6 +137,12 @@ namespace Rts.Sim.Units
         /// <summary>Backing list for <see cref="ProductionQueue"/>.</summary>
         private readonly List<string> _productionQueue = new List<string>();
 
+        /// <summary>True when the player set a rally point on this producer (set_rally_point); units it trains are sent there. Range: true or false; false at spawn. Hashed only while true (right after the statuses).</summary>
+        public bool HasRallyPoint { get; private set; }
+
+        /// <summary>Where trained units are sent. Unit: tiles (fixed-point). Range: each component within ±Simulation.WorldBoundTiles when <see cref="HasRallyPoint"/>; <see cref="FixVec2.Zero"/> otherwise. Only meaningful on a producer (it trains units or is an HQ). Hashed with <see cref="HasRallyPoint"/>.</summary>
+        public FixVec2 RallyPoint { get; private set; }
+
         /// <summary>Ticks until the head of the queue is finished. Unit: ticks. Range: 0 when the queue is empty or the head just started; otherwise 1 up to the head's build_seconds in ticks. Hashed.</summary>
         public int ProductionTicksRemaining { get; private set; }
 
@@ -218,6 +224,8 @@ namespace Rts.Sim.Units
             GatherQueuedTick = -1;
             GatherSlotGrants = 0;
             ProductionTicksRemaining = 0;
+            HasRallyPoint = false;
+            RallyPoint = FixVec2.Zero;
             ConstructionTicksRemaining = 0;
             BuildState = BuildOrderState.None;
             BuildDefinitionId = string.Empty;
@@ -449,6 +457,21 @@ namespace Rts.Sim.Units
             }
         }
 
+        /// <summary>Sets the rally point. Internal: set_rally_point only.</summary>
+        /// <param name="point">Where trained units go. Unit: tiles (fixed-point). Range: each component within ±Simulation.WorldBoundTiles.</param>
+        internal void SetRallyPoint(FixVec2 point)
+        {
+            HasRallyPoint = true;
+            RallyPoint = point;
+        }
+
+        /// <summary>Removes the rally point and zeroes the stored point so the hash does not depend on stale data. Internal: set_rally_point only.</summary>
+        internal void ClearRallyPoint()
+        {
+            HasRallyPoint = false;
+            RallyPoint = FixVec2.Zero;
+        }
+
         /// <summary>Removes one waiting entry (not the head) of the production queue; the head and its countdown are untouched. Internal: cancel_production only.</summary>
         /// <param name="index">Queue position of the entry. Unit: entries. Range: 1 to Count - 1 (the head is removed with <see cref="FinishProductionHead"/>).</param>
         internal void RemoveQueuedProduction(int index)
@@ -611,6 +634,12 @@ namespace Rts.Sim.Units
             hasher.Write(ShieldLastAbsorbTick);
             hasher.Write(GroundingReadyTick);
             Statuses.WriteHash(hasher);
+            // Written only while a rally point is set, so a match that never sets one keeps its hashes (specs/interface_support.md I5.4).
+            if (HasRallyPoint)
+            {
+                hasher.Write(true);
+                hasher.Write(RallyPoint);
+            }
         }
     }
 }

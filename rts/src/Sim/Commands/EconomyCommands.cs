@@ -412,6 +412,73 @@ namespace Rts.Sim.Commands
     }
 
     /// <summary>
+    /// Sets or clears a producer's rally point (specs/interface_support.md I5): units it trains afterwards get a plain move order to the point. Script name
+    /// <c>set_rally_point</c>. Rejections, in order: unknown_unit, not_owner (the issuer is a player other than the owner; the issuer None may command any unit),
+    /// not_a_producer (the unit trains nothing and is not an HQ), out_of_bounds (the point is beyond <see cref="Simulation.WorldBoundTiles"/>; not checked when
+    /// clearing). Allowed under construction and in any HQ state; any in-bounds point is accepted, blocked or unreachable included. Raises no event: the point is state
+    /// Unity reads.
+    /// </summary>
+    public sealed class SetRallyPointCommand : Command
+    {
+        /// <summary>The producing building. Must exist and belong to the issuer (or the issuer is None).</summary>
+        public EntityId Producer { get; }
+
+        /// <summary>True to remove the rally point; <see cref="Point"/> is then <see cref="FixVec2.Zero"/>.</summary>
+        public bool Clear { get; }
+
+        /// <summary>Where trained units are sent. Unit: tiles (fixed-point). Range: each component within ±<see cref="Simulation.WorldBoundTiles"/>, else rejected; Zero when <see cref="Clear"/>.</summary>
+        public FixVec2 Point { get; }
+
+        /// <summary>Builds the command from its scheduling fields and parameters; the point is stored as Zero when <paramref name="clear"/> is true.</summary>
+        public SetRallyPointCommand(int tick, PlayerId issuer, uint sequence, EntityId producer, bool clear, FixVec2 point) : base(tick, issuer, sequence)
+        {
+            Producer = producer;
+            Clear = clear;
+            Point = clear ? FixVec2.Zero : point;
+        }
+
+        /// <summary>Machine-readable kind name: "set_rally_point".</summary>
+        public override string Kind => "set_rally_point";
+
+        /// <summary>Applies the command; see the class summary for the rejections.</summary>
+        public override CommandResult Apply(Simulation sim)
+        {
+            if (!sim.Units.TryGet(Producer, out Unit? producer))
+            {
+                return CommandResult.Reject("unknown_unit");
+            }
+            if (Issuer.IsValid && producer.Owner != Issuer)
+            {
+                return CommandResult.Reject("not_owner");
+            }
+            if (producer.Definition.Economy.Trains.Count == 0 && producer.Definition.Hq == null)
+            {
+                return CommandResult.Reject("not_a_producer");
+            }
+            if (Clear)
+            {
+                producer.ClearRallyPoint();
+                return CommandResult.Ok;
+            }
+            if (!Simulation.IsWithinWorldBounds(Point))
+            {
+                return CommandResult.Reject("out_of_bounds");
+            }
+            producer.SetRallyPoint(Point);
+            return CommandResult.Ok;
+        }
+
+        /// <summary>Feeds the command's parameters into a hash in a fixed order.</summary>
+        public override void WriteHash(StateHasher hasher)
+        {
+            hasher.Write(Kind);
+            hasher.Write(Producer);
+            hasher.Write(Clear);
+            hasher.Write(Point);
+        }
+    }
+
+    /// <summary>
     /// Orders a worker to build a dragged line of walls (or gates) one tile after another (walls_and_tech.md D.2). The whole line is paid when
     /// the order is given; the first tile becomes the worker's order and the others wait on <see cref="Unit.BuildQueue"/>.
     /// </summary>

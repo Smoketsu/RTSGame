@@ -31,6 +31,7 @@ namespace Rts.Sim.Commands.Codec
             registry.Register(new GatherCodec());
             registry.Register(new TrainUnitCodec());
             registry.Register(new CancelProductionCodec());
+            registry.Register(new SetRallyPointCodec());
             registry.Register(new BuildStructureCodec());
             registry.Register(new BuildWallLineCodec());
             registry.Register(new ApplyStatusCodec());
@@ -315,6 +316,35 @@ namespace Rts.Sim.Commands.Codec
             int index = reader.ReadInt32();
             string definition = reader.ReadString();
             return new CancelProductionCommand(tick, issuer, sequence, producer, index, definition);
+        }
+    }
+
+    /// <summary>Codec for <see cref="SetRallyPointCommand"/>: producer, clear flag (one byte, 0 or 1), point.</summary>
+    public sealed class SetRallyPointCodec : CommandCodec<SetRallyPointCommand>
+    {
+        /// <summary>"set_rally_point".</summary>
+        public override string Kind => "set_rally_point";
+
+        /// <summary>Writes producer, the clear flag as 0 or 1 and the point.</summary>
+        protected override void Write(SetRallyPointCommand command, CommandWriter writer)
+        {
+            writer.WriteEntityId(command.Producer);
+            writer.WriteByte(command.Clear ? (byte)1 : (byte)0);
+            writer.WriteFixVec2(command.Point);
+        }
+
+        /// <summary>Reads producer, clear flag and point; a flag byte other than 0 or 1 is a <see cref="CommandCodecException"/>.</summary>
+        protected override SetRallyPointCommand Read(CommandReader reader, int tick, PlayerId issuer, uint sequence)
+        {
+            // Fields in wire order.
+            EntityId producer = reader.ReadEntityId();
+            byte clear = reader.ReadByte();
+            FixVec2 point = reader.ReadFixVec2();
+            if (clear > 1)
+            {
+                throw new CommandCodecException("Unknown clear flag byte " + clear + " in set_rally_point.");
+            }
+            return new SetRallyPointCommand(tick, issuer, sequence, producer, clear == 1, point);
         }
     }
 

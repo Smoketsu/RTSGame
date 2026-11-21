@@ -95,6 +95,7 @@ namespace Rts.Sim.Tests
                 Case("Unit.CarriedAmount", w => w.Worker.SetCarried(ResourceKind.Common, 4)),
                 Case("Unit.CarriedKind", w => w.Worker.SetCarried(ResourceKind.Rare, 3)),
                 Case("Unit.ProductionQueue + ProductionTicksRemaining", w => w.Barracks.EnqueueProduction(TestWorld.RunnerId, 50)),
+                Case("Unit.RallyPoint (HasRallyPoint and RallyPoint)", w => w.Barracks.SetRallyPoint(FixVec2.FromInts(30, 30))),
                 Case("Unit.ConstructionTicksRemaining", w => w.Barracks.SetConstructionTicks(30)),
                 // The build order fields: the setters move the state too, so each case sets a different field value on top of ToSite or Placing.
                 Case("Unit.BuildState", w => w.Worker.StartPlacing(0)),

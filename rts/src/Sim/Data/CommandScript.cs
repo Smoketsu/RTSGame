@@ -28,7 +28,7 @@ namespace Rts.Sim.Data
         private static readonly string[] CoreKinds =
         {
             "noop", "spawn_unit", "move_unit", "remove_unit", "attack_move", "attack_unit", "stop", "root_hq", "uproot_hq",
-            "gather", "train_unit", "cancel_production", "build_structure", "build_wall_line", "apply_status", "pick_cycle", "cast_grounding",
+            "gather", "train_unit", "cancel_production", "set_rally_point", "build_structure", "build_wall_line", "apply_status", "pick_cycle", "cast_grounding",
         };
 
         /// <summary>Largest tick count a script may request. Unit: ticks (13.9 hours at 20 ticks per second). Range: fixed tool limit.</summary>
@@ -171,7 +171,7 @@ namespace Rts.Sim.Data
         /// <param name="extras">Extra readers by type, tried when the type is not a core kind.</param>
         private static Command ReadCommand(JsonValue node, string sourceName, SortedDictionary<string, IScriptCommandParser> extras)
         {
-            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, cancel_production, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
+            // Command kind name, such as spawn_unit. Range: one of the known kinds (noop, spawn_unit, move_unit, remove_unit, attack_move, attack_unit, stop, root_hq, uproot_hq, gather, train_unit, cancel_production, set_rally_point, build_structure, apply_status, pick_cycle, plus the types of the extra readers).
             string type = node.RequireString("type");
             // Tick the command applies at. Unit: ticks. Range: 0 to MaxTicks.
             int tick = node.RequireInt("tick", 0, MaxTicks);
@@ -223,6 +223,21 @@ namespace Rts.Sim.Data
                     // Queue position, at most the largest max_queue_length the tuning schema accepts. Unit: entries. Range: 0 to 19.
                     return new CancelProductionCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue)),
                         node.RequireInt("index", 0, 19), node.RequireNonEmptyString("definition"));
+                case "set_rally_point":
+                    node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "producer", "x", "y", "clear");
+                    // Producer building. Range: 1 upward.
+                    EntityId rallyProducer = new EntityId((uint)node.RequireInt("producer", 1, int.MaxValue));
+                    // True to remove the rally point; then x and y must be absent. Range: true or false; false when absent.
+                    bool clearRally = node.TryGetMember("clear", out JsonValue? clearNode) && clearNode.AsBool();
+                    if (clearRally)
+                    {
+                        if (node.TryGetMember("x", out JsonValue? extraX) || node.TryGetMember("y", out extraX))
+                        {
+                            throw extraX.Fail("is not allowed with clear true");
+                        }
+                        return new SetRallyPointCommand(tick, issuer, sequence, rallyProducer, true, FixVec2.Zero);
+                    }
+                    return new SetRallyPointCommand(tick, issuer, sequence, rallyProducer, false, ReadPoint(node));
                 case "build_structure":
                     node.RejectUnknownKeys("type", "tick", "issuer", "sequence", "unit", "definition", "x", "y");
                     return new BuildStructureCommand(tick, issuer, sequence, new EntityId((uint)node.RequireInt("unit", 1, int.MaxValue)),
