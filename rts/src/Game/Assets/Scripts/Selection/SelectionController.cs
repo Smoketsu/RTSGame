@@ -613,7 +613,7 @@ namespace Rts.Game.UnitSelection
 
         // ------------------------------------------------------------------ orders
 
-        /// <summary>Right click: attack an enemy under the cursor, else move to the ground point.</summary>
+        /// <summary>Right click: attack an enemy under the cursor, else move to the ground point; selected producers that cannot walk set their rally point there.</summary>
         private void IssueRightClickOrder()
         {
             if (_selected.Count == 0)
@@ -640,9 +640,18 @@ namespace Rts.Game.UnitSelection
             FixVec2 destination = ToSimPoint(point);
             foreach (EntityId id in _selected)
             {
-                if (_host.Match.Units.TryGet(id, out Unit unit) && CanMove(unit))
+                if (!_host.Match.Units.TryGet(id, out Unit unit))
+                {
+                    continue;
+                }
+                if (CanMove(unit))
                 {
                     Submit(new MoveUnitCommand(CurrentTick(), _localPlayer, NextSequence(), id, destination));
+                }
+                else if (unit.Definition.Hq != null || unit.Definition.Economy.Trains.Count > 0)
+                {
+                    // A producer that cannot walk (a building, a Rooted HQ) gets a rally point instead (interface support I5).
+                    Submit(new SetRallyPointCommand(CurrentTick(), _localPlayer, NextSequence(), id, false, destination));
                 }
             }
         }

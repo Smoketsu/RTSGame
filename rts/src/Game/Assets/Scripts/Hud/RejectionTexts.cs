@@ -73,6 +73,10 @@ namespace Rts.Game.Hud
             { "out_of_range", "Out of range" },
             { "on_cooldown", "Not ready" },
             { "no_direction", "Aim away from the caster" },
+            // Interface support: cancel a queued entry (I4) and rally points (I5). A stale queue click is refused quietly.
+            { "no_entry", null },
+            { "entry_mismatch", null },
+            { "not_a_producer", null },
         };
 
         /// <summary>

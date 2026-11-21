@@ -3,8 +3,8 @@
 // while active the mode holds PointerCapture: a ghost cube follows the tile under the cursor, a left click sends
 // BuildStructureCommand(worker, definition, tile) through LocalCommands for the selected worker nearest the tile centre (ties lowest
 // EntityId), holding Shift keeps the mode armed, and Esc or a right click cancels. The ghost is red with the reason when the tile
-// has a placement problem or the structure misses a prerequisite, amber when a unit stands on the tile, green otherwise; these
-// are hints only and the simulation decides. Every frame it also draws a faint ghost for every pending build site of the local
+// has a placement problem (EconomyRules.PlacementProblem, the build order's own check), amber when a unit stands on the tile,
+// green otherwise; these are hints only and the simulation decides. Every frame it also draws a faint ghost for every pending build site of the local
 // player (active orders and queued tiles), and a short red flash on each tile of a wall line the simulation skipped.
 // Walls and gates (UI-4, walls_and_tech.md D.5): the mode becomes a drag. On press and every move the line from the press tile to
 // the cursor tile is WallLine.Rasterise(..., wall_line_max_tiles) with one ghost per tile (green, red with the tile problem, amber
@@ -220,7 +220,7 @@ namespace Rts.Game.Hud
                 return;
             }
             Unit worker = NearestWorker(sim, tileX, tileY);
-            string problem = TileProblem(sim, worker, tileX, tileY);
+            string problem = TileProblem(sim, tileX, tileY);
             Color color = problem != null ? invalidColor : UnitOnTile(sim, tileX, tileY) ? occupiedColor : validColor;
             PlaceGhost(EnsureGhost(), sim, tileX, tileY, color);
             _reason.text = problem != null ? RejectionTexts.For(problem) ?? problem : "";
@@ -388,23 +388,16 @@ namespace Rts.Game.Hud
         }
 
         /// <summary>
-        /// The reason the simulation would refuse this tile, as far as public queries know: the placement problem of the tile, else a missing
-        /// prerequisite. shortcut: tile_occupied, no_base and static_defence_cap are only known from the rejection; switch to
-        /// EconomyRules.PlacementProblem (interface_support.md I1) once it is on main.
+        /// The reason the simulation would refuse a structure on this tile, or null: EconomyRules.PlacementProblem (interface_support.md I1), the
+        /// same check the build order makes, fog-safe for the local team. Its supply figure is from the last step, so the order may still differ;
+        /// the simulation decides.
         /// </summary>
         /// <param name="sim">The running match.</param>
-        /// <param name="worker">The worker that would build.</param>
         /// <param name="tileX">Tile X. Unit: tiles.</param>
         /// <param name="tileY">Tile Y. Unit: tiles.</param>
-        private string TileProblem(Simulation sim, Unit worker, int tileX, int tileY)
+        private string TileProblem(Simulation sim, int tileX, int tileY)
         {
-            string problem = EconomyRules.WallLineTileProblem(sim, worker, tileX, tileY);
-            if (problem == null && sim.Content.Units.TryGetValue(_definitionId, out UnitDefinition definition)
-                && EconomyRules.FirstMissingRequirement(sim, _commands.LocalPlayer, definition) != null)
-            {
-                problem = "missing_prerequisite";
-            }
-            return problem;
+            return EconomyRules.PlacementProblem(sim, _commands.LocalPlayer, _definitionId, tileX, tileY);
         }
 
         /// <summary>Fills _workers with the selected own units that can build (CanGather), ascending EntityId.</summary>

@@ -13,8 +13,9 @@
 // included, in file order, same greying rules), and picking one starts BuildPlacement (a drag for walls and gates, UI-4).
 // Abilities (UI-5): with own casters selected and no producer, one button per ability any of them has (Downdraft, then the wave),
 // showing "Ready" or the shortest remaining cooldown; a click or its key starts AbilityTargeting. The buttons stay clickable on
-// cooldown (the simulation answers "Not ready"). Shortcut: the ability names are Unity-side labels; read them from the unit data
-// (interface support I3) once they are on main. Esc or B closes the menu. Part of Rts.Game (presentation only).
+// cooldown (the simulation answers "Not ready"). The button names come from the unit data (grounding_ability.display_name,
+// wave_display_name; interface support I3) of the first selected caster.
+// Queue (I4): clicking an icon of the queue strip sends CancelProductionCommand(producer, index, id) for that entry (full refund). Esc or B closes the menu. Part of Rts.Game (presentation only).
 using System.Collections.Generic;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
@@ -62,6 +63,9 @@ namespace Rts.Game.Hud
 
             /// <summary>Progress fill of the head entry (zero width for waiting entries). Range: non-null.</summary>
             public RectTransform Progress;
+
+            /// <summary>Click target that cancels this entry. Range: non-null.</summary>
+            public Button Button;
         }
 
         /// <summary>What the card shows this frame.</summary>
@@ -402,16 +406,22 @@ namespace Rts.Game.Hud
                 AbilityKind kind = id == GroundingEntry ? AbilityKind.Grounding : AbilityKind.Wave;
                 // Shortest remaining cooldown among the selected casters of this ability. Unit: ticks. Range: 0 upward.
                 int cooldown = int.MaxValue;
+                // The ability's display name from the first selected caster's data.
+                string abilityName = null;
                 foreach (EntityId casterId in _selection.Selected)
                 {
                     if (sim.Units.TryGet(casterId, out Unit caster) && caster.Owner == _commands.LocalPlayer && AbilityTargeting.Has(caster.Definition, kind))
                     {
                         cooldown = Mathf.Min(cooldown, AbilityTargeting.CooldownTicks(sim, caster, kind));
+                        if (abilityName == null)
+                        {
+                            abilityName = kind == AbilityKind.Grounding ? caster.Definition.GroundingAbility.DisplayName : caster.Definition.Flood.WaveDisplayName;
+                        }
                     }
                 }
                 slot.Background.color = ResearchColor;
                 slot.Button.interactable = true;
-                slot.Name.text = SlotKeys[index] + "  " + (kind == AbilityKind.Grounding ? "Downdraft" : "Wave");
+                slot.Name.text = SlotKeys[index] + "  " + abilityName;
                 slot.Info.text = cooldown == 0 ? "Ready" : HudBuild.Seconds(cooldown, rate);
                 slot.Info.color = HudBuild.TextColor;
                 return;
@@ -573,6 +583,22 @@ namespace Rts.Game.Hud
             return new Slot { Button = button, Background = background, Name = name, Info = info };
         }
 
+        /// <summary>Cancels the shown producer's queue entry at a position, naming the ID shown there so a shifted queue is refused, not mis-cancelled.</summary>
+        /// <param name="index">Queue position. Range: 0 (head) to the queue length - 1.</param>
+        public void CancelEntry(int index)
+        {
+            if (_commands == null || !_commands.IsReady || _mode != CardMode.Producer || _producers.Count == 0)
+            {
+                return;
+            }
+            Unit producer = _producers[0];
+            if (index >= producer.ProductionQueue.Count)
+            {
+                return;
+            }
+            _commands.Submit(new CancelProductionCommand(_commands.Tick, _commands.LocalPlayer, _commands.NextSequence(), producer.Id, index, producer.ProductionQueue[index]));
+        }
+
         /// <summary>Creates queue icon <paramref name="index"/> to the right of the label and adds it to the pool.</summary>
         /// <param name="index">Queue position. Range: 0 upward; must equal the pool size.</param>
         private QueueIcon CreateQueueIcon(int index)
@@ -580,10 +606,16 @@ namespace Rts.Game.Hud
             // Icon position from the strip's left middle. Unit: reference pixels.
             Vector2 position = new Vector2(120f + index * (QueueIconSize + 6f), 0f);
             Image background = HudBuild.Image(_queue.transform, "Queue " + index, new Vector2(0f, 0.5f), position, new Vector2(QueueIconSize, QueueIconSize), TrainColor);
+            background.raycastTarget = true;
+            Button button = background.gameObject.AddComponent<Button>();
+            button.targetGraphic = background;
+            // Captured copy of the queue position for the click handler.
+            int captured = index;
+            button.onClick.AddListener(() => CancelEntry(captured));
             Text label = HudBuild.Text(background.transform, "Label", new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(QueueIconSize, 22f), 14, TextAnchor.UpperCenter);
             Image back = HudBuild.Image(background.transform, "Progress Back", new Vector2(0.5f, 0f), new Vector2(0f, 3f), new Vector2(QueueIconSize - 6f, 6f), new Color(0f, 0f, 0f, 0.6f));
             RectTransform progress = HudBuild.Image(back.transform, "Progress", new Vector2(0f, 0.5f), Vector2.zero, new Vector2(0f, 6f), new Color(0.95f, 0.8f, 0.3f, 1f)).rectTransform;
-            QueueIcon icon = new QueueIcon { Background = background, Label = label, Progress = progress };
+            QueueIcon icon = new QueueIcon { Background = background, Label = label, Progress = progress, Button = button };
             _queueIcons.Add(icon);
             return icon;
         }
