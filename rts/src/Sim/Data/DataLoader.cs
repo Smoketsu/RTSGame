@@ -341,7 +341,7 @@ namespace Rts.Sim.Data
             root.RejectUnknownKeys("id", "display_name", "faction_id", "kind", "layer", "max_health",
                 "speed_tiles_per_second", "supply", "radius_tiles", "cost_common", "cost_rare", "armour_type", "sight_range_tiles", "airborne_sight_range_tiles", "weapon",
                 "hq", "build_seconds", "can_gather", "is_drop_off", "trains", "requires", "researches", "is_static_defence", "is_wall", "is_gate", "footprint", "provides_supply",
-                "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave", "shield_dome", "grounding_ability");
+                "flood_source_output_per_second", "flood_source_capacity", "can_cast_wave", "wave_display_name", "wave_description", "shield_dome", "grounding_ability");
             // ID implied by the path: the folder is the faction, the file name is the unit.
             string id = ReadId(root, parts[1] + "." + StemOf(parts), true);
             // Display name text. Range: non-empty string.

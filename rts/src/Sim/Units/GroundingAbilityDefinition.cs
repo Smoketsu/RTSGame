@@ -11,6 +11,12 @@ namespace Rts.Sim.Units
     /// <summary>One grounding ability: how far it can be aimed, the pulse radius and the cooldown. Never changes during a match.</summary>
     public sealed class GroundingAbilityDefinition
     {
+        /// <summary>Name of the ability shown to players. Presentation only; not hashed. Unit: text. Range: 1 to 40 characters when loaded from data; empty when the definition is built in code.</summary>
+        public string DisplayName { get; }
+
+        /// <summary>One-line description shown to players. Presentation only; not hashed. Unit: text. Range: 1 to 200 characters when loaded from data; empty when built in code.</summary>
+        public string Description { get; }
+
         /// <summary>Farthest aimed point from the caster's centre. Unit: tiles (fixed-point). Range: 0.5 to 32.</summary>
         public Fix64 RangeTiles { get; }
 
@@ -42,7 +48,9 @@ namespace Rts.Sim.Units
         /// <param name="rangeTiles">Cast range. Unit: tiles. Range: 0.5 to 32.</param>
         /// <param name="radiusTiles">Pulse radius. Unit: tiles. Range: 0.5 to 8.</param>
         /// <param name="cooldownSeconds">Cooldown. Unit: seconds. Range: 1 to 300.</param>
-        public GroundingAbilityDefinition(Fix64 rangeTiles, Fix64 radiusTiles, Fix64 cooldownSeconds)
+        /// <param name="displayName">Name shown to players. Unit: text. Range: any text; null becomes empty (the loader enforces 1 to 40 characters).</param>
+        /// <param name="description">Description shown to players. Unit: text. Range: any text; null becomes empty (the loader enforces 1 to 200 characters).</param>
+        public GroundingAbilityDefinition(Fix64 rangeTiles, Fix64 radiusTiles, Fix64 cooldownSeconds, string displayName = "", string description = "")
         {
             if (rangeTiles < MinRangeTiles || rangeTiles > MaxRangeTiles)
             {
@@ -59,9 +67,11 @@ namespace Rts.Sim.Units
             RangeTiles = rangeTiles;
             RadiusTiles = radiusTiles;
             CooldownSeconds = cooldownSeconds;
+            DisplayName = displayName ?? string.Empty;
+            Description = description ?? string.Empty;
         }
 
-        /// <summary>Feeds every field into a hash in a fixed order (used by the content digest).</summary>
+        /// <summary>Feeds range, radius and cooldown into a hash in a fixed order (used by the content digest). The display name and description are left out.</summary>
         public void WriteHash(StateHasher hasher)
         {
             hasher.Write(RangeTiles);
