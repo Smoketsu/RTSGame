@@ -1,0 +1,19 @@
+chunk 1/9 prototype_1v1 skai_vs_skai 72/72
+chunk 2/9 prototype_1v1 skai_vs_skai 50/72
+chunk 3/9 prototype_1v1 skai_vs_skai 25/72
+chunk 4/9 prototype_1v1 skai_vs_water 25/72
+chunk 5/9 prototype_1v1 skai_vs_water 72/72
+chunk 6/9 prototype_1v1 skai_vs_water 50/72
+chunk 7/9 prototype_1v1 water_vs_water 25/72
+chunk 8/9 prototype_1v1 water_vs_water 50/72
+chunk 9/9 prototype_1v1 water_vs_water 72/72
+CHECK balance_use FAIL 13 of 53 items below 0.100: skai/skai.wind_baffle 0.000, skai/skai.wind_gate 0.000, water/water.coral_gate 0.000, water/water.coral_wall 0.000, water/water.tidecaller 0.000, skai/downdraft 0.000, water/wave 0.000, skai/wall 0.000, water/wall 0.000, skai/gate 0.000, water/gate 0.000, skai/hq_last_stand 0.000, water/hq_last_stand 0.000
+CHECK balance_predictor FAIL accuracy=0.735 correct=562 decided=765 bar=0.850
+CHECK balance_unspent FAIL over bars common=400 rare=150: skai@300s common=320 rare=165, skai@600s common=275 rare=235, water@600s common=80 rare=310, water@900s common=90 rare=950
+CHECK balance_openings PASS openings judged=8 all within 0.100 to 0.900 of distinct mirror games (at least 10)
+BALANCE profile=aggressive_s5_b games=216 decided=216 distinct=216 checks_passed=1 of=4
+elapsed 2929.7 s
+
+real	48m50.143s
+user	150m38.611s
+sys	0m5.371s
