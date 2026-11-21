@@ -9,6 +9,14 @@
         "com.unity.inputsystem": "1.7.0"
       }
     },
+    "com.rtsgame.ai": {
+      "version": "file:../../Ai",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.rtsgame.sim": "0.1.0"
+      }
+    },
     "com.rtsgame.replay": {
       "version": "file:../../Replay",
       "depth": 0,
