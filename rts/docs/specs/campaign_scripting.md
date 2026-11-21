@@ -70,6 +70,8 @@ Mission state lives in `MissionRunner`, outside the simulation, and is **not has
 
 ## 4. Runtime algorithm
 
+**Single-player only for now.** The mission runner must not run in a lockstep match: each peer would run it with its own camera and selection signals and submit commands outside the peers' bundles, which would desync. (Built 21 Nov 2026: the runner and the inputs submit through a sink so a host can record a replay; see `rts/src/Campaign/README.md` for the call order.)
+
 **Host loop** (the MissionRunner tool, tests, and later Unity):
 ```
 data = DataLoader.Load(...); mission = MissionLoader.Parse(text, path, data, BuiltInMechanics.ScriptParsers)

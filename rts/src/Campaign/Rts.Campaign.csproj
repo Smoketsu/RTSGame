@@ -1,0 +1,25 @@
+<!-- rts/src/Campaign/Rts.Campaign.csproj: the campaign scripting library (assembly Rts.Campaign). Loads missions (data under rts/campaign) and runs them beside the simulation: it reads events and read-only state after each step and submits ordinary commands between steps, never mutating the simulation. Targets netstandard2.1 so the same source compiles inside Unity 6 (via Rts.Campaign.asmdef) and in the plain .NET test and tool projects. No engine references, no floating point, no file access. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- netstandard2.1 is the newest standard Unity 6 fully supports; same as Rts.Sim. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <!-- Assembly and root namespace match the Unity assembly definition name. -->
+    <AssemblyName>Rts.Campaign</AssemblyName>
+    <RootNamespace>Rts.Campaign</RootNamespace>
+    <!-- No implicit usings: every file lists what it uses, same as inside Unity. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- XML doc generation is off; the documentation standard is enforced by review, not by CS1591. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Unity package metadata and asmdef files live beside the source but are not compiled. -->
+    <None Remove="package.json" />
+    <None Remove="Rts.Campaign.asmdef" />
+    <!-- Unity writes .meta files next to every asset; they are not source. -->
+    <Compile Remove="**/*.meta" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Missions read the simulation's public API and build its command objects. -->
+    <ProjectReference Include="../Sim/Rts.Sim.csproj" />
+  </ItemGroup>
+</Project>

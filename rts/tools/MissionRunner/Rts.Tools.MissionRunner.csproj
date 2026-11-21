@@ -1,0 +1,19 @@
+<!-- rts/tools/MissionRunner/Rts.Tools.MissionRunner.csproj: headless console runner for campaign missions. Loads rts/data and a mission, plays it with the scripted inputs (or AI slots) and prints the mission log, state hashes and the result. Does the file IO the campaign library may not. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Rts.Tools.MissionRunner</AssemblyName>
+    <RootNamespace>Rts.Tools.MissionTool</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sim/Rts.Sim.csproj" />
+    <!-- The skirmish AI controllers attached to a mission's ai: slots. -->
+    <ProjectReference Include="../../src/Ai/Rts.Ai.csproj" />
+    <!-- The replay recorder and writer behind the replay option. -->
+    <ProjectReference Include="../../src/Replay/Rts.Replay.csproj" />
+    <!-- The mission loader, runner and scripted inputs. -->
+    <ProjectReference Include="../../src/Campaign/Rts.Campaign.csproj" />
+  </ItemGroup>
+</Project>
