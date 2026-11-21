@@ -398,12 +398,14 @@ namespace Rts.Game.Hud
             return nearestReady ?? nearest;
         }
 
-        /// <summary>Starts a pulse where a Downdraft lands and a line along a cast wave (casts of every player; fog of war will filter them, UI-6).</summary>
+        /// <summary>Starts a pulse where a Downdraft lands and a line along a cast wave, for casts the local team can see (fog of war, UI-6).</summary>
         /// <param name="simEvent">An event of the tick that just ran.</param>
         private void OnSimEvent(SimEvent simEvent)
         {
             Simulation sim = _commands.Host.Match;
-            if (simEvent is GroundingCastEvent grounding)
+            // The local team, for fog of war: effects only show where the team can see (UI-6).
+            Rts.Sim.Core.TeamId team = sim.Players.TeamOf(_commands.LocalPlayer);
+            if (simEvent is GroundingCastEvent grounding && Presentation.FogView.CanSeePoint(sim, team, grounding.Target))
             {
                 // Radius of the caster's ability when it is still alive; one tile otherwise. Unit: tiles.
                 float radius = sim.Units.TryGet(grounding.Caster, out Unit caster) && caster.Definition.GroundingAbility != null
@@ -411,7 +413,7 @@ namespace Rts.Game.Hud
                 Vector3 centre = ToWorld(grounding.Target);
                 _effects.Add((centre, centre, true, radius, Time.unscaledTime + EffectSeconds));
             }
-            else if (simEvent is WaveCastEvent wave && sim.Units.TryGet(wave.Caster, out Unit waveCaster))
+            else if (simEvent is WaveCastEvent wave && sim.Units.TryGet(wave.Caster, out Unit waveCaster) && Presentation.FogView.CanSee(sim, team, waveCaster))
             {
                 Vector3 from = ToWorld(waveCaster.Position);
                 Vector3 direction = new Vector3(wave.DirX, 0f, wave.DirY).normalized;
@@ -440,13 +442,13 @@ namespace Rts.Game.Hud
             }
         }
 
-        /// <summary>Draws a small ring above each grounded unit (all players; fog of war will filter enemies, UI-6).</summary>
+        /// <summary>Draws a small ring above each grounded unit the local team can see (fog of war, UI-6).</summary>
         /// <param name="sim">The running match.</param>
         private void DrawGroundedMarkers(Simulation sim)
         {
             foreach (Unit unit in sim.Units.All)
             {
-                if (unit.Statuses.IsGrounded)
+                if (unit.Statuses.IsGrounded && Presentation.FogView.CanSee(sim, sim.Players.TeamOf(_commands.LocalPlayer), unit))
                 {
                     DrawCircle(ToWorld(unit.Position) + Vector3.up * GroundedMarkerHeight, GroundedMarkerRadius, effectColor);
                 }

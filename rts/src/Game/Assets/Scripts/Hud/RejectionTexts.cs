@@ -77,6 +77,8 @@ namespace Rts.Game.Hud
             { "no_entry", null },
             { "entry_mismatch", null },
             { "not_a_producer", null },
+            // Structures on resource fields are refused (cloud fix on review/field-block, answering the UI-4 question).
+            { "on_resource_field", "Cannot build on a resource field" },
         };
 
         /// <summary>

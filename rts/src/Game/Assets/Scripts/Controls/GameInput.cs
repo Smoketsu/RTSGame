@@ -125,7 +125,7 @@ namespace Rts.Game.Controls
             }
         }
 
-        /// <summary>Maps a legacy key code to the Input System key: letters, top-row digits, arrows, Escape, Shift and Ctrl. Throws for any other key so a missing mapping shows at once.</summary>
+        /// <summary>Maps a legacy key code to the Input System key: letters, top-row digits, arrows, Escape, F8, Shift and Ctrl. Throws for any other key so a missing mapping shows at once.</summary>
         /// <param name="key">The legacy key code.</param>
         private static Key ToKey(KeyCode key)
         {
@@ -142,6 +142,7 @@ namespace Rts.Game.Controls
                 // Key.Digit0 comes after Digit9 in the Input System enum, unlike KeyCode.Alpha0.
                 case KeyCode.Alpha0: return Key.Digit0;
                 case KeyCode.Escape: return Key.Escape;
+                case KeyCode.F8: return Key.F8;
                 case KeyCode.LeftArrow: return Key.LeftArrow;
                 case KeyCode.RightArrow: return Key.RightArrow;
                 case KeyCode.UpArrow: return Key.UpArrow;

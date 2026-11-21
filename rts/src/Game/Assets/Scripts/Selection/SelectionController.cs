@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Text;
 using Rts.Game.Bootstrap;
 using Rts.Game.Controls;
+using Rts.Game.Presentation;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Economy;
@@ -531,8 +532,10 @@ namespace Rts.Game.UnitSelection
                         continue;
                     }
                 }
-                else if (!_host.Match.Players.AreEnemies(_localPlayer, unit.Owner))
+                else if (!_host.Match.Players.AreEnemies(_localPlayer, unit.Owner)
+                    || !FogView.CanSee(_host.Match, _host.Match.Players.TeamOf(_localPlayer), unit))
                 {
+                    // Not an enemy, or an enemy the local team cannot see (fog of war, UI-6): not a target.
                     continue;
                 }
                 // Vector from the ray origin to the cube centre, and how far along the ray the centre lies. Unit: world units.
