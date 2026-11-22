@@ -75,6 +75,14 @@
       { "type": "show_message", "text": "Well flown. Your aerie grows.", "seconds": 6 } ] }
   ],
   "victory_objective": "build_roost",
-  // Losing the HQ (removed by any means) ends the lesson. Source: The mobile HQ unit (a player loses when their HQ is destroyed).
-  "defeat_when": { "type": "player_state", "player": 0, "state": "defeated" }
+  // Losing the HQ (removed by any means) or surrendering ends the lesson; a surrender leaves the player Surrendered, not Defeated, so both states are listed. Unit: condition. Range: any_of with 1 to 8 child conditions. Source: The mobile HQ unit (a player loses when their HQ is destroyed); found by the Unity session playing UI-16 (21 Nov 2026).
+  "defeat_when": {
+    "type": "any_of",
+    "conditions": [
+      // The player's HQ is gone. Unit: player state. Range: one state name.
+      { "type": "player_state", "player": 0, "state": "defeated" },
+      // The player surrendered from the menu. Unit: player state. Range: one state name.
+      { "type": "player_state", "player": 0, "state": "surrendered" }
+    ]
+  }
 }
