@@ -151,6 +151,21 @@ namespace Rts.Ai
         {
             foreach (SimEvent simEvent in sim.Events.Current)
             {
+                if (Profile.UseWalls && simEvent.Tick > Memory.LastEventTickRead)
+                {
+                    // Rule WL (ai_mechanic_use.md M3.2): a wall-line tile of this AI that can never be built is remembered and not ordered again; other reasons are retried.
+                    if (simEvent is BuildLineTileSkippedEvent skipped && skipped.Owner == Player
+                        && (skipped.Reason == "out_of_bounds" || skipped.Reason == "tile_blocked" || skipped.Reason == "on_resource_field") && sim.Terrain.Contains(skipped.TileX, skipped.TileY))
+                    {
+                        Memory.WallTilesRefused.Add(sim.Terrain.IndexOf(skipped.TileX, skipped.TileY));
+                    }
+                    else if (simEvent is CommandRejectedEvent gateRejected && (gateRejected.Reason == "tile_blocked" || gateRejected.Reason == "on_resource_field")
+                        && gateRejected.Command is BuildStructureCommand gateOrder && gateOrder.Issuer == Player && sim.Terrain.Contains(gateOrder.TileX, gateOrder.TileY)
+                        && sim.Content.Units.TryGetValue(gateOrder.DefinitionId, out UnitDefinition? gateDefinition) && gateDefinition.Economy.IsGate)
+                    {
+                        Memory.WallTilesRefused.Add(sim.Terrain.IndexOf(gateOrder.TileX, gateOrder.TileY));
+                    }
+                }
                 if (Profile.UseEnemyModel && simEvent.Tick > Memory.LastEventTickRead && simEvent is UnitKilledEvent killed
                     && killed.VictimOwner.IsValid && sim.Players.AreEnemies(Player, killed.VictimOwner))
                 {

@@ -166,7 +166,7 @@ namespace Rts.Tools.BalanceHarness
                 }
                 foreach (Command command in ai.LastCommands)
                 {
-                    if (command is TrainUnitCommand || command is BuildStructureCommand)
+                    if (command is TrainUnitCommand || command is BuildStructureCommand || command is BuildWallLineCommand)
                     {
                         _pending.Add(new KeyValuePair<byte, Command>(ai.Player.Value, command));
                     }
@@ -192,6 +192,19 @@ namespace Rts.Tools.BalanceHarness
             {
                 if (rejected.Contains(entry.Value))
                 {
+                    continue;
+                }
+                if (entry.Value is BuildWallLineCommand wallLine)
+                {
+                    // Accepted wall line: charged the cost the same worker's BuildOrderAcceptedEvent of this step carries (cost x tiles kept), to the wall class (ai_mechanic_use.md M3.3).
+                    foreach (SimEvent simEvent in sim.Events.Current)
+                    {
+                        if (simEvent is BuildOrderAcceptedEvent accepted && accepted.Worker == wallLine.Worker)
+                        {
+                            _slots[entry.Key].Ledger.SpendAmount(PlayerLedger.ClassWall, accepted.CostCommon, accepted.CostRare);
+                            break;
+                        }
+                    }
                     continue;
                 }
                 // Definition ID the command orders.

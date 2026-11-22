@@ -5,7 +5,9 @@
 // (the first words of the message) and the field. Folder routing: tuning/, units/<faction>/, factions/, maps/, cycles/, ai/.
 // The ai/ folder holds skirmish AI profiles (ai/<id>.json): the loader checks only the header and that "id" matches the file
 // name, then hands the parsed tree to DataSet.AiProfiles; the Rts.Ai assembly validates the rest (AiProfile.Parse), because
-// the simulation never reads AI profiles and must not depend on the AI.
+// the simulation never reads AI profiles and must not depend on the AI. ai/walls/<map id>.json (authored wall lines, P4-0) goes
+// the same way into DataSet.AiWallLines; the loader checks only header and id, never reads the contents, and neither the content
+// digest nor the state hash covers it.
 // Exception: the scripts/ folder is skipped. Scripted command streams (the headless harness, the Unity bootstrap and
 // later campaign missions) live there and are parsed by CommandScript, not by this loader. Everything else is strict:
 // unknown folders, unknown keys, missing keys, wrong types, out-of-range values, dangling references and a
@@ -44,6 +46,9 @@ namespace Rts.Sim.Data
         /// stores the parsed tree in <see cref="DataSet.AiProfiles"/>; Rts.Ai.AiProfile.Parse validates the contents. Range: fixed folder name, "ai".
         /// </summary>
         public const string AiFolder = "ai";
+
+        /// <summary>Name of the sub-folder of <see cref="AiFolder"/> holding authored AI wall lines (ai/walls/&lt;map id&gt;.json). Range: fixed folder name, "walls".</summary>
+        public const string AiWallsFolder = "walls";
 
         /// <summary>Largest allowed value of a health, cost or similar unit field. Unit: points or resource units. Range: fixed validation bound, not a tuning value.</summary>
         private const string MaxStatText = "100000";
@@ -91,6 +96,8 @@ namespace Rts.Sim.Data
             // Faction file roots by faction ID, kept for the unit-list reference check.
             SortedDictionary<string, JsonValue> factionRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
             // Skirmish AI profile roots by profile ID, in ordinal ID order; validated by Rts.Ai, not here.
+            // Authored AI wall-line trees by map ID (ai/walls/<map id>.json); never read by the simulation. Range: one entry per file.
+            SortedDictionary<string, JsonValue> aiWallLines = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
             SortedDictionary<string, JsonValue> aiProfiles = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
 
             // Combat tuning, parsed ahead of the main loop because unit files are validated against its armour and damage
@@ -174,6 +181,13 @@ namespace Rts.Sim.Data
                         }
                     case AiFolder:
                         {
+                            if (parts.Length == 3 && parts[1] == AiWallsFolder)
+                            {
+                                // Map ID the lines belong to, equal to the file name. Range: lower-case letters, digits and underscores.
+                                string wallMapId = ReadId(root, StemOf(parts), false);
+                                aiWallLines.Add(wallMapId, root);
+                                break;
+                            }
                             CheckDepth(path, parts, 2, "ai/<id>.json");
                             // Profile ID, equal to the file name. Range: lower-case letters, digits and underscores.
                             string profileId = ReadId(root, StemOf(parts), false);
@@ -206,7 +220,7 @@ namespace Rts.Sim.Data
             CheckReferences(content, unitFiles, researchFiles, factionRoots);
             CheckRequirementCycles(content, unitFiles);
             content.SetCombatRules(tuning.Combat.CreateRules());
-            return new DataSet(content, tuning, maps, cycles, aiProfiles);
+            return new DataSet(content, tuning, maps, cycles, aiProfiles, aiWallLines);
         }
 
         // ---------------------------------------------------------------- shared checks

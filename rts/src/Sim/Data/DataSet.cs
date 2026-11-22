@@ -1,5 +1,5 @@
 // rts/src/Sim/Data/DataSet.cs
-// Everything DataLoader produces from rts/data: content catalog, typed tuning, maps, cycles and the raw AI profile trees.
+// Everything DataLoader produces from rts/data: content catalog, typed tuning, maps, cycles and the raw AI profile and AI wall-line trees.
 // Part of Rts.Sim.Data. Hosts build a SimulationConfig from it (Content, CreateMatchSettings) and hand the
 // Tuning to the systems that need it. Maps and cycles are exposed in ordinal ID order.
 using System;
@@ -29,6 +29,12 @@ namespace Rts.Sim.Data
         /// </summary>
         public IReadOnlyDictionary<string, JsonValue> AiProfiles { get; }
 
+        /// <summary>
+        /// Authored AI wall-line trees by map ID (rts/data/ai/walls/&lt;map id&gt;.json), in ordinal ID order. The loader checked only the header
+        /// and the id; Rts.Ai.AiWallLines.Parse validates the rest. The simulation never reads these and no hash covers them. Empty when the folder is absent.
+        /// </summary>
+        public IReadOnlyDictionary<string, JsonValue> AiWallLines { get; }
+
         /// <summary>Bundles the loaded pieces. The loader is the normal caller; tests may build one by hand. The map and cycle dictionaries are copied into ordinal-ordered dictionaries so iteration order never depends on the caller's comparer.</summary>
         public DataSet(ContentCatalog content, Tuning tuning, IReadOnlyDictionary<string, MapDefinition> maps, IReadOnlyDictionary<string, CycleDefinition> cycles)
             : this(content, tuning, maps, cycles, new SortedDictionary<string, JsonValue>(StringComparer.Ordinal))
@@ -45,6 +51,19 @@ namespace Rts.Sim.Data
         /// <param name="aiProfiles">Parsed AI profile roots by profile ID; header and id already checked by the loader.</param>
         public DataSet(ContentCatalog content, Tuning tuning, IReadOnlyDictionary<string, MapDefinition> maps, IReadOnlyDictionary<string, CycleDefinition> cycles,
             IReadOnlyDictionary<string, JsonValue> aiProfiles)
+            : this(content, tuning, maps, cycles, aiProfiles, new SortedDictionary<string, JsonValue>(StringComparer.Ordinal))
+        {
+        }
+
+        /// <summary>Bundles the loader's results including the AI profile trees and the authored AI wall-line trees (ai/walls/&lt;map id&gt;.json), copied into ordinal ID order.</summary>
+        /// <param name="content">Unit and faction definitions.</param>
+        /// <param name="tuning">Every tuning file.</param>
+        /// <param name="maps">Maps by ID.</param>
+        /// <param name="cycles">Planetary Cycles by ID.</param>
+        /// <param name="aiProfiles">Parsed AI profile roots by profile ID.</param>
+        /// <param name="aiWallLines">Parsed AI wall-line roots by map ID; header and id already checked by the loader.</param>
+        public DataSet(ContentCatalog content, Tuning tuning, IReadOnlyDictionary<string, MapDefinition> maps, IReadOnlyDictionary<string, CycleDefinition> cycles,
+            IReadOnlyDictionary<string, JsonValue> aiProfiles, IReadOnlyDictionary<string, JsonValue> aiWallLines)
         {
             Content = content ?? throw new ArgumentNullException(nameof(content));
             Tuning = tuning ?? throw new ArgumentNullException(nameof(tuning));
@@ -78,9 +97,20 @@ namespace Rts.Sim.Data
             {
                 orderedProfiles.Add(pair.Key, pair.Value);
             }
+            if (aiWallLines == null)
+            {
+                throw new ArgumentNullException(nameof(aiWallLines));
+            }
+            // AI wall-line roots copied in ordinal map ID order. Range: one entry per ai/walls/<map id>.json file.
+            SortedDictionary<string, JsonValue> orderedWalls = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, JsonValue> pair in aiWallLines)
+            {
+                orderedWalls.Add(pair.Key, pair.Value);
+            }
             Maps = orderedMaps;
             Cycles = orderedCycles;
             AiProfiles = orderedProfiles;
+            AiWallLines = orderedWalls;
         }
 
         /// <summary>

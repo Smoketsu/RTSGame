@@ -1,0 +1,282 @@
+// rts/data/ai/walls/prototype_1v1.json: authored wall lines for the skirmish AI on map prototype_1v1 (rts/docs/specs/ai_mechanic_use.md M3.2, rule WL). Per area (a main base, an expansion or a neutral corner) the lines that, built together with the cliffs and rock, seal it against ground movement from every enemy start. Routed by the data loader from ai/walls/<map id>.json into DataSet.AiWallLines and validated by Rts.Ai (AiWallLines.Parse); the simulation never reads it and it is not in the content digest. Checked by AiWallLineDataTests (seal, exit, mirror). Review image of the map: rts/docs/art/maps/prototype_1v1_layout.png.
+{
+  "$schema_version": 1,
+  "$doc": "Wall lines for prototype_1v1, slot 0 and the north-west neutral areas authored by hand from the map's chokes, the rest their 180-degree point mirrors (x, y) -> (95 - x, 95 - y). Tile counts and costs per area are listed in the spec, M3.2.",
+  // Map ID these lines belong to, equal to the file name and to a map in rts/data/maps. Unit: text ID. Range: an existing map ID. Source: rts/docs/specs/ai_mechanic_use.md M3.2.
+  "id": "prototype_1v1",
+  // Protected areas, listed slot 0, slot 1, then neutral. Unit: list of area objects. Range: 0 to 32 areas; no field index appears in two areas. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+  "areas": [
+    // Slot 0 main base (south-west plateau): its north ramp and its east ramp.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "main_0",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "main",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": 0,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [0, 1],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 10, "y": 10 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": [],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 4 tiles.
+        { "from": { "x": 4, "y": 21 }, "to": { "x": 7, "y": 21 } },
+        // 4 tiles, gate at (22, 8).
+        { "from": { "x": 22, "y": 7 }, "to": { "x": 22, "y": 10 }, "gate": { "x": 22, "y": 8 } }
+      ]
+    },
+    // Slot 0 natural (fields 2, 3, 16 east of the main): the ring that closes the main and the natural together: north-west sand corridor, the sand north of the natural, the south-west basin ramp, and the one-tile gap between the south knoll and the rim.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "natural_0",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": 0,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [2, 3, 16],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 27, "y": 13 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": ["main_0"],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 7 tiles.
+        { "from": { "x": 8, "y": 27 }, "to": { "x": 14, "y": 27 } },
+        // 4 tiles.
+        { "from": { "x": 24, "y": 25 }, "to": { "x": 27, "y": 25 } },
+        // 4 tiles.
+        { "from": { "x": 33, "y": 15 }, "to": { "x": 36, "y": 15 } },
+        // 2 tiles, gate at (33, 16).
+        { "from": { "x": 33, "y": 16 }, "to": { "x": 33, "y": 17 }, "gate": { "x": 33, "y": 16 } },
+        // 1 tile.
+        { "from": { "x": 46, "y": 3 }, "to": { "x": 46, "y": 3 } }
+      ]
+    },
+    // Slot 0 low basin (fields 7, 18): the wider ring that closes the main, the natural and the south-west basin together: north-west corridor, the gap beside the grass pocket, the sand west of the basin, the two causeway ramps on its east side and the knoll gap.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "basin_0",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": 0,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [7, 18],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 37, "y": 20 }, { "x": 43, "y": 20 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": ["main_0", "natural_0"],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 7 tiles.
+        { "from": { "x": 8, "y": 27 }, "to": { "x": 14, "y": 27 } },
+        // 1 tile.
+        { "from": { "x": 25, "y": 30 }, "to": { "x": 25, "y": 30 } },
+        // 5 tiles.
+        { "from": { "x": 29, "y": 31 }, "to": { "x": 33, "y": 31 } },
+        // 2 tiles.
+        { "from": { "x": 45, "y": 13 }, "to": { "x": 45, "y": 14 } },
+        // 3 tiles, gate at (45, 23).
+        { "from": { "x": 45, "y": 22 }, "to": { "x": 45, "y": 24 }, "gate": { "x": 45, "y": 23 } },
+        // 1 tile.
+        { "from": { "x": 46, "y": 3 }, "to": { "x": 46, "y": 3 } }
+      ]
+    },
+    // Slot 1 main base (north-east plateau): point mirror of main_0.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "main_1",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "main",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": 1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [8, 9],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 85, "y": 85 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": [],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 4 tiles.
+        { "from": { "x": 91, "y": 74 }, "to": { "x": 88, "y": 74 } },
+        // 4 tiles, gate at (73, 87).
+        { "from": { "x": 73, "y": 88 }, "to": { "x": 73, "y": 85 }, "gate": { "x": 73, "y": 87 } }
+      ]
+    },
+    // Slot 1 natural (fields 10, 11, 19): point mirror of natural_0.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "natural_1",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": 1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [10, 11, 19],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 68, "y": 82 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": ["main_1"],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 7 tiles.
+        { "from": { "x": 87, "y": 68 }, "to": { "x": 81, "y": 68 } },
+        // 4 tiles.
+        { "from": { "x": 71, "y": 70 }, "to": { "x": 68, "y": 70 } },
+        // 4 tiles.
+        { "from": { "x": 62, "y": 80 }, "to": { "x": 59, "y": 80 } },
+        // 2 tiles, gate at (62, 79).
+        { "from": { "x": 62, "y": 79 }, "to": { "x": 62, "y": 78 }, "gate": { "x": 62, "y": 79 } },
+        // 1 tile.
+        { "from": { "x": 49, "y": 92 }, "to": { "x": 49, "y": 92 } }
+      ]
+    },
+    // Slot 1 low basin (fields 15, 21): point mirror of basin_0.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "basin_1",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": 1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [15, 21],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 58, "y": 75 }, { "x": 52, "y": 75 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": ["main_1", "natural_1"],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 7 tiles.
+        { "from": { "x": 87, "y": 68 }, "to": { "x": 81, "y": 68 } },
+        // 1 tile.
+        { "from": { "x": 70, "y": 65 }, "to": { "x": 70, "y": 65 } },
+        // 5 tiles.
+        { "from": { "x": 66, "y": 64 }, "to": { "x": 62, "y": 64 } },
+        // 2 tiles.
+        { "from": { "x": 50, "y": 82 }, "to": { "x": 50, "y": 81 } },
+        // 3 tiles, gate at (50, 72).
+        { "from": { "x": 50, "y": 73 }, "to": { "x": 50, "y": 71 }, "gate": { "x": 50, "y": 72 } },
+        // 1 tile.
+        { "from": { "x": 49, "y": 92 }, "to": { "x": 49, "y": 92 } }
+      ]
+    },
+    // West flank shelf (fields 4, 17), either player: the shelf and the grass pocket north of it.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "flank_w",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": -1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [4, 17],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 20, "y": 63 }, { "x": 20, "y": 69 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": [],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 3 tiles.
+        { "from": { "x": 7, "y": 66 }, "to": { "x": 7, "y": 68 } },
+        // 8 tiles.
+        { "from": { "x": 14, "y": 59 }, "to": { "x": 21, "y": 59 } },
+        // 4 tiles.
+        { "from": { "x": 19, "y": 71 }, "to": { "x": 22, "y": 71 } },
+        // 3 tiles.
+        { "from": { "x": 22, "y": 68 }, "to": { "x": 22, "y": 70 } },
+        // 2 tiles.
+        { "from": { "x": 23, "y": 68 }, "to": { "x": 24, "y": 68 } },
+        // 1 tile, gate at (24, 67).
+        { "from": { "x": 24, "y": 67 }, "to": { "x": 24, "y": 67 }, "gate": { "x": 24, "y": 67 } }
+      ]
+    },
+    // East flank shelf (fields 12, 20), either player: point mirror of flank_w.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "flank_e",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": -1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [12, 20],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 75, "y": 32 }, { "x": 75, "y": 26 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": [],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 3 tiles.
+        { "from": { "x": 88, "y": 29 }, "to": { "x": 88, "y": 27 } },
+        // 8 tiles.
+        { "from": { "x": 81, "y": 36 }, "to": { "x": 74, "y": 36 } },
+        // 4 tiles.
+        { "from": { "x": 76, "y": 24 }, "to": { "x": 73, "y": 24 } },
+        // 3 tiles.
+        { "from": { "x": 73, "y": 27 }, "to": { "x": 73, "y": 25 } },
+        // 2 tiles.
+        { "from": { "x": 72, "y": 27 }, "to": { "x": 71, "y": 27 } },
+        // 1 tile, gate at (71, 28).
+        { "from": { "x": 71, "y": 28 }, "to": { "x": 71, "y": 28 }, "gate": { "x": 71, "y": 28 } }
+      ]
+    },
+    // North-west rare corner (fields 5, 6), either player: the corner sand closed at the four approaches.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "corner_nw",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": -1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [5, 6],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 12, "y": 81 }, { "x": 14, "y": 84 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": [],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 3 tiles.
+        { "from": { "x": 7, "y": 66 }, "to": { "x": 7, "y": 68 } },
+        // 4 tiles.
+        { "from": { "x": 18, "y": 73 }, "to": { "x": 21, "y": 73 } },
+        // 4 tiles, gate at (20, 78).
+        { "from": { "x": 20, "y": 77 }, "to": { "x": 20, "y": 80 }, "gate": { "x": 20, "y": 78 } },
+        // 5 tiles.
+        { "from": { "x": 25, "y": 85 }, "to": { "x": 25, "y": 89 } }
+      ]
+    },
+    // South-east rare corner (fields 13, 14), either player: point mirror of corner_nw.
+    {
+      // Area ID, unique in this file. Unit: text ID. Range: lower-case letters, digits and underscores. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "id": "corner_se",
+      // "main" (walled first) or "expansion" (counts against expansion_wall_max_bases). Unit: enum. Range: main or expansion. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "kind": "expansion",
+      // Start slot that owns the area and whose enemies the lines keep out; -1 for a neutral area any player may wall, sealed against every start. Unit: spawn index. Range: -1 to spawn count - 1. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "slot": -1,
+      // Resource-field indices of the map that identify the area: an own HQ, depot or depot order within field_max_distance_tiles of one of them holds it. Unit: field indices. Range: 1 or more indices into the map resource_fields list, none listed by another area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "fields": [13, 14],
+      // Tiles that must lie inside the seal besides the fields' neighbours: the depot site the AI picks for this area on an empty map (one per approach side for a neutral area). Unit: tiles. Range: 1 to 4 tiles on the map. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "anchors": [{ "x": 83, "y": 14 }, { "x": 81, "y": 11 }],
+      // Areas of this file that lie inside this area's seal; while this area is held their lines are no longer wanted. Unit: area IDs. Range: 0 or more IDs of this file. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "covers": [],
+      // Straight lines from "from" to "to", tiles by WallLine.Rasterise (from = to is one tile); "gate" is the line's gate tile, used for the sealed style (a gate) and the funnel style (the opening). Unit: tiles. Range: each line 1 to wall_line_max_tiles tiles on walkable, non-field tiles; at least one gate per area. Source: rts/docs/specs/ai_mechanic_use.md M3.2 (authored choke lines, developer 22 Nov); placeholder.
+      "lines": [
+        // 3 tiles.
+        { "from": { "x": 88, "y": 29 }, "to": { "x": 88, "y": 27 } },
+        // 4 tiles.
+        { "from": { "x": 77, "y": 22 }, "to": { "x": 74, "y": 22 } },
+        // 4 tiles, gate at (75, 17).
+        { "from": { "x": 75, "y": 18 }, "to": { "x": 75, "y": 15 }, "gate": { "x": 75, "y": 17 } },
+        // 5 tiles.
+        { "from": { "x": 70, "y": 10 }, "to": { "x": 70, "y": 6 } }
+      ]
+    }
+  ]
+}

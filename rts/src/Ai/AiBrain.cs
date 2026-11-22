@@ -120,6 +120,10 @@
 // ai_mechanic_use.md P3 (use_wall_breach): rule WB in rule 6 (Army), after the casts and before rule ST and the stance orders: each own armed, non-flying army unit that can hit ground and has a live
 // unreachable-goal record (AiMemory.UnreachableGoals, written by SkirmishAiController from MoveUnreachableEvent, dropped after wall_breach_memory_seconds) attacks the known enemy wall (Economy.IsWall, gates included)
 // minimising unit-to-wall plus wall-to-goal (attack_unit when the wall is visible, else an attack-move wall_breach_standoff_tiles short of it); with no wall known it attack-moves wall_probe_step_tiles toward its goal.
+// ai_mechanic_use.md P4 (use_walls, AiBrainWalls.cs, AiWallLines.cs): rule WL runs in Decide after rule 3c (static defence) and before rule 4 (expand): with the authored lines of the map (AiProfile.WallLines, from
+// rts/data/ai/walls/<map id>.json), a drawn wall style other than none, wall_earliest_seconds passed, an enemy model that is mostly ground and spending under wall_max_spend_common, it walls the areas it holds
+// (main base first, then held expansions up to expansion_wall_max_bases, an area covered by a wanted area skipped) line by line from spare money: build_wall_line for the wall tiles still missing (at most wall_max_lines_per_think
+// lines per think) and, in style sealed, a gate on the gate tile; an area with a visible enemy army unit near it is skipped. Draw: one wall-style draw in AiVariety.Create, only with use_walls (before the wave-aim draw).
 // ai_mechanic_use.md P2 (use_support_units): in rule 5 (Produce), before the deficit loop, rule SU trains each plan support unit (support_units: unit ID to army supply
 // per unit) up to min(support_max_per_type, army supply / that number), at the lowest-ID free producer, skipping a unit whose first unmet requirement is not met; rule RQ-1's list gains
 // the support units still wanted, after the composition units. In rule 6 (Army), after the casts and before the stance orders, rule ST puts every unarmed army unit in _controlled
@@ -229,6 +233,7 @@ namespace Rts.Ai
             turn.Tech();
             turn.Research();
             turn.StaticDefence();
+            turn.Walls();
             turn.Expand();
             turn.TrainWorkers();
             turn.Scout();
@@ -640,7 +645,7 @@ namespace Rts.Ai
             {
                 // Oldest tick an unreachable-goal record may have and still be used. Unit: ticks. Range: any int.
                 int oldest = view.Tick - view.SecondsToTicks(Fix64.FromInt(profile.WallBreachMemorySeconds));
-                // Records of dead units or older than the memory window.
+                // Unit IDs whose unreachable-goal record is dead or older than the memory window, collected before removal. Unit: entity IDs. Range: 0 to the number of records (at most one per own unit), ascending.
                 List<EntityId> expired = new List<EntityId>();
                 foreach (KeyValuePair<EntityId, (int Tick, FixVec2 Goal)> pair in memory.UnreachableGoals)
                 {
@@ -3487,9 +3492,11 @@ namespace Rts.Ai
                     {
                         continue;
                     }
-                    // Best known wall so far: its ID and position, and the unit-to-wall-to-goal distance. Unit: tiles (Fix64), 0 upward.
+                    // ID of the best known enemy wall so far (the one minimising the detour); None while no wall is known. Unit: entity ID. Range: None or a key of KnownEnemyStructures.
                     EntityId wallId = EntityId.None;
+                    // Last known position of that wall. Unit: tiles (fixed-point x and y). Range: inside the map; zero while wallId is None.
                     FixVec2 wallPosition = FixVec2.Zero;
+                    // Detour length unit to wall to goal of the best wall so far. Unit: tiles (Fix64). Range: 0 upward; meaningful only while wallId is valid.
                     Fix64 best = Fix64.Zero;
                     foreach (KeyValuePair<EntityId, KnownStructure> pair in _memory.KnownEnemyStructures)
                     {
@@ -3510,7 +3517,12 @@ namespace Rts.Ai
                     bool visibleNow = false;
                     foreach (AiUnitView enemy in _view.VisibleEnemies)
                     {
-                        visibleNow |= wallId.IsValid && enemy.Id == wallId;
+                        if (wallId.IsValid && enemy.Id == wallId)
+                        {
+                            // Entity IDs are unique, so the first match is the only one: stopping here cannot change the result.
+                            visibleNow = true;
+                            break;
+                        }
                     }
                     // The breach order of this unit.
                     AiIntent order = !wallId.IsValid ? AiIntent.AttackMove(unit.Id, Standable(unit.Position.MoveTowards(record.Goal, _profile.WallProbeStepTiles)))

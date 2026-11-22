@@ -7,6 +7,7 @@
 // a pure function of the simulation's public state, the team's vision and the AI's own seeded generator, so two runs with the
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
+// ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
 using System.Collections.Generic;
 using Rts.Sim.Core;
 
@@ -189,6 +190,15 @@ namespace Rts.Ai
         /// (tiles). Overwritten by a newer event; entries of dead units and older than wall_breach_memory_seconds are dropped by the intel step. Not hashed.
         /// </summary>
         public SortedDictionary<EntityId, (int Tick, FixVec2 Goal)> UnreachableGoals { get; } = new SortedDictionary<EntityId, (int Tick, FixVec2 Goal)>();
+
+        /// <summary>
+        /// Rule WL (ai_mechanic_use.md M3.2, only with use_walls): tile indices of wall-line tiles of this AI the simulation refused for good (out_of_bounds, tile_blocked or on_resource_field, from
+        /// BuildLineTileSkippedEvent, or a gate build_structure rejected tile_blocked or on_resource_field); never ordered again. Ascending. Unit: tile indices (y * map width + x). Range: each 0 to map tile count - 1; empty at the start. Not hashed.
+        /// </summary>
+        public SortedSet<int> WallTilesRefused { get; } = new SortedSet<int>();
+
+        /// <summary>Rule WL: common committed to wall lines and gates this match, counted at order time and never reduced by refunds. Unit: common resource units. Range: 0 to wall_max_spend_common plus one order's cost. Not hashed.</summary>
+        public int WallSpentCommon { get; set; }
 
         /// <summary>
         /// Fields a relocation timed out on; skipped when choosing a relocation target until the HQ roots again, when the set is
