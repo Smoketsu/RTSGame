@@ -1,4 +1,4 @@
-// rts/data/ai/aggressive_s5_m.json: candidate of rts/docs/specs/ai_mechanic_use.md (P-006 package A): a copy of aggressive_s5_r.json with id changed and use_casts and use_support_units true (candidate wave aim weights, support_units per plan); each later package turns its own switch on here. Its off-copy for comparison is aggressive_s5_r.
+// rts/data/ai/aggressive_s5_m.json: candidate of rts/docs/specs/ai_mechanic_use.md (P-006 package A): a copy of aggressive_s5_r.json with id changed and use_casts, use_support_units, use_wall_breach and use_walls true (candidate wave aim weights, support_units per plan, wall style weights); each later package turns its own switch on here. Its off-copy for comparison is aggressive_s5_r.
 {
   "$schema_version": 1,
   "$doc": "Package AI-E profile (aggressive_s4r plus the saturation economy of field_saturation.md E1 and E2); the AI-P switches (P1, P2) are off since 19 Nov 2026 after the AI-P gate failed, see docs/reports/ai_p/README.md. Every number is a placeholder.",
@@ -342,6 +342,24 @@
   "wall_probe_step_tiles": 6,
   // Rule WB: most breach orders one think emits. Unit: commands. Range: 0 to 60. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
   "wall_breach_max_commands_per_think": 12,
+  // Rule WL (ai_mechanic_use.md M3.2): on (true) the AI walls the authored lines of its main base and held expansions and draws a wall style at match start; off (false) it builds no wall and makes no draw. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder (the switch is a measurement, shipped true only in aggressive_s5_m).
+  "use_walls": true,
+  // Rule WL: weights of the per-match wall style draw: none (no walls), funnel (every line tile but the gate's opening) and sealed (every tile, gates built). Unit: object of integer weights. Range: keys none, funnel, sealed; each 0 to 100, sum above 0. Source: rts/docs/specs/ai_mechanic_use.md section 6; placeholder.
+  "wall_style_weights": { "none": 20, "funnel": 30, "sealed": 50 },
+  // Rule WL: earliest match time at which a wall is ordered. Unit: seconds. Range: 0 to 1800. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_earliest_seconds": 180,
+  // Rule WL: least supply share of non-flying types in the enemy model for walls to be built (walls do not stop flyers); an empty model passes. Unit: fraction (Fix64). Range: 0 to 1. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_min_enemy_ground_share": 0.5,
+  // Rule WL: an area is not walled while a visible enemy army unit is within this distance of one of its anchors or line tiles. Unit: tiles (Fix64). Range: 0 to 30. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_threat_tiles": 10,
+  // Rule WL, style funnel: tiles of a line within this Chebyshev radius of the line's gate tile stay open (radius 0 leaves the gate tile only); lines without a gate tile are walled whole. Unit: tiles. Range: 0 to 3. Source: rts/docs/specs/ai_mechanic_use.md M3.2; placeholder.
+  "wall_funnel_gap_tiles": 0,
+  // Rule WL: most wall lines one think orders (a gate does not count as a line). Unit: commands. Range: 1 to 8. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_max_lines_per_think": 2,
+  // Rule WL: how many held expansion areas (in the order they were first held) get their authored lines; 0 walls the main base only. Unit: expansion areas. Range: 0 to 4. Source: rts/docs/specs/ai_mechanic_use.md M3.2; placeholder.
+  "expansion_wall_max_bases": 2,
+  // Rule WL: common committed to wall lines and gates over the whole match (rebuilds included, refunds not credited back); no wall or gate is ordered past it; 0 buys none. Unit: common resource units. Range: 0 to 20000. Source: rts/docs/specs/ai_mechanic_use.md M3.2; placeholder.
+  "wall_max_spend_common": 1200,
   // Package B: weight of each queue in the split of free common (relative; the army's 60 is the reference): economy 120 (a worker per 12 s needs 125 common per 30 s), expansion 120 (a depot is income like two workers), production 10 and tech 4 (about 0.21 of the army together, from the measured structure share), army 60, defence 6 (0.09 against the army, under the 0.15 behaviour bar). Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder beyond those anchors.
   "budget_common_weights": { "economy": 120, "expansion": 120, "production": 10, "army": 60, "tech": 4, "defence": 6 },
   // Package B: the same for free rare: production 30 (Storm Spire, Reef Workshop), army 60, tech 30 (half the army); 0 where no item costs rare. Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder.

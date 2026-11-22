@@ -4,6 +4,7 @@
 // is built) mark the whole map as explored for every team so the AI builds at once; the tests of the scouting trip leave the map alone.
 // Marking uses the internal vision mutators (Rts.Sim.Tests sees them) and leaves the visible grid as the last step computed it, so fog tests are
 // not affected. Part of Rts.Sim.Tests. Test code only; no change to Rts.Sim.
+using System.Collections.Generic;
 using Rts.Sim;
 using Rts.Sim.Vision;
 
@@ -29,6 +30,44 @@ namespace Rts.Sim.Tests.Ai
                 {
                     wasVisible[index] = grids.IsVisible(index);
                     grids.MarkVisible(index);
+                }
+                grids.MergeExplored();
+                grids.ClearVisible();
+                for (int index = 0; index < grids.TileCount; index++)
+                {
+                    if (wasVisible[index])
+                    {
+                        grids.MarkVisible(index);
+                    }
+                }
+            }
+        }
+        /// <summary>
+        /// As <see cref="ExploreAll"/>, but the listed tiles stay as they were (a test of a line nobody has seen). Call it before any step that could reveal them.
+        /// </summary>
+        /// <param name="sim">A started simulation between steps.</param>
+        /// <param name="except">Tiles (x, y) left unexplored. Unit: tile coordinates. Range: on the map.</param>
+        public static void ExploreAllExcept(Simulation sim, IEnumerable<(int X, int Y)> except)
+        {
+            // Tile indices left alone. Unit: tile index.
+            SortedSet<int> skipped = new SortedSet<int>();
+            foreach ((int X, int Y) tile in except)
+            {
+                skipped.Add(sim.Terrain.IndexOf(tile.X, tile.Y));
+            }
+            // Vision grids of one team each. Range: one per team.
+            foreach (TeamVision grids in sim.Vision.Teams)
+            {
+                // Visible flag per tile index before marking, restored afterwards.
+                bool[] wasVisible = new bool[grids.TileCount];
+                // Tile index. Unit: tile index. Range: 0 to TileCount - 1.
+                for (int index = 0; index < grids.TileCount; index++)
+                {
+                    wasVisible[index] = grids.IsVisible(index);
+                    if (!skipped.Contains(index))
+                    {
+                        grids.MarkVisible(index);
+                    }
                 }
                 grids.MergeExplored();
                 grids.ClearVisible();

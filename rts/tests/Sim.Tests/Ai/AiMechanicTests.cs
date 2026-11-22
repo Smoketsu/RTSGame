@@ -1,5 +1,5 @@
 // rts/tests/Sim.Tests/Ai/AiMechanicTests.cs
-// Tests of packages P1 (casts), P2 (support units: M2-5 to M2-7 and the support half of M2-8), P2b (SN-1 to SN-7) and P3 (breach: WB-1 to WB-6 and the breach profile keys) of rts/docs/specs/ai_mechanic_use.md. P1: M1-1 to M1-5 (Downdraft, rule CG), M2-1 to M2-4 and the cast half of M2-8 (the wave, rule CW), V-1 and V-2 (the wave-aim draw, aim half),
+// Tests of packages P1 (casts), P2 (support units: M2-5 to M2-7 and the support half of M2-8), P2b (SN-1 to SN-7) P3 (breach: WB-1 to WB-6 and the breach profile keys) and P4 (rule WL: WL-1 to WL-14 and V-2's wall half on prototype_1v1, the wall profile keys) of rts/docs/specs/ai_mechanic_use.md. P1: M1-1 to M1-5 (Downdraft, rule CG), M2-1 to M2-4 and the cast half of M2-8 (the wave, rule CW), V-1 and V-2 (the wave-aim draw, aim half),
 // the profile switch and its validation, and OFF-2 (the old variety stream). OFF-1 (the pins) is the existing hash tests, unchanged. Part of Rts.Sim.Tests. Each case builds a real greybox_1v1 simulation
 // (flat at height 1 for x 14 to 33, y 15 to 19), spawns units by script (as AiFightTests does) and runs AiBrain.Decide on the resulting view; the wave aim is set through AiVariety.SetWaveAimForTest.
 using System;
@@ -11,12 +11,14 @@ using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
+using Rts.Sim.Economy;
 using Rts.Sim.Events;
 using Rts.Sim.Factions;
 using Rts.Sim.Statuses;
 using Rts.Sim.Teams;
 using Rts.Sim.Tests.Data;
 using Rts.Sim.Units;
+using Rts.Tools.BalanceHarness;
 
 namespace Rts.Sim.Tests.Ai
 {
@@ -55,7 +57,9 @@ namespace Rts.Sim.Tests.Ai
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5_m.json")).Replace("\r\n", "\n");
             Assert.That(text, Does.Contain("\"use_casts\": true"));
             Assert.That(text, Does.Contain("\"use_support_units\": true"));
-            return AiProfile.Parse(text.Replace("\"use_casts\": true", "\"use_casts\": false").Replace("\"use_support_units\": true", "\"use_support_units\": false"), "ai/aggressive_s5_m.json", Data.Content);
+            // P4: the wall-style draw also moves the later draws of the candidate, so this off-twin switches use_walls off too (the candidate tests that compare against aggressive_s5_r need the same stream).
+            Assert.That(text, Does.Contain("\"use_walls\": true"));
+            return AiProfile.Parse(text.Replace("\"use_casts\": true", "\"use_casts\": false").Replace("\"use_support_units\": true", "\"use_support_units\": false").Replace("\"use_walls\": true", "\"use_walls\": false"), "ai/aggressive_s5_m.json", Data.Content);
         }
 
         /// <summary>The candidate with its own text edited by the given old/new pairs (each old text must occur).</summary>
@@ -435,7 +439,8 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void V2_Distribution()
         {
-            AiProfile profile = Candidate;
+            // P4: the candidate's use_walls adds a draw before the aim draw; this test keeps the pinned P1 counts by switching use_walls off (V2_WallDistribution covers the full candidate).
+            AiProfile profile = CandidateEdited("\"use_walls\": true", "\"use_walls\": false");
             AiFactionPlan plan = profile.RequireFaction("water");
             // Seeds drawn melee and all. Unit: seeds. Range: 0 to 1000.
             int melee = 0;
@@ -455,6 +460,39 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Math.Abs(all - 500), Is.LessThanOrEqualTo(50));
             Assert.That(melee, Is.EqualTo(498));
             Assert.That(all, Is.EqualTo(502));
+        }
+
+        /// <summary>V-2 (wall half): over match seeds 1 to 1000 (player 0, water plan, the full candidate) the wall style counts are within 50 of none 200, funnel 300 and sealed 500. The counts are deterministic and pinned below (none 190, funnel 308, sealed 502); the wave aim counts of the full candidate (the wall draw comes first, so they differ from V2_Distribution's) are within 50 of 500 too.</summary>
+        [Test]
+        public void V2_WallDistribution()
+        {
+            AiProfile profile = Candidate;
+            AiFactionPlan plan = profile.RequireFaction("water");
+            // Seeds drawn per style, and melee-aim seeds. Unit: seeds. Range: 0 to 1000.
+            int none = 0;
+            int funnel = 0;
+            int sealed_ = 0;
+            int melee = 0;
+            for (ulong seed = 1; seed <= 1000; seed++)
+            {
+                AiVariety variety = AiVariety.Create(profile, plan, AiVariety.SeedFor(seed, P0), 20);
+                none += variety.WallStyle == WallStyle.None ? 1 : 0;
+                funnel += variety.WallStyle == WallStyle.Funnel ? 1 : 0;
+                sealed_ += variety.WallStyle == WallStyle.Sealed ? 1 : 0;
+                melee += variety.WaveAim == WaveAim.Melee ? 1 : 0;
+            }
+            TestContext.WriteLine("wall style counts none " + none + " funnel " + funnel + " sealed " + sealed_ + "; melee aim " + melee);
+            Assert.That(Math.Abs(none - 200), Is.LessThanOrEqualTo(50));
+            Assert.That(Math.Abs(funnel - 300), Is.LessThanOrEqualTo(50));
+            Assert.That(Math.Abs(sealed_ - 500), Is.LessThanOrEqualTo(50));
+            Assert.That(Math.Abs(melee - 500), Is.LessThanOrEqualTo(50));
+            Assert.That(none, Is.EqualTo(190));
+            Assert.That(funnel, Is.EqualTo(308));
+            Assert.That(sealed_, Is.EqualTo(502));
+            Assert.That(melee, Is.EqualTo(484));
+            // The old profile makes no wall draw.
+            AiProfile off = OffCopy;
+            Assert.That(AiVariety.Create(off, off.RequireFaction("water"), AiVariety.SeedFor(1, P0), 20).WallStyle, Is.EqualTo(WallStyle.None));
         }
 
         /// <summary>OFF-2: an old profile's variety stream is unchanged (aim stays Melee and no draw is spent); the candidate with casts off draws the same opening and offsets as aggressive_s5_r.</summary>
@@ -939,6 +977,671 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(range.Message, Does.Contain("aggressive_s5_m.json").And.Contain("wall_breach_memory_seconds"));
             DataValidationException standoff = Expect.Throws<DataValidationException>(() => CandidateEdited("\"wall_breach_standoff_tiles\": 2", "\"wall_breach_standoff_tiles\": 0.25"));
             Assert.That(standoff.Message, Does.Contain("wall_breach_standoff_tiles"));
+        }
+
+        // ------------------------------------------------------------------ P4 rule WL (walls and gates on the authored lines)
+
+        /// <summary>The five unit IDs of a faction's wall rule: wall, gate, HQ, worker and drop-off depot, found by name only in this test helper (the brain finds them by flags and plan).</summary>
+        /// <param name="faction">"water" or "skai".</param>
+        private static (string Wall, string Gate, string Hq, string Worker, string Depot) Ids(string faction)
+        {
+            return faction == "skai"
+                ? ("skai.wind_baffle", "skai.wind_gate", "skai.great_aerie", "skai.fledgling", "skai.perch_depot")
+                : ("water.coral_wall", "water.coral_gate", "water.grand_shell", "water.tender", "water.pearl_depot");
+        }
+
+        /// <summary>
+        /// A started prototype_1v1 match: the AI under test (<paramref name="faction"/>) in spawn slot <paramref name="slot"/> (player id = slot), a water enemy in the other slot; the AI has a Rooted HQ at its spawn, ten workers on its plateau,
+        /// 5000 common and 400 rare; the whole map is explored; the clock stands past 180 s unless <paramref name="late"/> is false.
+        /// </summary>
+        /// <param name="faction">Faction of the AI under test.</param>
+        /// <param name="slot">Spawn slot (0 or 1) of the AI under test.</param>
+        /// <param name="late">True to step to 185 s first.</param>
+        /// <param name="explore">True to mark the whole map explored.</param>
+        private Simulation WallScene(string faction, int slot = 0, bool late = true, bool explore = true)
+        {
+            List<PlayerSetup> players = new List<PlayerSetup>();
+            for (int i = 0; i < 2; i++)
+            {
+                players.Add(new PlayerSetup(new PlayerId((byte)i), new TeamId((byte)i), i == slot ? faction : "water", "P" + i));
+            }
+            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players, BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap("prototype_1v1")));
+            sim.Start();
+            (string wall, string gate, string hq, string worker, string depot) ids = Ids(faction);
+            PlayerId me = new PlayerId((byte)slot);
+            // Own units are placed on slot 0's plateau and point-mirrored (x, y) -> (96 - x, 96 - y) for slot 1.
+            Spawn(sim, ids.hq, me, Mirror("12.5", slot), Mirror("12.5", slot));
+            foreach ((string x, string y) at in new[] { ("6.5", "18.5"), ("10.5", "19.5"), ("19.5", "9.5"), ("19.5", "5.5"), ("8.5", "8.5"), ("14.5", "16.5"), ("16.5", "12.5"), ("12.5", "8.5"), ("9.5", "15.5"), ("17.5", "17.5") })
+            {
+                Spawn(sim, ids.worker, me, Mirror(at.x, slot), Mirror(at.y, slot));
+            }
+            Assert.That(sim.Players.TryGet(me, out Player? player), Is.True);
+            player!.SetStock(5000, 400);
+            if (explore)
+            {
+                ExploreKit.ExploreAll(sim);
+            }
+            while (late && sim.Clock.Tick < 3700)
+            {
+                sim.Step();
+            }
+            return sim;
+        }
+
+        /// <summary>A coordinate text point-mirrored through the map centre for slot 1 (96 - v), unchanged for slot 0.</summary>
+        /// <param name="value">Coordinate text such as "12.5".</param>
+        /// <param name="slot">0 or 1.</param>
+        private static string Mirror(string value, int slot)
+        {
+            return slot == 0 ? value : (Fix64.FromInt(96) - Fix64.Parse(value)).ToString();
+        }
+
+        /// <summary>The candidate profile with <paramref name="oldNewPairs"/> applied (see <see cref="CandidateEdited"/>).</summary>
+        /// <param name="oldNewPairs">Old text, new text, old text, new text and so on.</param>
+        private static AiProfile WallProfile(params string[] oldNewPairs)
+        {
+            return oldNewPairs.Length == 0 ? Candidate : CandidateEdited(oldNewPairs).WithWallLines(Candidate.WallLines);
+        }
+
+        /// <summary>A memory with a variety stream whose wall style is forced.</summary>
+        /// <param name="profile">The profile.</param>
+        /// <param name="faction">Faction of the AI.</param>
+        /// <param name="style">The style to force.</param>
+        private static AiMemory WallMemory(AiProfile profile, string faction, WallStyle style)
+        {
+            AiMemory memory = new AiMemory { AttackThreshold = 8 };
+            memory.Variety = AiVariety.ForTest(profile.RequireFaction(faction), 1);
+            memory.Variety.SetWallStyleForTest(style);
+            return memory;
+        }
+
+        /// <summary>Decides for player <paramref name="me"/> on a fresh view.</summary>
+        private static List<AiIntent> DecideFor(Simulation sim, PlayerId me, AiProfile profile, AiMemory memory, string faction)
+        {
+            return AiBrain.Decide(AiWorldView.Build(sim, me, memory.KnownFieldRemaining), profile, profile.RequireFaction(faction), memory, new DeterministicRandom(1));
+        }
+
+        /// <summary>The intents of rule WL: every BuildWallLine and every Build of the faction's gate.</summary>
+        /// <param name="intents">All intents of a think.</param>
+        /// <param name="faction">Faction of the AI.</param>
+        private static List<AiIntent> WallIntents(List<AiIntent> intents, string faction)
+        {
+            string gate = Ids(faction).Gate;
+            return intents.FindAll(i => i.Kind == AiIntentKind.BuildWallLine || (i.Kind == AiIntentKind.Build && i.DefinitionId == gate));
+        }
+
+        /// <summary>One wall-rule intent as text without its worker: "wall [(x,y),...]" or "gate (x,y)".</summary>
+        private static string Desc(AiIntent intent)
+        {
+            if (intent.Kind == AiIntentKind.Build)
+            {
+                return intent.DefinitionId + " (" + intent.TileX + "," + intent.TileY + ")";
+            }
+            // Tile texts in order.
+            List<string> tiles = new List<string>();
+            foreach ((int X, int Y) tile in intent.Tiles)
+            {
+                tiles.Add("(" + tile.X + "," + tile.Y + ")");
+            }
+            return intent.DefinitionId + " [" + string.Join(",", tiles) + "]";
+        }
+
+        /// <summary>The wall-rule intents of a think as one text, intents joined by " | ".</summary>
+        private static string WallText(List<AiIntent> intents, string faction)
+        {
+            List<string> parts = new List<string>();
+            foreach (AiIntent intent in WallIntents(intents, faction))
+            {
+                parts.Add(Desc(intent));
+            }
+            return string.Join(" | ", parts);
+        }
+
+        /// <summary>Submits the wall-rule intents of a think as the AI's commands on the current tick and steps once.</summary>
+        private void ApplyWalls(Simulation sim, PlayerId me, List<AiIntent> intents, string faction)
+        {
+            foreach (AiIntent intent in WallIntents(intents, faction))
+            {
+                sim.Submit(intent.ToCommand(sim.Clock.Tick, me, _aiSequence++));
+            }
+            sim.Step();
+        }
+
+        /// <summary>The free worker nearest the centre of a tile as rule WL's PickBuilder sees it: not under a build order and not in <paramref name="taken"/>; ties to the lower ID.</summary>
+        private static EntityId NearestFree(Simulation sim, PlayerId me, int x, int y, ICollection<EntityId> taken)
+        {
+            // Best worker so far and its squared distance. Unit: squared tiles.
+            EntityId best = EntityId.None;
+            Fix64 bestSquared = Fix64.Zero;
+            FixVec2 centre = new FixVec2(Fix64.FromInt(x) + Fix64.Half, Fix64.FromInt(y) + Fix64.Half);
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner != me || !unit.Definition.Economy.CanGather || unit.Definition.Economy.FootprintTiles > 0 || unit.BuildState != BuildOrderState.None || taken.Contains(unit.Id))
+                {
+                    continue;
+                }
+                Fix64 squared = (unit.Position - centre).LengthSquared();
+                if (!best.IsValid || squared < bestSquared)
+                {
+                    best = unit.Id;
+                    bestSquared = squared;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>Asserts that each BuildWallLine and gate Build of a think is ordered to the free worker nearest its first tile among those no earlier intent of the think picked.</summary>
+        private static void AssertBuilders(Simulation sim, PlayerId me, List<AiIntent> intents)
+        {
+            // Workers picked by earlier intents of the think (Build, Move and BuildWallLine intents pick a worker).
+            HashSet<EntityId> picked = new HashSet<EntityId>();
+            foreach (AiIntent intent in intents)
+            {
+                bool isWall = intent.Kind == AiIntentKind.BuildWallLine;
+                if (isWall || intent.Kind == AiIntentKind.Build)
+                {
+                    // First tile of the order.
+                    int x = isWall ? intent.Tiles[0].X : intent.TileX;
+                    int y = isWall ? intent.Tiles[0].Y : intent.TileY;
+                    if (intent.DefinitionId.EndsWith("gate", StringComparison.Ordinal) || isWall)
+                    {
+                        Assert.That(intent.Unit, Is.EqualTo(NearestFree(sim, me, x, y, picked)), Desc(intent));
+                    }
+                    picked.Add(intent.Unit);
+                }
+                else if (intent.Kind == AiIntentKind.Move)
+                {
+                    picked.Add(intent.Unit);
+                }
+            }
+        }
+
+        /// <summary>WL-1: main base, style sealed: the north ramp, the east ramp and its gate, by the nearest free workers; pending orders stop a repeat; Skai uses its wall and gate; slot 1 uses the mirrored tiles.</summary>
+        [Test]
+        public void Wl1_MainSealed()
+        {
+            foreach ((string faction, int slot) in new[] { ("water", 0), ("skai", 0), ("water", 1) })
+            {
+                Simulation sim = WallScene(faction, slot);
+                PlayerId me = new PlayerId((byte)slot);
+                AiProfile profile = WallProfile();
+                AiMemory memory = WallMemory(profile, faction, WallStyle.Sealed);
+                List<AiIntent> intents = DecideFor(sim, me, profile, memory, faction);
+                string wall = Ids(faction).Wall;
+                string gate = Ids(faction).Gate;
+                string expected = slot == 0
+                    ? wall + " [(4,21),(5,21),(6,21),(7,21)] | " + wall + " [(22,7),(22,9),(22,10)] | " + gate + " (22,8)"
+                    : wall + " [(91,74),(90,74),(89,74),(88,74)] | " + wall + " [(73,88),(73,86),(73,85)] | " + gate + " (73,87)";
+                Assert.That(WallText(intents, faction), Is.EqualTo(expected), faction + " slot " + slot);
+                AssertBuilders(sim, me, intents);
+                Assert.That(memory.WallSpentCommon, Is.EqualTo(7 * 25 + 50));
+                ApplyWalls(sim, me, intents, faction);
+                Assert.That(WallText(DecideFor(sim, me, profile, memory, faction), faction), Is.EqualTo(string.Empty), "with the orders pending nothing is ordered again");
+            }
+        }
+
+        /// <summary>WL-2: style funnel: the same lines without the gate; with a gap radius of 1 the second line keeps only (22,10).</summary>
+        [Test]
+        public void Wl2_Funnel()
+        {
+            Simulation sim = WallScene("water");
+            AiProfile profile = WallProfile();
+            List<AiIntent> intents = DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Funnel), "water");
+            Assert.That(WallText(intents, "water"), Is.EqualTo("water.coral_wall [(4,21),(5,21),(6,21),(7,21)] | water.coral_wall [(22,7),(22,9),(22,10)]"));
+            Assert.That(Of(intents, AiIntentKind.Build).FindAll(i => i.DefinitionId == "water.coral_gate"), Is.Empty);
+            AiProfile gap1 = WallProfile("\"wall_funnel_gap_tiles\": 0", "\"wall_funnel_gap_tiles\": 1");
+            Assert.That(WallText(DecideFor(WallScene("water"), P0, gap1, WallMemory(gap1, "water", WallStyle.Funnel), "water"), "water"),
+                Is.EqualTo("water.coral_wall [(4,21),(5,21),(6,21),(7,21)] | water.coral_wall [(22,10)]"));
+        }
+
+        /// <summary>The expected intents of WL-3 think 1, 2, 3 (natural held, style sealed).</summary>
+        private static readonly string[] NaturalThinks =
+        {
+            "water.coral_wall [(8,27),(9,27),(10,27),(11,27),(12,27),(13,27),(14,27)] | water.coral_wall [(24,25),(25,25),(26,25),(27,25)]",
+            "water.coral_wall [(33,15),(34,15),(35,15),(36,15)] | water.coral_wall [(33,17)] | water.coral_gate (33,16)",
+            "water.coral_wall [(46,3)]",
+        };
+
+        /// <summary>The scene of WL-3: WL-1's with an own complete depot at (27,13).</summary>
+        private Simulation NaturalScene()
+        {
+            Simulation sim = WallScene("water");
+            Spawn(sim, "water.pearl_depot", P0, "27.5", "13.5");
+            return sim;
+        }
+
+        /// <summary>WL-3: natural held: the main's lines are covered; the natural's ring takes three thinks (two lines per think), the gate after its line, then nothing.</summary>
+        [Test]
+        public void Wl3_NaturalHeld()
+        {
+            Simulation sim = NaturalScene();
+            AiProfile profile = WallProfile();
+            AiMemory memory = WallMemory(profile, "water", WallStyle.Sealed);
+            for (int think = 0; think < NaturalThinks.Length; think++)
+            {
+                List<AiIntent> intents = DecideFor(sim, P0, profile, memory, "water");
+                Assert.That(WallText(intents, "water"), Is.EqualTo(NaturalThinks[think]), "think " + (think + 1));
+                AssertBuilders(sim, P0, intents);
+                ApplyWalls(sim, P0, intents, "water");
+            }
+            Assert.That(WallText(DecideFor(sim, P0, profile, memory, "water"), "water"), Is.EqualTo(string.Empty), "then nothing");
+        }
+
+        /// <summary>WL-4: a worker holding an accepted build order of the drop-off at (27,13) holds the natural: the first think is WL-3's.</summary>
+        [Test]
+        public void Wl4_AboutToExpand()
+        {
+            Simulation sim = WallScene("water");
+            EntityId worker = NearestFree(sim, P0, 27, 13, new List<EntityId>());
+            sim.Submit(new BuildStructureCommand(sim.Clock.Tick, P0, _sequence++, worker, "water.pearl_depot", 27, 13));
+            sim.Step();
+            Assert.That(sim.Units.TryGet(worker, out Unit? builder) && builder!.BuildState != BuildOrderState.None, Is.True, "the depot order was accepted");
+            AiProfile profile = WallProfile();
+            Assert.That(WallText(DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(NaturalThinks[0]));
+        }
+
+        /// <summary>WL-5: the basin held as well: only the basin's lines are wanted.</summary>
+        [Test]
+        public void Wl5_BasinCovers()
+        {
+            Simulation sim = NaturalScene();
+            Spawn(sim, "water.pearl_depot", P0, "37.5", "20.5");
+            AiProfile profile = WallProfile();
+            Assert.That(WallText(DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"),
+                Is.EqualTo("water.coral_wall [(8,27),(9,27),(10,27),(11,27),(12,27),(13,27),(14,27)] | water.coral_wall [(25,30)]"));
+        }
+
+        /// <summary>WL-6: with expansion_wall_max_bases 0 the natural is dropped and the main's lines return; a depot at the enemy's natural site holds nothing.</summary>
+        [Test]
+        public void Wl6_CapAndOrder()
+        {
+            AiProfile none = WallProfile("\"expansion_wall_max_bases\": 2", "\"expansion_wall_max_bases\": 0");
+            Assert.That(WallText(DecideFor(NaturalScene(), P0, none, WallMemory(none, "water", WallStyle.Sealed), "water"), "water"),
+                Is.EqualTo("water.coral_wall [(4,21),(5,21),(6,21),(7,21)] | water.coral_wall [(22,7),(22,9),(22,10)] | water.coral_gate (22,8)"));
+            Simulation sim = NaturalScene();
+            Spawn(sim, "water.pearl_depot", P0, "68.5", "82.5");
+            AiProfile profile = WallProfile();
+            Assert.That(WallText(DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(NaturalThinks[0]));
+            // Only the enemy's natural depot: the AI holds the main alone.
+            Simulation alone = WallScene("water");
+            Spawn(alone, "water.pearl_depot", P0, "68.5", "82.5");
+            Assert.That(WallText(DecideFor(alone, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"),
+                Is.EqualTo("water.coral_wall [(4,21),(5,21),(6,21),(7,21)] | water.coral_wall [(22,7),(22,9),(22,10)] | water.coral_gate (22,8)"));
+        }
+
+        /// <summary>WL-7: the skips: switch off, style none, before 180 s, an air-only enemy model, an enemy army unit near, too little money (and no reservation), the spending cap, and a map without a file.</summary>
+        [Test]
+        public void Wl7_Skips()
+        {
+            AiProfile profile = WallProfile();
+            // Baseline: the sealed main fires.
+            Assert.That(WallText(DecideFor(WallScene("water"), P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.Not.EqualTo(string.Empty));
+            AiProfile off = WallProfile("\"use_walls\": true", "\"use_walls\": false");
+            Assert.That(WallText(DecideFor(WallScene("water"), P0, off, WallMemory(off, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(string.Empty), "switch off");
+            Assert.That(WallText(DecideFor(WallScene("water"), P0, profile, WallMemory(profile, "water", WallStyle.None), "water"), "water"), Is.EqualTo(string.Empty), "style none");
+            Assert.That(WallText(DecideFor(WallScene("water", 0, false), P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(string.Empty), "before 180 s");
+            // Enemy model holding only Roc Riders: no ground share.
+            AiMemory air = WallMemory(profile, "water", WallStyle.Sealed);
+            Simulation airSim = WallScene("water");
+            air.EnemyTypes["skai.roc_rider"] = new EnemyTypeEstimate { Count = Fix64.FromInt(4), LastSeenTick = airSim.Clock.Tick };
+            Assert.That(WallText(DecideFor(airSim, P0, profile, air, "water"), "water"), Is.EqualTo(string.Empty), "air-only enemy model");
+            // A visible enemy army unit 2 tiles from the east line (and 5 tiles from the natural's anchor in the natural scene).
+            Simulation near = WallScene("water");
+            Spawn(near, "water.grasper", P1, "24.5", "9.5");
+            Assert.That(WallText(DecideFor(near, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(string.Empty), "enemy near the main");
+            Simulation nearNatural = NaturalScene();
+            Spawn(nearNatural, "water.grasper", P1, "24.5", "9.5");
+            Assert.That(WallText(DecideFor(nearNatural, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(string.Empty), "enemy near the natural");
+            // Free common below one wall: nothing, and the rest of the think equals the same think with the switch off (nothing was reserved).
+            Simulation poor = WallScene("water");
+            Assert.That(poor.Players.TryGet(P0, out Player? player), Is.True);
+            player!.SetStock(24, 400);
+            List<AiIntent> withWalls = DecideFor(poor, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water");
+            Assert.That(WallText(withWalls, "water"), Is.EqualTo(string.Empty), "no money");
+            Assert.That(Key(withWalls), Is.EqualTo(Key(DecideFor(poor, P0, off, WallMemory(off, "water", WallStyle.Sealed), "water"))), "nothing reserved");
+            // The spending cap reached.
+            AiMemory spent = WallMemory(profile, "water", WallStyle.Sealed);
+            spent.WallSpentCommon = profile.WallMaxSpendCommon;
+            Assert.That(WallText(DecideFor(WallScene("water"), P0, profile, spent, "water"), "water"), Is.EqualTo(string.Empty), "cap");
+            // A map without a wall file: no intent and no exception.
+            Simulation greybox = Greybox("water", "water");
+            Hq(greybox, "water");
+            ExploreKit.ExploreAll(greybox);
+            Assert.That(greybox.Players.TryGet(P0, out Player? gbPlayer), Is.True);
+            gbPlayer!.SetStock(5000, 400);
+            while (greybox.Clock.Tick < 3700)
+            {
+                greybox.Step();
+            }
+            Assert.That(WallText(DecideFor(greybox, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Is.EqualTo(string.Empty), "no file for greybox_1v1");
+        }
+
+        /// <summary>WL-8: payment: with common for exactly four walls the first line is bought and the second is not (nothing reserved); with budget queues the defence queue pays and no want is recorded.</summary>
+        [Test]
+        public void Wl8_LinePayment()
+        {
+            AiProfile profile = WallProfile();
+            // The other rules of the think (structures, research) spend or reserve some of the stock before rule WL runs, so the stock is searched: from 25 common upward in steps of one wall, the first stock at which exactly the
+            // first line (four walls) is ordered and the second line is not (n = 0 stops the rule without a reservation).
+            string firstOnly = "water.coral_wall [(4,21),(5,21),(6,21),(7,21)]";
+            int found = -1;
+            // Stock tried. Unit: common resource units. Range: 25 to 2000.
+            for (int stock = 25; stock <= 2000 && found < 0; stock += 25)
+            {
+                Simulation scene = WallScene("water");
+                Assert.That(scene.Players.TryGet(P0, out Player? player), Is.True);
+                player!.SetStock(stock, 400);
+                // The walls ordered at this stock, as text.
+                string text = WallText(DecideFor(scene, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water");
+                TestContext.WriteLine(stock + " common: " + (text.Length == 0 ? "no wall" : text));
+                found = text == firstOnly ? stock : found;
+            }
+            Assert.That(found, Is.GreaterThan(0), "some stock buys exactly the first line");
+            Simulation sim;
+            // Budget queues on, with income (a worker gathering): walls are paid from the defence queue's account only. A funded account of 100 buys the four walls of the first line, spends 100 from the queue and records no want;
+            // an unfunded account buys nothing (the defence queue holds money only while static defence wants it).
+            AiProfile queued = WallProfile("\"use_budget_queues\": false", "\"use_budget_queues\": true");
+            sim = WallScene("water");
+            sim.Submit(new GatherCommand(sim.Clock.Tick, P0, _sequence++, NearestFree(sim, P0, 7, 10, new List<EntityId>()), 0));
+            sim.Step();
+            AiMemory unfunded = WallMemory(queued, "water", WallStyle.Sealed);
+            Assert.That(WallText(DecideFor(sim, P0, queued, unfunded, "water"), "water"), Is.EqualTo(string.Empty), "an empty defence account buys no wall");
+            AiMemory memory = WallMemory(queued, "water", WallStyle.Sealed);
+            memory.BudgetAccounts[AiBudget.Cell(AiBudget.Defence, AiBudget.Common)] = 100;
+            // The defence ceiling (12 percent of all spending) needs earlier spending elsewhere: 10 000 common spent by the economy queue.
+            memory.BudgetSpent[AiBudget.Cell(0, AiBudget.Common)] = 10000;
+            List<AiIntent> bq = DecideFor(sim, P0, queued, memory, "water");
+            Assert.That(WallText(bq, "water"), Is.EqualTo(firstOnly), "walls are bought through the defence queue");
+            Assert.That(memory.BudgetSpent[AiBudget.Cell(AiBudget.Defence, AiBudget.Common)], Is.EqualTo(100));
+            Assert.That(memory.WallSpentCommon, Is.EqualTo(100));
+            Assert.That(memory.BudgetWants[AiBudget.Cell(AiBudget.Defence, AiBudget.Common)], Is.EqualTo(0));
+        }
+
+        /// <summary>WL-9: the spending cap: with wall_max_spend_common 100 only the first line is ordered; later thinks order nothing, even after a wall is removed.</summary>
+        [Test]
+        public void Wl9_SpendingCap()
+        {
+            Simulation sim = WallScene("water");
+            AiProfile profile = WallProfile("\"wall_max_spend_common\": 1200", "\"wall_max_spend_common\": 100");
+            AiMemory memory = WallMemory(profile, "water", WallStyle.Sealed);
+            List<AiIntent> intents = DecideFor(sim, P0, profile, memory, "water");
+            Assert.That(WallText(intents, "water"), Is.EqualTo("water.coral_wall [(4,21),(5,21),(6,21),(7,21)]"));
+            Assert.That(memory.WallSpentCommon, Is.EqualTo(100));
+            ApplyWalls(sim, P0, intents, "water");
+            // Run until the four walls stand (5 s each plus the walk).
+            for (int i = 0; i < 900; i++)
+            {
+                sim.Step();
+            }
+            Unit? wall = WallAt(sim, P0, 5, 21);
+            Assert.That(wall, Is.Not.Null, "the walls were built");
+            sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, wall!.Id));
+            sim.Step();
+            Assert.That(WallText(DecideFor(sim, P0, profile, memory, "water"), "water"), Is.EqualTo(string.Empty));
+        }
+
+        /// <summary>The own wall unit standing on a tile, or null.</summary>
+        private static Unit? WallAt(Simulation sim, PlayerId owner, int x, int y)
+        {
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == owner && unit.Definition.Economy.IsWall && unit.Position.X.FloorToInt() == x && unit.Position.Y.FloorToInt() == y)
+                {
+                    return unit;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>WL-10: a removed wall is rebuilt; a tile refused for good (in WallTilesRefused, or reported by an event the controller reads) is never ordered again.</summary>
+        [Test]
+        public void Wl10_RebuildAndRefused()
+        {
+            Simulation sim = WallScene("water");
+            AiProfile profile = WallProfile();
+            AiMemory memory = WallMemory(profile, "water", WallStyle.Sealed);
+            List<AiIntent> intents = DecideFor(sim, P0, profile, memory, "water");
+            ApplyWalls(sim, P0, intents, "water");
+            for (int i = 0; i < 1500; i++)
+            {
+                sim.Step();
+            }
+            Unit? wall = WallAt(sim, P0, 5, 21);
+            Assert.That(wall, Is.Not.Null, "the north ramp wall was built");
+            sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, wall!.Id));
+            sim.Step();
+            Assert.That(WallText(DecideFor(sim, P0, profile, memory, "water"), "water"), Is.EqualTo("water.coral_wall [(5,21)]"));
+            // A tile in the refused set is never ordered.
+            memory.WallTilesRefused.Add(21 * 96 + 5);
+            Assert.That(WallText(DecideFor(sim, P0, profile, memory, "water"), "water"), Is.EqualTo(string.Empty));
+            // The controller records the refusal from the event: a line naming a resource-field tile.
+            Simulation second = WallScene("water");
+            SkirmishAiController controller = new SkirmishAiController(P0, profile);
+            controller.OnMatchStart(second);
+            EntityId worker = NearestFree(second, P0, 7, 10, new List<EntityId>());
+            second.Submit(new BuildWallLineCommand(second.Clock.Tick, P0, _sequence++, worker, "water.coral_wall", new[] { (4, 21), (7, 10) }));
+            second.Step();
+            controller.Think(second, new ListCommandSink(second.Clock.Tick));
+            Assert.That(controller.Memory.WallTilesRefused, Does.Contain(10 * 96 + 7), "the field tile is remembered");
+            Assert.That(controller.Memory.WallTilesRefused, Does.Not.Contain(21 * 96 + 4));
+        }
+
+        /// <summary>WL-11: a line never explored: the nearest worker is sent to look (Move) and the other lines go on.</summary>
+        [Test]
+        public void Wl11_Unexplored()
+        {
+            // The north-west corridor (8,27) to (14,27) is marked unexplored again (everything else explored) before the clock runs to 185 s.
+            Simulation sim = WallScene("water", 0, false, false);
+            ExploreKit.ExploreAllExcept(sim, new[] { (8, 27), (9, 27), (10, 27), (11, 27), (12, 27), (13, 27), (14, 27) });
+            Spawn(sim, "water.pearl_depot", P0, "27.5", "13.5");
+            while (sim.Clock.Tick < 3700)
+            {
+                sim.Step();
+            }
+            AiProfile profile = WallProfile();
+            Assert.That(AiWorldView.Build(sim, P0).IsExplored(8, 27), Is.False, "test setup: the corridor is unexplored");
+            List<AiIntent> intents = DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water");
+            Assert.That(WallText(intents, "water"), Is.EqualTo("water.coral_wall [(24,25),(25,25),(26,25),(27,25)]"));
+            AiIntent? move = intents.Find(i => i.Kind == AiIntentKind.Move && (i.Point - new FixVec2(Fix64.FromInt(8) + Fix64.Half, Fix64.FromInt(27) + Fix64.Half)).LengthSquared() == Fix64.Zero);
+            Assert.That(move, Is.Not.Null, "a worker is sent to the corridor");
+            Assert.That(move!.Unit, Is.EqualTo(NearestFree(sim, P0, 8, 27, new List<EntityId>())));
+        }
+
+        /// <summary>WL-12: harness accounting: an accepted AI line is charged to the ledger's wall class at the whole cost, and the wall mechanic is credited once a wall completes.</summary>
+        [Test]
+        public void Wl12_HarnessAccounting()
+        {
+            Simulation sim = WallScene("water");
+            AiProfile profile = WallProfile();
+            SkirmishAiController controller = new SkirmishAiController(P0, profile);
+            controller.OnMatchStart(sim);
+            controller.Memory.Variety!.SetWallStyleForTest(WallStyle.Funnel);
+            SummaryObserver observer = new SummaryObserver(30, new[] { 100 });
+            observer.Begin(sim);
+            List<IPlayerController> controllers = new List<IPlayerController> { controller };
+            // Tiles of the accepted lines. Unit: tiles.
+            int accepted = 0;
+            // Steps taken. Unit: ticks. Range: 0 to 1500.
+            for (int i = 0; i < 1500; i++)
+            {
+                AiHost.ThinkAll(sim, controllers);
+                observer.AfterThink(controllers);
+                foreach (Command command in controller.LastCommands)
+                {
+                    accepted += command is BuildWallLineCommand line ? line.Tiles.Count : 0;
+                }
+                sim.Step();
+                observer.AfterStep(sim);
+            }
+            GameSummary summary = observer.Finish(sim.Clock.Tick - 1)[0];
+            Assert.That(accepted, Is.GreaterThan(0));
+            Assert.That(summary.Spent["wall"][0], Is.GreaterThan(0));
+            Assert.That(summary.Spent["wall"][0] % 25, Is.EqualTo(0));
+            Assert.That(summary.Spent["wall"][0], Is.LessThanOrEqualTo(accepted * 25));
+            Assert.That(summary.Mechanics.TryGetValue("wall", out int uses) ? uses : 0, Is.GreaterThan(0));
+        }
+
+        /// <summary>WL-13: the exit game: ai_vs_ai's two players on prototype_1v1, both aggressive_s5_m, run twice: identical hashes at every hash tick and no AI rejection other than site_occupied. Whether it is decided and which areas were walled is written to the test output.</summary>
+        [Test]
+        public void Wl13_ExitGame()
+        {
+            List<ulong> first = PlayExitGame(out string report);
+            TestContext.WriteLine(report);
+            List<ulong> second = PlayExitGame(out _);
+            Assert.That(second, Is.EqualTo(first), "two runs, identical hashes at every hash tick");
+            Assert.That(report, Does.Contain("rejected other than site_occupied: 0"), report);
+        }
+
+        /// <summary>Plays the exit game up to 12000 ticks; returns the state hash at every hash tick and a one-paragraph report.</summary>
+        /// <param name="report">Receives the report text.</param>
+        private List<ulong> PlayExitGame(out string report)
+        {
+            List<PlayerSetup> players = new List<PlayerSetup>
+            {
+                new PlayerSetup(P0, new TeamId(0), "skai", "Skai AI"),
+                new PlayerSetup(P1, new TeamId(1), "water", "Water AI"),
+            };
+            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players, BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap("prototype_1v1")));
+            sim.Start();
+            uint sequence = 0;
+            foreach ((string definition, PlayerId owner, string x, string y) in new[]
+            {
+                ("skai.great_aerie", P0, "12.5", "12.5"), ("skai.fledgling", P0, "11.5", "14.5"), ("skai.fledgling", P0, "14.5", "11.5"), ("skai.fledgling", P0, "10.5", "13.5"), ("skai.fledgling", P0, "13.5", "10.5"),
+                ("water.grand_shell", P1, "83.5", "83.5"), ("water.tender", P1, "84.5", "81.5"), ("water.tender", P1, "81.5", "84.5"), ("water.tender", P1, "85.5", "82.5"), ("water.tender", P1, "82.5", "85.5"),
+            })
+            {
+                sim.Submit(new SpawnUnitCommand(0, PlayerId.None, sequence++, definition, owner, new FixVec2(Fix64.Parse(x), Fix64.Parse(y))));
+            }
+            List<IPlayerController> controllers = new List<IPlayerController>
+            {
+                new SkirmishAiController(P0, AiProfile.FromDataSet(Data, "aggressive_s5_m")),
+                new SkirmishAiController(P1, AiProfile.FromDataSet(Data, "aggressive_s5_m")),
+            };
+            foreach (IPlayerController controller in controllers)
+            {
+                controller.OnMatchStart(sim);
+            }
+            // Hashes at the hash ticks, and the counts the report needs.
+            List<ulong> hashes = new List<ulong>();
+            SortedSet<int> wallTiles = new SortedSet<int>();
+            SortedDictionary<string, int> rejections = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            int wallOrders = 0;
+            int gateOrders = 0;
+            MatchOutcome outcome = MatchOutcome.Evaluate(sim.Players);
+            // Tick counter. Unit: ticks. Range: 0 to 12000.
+            for (int tick = 0; tick < 12000 && !outcome.IsDecided; tick++)
+            {
+                AiHost.ThinkAll(sim, controllers);
+                sim.Step();
+                outcome = MatchOutcome.Evaluate(sim.Players);
+                foreach (SimEvent evt in sim.Events.Current)
+                {
+                    if (evt is CommandRejectedEvent rejected && rejected.Command.Issuer.IsValid && rejected.Reason != "site_occupied")
+                    {
+                        rejections[rejected.Command.Kind + ":" + rejected.Reason] = (rejections.TryGetValue(rejected.Command.Kind + ":" + rejected.Reason, out int n) ? n : 0) + 1;
+                    }
+                    if (evt is BuildOrderAcceptedEvent order)
+                    {
+                        wallOrders += order.DefinitionId.Contains("coral_wall") || order.DefinitionId.Contains("wind_baffle") ? 1 : 0;
+                        gateOrders += order.DefinitionId.Contains("_gate") ? 1 : 0;
+                    }
+                }
+                if (sim.Clock.Tick % 200 == 0)
+                {
+                    foreach (Unit unit in sim.Units.All)
+                    {
+                        if (unit.Definition.Economy.IsWall)
+                        {
+                            wallTiles.Add(unit.Position.Y.FloorToInt() * 96 + unit.Position.X.FloorToInt());
+                        }
+                    }
+                }
+                if (sim.Clock.Tick % Data.Tuning.Match.StateHashIntervalTicks == 0)
+                {
+                    hashes.Add(sim.ComputeStateHash());
+                }
+            }
+            hashes.Add(sim.ComputeStateHash());
+            // Total of rejections other than site_occupied. Unit: commands.
+            int rejectedTotal = 0;
+            foreach (KeyValuePair<string, int> pair in rejections)
+            {
+                rejectedTotal += pair.Value;
+            }
+            // Areas with at least one of their tiles seen standing, as "id n/total", and the wall style each AI drew.
+            List<string> walled = new List<string>();
+            foreach (AiWallArea area in AiWallLines.Parse(Data.AiWallLines["prototype_1v1"], Data).Areas)
+            {
+                int standing = 0;
+                foreach ((int X, int Y) tile in AiWallLines.AllTiles(area))
+                {
+                    standing += wallTiles.Contains(tile.Y * 96 + tile.X) ? 1 : 0;
+                }
+                walled.Add(area.Id + " " + standing + "/" + AiWallLines.AllTiles(area).Count);
+            }
+            string styles = ((SkirmishAiController)controllers[0]).Memory.Variety!.WallStyle + "/" + ((SkirmishAiController)controllers[1]).Memory.Variety!.WallStyle;
+            report = "exit game (wall styles drawn " + styles + "; areas with tiles standing: " + string.Join(", ", walled) + "): ended at tick " + sim.Clock.Tick + (outcome.IsDecided ? " decided" : " undecided") + "; wall-line orders accepted " + wallOrders + " (gate orders " + gateOrders + "); distinct wall tiles seen standing "
+                + wallTiles.Count + "; rejected other than site_occupied: " + rejectedTotal + " (" + string.Join(", ", rejections) + ")";
+            return hashes;
+        }
+
+        /// <summary>Profiles: use_walls is false in every shipped profile but the candidate; the old values of the other keys elsewhere; out-of-range values are errors naming the file and key.</summary>
+        [Test]
+        public void Profiles_WallSwitchAndValidation()
+        {
+            foreach (string id in Data.AiProfiles.Keys)
+            {
+                AiProfile profile = AiProfile.FromDataSet(Data, id);
+                bool candidate = id == "aggressive_s5_m";
+                Assert.That(profile.UseWalls, Is.EqualTo(candidate), id);
+                Assert.That(profile.WallStyleNoneWeight, Is.EqualTo(candidate ? 20 : 100), id);
+                Assert.That(profile.WallStyleFunnelWeight, Is.EqualTo(candidate ? 30 : 0), id);
+                Assert.That(profile.WallStyleSealedWeight, Is.EqualTo(candidate ? 50 : 0), id);
+                Assert.That(profile.WallEarliestSeconds, Is.EqualTo(180), id);
+                Assert.That(profile.WallMinEnemyGroundShare, Is.EqualTo(Fix64.Parse("0.5")), id);
+                Assert.That(profile.WallThreatTiles, Is.EqualTo(Fix64.FromInt(10)), id);
+                Assert.That(profile.WallFunnelGapTiles, Is.EqualTo(candidate ? 0 : 1), id);
+                Assert.That(profile.WallMaxLinesPerThink, Is.EqualTo(2), id);
+                Assert.That(profile.ExpansionWallMaxBases, Is.EqualTo(candidate ? 2 : 0), id);
+                Assert.That(profile.WallMaxSpendCommon, Is.EqualTo(candidate ? 1200 : 0), id);
+            }
+            DataValidationException range = Expect.Throws<DataValidationException>(() => CandidateEdited("\"wall_funnel_gap_tiles\": 0", "\"wall_funnel_gap_tiles\": 4"));
+            Assert.That(range.Message, Does.Contain("aggressive_s5_m.json").And.Contain("wall_funnel_gap_tiles"));
+            DataValidationException weights = Expect.Throws<DataValidationException>(() => CandidateEdited("{ \"none\": 20, \"funnel\": 30, \"sealed\": 50 }", "{ \"none\": 0, \"funnel\": 0, \"sealed\": 0 }"));
+            Assert.That(weights.Message, Does.Contain("wall_style_weights"));
+            DataValidationException unknown = Expect.Throws<DataValidationException>(() => CandidateEdited("{ \"none\": 20, \"funnel\": 30, \"sealed\": 50 }", "{ \"none\": 20, \"funnel\": 30, \"sealed\": 50, \"x\": 1 }"));
+            Assert.That(unknown.Message, Does.Contain("wall_style_weights"));
+        }
+
+        /// <summary>WL-14: with use_walls and use_wall_breach false nothing of rule WL happens and the intents equal those of aggressive_s5_r; WL-3 twice from scratch gives identical intents.</summary>
+        [Test]
+        public void Wl14_OffAndDeterminism()
+        {
+            AiProfile off = WallProfile("\"use_walls\": true", "\"use_walls\": false", "\"use_wall_breach\": true", "\"use_wall_breach\": false");
+            AiProfile twin = CandidateCastsOff();
+            AiProfile twinOff = AiProfile.Parse(File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5_m.json")).Replace("\r\n", "\n")
+                .Replace("\"use_casts\": true", "\"use_casts\": false").Replace("\"use_support_units\": true", "\"use_support_units\": false")
+                .Replace("\"use_walls\": true", "\"use_walls\": false").Replace("\"use_wall_breach\": true", "\"use_wall_breach\": false"), "ai/aggressive_s5_m.json", Data.Content);
+            Assert.That(twin.UseWalls, Is.False);
+            Simulation sim = WallScene("water");
+            AiMemory memory = new AiMemory { AttackThreshold = 8 };
+            List<AiIntent> mine = DecideFor(sim, P0, twinOff, memory, "water");
+            Assert.That(WallIntents(mine, "water"), Is.Empty);
+            Assert.That(memory.UnreachableGoals, Is.Empty);
+            Assert.That(memory.WallTilesRefused, Is.Empty);
+            Assert.That(memory.WallSpentCommon, Is.EqualTo(0));
+            Assert.That(Key(mine), Is.EqualTo(Key(DecideFor(WallScene("water"), P0, OffCopy, new AiMemory { AttackThreshold = 8 }, "water"))));
+            Assert.That(off.UseWalls, Is.False);
+            // Old profiles.
+            AiProfile old = OffCopy;
+            Assert.That(old.UseWalls, Is.False);
+            Assert.That(old.ExpansionWallMaxBases, Is.EqualTo(0));
+            Assert.That(old.WallMaxSpendCommon, Is.EqualTo(0));
+            // WL-3's first think twice from scratch.
+            AiProfile profile = WallProfile();
+            string a = Key(DecideFor(NaturalScene(), P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"));
+            string b = Key(DecideFor(NaturalScene(), P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"));
+            Assert.That(a, Is.EqualTo(b));
         }
     }
 }

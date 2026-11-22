@@ -165,6 +165,18 @@ namespace Rts.Tools.BalanceHarness
                     entry.Owner.Spend(structure);
                     entry.Owner.TotalOrdered.Add(build.DefinitionId);
                 }
+                else if (entry.Command is BuildWallLineCommand wallLine)
+                {
+                    // Accepted wall line: charged the cost the same worker's BuildOrderAcceptedEvent of this step carries (cost x tiles kept), to the wall class (ai_mechanic_use.md M3.3).
+                    foreach (SimEvent simEvent in sim.Events.Current)
+                    {
+                        if (simEvent is BuildOrderAcceptedEvent accepted && accepted.Worker == wallLine.Worker)
+                        {
+                            entry.Owner.SpendAmount(PlayerLedger.ClassWall, accepted.CostCommon, accepted.CostRare);
+                            break;
+                        }
+                    }
+                }
                 else if (entry.Command is TrainUnitCommand train && sim.Content.Units.TryGetValue(train.DefinitionId, out UnitDefinition? trained))
                 {
                     entry.Owner.Spend(trained);
@@ -541,6 +553,9 @@ namespace Rts.Tools.BalanceHarness
                     case BuildStructureCommand build:
                         detail = build.Worker + " " + build.DefinitionId + " at tile (" + build.TileX.ToString(CultureInfo.InvariantCulture) + "," + build.TileY.ToString(CultureInfo.InvariantCulture) + ")";
                         break;
+                    case BuildWallLineCommand wallLine:
+                        detail = wallLine.Worker + " " + wallLine.DefinitionId + " x" + wallLine.Tiles.Count.ToString(CultureInfo.InvariantCulture);
+                        break;
                     case AttackMoveCommand attackMove:
                         detail = attackMove.Unit + " to (" + F1(attackMove.Goal.X) + "," + F1(attackMove.Goal.Y) + ")";
                         break;
@@ -727,6 +742,15 @@ namespace Rts.Tools.BalanceHarness
             public void Spend(UnitDefinition definition)
             {
                 Ledger.Spend(definition);
+            }
+
+            /// <summary>Adds an amount (an accepted wall line's whole cost) to the spent totals and to one class.</summary>
+            /// <param name="spendClass">A PlayerLedger class name. Range: a PlayerLedger.Class constant.</param>
+            /// <param name="common">Common spent. Unit: resource units. Range: 0 upward.</param>
+            /// <param name="rare">Rare spent. Unit: resource units. Range: 0 upward.</param>
+            public void SpendAmount(string spendClass, int common, int rare)
+            {
+                Ledger.SpendAmount(spendClass, common, rare);
             }
 
             /// <summary>Adds the cost of a research item to the spent totals.</summary>

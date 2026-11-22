@@ -15,6 +15,7 @@
 // ai_mechanic_use.md P1 adds, for own units only, the wave and grounding ready ticks and the wave strip size. The wave ready tick is read
 // through FloodingMechanic (Rts.Sim.Factions.Water), a plumbing exception to "the AI never names a faction type" (AiCommandWriter in
 // AiIntent.cs is the other); the brain itself names no faction.
+// ai_mechanic_use.md P4 adds the own workers' wall build queue (BuildQueue) and the public map ID (MapId), which rule WL uses to find the authored wall lines.
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
@@ -59,6 +60,9 @@ namespace Rts.Ai
 
         /// <summary>Own units: first tick the grounding ability can be cast again (Unit.GroundingReadyTick). Enemy units: 0. Unit: ticks. Range: 0 upward.</summary>
         public int GroundingReadyTick { get; }
+
+        /// <summary>Own workers: tile indices of the queued wall-line tiles after the current build order, head first (a copy of Unit.BuildQueue). Enemy units: empty. Unit: tile indices (y * map width + x). Range: 0 to 255 entries, each 0 to map tile count - 1.</summary>
+        public IReadOnlyList<int> BuildQueue { get; }
 
         /// <summary>True while a structure is being built.</summary>
         public bool IsUnderConstruction { get; }
@@ -128,8 +132,9 @@ namespace Rts.Ai
             HqState hqState, bool isUnderConstruction, bool hasMoveTarget, bool isAttackMoving, FixVec2 attackMoveGoal,
             EntityId attackTarget, bool isAttackTargetForced, GatherState gatherState, int gatherFieldIndex, IReadOnlyList<string> queue,
             BuildOrderState buildState = BuildOrderState.None, string buildDefinitionId = "", int buildTileX = -1, int buildTileY = -1,
-            int waveReadyTick = 0, int groundingReadyTick = 0, FixVec2 moveTarget = default)
+            int waveReadyTick = 0, int groundingReadyTick = 0, FixVec2 moveTarget = default, IReadOnlyList<int>? buildQueue = null)
         {
+            BuildQueue = buildQueue ?? Array.Empty<int>();
             MoveTarget = moveTarget;
             WaveReadyTick = waveReadyTick;
             GroundingReadyTick = groundingReadyTick;
@@ -164,7 +169,7 @@ namespace Rts.Ai
                 unit.IsUnderConstruction, unit.HasMoveTarget, unit.IsAttackMoving, unit.AttackMoveGoal, unit.AttackTarget,
                 unit.IsAttackTargetForced, unit.GatherState,
                 unit.GatherState == GatherState.Idle ? -1 : unit.GatherFieldIndex, new List<string>(unit.ProductionQueue).AsReadOnly(),
-                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY, waveReadyTick, unit.GroundingReadyTick, unit.HasMoveTarget ? unit.MoveTarget : FixVec2.Zero);
+                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY, waveReadyTick, unit.GroundingReadyTick, unit.HasMoveTarget ? unit.MoveTarget : FixVec2.Zero, new List<int>(unit.BuildQueue).AsReadOnly());
         }
 
         /// <summary>Copies a visible enemy unit: only what a player sees (type, position, health, layer, HQ state, construction).</summary>
@@ -293,6 +298,9 @@ namespace Rts.Ai
 
         /// <summary>Width of the wave strip (tuning/flood.json wave_width_tiles). Unit: tiles. Range: 1 to 9, odd.</summary>
         public int WaveWidthTiles { get; internal set; }
+
+        /// <summary>ID of the map being played (Map.Id; public). Rule WL looks up the authored wall lines by it. Range: a loaded map ID.</summary>
+        public string MapId { get; internal set; } = string.Empty;
 
         /// <summary>Tide level: 0 at low tide, 1 at high tide (triangle over tide_cycle_seconds). Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 TideLevel { get; private set; }
@@ -463,6 +471,7 @@ namespace Rts.Ai
             view.GatherSlotsRare = sim.Tuning.Economy.GatherSlotsRare;
             view.GatherTicksPerTrip = sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock);
             view.InteractRangeTiles = Fix64.Max(sim.Tuning.Economy.InteractRangeTiles, sim.Tuning.Terrain.ArrivalRadiusTiles);
+            view.MapId = sim.Map.Id;
             view.WaveLengthTiles = sim.Tuning.Flood.WaveLengthTiles;
             view.WaveWidthTiles = sim.Tuning.Flood.WaveWidthTiles;
             view.HqRootMaxDistanceTiles = sim.Tuning.Hq.HqRootMaxDistanceToFieldTiles;

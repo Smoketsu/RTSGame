@@ -74,6 +74,10 @@
 //     support_units; a non-empty list needs use_enemy_model). Every profile file carries it; {} everywhere except aggressive_s5_m's skai plan { skai.stormcaller ["air"] }.
 //   * rts/docs/specs/ai_mechanic_use.md package P3 (breach): use_wall_breach, wall_breach_memory_seconds (1 to 120), wall_breach_standoff_tiles (0.5 to 10), wall_probe_step_tiles (1 to 20) and
 //     wall_breach_max_commands_per_think (0 to 60). Every profile file carries them; the old values false, 10, 2, 6, 12 play exactly as before; only aggressive_s5_m has use_wall_breach true.
+//   * rts/docs/specs/ai_mechanic_use.md package P4 (authored wall lines, rule WL): use_walls, wall_style_weights (object with exactly none, funnel, sealed), wall_earliest_seconds (0 to 1800),
+//     wall_min_enemy_ground_share (0 to 1), wall_threat_tiles (0 to 30), wall_funnel_gap_tiles (0 to 3), wall_max_lines_per_think (1 to 8), expansion_wall_max_bases (0 to 4) and wall_max_spend_common
+//     (0 to 20000). Every profile file carries them; the old values false, { none 100 }, 180, 0.5, 10, 1, 2, 0, 0 play exactly as before; only aggressive_s5_m has use_walls true. The authored lines
+//     themselves are not profile keys: AiProfile.FromDataSet attaches the parsed ai/walls/<map id>.json files as WallLines (profiles made by Parse from text have none).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -770,6 +774,45 @@ namespace Rts.Ai
         /// <summary>Rule WB: most breach intents per think. Unit: commands. Range: 0 to 60.</summary>
         public int WallBreachMaxCommandsPerThink { get; }
 
+        /// <summary>Rule WL (ai_mechanic_use.md M3.2): the AI walls the authored lines of its main base and held expansions and draws a wall style at match start. False: it builds no wall and makes no draw. Unit: boolean.</summary>
+        public bool UseWalls { get; }
+
+        /// <summary>Rule WL: weight of the style none (no walls) in the per-match draw. Unit: weight. Range: 0 to 100; the three weights sum above 0.</summary>
+        public int WallStyleNoneWeight { get; }
+
+        /// <summary>Rule WL: weight of the style funnel (every line tile but the gate's opening). Unit: weight. Range: 0 to 100.</summary>
+        public int WallStyleFunnelWeight { get; }
+
+        /// <summary>Rule WL: weight of the style sealed (every tile, gates built). Unit: weight. Range: 0 to 100.</summary>
+        public int WallStyleSealedWeight { get; }
+
+        /// <summary>Rule WL: earliest match time at which a wall is ordered. Unit: seconds. Range: 0 to 1800.</summary>
+        public int WallEarliestSeconds { get; }
+
+        /// <summary>Rule WL: least supply share of non-flying types in the enemy model for walls to be built. Unit: fraction (Fix64). Range: 0 to 1.</summary>
+        public Fix64 WallMinEnemyGroundShare { get; }
+
+        /// <summary>Rule WL: an area is skipped while a visible enemy army unit is this near one of its anchors or line tiles. Unit: tiles (Fix64). Range: 0 to 30.</summary>
+        public Fix64 WallThreatTiles { get; }
+
+        /// <summary>Rule WL, style funnel: Chebyshev radius around a line's gate tile that stays open. Unit: tiles. Range: 0 to 3.</summary>
+        public int WallFunnelGapTiles { get; }
+
+        /// <summary>Rule WL: most wall lines one think orders (a gate is not a line). Unit: commands. Range: 1 to 8.</summary>
+        public int WallMaxLinesPerThink { get; }
+
+        /// <summary>Rule WL: how many held expansion areas get their authored lines (the main area never counts). Unit: expansion areas. Range: 0 to 4.</summary>
+        public int ExpansionWallMaxBases { get; }
+
+        /// <summary>Rule WL: common committed to wall lines and gates over the whole match. Unit: common resource units. Range: 0 to 20000.</summary>
+        public int WallMaxSpendCommon { get; }
+
+        /// <summary>
+        /// The authored wall lines by map ID (ordinal order), attached by <see cref="FromDataSet"/> from DataSet.AiWallLines; empty for a profile made by <see cref="Parse(string, string, ContentCatalog)"/> from text.
+        /// Immutable after load. Unit: map ID to lines. Range: 0 or more maps.
+        /// </summary>
+        public IReadOnlyDictionary<string, AiMapWalls> WallLines { get; private set; } = new SortedDictionary<string, AiMapWalls>(StringComparer.Ordinal);
+
         /// <summary>Package B: weight of each queue in the split of free common, in <see cref="AiBudget.QueueIds"/> order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
         public IReadOnlyList<int> BudgetCommonWeights { get; }
 
@@ -1019,6 +1062,24 @@ namespace Rts.Ai
             WallBreachStandoffTiles = root.RequireFix64("wall_breach_standoff_tiles", "0.5", "10");
             WallProbeStepTiles = root.RequireFix64("wall_probe_step_tiles", "1", "20");
             WallBreachMaxCommandsPerThink = root.RequireInt("wall_breach_max_commands_per_think", 0, 60);
+            UseWalls = root.RequireBool("use_walls");
+            // The wall style weight object: exactly none, funnel and sealed.
+            JsonValue styleNode = root.Require("wall_style_weights");
+            styleNode.RejectUnknownKeys("none", "funnel", "sealed");
+            WallStyleNoneWeight = styleNode.RequireInt("none", 0, 100);
+            WallStyleFunnelWeight = styleNode.RequireInt("funnel", 0, 100);
+            WallStyleSealedWeight = styleNode.RequireInt("sealed", 0, 100);
+            if (WallStyleNoneWeight + WallStyleFunnelWeight + WallStyleSealedWeight == 0)
+            {
+                throw styleNode.Fail("the weights must not all be 0");
+            }
+            WallEarliestSeconds = root.RequireInt("wall_earliest_seconds", 0, 1800);
+            WallMinEnemyGroundShare = root.RequireFix64("wall_min_enemy_ground_share", "0", "1");
+            WallThreatTiles = root.RequireFix64("wall_threat_tiles", "0", "30");
+            WallFunnelGapTiles = root.RequireInt("wall_funnel_gap_tiles", 0, 3);
+            WallMaxLinesPerThink = root.RequireInt("wall_max_lines_per_think", 1, 8);
+            ExpansionWallMaxBases = root.RequireInt("expansion_wall_max_bases", 0, 4);
+            WallMaxSpendCommon = root.RequireInt("wall_max_spend_common", 0, 20000);
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1157,6 +1218,8 @@ namespace Rts.Ai
                 "use_casts", "wave_min_enemy_supply", "wave_melee_range_tiles", "wave_aim_weights", "wave_max_commands_per_think", "grounding_min_air_supply", "grounding_max_commands_per_think",
                 "use_support_units", "support_max_per_type", "support_trail_tiles", "support_regroup_tiles",
                 "use_wall_breach", "wall_breach_memory_seconds", "wall_breach_standoff_tiles", "wall_probe_step_tiles", "wall_breach_max_commands_per_think",
+                "use_walls", "wall_style_weights", "wall_earliest_seconds", "wall_min_enemy_ground_share", "wall_threat_tiles", "wall_funnel_gap_tiles", "wall_max_lines_per_think",
+                "expansion_wall_max_bases", "wall_max_spend_common",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
@@ -1211,7 +1274,16 @@ namespace Rts.Ai
             {
                 throw new DataValidationException(DataLoader.AiFolder + "/" + id + ".json", string.Empty, "is not a loaded AI profile");
             }
-            return Parse(root, data.Content, new List<string>(data.Cycles.Keys));
+            // The profile, then the authored wall lines of every map in ordinal map ID order (an invalid file fails here, naming the file and key path).
+            AiProfile profile = Parse(root, data.Content, new List<string>(data.Cycles.Keys));
+            // Parsed lines by map ID, ordinal order.
+            SortedDictionary<string, AiMapWalls> walls = new SortedDictionary<string, AiMapWalls>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, JsonValue> pair in data.AiWallLines)
+            {
+                walls.Add(pair.Key, AiWallLines.Parse(pair.Value, data));
+            }
+            profile.WallLines = walls;
+            return profile;
         }
 
         /// <summary>The plan for <paramref name="factionId"/>; throws <see cref="DataValidationException"/> naming this file when it has none.</summary>
@@ -1268,7 +1340,14 @@ namespace Rts.Ai
                 plans[forced.Key] = new AiFactionPlan(plan.FactionId, plan.WorkerUnitId, plan.SupplyBuildingId, plan.BuildOrder, plan.Composition, plan.AttackTideMin, plan.AttackTideMax,
                     plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one }, plan.SupportUnits, plan.SupportNeeds);
             }
-            return new AiProfile(_root, Id, plans);
+            return new AiProfile(_root, Id, plans) { WallLines = WallLines };
+        }
+
+        /// <summary>A copy of this profile (same id, scalars and plans) with the given authored wall lines attached. Used by tests that build a profile from edited text and need the lines of a data set.</summary>
+        /// <param name="wallLines">Parsed wall lines by map ID. Range: any.</param>
+        internal AiProfile WithWallLines(IReadOnlyDictionary<string, AiMapWalls> wallLines)
+        {
+            return new AiProfile(_root, Id, Factions) { WallLines = wallLines };
         }
 
         /// <summary>Validates one faction plan object.</summary>

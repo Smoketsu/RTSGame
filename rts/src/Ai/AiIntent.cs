@@ -47,6 +47,9 @@ namespace Rts.Ai
 
         /// <summary>CastGroundingCommand(caster, target point): a Stormcaller's Downdraft (ai_mechanic_use.md M1).</summary>
         CastGrounding = 10,
+
+        /// <summary>BuildWallLineCommand(worker, wall definition, tiles): a line of walls (ai_mechanic_use.md M3.2, rule WL).</summary>
+        BuildWallLine = 11,
     }
 
     /// <summary>One decided action. Immutable.</summary>
@@ -76,6 +79,9 @@ namespace Rts.Ai
         /// <summary>Enemy unit for AttackUnit (visible to the team when decided), else None.</summary>
         public EntityId Target { get; }
 
+        /// <summary>Tiles of a BuildWallLine intent, in build order; empty for every other kind. Unit: tile coordinates (x, y). Range: 0 to wall_line_max_tiles entries.</summary>
+        public IReadOnlyList<(int X, int Y)> Tiles { get; }
+
         /// <summary>Stores the intent; use the static helpers.</summary>
         private AiIntent(AiIntentKind kind, EntityId unit, int field, string definitionId, int tileX, int tileY, FixVec2 point)
             : this(kind, unit, field, definitionId, tileX, tileY, point, EntityId.None)
@@ -84,7 +90,14 @@ namespace Rts.Ai
 
         /// <summary>Stores the intent with a target; use the static helpers.</summary>
         private AiIntent(AiIntentKind kind, EntityId unit, int field, string definitionId, int tileX, int tileY, FixVec2 point, EntityId target)
+            : this(kind, unit, field, definitionId, tileX, tileY, point, target, Array.Empty<(int X, int Y)>())
         {
+        }
+
+        /// <summary>Stores the intent with a target and a tile list; use the static helpers.</summary>
+        private AiIntent(AiIntentKind kind, EntityId unit, int field, string definitionId, int tileX, int tileY, FixVec2 point, EntityId target, IReadOnlyList<(int X, int Y)> tiles)
+        {
+            Tiles = tiles;
             Target = target;
             Kind = kind;
             Unit = unit;
@@ -132,6 +145,13 @@ namespace Rts.Ai
         /// <param name="target">Centre of the pulse. Unit: tiles. Range: inside the map and within the ability's range of the caster.</param>
         public static AiIntent CastGrounding(EntityId caster, FixVec2 target) => new AiIntent(AiIntentKind.CastGrounding, caster, -1, string.Empty, 0, 0, target);
 
+        /// <summary>Order a worker to build a line of walls on the given tiles.</summary>
+        /// <param name="worker">Own worker. Range: a live own unit that can gather.</param>
+        /// <param name="definitionId">Wall definition ID. Range: a definition with Economy.IsWall.</param>
+        /// <param name="tiles">Tiles in build order (copied). Unit: tile coordinates. Range: 1 to wall_line_max_tiles entries.</param>
+        public static AiIntent BuildWallLine(EntityId worker, string definitionId, IReadOnlyList<(int X, int Y)> tiles)
+            => new AiIntent(AiIntentKind.BuildWallLine, worker, -1, definitionId, 0, 0, FixVec2.Zero, EntityId.None, new List<(int X, int Y)>(tiles));
+
         /// <summary>Builds the command for this intent.</summary>
         /// <param name="tick">Tick to schedule. Unit: ticks.</param>
         /// <param name="issuer">The AI's player.</param>
@@ -162,6 +182,8 @@ namespace Rts.Ai
                     return new CastWaveCommand(tick, issuer, sequence, Unit, Point);
                 case AiIntentKind.CastGrounding:
                     return new CastGroundingCommand(tick, issuer, sequence, Unit, Point);
+                case AiIntentKind.BuildWallLine:
+                    return new BuildWallLineCommand(tick, issuer, sequence, Unit, DefinitionId, Tiles);
                 default:
                     throw new InvalidOperationException("Unknown intent kind " + Kind + ".");
             }

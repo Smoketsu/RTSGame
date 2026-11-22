@@ -1,5 +1,5 @@
 // rts/tools/BalanceHarness/PlayerLedger.cs
-// The spending account of one player as the harness reads it (spec: rts/docs/specs/balance_measurement.md M.4.2): the cost of every accepted train_unit and build_structure command less the refunds of cancelled
+// The spending account of one player as the harness reads it (spec: rts/docs/specs/balance_measurement.md M.4.2): the cost of every accepted train_unit and build_structure command and the whole cost of every accepted build_wall_line (cost x tiles kept, class wall) less the refunds of cancelled
 // build orders, in total and split by the class of the definition. One class used by both GameTrace (its "spent=" totals) and SummaryObserver, so the two cannot drift apart. Tool-side only; it only adds
 // up numbers it is given and never touches a simulation. Part of Rts.Tools.BalanceHarness.
 using System;
@@ -80,6 +80,19 @@ namespace Rts.Tools.BalanceHarness
             int[] split = ByClass[ClassOf(definition)];
             split[0] += definition.CostCommon;
             split[1] += definition.CostRare;
+        }
+
+        /// <summary>Adds an amount to the totals and to one class (an accepted build_wall_line, whose cost is the whole line: ai_mechanic_use.md M3.3).</summary>
+        /// <param name="spendClass">One of the Class constants. Range: a key of <see cref="ByClass"/>.</param>
+        /// <param name="common">Common spent. Unit: resource units. Range: 0 upward.</param>
+        /// <param name="rare">Rare spent. Unit: resource units. Range: 0 upward.</param>
+        public void SpendAmount(string spendClass, int common, int rare)
+        {
+            SpentCommon += common;
+            SpentRare += rare;
+            int[] split = ByClass[spendClass];
+            split[0] += common;
+            split[1] += rare;
         }
 
         /// <summary>Adds the cost of an accepted research order to the totals and to the research class.</summary>

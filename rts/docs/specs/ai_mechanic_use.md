@@ -217,7 +217,7 @@ This is v4 A4, unchanged except for its place in the order.
 
 **Memory.** `UnreachableGoals`: `SortedDictionary<EntityId, (int Tick, FixVec2 Goal)>`. `SkirmishAiController.ReadEvents` records each `MoveUnreachableEvent` (`Events/TerrainEvents.cs`) whose unit is an own live unit, overwriting, only when `use_wall_breach` is on. In rule 0, entries of dead units and entries older than `wall_breach_memory_seconds` are dropped.
 
-**Rule WB.** In `Army`, after rules CG and CW, before `StanceArmy`: for each own army unit u, ascending ID, with an entry, not in `_controlled`, not fallen back, not in the harass group, whose weapon can target Ground:
+**Rule WB.** In `Army`, after rules CG and CW, before `StanceArmy`: for each own army unit u, ascending ID, with an entry, not in `_controlled`, not fallen back, not in the harass group, whose weapon can target Ground. Units whose definition layer is Air are skipped:
 1. Candidate walls: `KnownEnemyStructures` entries whose `DefinitionId` names a definition with `Economy.IsWall` (gates included). Choose the one minimising `|u - w| + |w - goal|` (`FixVec2.Length`, which is `Fix64.Sqrt` and deterministic), ties to the lower entity ID.
 2. Chosen wall visible now (in `VisibleEnemies`): `AttackUnit(u, wall)`. Not visible: `AttackMove(u, Standable(w.Position.MoveTowards(u.Position, wall_breach_standoff_tiles)))`.
 3. No known wall: `AttackMove(u, Standable(u.Position.MoveTowards(goal, wall_probe_step_tiles)))`, so the unit walks toward its goal until it sees what blocks it.

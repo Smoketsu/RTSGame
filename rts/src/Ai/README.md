@@ -32,12 +32,14 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiProfile.cs` | Parses and validates `rts/data/ai/<id>.json` (errors name file and field) |
 | `AiWorldView.cs` | What one player may know, copied out of the simulation once per think |
 | `AiMemory.cs` | Per-controller memory: stance, thresholds, known enemy structures, damage reports, sequence counter |
-| `AiBrain.cs` | The decision rules (pure: view + profile + memory + own generator to intents); ai_mechanic_use.md P2 (`use_support_units`) adds rule SU (train support units by army size, in `Produce`), the RQ-1 support extension and rule ST (support trail, in `Army`); P3 (`use_wall_breach`) adds rule WB (attack the enemy wall that seals a unit's route, in `Army`, from `AiMemory.UnreachableGoals`) |
+| `AiBrain.cs` | The decision rules (pure: view + profile + memory + own generator to intents); ai_mechanic_use.md P2 (`use_support_units`) adds rule SU (train support units by army size, in `Produce`), the RQ-1 support extension and rule ST (support trail, in `Army`); P3 (`use_wall_breach`) adds rule WB (attack the enemy wall that seals a unit's route, in `Army`, from `AiMemory.UnreachableGoals`); P4 (`use_walls`) adds rule WL (`AiBrainWalls.cs`: walls and gates on the authored lines of the held areas, between static defence and expand) |
 | `AiIntel.cs` | Enemy model and scouting route (skirmish_ai_v3.md package B) |
 | `FightPredictor.cs` | Static fight predictor over unit definitions and the damage table (skirmish_ai_v3.md C.1) |
 | `AiCounter.cs` | Unit pool, counter scores and counter-mix weights (skirmish_ai_v3.md C.3 and C.4) |
 | `AiBrainFight.cs` | The package D fight choices (second half of the brain's working state): attack and retreat by prediction, target choice, rule HR harassment, measured defence, unit control (skirmish_ai_v3.md D) |
 | `AiAbilities.cs` | Casts (ai_mechanic_use.md P1, `use_casts`): `ChooseGrounding` (Downdraft centre) and `ChooseWave` / `WaveTiles` (wave direction); rules CG and CW in `AiBrain` call them right after unit control |
+| `AiWallLines.cs` | Authored wall lines (ai_mechanic_use.md P4): the parsed `ai/walls/<map id>.json` (`AiMapWalls`, `AiWallArea`, `AiWallLine`), `Parse` (validation against the map and tuning) and `HeldAreas` (which areas the AI holds, from its own units); attached to a profile by `AiProfile.FromDataSet` as `WallLines` |
+| `AiBrainWalls.cs` | Rule WL (`use_walls`): a partial of `AiBrain`'s `Turn` that orders `build_wall_line` and gates on the held areas' lines from spare money within `wall_max_spend_common` |
 | `AiBudget.cs` | Package B: the budget queue arithmetic on arrays (Open, Distribute, Close, the defence ceiling, the rare surplus helpers) |
 | `AiBrainBudget.cs` | Package B: the Open and Close steps of a think and the buying helpers of the six queues (part of `AiBrain.Turn`) |
 | `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
