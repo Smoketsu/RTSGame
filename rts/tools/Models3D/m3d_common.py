@@ -3,7 +3,9 @@
 # Imported by convert_static.py and rig.py (both run inside `blender -b`); it needs bpy and cannot run in a plain Python.
 import math
 import os
+import re
 import sys
+import tempfile
 
 import bpy
 import mathutils
@@ -93,6 +95,86 @@ def normalise(obj, yaw_deg, footprint=1.0):
     _apply(obj, loc=True)
     lo, hi = world_bounds(obj)
     return (hi.x - lo.x, hi.y - lo.y, hi.z - lo.z, k)
+
+
+# Tolerance of the rest-pose rule (longest footprint side 1.0, lowest point 0). Unit: footprint units. Range: 0.001 to 0.01.
+REST_TOL = 0.005
+
+
+def name_texture(data_id):
+    """Give every colour image in the scene a real file name before FBX export: <data_id>.jpg or .png (by the image's actual bytes),
+    written to a temp folder and set as the image's file path, so the FBX embeds it as <data_id>.fbm/<data_id>.<ext> and Unity sees a real extension.
+    Returns the list of file names used."""
+    # Temp folder for the renamed copies (outside the repository).
+    tmp = os.path.join(tempfile.gettempdir(), "m3d_textures")
+    os.makedirs(tmp, exist_ok=True)
+    # File names written.
+    names = []
+    for img in [i for i in bpy.data.images if i.type == 'IMAGE' and (i.packed_file or i.filepath)]:
+        # Raw bytes of the image as the generator delivered it.
+        data = img.packed_file.data if img.packed_file else open(bpy.path.abspath(img.filepath), "rb").read()
+        ext = ".jpg" if data[:2] == b"\xff\xd8" else ".png" if data[:4] == b"\x89PNG" else None
+        if ext is None:
+            raise RuntimeError("unknown image format for %s" % data_id)
+        name = data_id + ext if not names else "%s_%d%s" % (data_id, len(names), ext)
+        path = os.path.join(tmp, name)
+        with open(path, "wb") as f:
+            f.write(data)
+        img.name = name
+        img.filepath = path
+        img.filepath_raw = path
+        names.append(name)
+    return names
+
+
+def fbx_embedded_textures(path):
+    """Read a binary FBX and return [(file name, extension matches the embedded bytes)] for each embedded image."""
+    with open(path, "rb") as f:
+        d = f.read()
+    # Result list.
+    out = []
+    for m in re.finditer(rb"RelativeFilenameS", d):
+        i = m.end()
+        ln = int.from_bytes(d[i:i + 4], "little")
+        name = d[i + 4:i + 4 + ln].decode(errors="replace")
+        if not re.search(r"\.(jpg|png)$", name):
+            out.append((name, False))
+            continue
+        # The embedded Content record follows the file names: "Content" R <len> <bytes>.
+        c = d.find(b"\x07ContentR", i)
+        cl = int.from_bytes(d[c + 9:c + 13], "little")
+        magic = d[c + 13:c + 17]
+        ok = (name.endswith(".jpg") and magic[:2] == b"\xff\xd8") or (name.endswith(".png") and magic == b"\x89PNG")
+        out.append((name, ok and cl > 1000))
+    return out
+
+
+def measure_rest(fbx):
+    """Import an FBX into a fresh scene and measure its rest pose: pose bones cleared, no action, armature in REST position.
+    Returns (longest footprint side, width x, depth y, height z, lowest z) in footprint units (the model is normalised to longest side 1.0, lowest 0)."""
+    reset_scene()
+    bpy.ops.import_scene.fbx(filepath=fbx)
+    for a in [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']:
+        a.data.pose_position = 'REST'
+        if a.animation_data:
+            a.animation_data.action = None
+    bpy.context.scene.frame_set(1)
+    bpy.context.view_layer.update()
+    # Deformed mesh vertices in world space.
+    dg = bpy.context.evaluated_depsgraph_get()
+    ms = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    ev = ms[0].evaluated_get(dg)
+    me = ev.to_mesh()
+    pts = [ev.matrix_world @ v.co for v in me.vertices]
+    ev.to_mesh_clear()
+    xs, ys, zs = [p.x for p in pts], [p.y for p in pts], [p.z for p in pts]
+    w, d, h = max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)
+    return (max(w, d), w, d, h, min(zs))
+
+
+def rest_ok(m):
+    """True when a measure_rest result satisfies the rule: longest footprint side 1.0 and lowest point 0, both within REST_TOL."""
+    return abs(m[0] - 1.0) <= REST_TOL and abs(m[4]) <= REST_TOL
 
 
 def export_fbx(path, objects):

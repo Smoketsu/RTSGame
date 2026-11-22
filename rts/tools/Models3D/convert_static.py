@@ -116,7 +116,10 @@ def convert(only, renders):
         c0 = centroid(obj)
         # Path of the FBX being written.
         fbx = os.path.join(renders if mid in RIGGED else OUT_DIR, mid + ".fbx")
+        C.name_texture(mid)
         C.export_fbx(fbx, [obj])
+        # Embedded texture names read back from the FBX bytes: every name must end in .jpg or .png and match the image bytes.
+        tex = C.fbx_embedded_textures(fbx)
         # Renders of the normalised model (top, front, three-quarter), later assembled into contact sheets.
         C.add_ground()
         for v in ("top", "front", "three_quarter"):
@@ -133,20 +136,24 @@ def convert(only, renders):
                   abs(c1[0] - c0[0]), abs(c1[1] - c0[1]), abs(c1[2] - c0[2]))
         # Image data-blocks in the re-imported file (texture survived if >= 1).
         imgs = [i for i in bpy.data.images if i.size[0] > 0]
-        ok = err < TOL and len(imgs) >= 1
+        ok = err < TOL and len(imgs) >= 1 and len(tex) >= 1 and all(t[1] and t[0].endswith((mid + ".jpg", mid + ".png")) for t in tex)
+        # Rest pose of the FBX that ships in OUT_DIR (the rigged one for rigged units), measured on a fresh re-import.
+        rm = C.measure_rest(os.path.join(OUT_DIR, mid + ".fbx"))
+        rest_pass = C.rest_ok(rm)
+        ok = ok and rest_pass
         failures += 0 if ok else 1
         # Sizes in kilobytes of the source GLB and the produced FBX.
         glb_kb = os.path.getsize(glb) // 1024
         fbx_kb = os.path.getsize(fbx) // 1024
-        print("VERIFY %s ok=%s err=%.5f bounds=(%.3f,%.3f,%.3f) yaw=%d glb=%dKB fbx=%dKB textures=%s" % (
-            mid, ok, err, w, d, h, yaw, glb_kb, fbx_kb, [(i.name, i.size[0], i.size[1]) for i in imgs]))
-        rows.append([mid, src, yaw, "%.3f" % w, "%.3f" % d, "%.3f" % h, "%.4f" % k, glb_kb, fbx_kb, "ok" if ok else "FAIL"])
+        print("VERIFY %s ok=%s err=%.5f bounds=(%.3f,%.3f,%.3f) yaw=%d glb=%dKB fbx=%dKB texture=%s rest(longest=%.4f lowest=%.4f)%s" % (
+            mid, ok, err, w, d, h, yaw, glb_kb, fbx_kb, [t[0] for t in tex], rm[0], rm[4], "" if rest_pass else " REST POSE OUT OF TOLERANCE"))
+        rows.append([mid, src, yaw, "%.3f" % w, "%.3f" % d, "%.3f" % h, "%.4f" % k, glb_kb, fbx_kb, "%.4f" % rm[0], "%.4f" % rm[4], "ok" if ok else "FAIL"])
     if not only:
         os.makedirs(DOC_DIR, exist_ok=True)
         with open(os.path.join(DOC_DIR, "sizes.csv"), "w", newline="") as f:
-            f.write("# rts/docs/art/models/unity/sizes.csv: normalised size, yaw and file sizes of the static conversion of each approved model (written by convert_static.py; fbx_kb is the static FBX, rigged units keep a larger rigged FBX).\n")
+            f.write("# rts/docs/art/models/unity/sizes.csv: normalised size, yaw and file sizes of the static conversion of each approved model (written by convert_static.py; fbx_kb is the static FBX; rest_longest_side and rest_lowest_z are measured on the shipped FBX (rigged one for rigged units) re-imported in its rest pose, rule: 1.0 and 0 within 0.005).\n")
             wr = csv.writer(f)
-            wr.writerow(["data_id", "source", "yaw_deg", "width_x", "depth_z_unity", "height_y_unity", "scale_applied", "glb_kb", "fbx_kb", "roundtrip"])
+            wr.writerow(["data_id", "source", "yaw_deg", "width_x", "depth_z_unity", "height_y_unity", "scale_applied", "glb_kb", "fbx_kb", "rest_longest_side", "rest_lowest_z", "roundtrip"])
             wr.writerows(rows)
     return 1 if failures else 0
 
