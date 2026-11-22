@@ -124,7 +124,7 @@ Re-importing each rigged FBX into a fresh scene: one armature, one mesh, 14 and 
 
 Scale (the mesh should be 1.0 unit on its longest footprint side with import scale 1; if it is 100 times too big or small, look at the FBX unit setting), facing (+Z is the front, upright), texture (embedded 2048 x 2048, needs a material with that texture), the clip names (the four names above, loop flags are not stored in the FBX, so idle and move need Loop Time set in the Animation tab), the rig type (Generic, root bone `root`). For the two rigged files also check that the model does not come in rotated -90 degrees about X or scaled 100 times on the armature node, a known problem when Blender exports armatures with baked space transform; if it does, report it and I will change the export recipe for rigged files. Not run in Unity at all: skinning with 4 bones per vertex, animation playback.
 
-### Estimate for the other 12 units, by body type
+### Estimate made after the pilot, before the other 12 units were rigged (see Part 3 for the result)
 
 | Body type | Units | Expected with this method | Better as rigid parts |
 | --- | --- | --- | --- |
@@ -135,3 +135,54 @@ Scale (the mesh should be 1.0 unit on its longest footprint side with import sca
 | Rigid machine | `shellback`, `leviathan`, `ink_lobber` | Not worth skinning. `shellback`: the two clam halves open and close as rigid parts, treads as a scrolled texture. `leviathan`: turret turns as a rigid part, body bobs, eight legs are fused to the ground at the tips and would need 16 bones; do rigid turret plus body bob. `ink_lobber`: rigid snail cone with a rigid cannon and a squash wobble. | Yes, all three. |
 
 Rigid part animation does not need a separate pipeline: it is this rig with hard weights (`smooth_passes` 0 and a tiny `sigma`), so each region follows exactly one bone. I did not test that. The buildings (11 models) are best left static, with rigid parts only where they have an obvious moving part (the Perch Depot crane, the Coral Turret cannon, the Great Aerie turrets and fans).
+
+## Part 3: the other twelve units (22 Nov 2026)
+
+All 14 units are now rigged: the 12 below plus the two pilot units (improved, see the end of this section). Every unit FBX in `rts/src/Game/Assets/Resources/Models/` has a root bone named `root`, an armature named `Armature`, and exactly four clips `idle`, `move`, `attack`, `death` (30 fps, same axes and scale as before). The 11 buildings stay static. Nothing stayed static among the units: no unit was left with its static FBX.
+
+How to re-run one unit (from the repository root); the per-unit tables are in `rts/tools/Models3D/rig_data.json`:
+
+```
+blender -b -noaudio --python rts/tools/Models3D/rig.py -- --unit water.shellback --sheet rts/docs/art/models/unity/rigged/water.shellback.jpg
+```
+
+### What changed in `rig.py`
+
+- **Weights are now computed per unique vertex position.** The generator meshes are made of about 140 loose shells with duplicated vertices on every seam; edge smoothing gave the two copies of a seam vertex different weights and hairline cracks opened in every pose. Welding the copies removed the cracks (the pilot sheets were re-rendered and are cleaner, the Fledgling's shoulder seam is much better).
+- **`boxes` per bone**: a vertex inside one of a bone's boxes belongs to that bone. This is how the rigid parts of the machines are cut exactly at their seams (shells, treads, turret, barrels, claws, leg groups, cannon, staff, weapon pods, wheel, fists), with `sigma` about 0.012 and one smoothing pass so only a narrow blend remains at the joint.
+- **Scale channels** (`scl`, `bias_scl`, and a 4th key element) for the jellyfish bell pulse and the snail base squash.
+- **`ground_clamp`** per unit: where the deformed mesh would dip below z = 0 the root is lifted on that frame, so feet and claws stay on or above the ground (ground and water units; air units keep their origin height).
+- Quaternion keys keep the same side between keys so the Reef Runner wheel turns a full 360 degrees.
+- The sheet camera is fitted per clip.
+
+### Units, rigs and what is still wrong
+
+All FBX files re-imported into a fresh scene: one armature with the right bone count, the four clip names read from the file, and the deformed mesh bounds identical to the source at four frames of every clip (rest and the four clips, error 0.0000 for all 14 units). Weighting for every unit is the soft nearest-bone method with per-bone radii, welded vertices, and `boxes` where a part is rigid; sheets are in `rigged/<id>.jpg` (pilot units: `pilot/<id>.jpg`).
+
+| Unit | Bones | Clips (frames: idle, move, attack, death) | Weighting | Worst remaining defect |
+| --- | --- | --- | --- | --- |
+| `skai.fledgling` | 14 | 30, 24, 24, 36 | soft, sigma 0.045 | The flat thigh armour plate stretches a little at the peak of the walk; the seam between tool arm and torso is only slightly stretched at the attack peak. |
+| `skai.roc_rider` | 11 | 30, 20, 24, 36 | soft, sigma 0.04 | Wing sections are rigid slabs, so the flap creases at the joints. |
+| `skai.windrunner` | 14 | 30, 24, 24, 36 | soft, sigma 0.04 | Very thin and tall, so it is small on screen; the feather fringes at the shoulders stretch in the throw and the fall. |
+| `skai.talon_archer` | 11 | 30, 24, 24, 36 | soft + boxes (gun with both arms, wing blades) | The rifle and both arms are one rigid piece, so the arms never move on their own; toe claws shred a little on the lifted foot. |
+| `skai.stormcaller` | 13 | 30, 24, 24, 36 | soft + box (staff) | The staff is rigid with the right forearm; the long skirt hides the legs, so the walk reads mostly through the skirt. |
+| `skai.thunderhead` | 10 | 30, 20, 24, 36 | soft + boxes (weapon pods) | A flat flyer with small motions: idle, move and attack read weakly at small size; the death roll hides one wing edge-on (not a tear). |
+| `water.tender` | 11 | 30, 24, 24, 36 | soft + box (backpack) | In the death pose the splayed tentacle bundles show a few hairline gaps. |
+| `water.grasper` | 7 | 30, 24, 24, 36 | soft + boxes (the two fists) | Fists are rigid; antennae do not move on their own. |
+| `water.reef_runner` | 9 | 30, 24, 24, 36 | soft + boxes (wheel, fins) | The tail curl that wraps the wheel stretches slightly when the wheel turns; the wheel turn is hard to see at small size. |
+| `water.tidecaller` | 10 | 30, 20, 24, 36 | soft + box (bell), bell scale pulse | Faint web-like streaks between tentacle groups when they are flung out and when it dies. |
+| `water.spoutling` | 8 | 30, 24, 24, 36 | soft + boxes (cannon, beard, tentacles, spike) | Idle and move are subtle at small size (it is a hovering body that leans and bobs). |
+| `water.shellback` | 6 | 30, 24, 24, 36 | rigid parts: hull, two treads, two shell halves, narrow blend | Treads only bob (they cannot roll); the pearl stays with the lower shell. |
+| `water.leviathan` | 10 | 30, 24, 24, 36 | rigid parts: hull, turret, barrels, two claws, four leg groups | Legs move in groups of two or three, so fused foot tips slide on the ground. |
+| `water.ink_lobber` | 5 | 30, 24, 24, 36 | rigid cannon and base, soft shell | The weakest read of all at small size: it is a tall rigid cone, the shell sways but the cannon recoil is small; hairline cracks at the shell joints in some poses. |
+
+Clip content per unit (from the unit's JSON): ground and water units with a weapon attack with it (rifle recoil, staff cast, cannon kick, double punch, chomp, tool-arm strike, pincer jab); the Tidecaller and the Tender have no real weapon and show their working motion (a bell squeeze and flung tentacles, a pincer jab); the Reef Runner lunges. `death` always ends at rest on or near the ground (lowest point of every ground clip is within 0.003 units of z = 0); the air units (Roc Rider, Thunderhead) keep their origin height and tumble in place.
+
+### Pilot units improved
+
+- Fledgling walk: stride about 45 percent larger (thigh swing 32 degrees, arm swing 24), the lifted foot and claws stay above the ground (`ground_clamp`), and the swing of the tool arm in the attack was cut from 90 to 52 degrees.
+- Roc Rider dive: the wings no longer swing down through the rider and body (down-stroke reduced to 8, 6 and 5 degrees, pitch 22 degrees).
+
+### What the Unity session must check (all rigged units)
+
+Same list as part 2 (scale, facing +Z, texture, clip names, loop flags for idle and move, Generic rig with root bone `root`, armature node rotation or 100 times scale). In addition: bounds (several clips lift the root by `ground_clamp`, and the Reef Runner wheel turns a full 360 degrees: check it loops cleanly), the scale curves on the Tidecaller and Ink Lobber (Unity must keep bone scale animation), skinning at 3 to 4 bones per vertex, and that animation playback looks like the sheets. Not run in Unity at all.
