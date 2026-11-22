@@ -117,6 +117,10 @@
 // own unit with a ready grounding ability at the visible enemy flyer clump worth grounding_min_air_supply, then rule CW casts the wave from every own wave caster at
 // the 6 by 3 strip (one of eight directions) holding wave_min_enemy_supply of visible enemy ground army units (melee only for the melee aim drawn per match by AiVariety).
 // Casting changes no orders, so a caster still gets its stance orders. Draws: one wave-aim draw at the end of AiVariety.Create, only with use_casts.
+// ai_mechanic_use.md P2 (use_support_units): in rule 5 (Produce), before the deficit loop, rule SU trains each plan support unit (support_units: unit ID to army supply
+// per unit) up to min(support_max_per_type, army supply / that number), at the lowest-ID free producer, skipping a unit whose first unmet requirement is not met; rule RQ-1's list gains
+// the support units still wanted, after the composition units. In rule 6 (Army), after the casts and before the stance orders, rule ST puts every unarmed army unit in _controlled
+// (no stance orders) and moves it to a trail point: support_trail_tiles behind the mean of the armed attack group toward home while attacking, the rally point otherwise.
 // Package B of specs/ai_budget_queues.md (AiBrainBudget.cs, AiBudget.cs; only with use_budget_queues, off in every profile but aggressive_s5_b): two budget steps join the rule order, Open after rule 2 (Gather) and Close after
 // rule 5b (ExtraProducer). Six queues (economy: 3a supply building and 4b workers; expansion: rule E depots; production: 3b build-order steps and rule X; army: 4c scout and rule P; tech: rules T and T2; defence: rule SD) each hold
 // an account per resource, filled at Open in proportion to per-queue weights from the money in no account, and buy only from their own account. The first item of a queue that fails only on money is its head: its cost is the
@@ -1992,14 +1996,35 @@ namespace Rts.Ai
                 // Composition units in the order RQ-1 considers them (descending weight, then ordinal ID).
                 List<KeyValuePair<string, int>> ranked = new List<KeyValuePair<string, int>>(_composition);
                 ranked.Sort((a, b) => a.Value != b.Value ? b.Value.CompareTo(a.Value) : string.CompareOrdinal(a.Key, b.Key));
+                // Unit IDs RQ-1 considers: the composition units with weight above 0, then (use_support_units) the support units still wanted, in ordinal ID order.
+                List<string> considered = new List<string>();
                 foreach (KeyValuePair<string, int> pair in ranked)
                 {
-                    if (pair.Value <= 0 || !AnyOwnTrains(pair.Key))
+                    if (pair.Value > 0)
+                    {
+                        considered.Add(pair.Key);
+                    }
+                }
+                if (_profile.UseSupportUnits)
+                {
+                    // One support entry: unit ID and army supply per unit, in ordinal ID order.
+                    foreach (KeyValuePair<string, int> support in _plan.SupportUnits)
+                    {
+                        if (SupportWanted(support.Key, support.Value) > SupportHave(support.Key))
+                        {
+                            considered.Add(support.Key);
+                        }
+                    }
+                }
+                // One considered unit ID.
+                foreach (string unitId in considered)
+                {
+                    if (!AnyOwnTrains(unitId))
                     {
                         continue;
                     }
                     // First unmet requirement of this unit; it is the research to buy when it is a research ID.
-                    string? missing = FirstUnmetRequirement(_view.Content.Units[pair.Key]);
+                    string? missing = FirstUnmetRequirement(_view.Content.Units[unitId]);
                     if (missing == null || !_view.Content.Researches.TryGetValue(missing, out ResearchDefinition? research))
                     {
                         continue;
@@ -3006,6 +3031,10 @@ namespace Rts.Ai
                     // Package B: the army queue already has its head this think (the scout) or is paused: later items wait.
                     return;
                 }
+                if (_profile.UseSupportUnits && TrainSupport())
+                {
+                    return;
+                }
                 // Upper bound on units bought this think (one per producer), a guard against a loop that never ends. Unit: units.
                 int guard = _view.OwnUnits.Count + _composition.Count;
                 // Units the bank cannot pay while the player has no income: they hold no reservation, so cheaper units may be bought instead (rule R).
@@ -3067,6 +3096,106 @@ namespace Rts.Ai
                     _counts[choice]++;
                     _usedProducers.Add(producer.Id);
                 }
+            }
+
+            /// <summary>Supply of the own complete army units, the active scout excluded (rule SU's army size A). Unit: supply. Range: 0 upward.</summary>
+            private int SupportArmySupply()
+            {
+                // Running total. Unit: supply. Range: 0 upward.
+                int total = 0;
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsArmy && !unit.IsUnderConstruction && !IsActiveScout(unit.Id))
+                    {
+                        total += _view.SupplyOf(unit.Definition);
+                    }
+                }
+                return total;
+            }
+
+            /// <summary>Rule SU: how many units of a support type the army size earns, min(support_max_per_type, army supply / supplyPerUnit) with integer division.</summary>
+            /// <param name="unitId">Support unit ID. Range: a key of the plan's support_units.</param>
+            /// <param name="supplyPerUnit">Army supply that earns one unit. Unit: supply. Range: 1 to 200.</param>
+            private int SupportWanted(string unitId, int supplyPerUnit)
+            {
+                return Math.Min(_profile.SupportMaxPerType, SupportArmySupply() / supplyPerUnit);
+            }
+
+            /// <summary>Rule SU: own units of a support type plus entries of it in own production queues. Unit: units. Range: 0 upward.</summary>
+            /// <param name="unitId">Support unit ID. Range: a key of the plan's support_units.</param>
+            private int SupportHave(string unitId)
+            {
+                // Running count. Unit: units. Range: 0 upward.
+                int have = 0;
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (string.Equals(unit.Definition.Id, unitId, StringComparison.Ordinal))
+                    {
+                        have++;
+                    }
+                    foreach (string queued in unit.Queue)
+                    {
+                        if (string.Equals(queued, unitId, StringComparison.Ordinal))
+                        {
+                            have++;
+                        }
+                    }
+                }
+                return have;
+            }
+
+            /// <summary>
+            /// Rule SU (ai_mechanic_use.md M2.1, only with use_support_units): for each support unit in ordinal ID order that is wanted and not had, trains it at the lowest-ID free producer
+            /// when its requirements are met. A free producer that cannot be paid reserves the cost (rule R, only while the player has income) or records the army want (budget queues) and
+            /// stops Produce (returns true); without income the unit is skipped. No free producer, or no supply: the unit is skipped.
+            /// </summary>
+            private bool TrainSupport()
+            {
+                // One support entry: unit ID and army supply per unit, in ordinal ID order.
+                foreach (KeyValuePair<string, int> support in _plan.SupportUnits)
+                {
+                    if (SupportWanted(support.Key, support.Value) <= SupportHave(support.Key))
+                    {
+                        continue;
+                    }
+                    // Definition of the support unit.
+                    UnitDefinition definition = _view.Content.Units[support.Key];
+                    // The lowest-ID free producer (null when requirements are unmet or none is free).
+                    AiUnitView? producer = FindFreeProducer(support.Key);
+                    if (producer == null || !HasSupply(definition))
+                    {
+                        continue;
+                    }
+                    if (_bq)
+                    {
+                        if (!BqCanPay(AiBudget.Army, definition))
+                        {
+                            BqWant(AiBudget.Army, definition);
+                            return true;
+                        }
+                    }
+                    else if (!CanPay(definition))
+                    {
+                        if (!_income)
+                        {
+                            continue;
+                        }
+                        _reserveCommon += definition.CostCommon;
+                        _reserveRare += definition.CostRare;
+                        return true;
+                    }
+                    if (!Emit(AiIntent.Train(producer.Id, support.Key)))
+                    {
+                        return true;
+                    }
+                    Pay(definition, AiBudget.Army);
+                    if (_counts.ContainsKey(support.Key))
+                    {
+                        _counts[support.Key]++;
+                    }
+                    _usedProducers.Add(producer.Id);
+                }
+                return false;
             }
 
             /// <summary>True for a complete own structure that can train now: it has a trains list and an empty queue, and was not used this think.</summary>
@@ -3221,6 +3350,7 @@ namespace Rts.Ai
             {
                 // Casts still allowed this think. Unit: commands. Range: 0 to grounding_max_commands_per_think.
                 int budget = _profile.GroundingMaxCommandsPerThink;
+                // One own unit, ascending ID. Range: any own unit; only those with a ready grounding ability cast.
                 foreach (AiUnitView caster in _view.OwnUnits)
                 {
                     if (budget <= 0)
@@ -3247,6 +3377,7 @@ namespace Rts.Ai
                 int budget = _profile.WaveMaxCommandsPerThink;
                 // True when the drawn aim is melee (also when there is no variety stream).
                 bool meleeOnly = _memory.Variety == null || _memory.Variety.WaveAim == WaveAim.Melee;
+                // One own unit, ascending ID. Range: any own unit; only those that can cast the wave and have it ready cast.
                 foreach (AiUnitView caster in _view.OwnUnits)
                 {
                     if (budget <= 0)
@@ -3262,6 +3393,57 @@ namespace Rts.Ai
                     if (score >= _profile.WaveMinEnemySupply && Emit(AiIntent.CastWave(caster.Id, target)))
                     {
                         budget--;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Rule ST (ai_mechanic_use.md M2.2, only with use_support_units): every unarmed army unit joins <see cref="_controlled"/> (no stance order) and moves to the trail point when it is more
+            /// than support_regroup_tiles from it and not already walking to it. Trail point: in stance Attack with a live armed attack group, the group's mean position moved support_trail_tiles toward
+            /// home and made standable; otherwise the rally point. A unit in the fallen-back or harass group already has its orders and is only marked controlled.
+            /// </summary>
+            /// <param name="armyAll">Every own army unit that is not an active scout, ascending ID.</param>
+            private void SupportTrail(List<AiUnitView> armyAll)
+            {
+                // Where support units stand. Unit: tiles.
+                FixVec2 point = RallyPoint();
+                if (_memory.Stance == AiStance.Attack && _memory.AttackGroup.Count > 0)
+                {
+                    // Sum of the armed group members' positions, and how many there are. Unit: tiles; units.
+                    Fix64 sumX = Fix64.Zero;
+                    Fix64 sumY = Fix64.Zero;
+                    int count = 0;
+                    foreach (AiUnitView unit in armyAll)
+                    {
+                        if (unit.Definition.Weapon != null && _memory.AttackGroup.Contains(unit.Id))
+                        {
+                            sumX += unit.Position.X;
+                            sumY += unit.Position.Y;
+                            count++;
+                        }
+                    }
+                    if (count > 0)
+                    {
+                        point = Standable(new FixVec2(sumX / count, sumY / count).MoveTowards(Home(), _profile.SupportTrailTiles));
+                    }
+                }
+                // Squared regroup distance. Unit: squared tiles. Range: 1 to 400.
+                Fix64 regroupSquared = _profile.SupportRegroupTiles * _profile.SupportRegroupTiles;
+                // One own army unit, ascending ID.
+                foreach (AiUnitView unit in armyAll)
+                {
+                    if (unit.Definition.Weapon != null)
+                    {
+                        continue;
+                    }
+                    _controlled.Add(unit.Id);
+                    if (_memory.FallenBack.Contains(unit.Id) || _memory.HarassGroup.Contains(unit.Id))
+                    {
+                        continue;
+                    }
+                    if ((unit.Position - point).LengthSquared() > regroupSquared && !(unit.HasMoveTarget && (unit.MoveTarget - point).LengthSquared() <= SameGoalSquared))
+                    {
+                        Emit(AiIntent.Move(unit.Id, point));
                     }
                 }
             }
@@ -3290,6 +3472,10 @@ namespace Rts.Ai
                 {
                     CastGrounding();
                     CastWave();
+                }
+                if (_profile.UseSupportUnits)
+                {
+                    SupportTrail(armyAll);
                 }
                 // The army the stance orders go to: everyone except the harass, defend and fallen-back units (all of them when package D is off).
                 // Total supply of the stance army (declared by the call below). Unit: supply. Range: 0 upward.

@@ -67,6 +67,9 @@
 //   * rts/docs/specs/ai_mechanic_use.md package P1 (casts): use_casts, wave_min_enemy_supply, wave_melee_range_tiles, wave_aim_weights (object with exactly melee and all),
 //     wave_max_commands_per_think, grounding_min_air_supply and grounding_max_commands_per_think (every profile file carries them; the old values false, 4, 1,
 //     { melee 100, all 0 }, 4, 3, 4 play exactly as before; only aggressive_s5_m has use_casts true).
+//   * rts/docs/specs/ai_mechanic_use.md package P2 (support units): use_support_units, support_max_per_type, support_trail_tiles, support_regroup_tiles and, in each faction plan,
+//     support_units (object unit ID to army supply per unit, each 1 to 200; every ID a unit of the plan's faction with supply above 0). Every profile file carries them; the old
+//     values false, 3, 3, 3 and {} play exactly as before; only aggressive_s5_m has use_support_units true (water { water.tidecaller 12 }, skai { skai.stormcaller 20 }).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -195,12 +198,16 @@ namespace Rts.Ai
         /// <summary>The openings one of which is drawn at match start (skirmish_ai_v4_rl.md package L), in file order. Range: 0 to 16 entries; empty = no openings.</summary>
         public IReadOnlyList<AiOpening> Openings { get; }
 
+        /// <summary>Rule SU (ai_mechanic_use.md M2.1): support units the AI trains by army size, by unit ID in ordinal ID order; the value is the army supply that earns one unit. Unit: supply per unit. Range: 0 to 20 entries (empty = none), each value 1 to 200, each key a unit of this faction with supply above 0.</summary>
+        public IReadOnlyDictionary<string, int> SupportUnits { get; }
+
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
             IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
             IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null, string? scoutUnitId = null,
-            IReadOnlyList<AiOpening>? openings = null)
+            IReadOnlyList<AiOpening>? openings = null, IReadOnlyDictionary<string, int>? supportUnits = null)
         {
+            SupportUnits = supportUnits ?? new SortedDictionary<string, int>(StringComparer.Ordinal);
             Openings = openings ?? Array.Empty<AiOpening>();
             ScoutUnitId = scoutUnitId ?? string.Empty;
             DropOffBuildingId = dropOffBuildingId ?? string.Empty;
@@ -221,7 +228,7 @@ namespace Rts.Ai
         public AiFactionPlan WithOrders(IReadOnlyList<AiBuildStep> buildOrder, IReadOnlyDictionary<string, int> composition)
         {
             return new AiFactionPlan(FactionId, WorkerUnitId, SupplyBuildingId, buildOrder, composition, AttackTideMin, AttackTideMax,
-                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings);
+                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings, SupportUnits);
         }
     }
 
@@ -727,6 +734,18 @@ namespace Rts.Ai
         /// <summary>Rule CG: most cast_grounding intents per think. Unit: commands. Range: 0 to 40.</summary>
         public int GroundingMaxCommandsPerThink { get; }
 
+        /// <summary>Rules SU and ST (ai_mechanic_use.md M2.1, M2.2) and rule RQ-1's support extension: the AI trains support units by army size and keeps them trailing the army. False: it does neither. Unit: boolean.</summary>
+        public bool UseSupportUnits { get; }
+
+        /// <summary>Rule SU: most support units of one type the AI wants. Unit: units. Range: 0 to 20.</summary>
+        public int SupportMaxPerType { get; }
+
+        /// <summary>Rule ST: how far behind the armed attack group (toward home) a support unit stands. Unit: tiles (Fix64). Range: 0 to 20.</summary>
+        public Fix64 SupportTrailTiles { get; }
+
+        /// <summary>Rule ST: distance from its trail point beyond which a support unit is ordered to move there. Unit: tiles (Fix64). Range: 1 to 20.</summary>
+        public Fix64 SupportRegroupTiles { get; }
+
         /// <summary>Package B: weight of each queue in the split of free common, in <see cref="AiBudget.QueueIds"/> order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
         public IReadOnlyList<int> BudgetCommonWeights { get; }
 
@@ -967,6 +986,10 @@ namespace Rts.Ai
             WaveMaxCommandsPerThink = root.RequireInt("wave_max_commands_per_think", 0, 40);
             GroundingMinAirSupply = root.RequireInt("grounding_min_air_supply", 1, 200);
             GroundingMaxCommandsPerThink = root.RequireInt("grounding_max_commands_per_think", 0, 40);
+            UseSupportUnits = root.RequireBool("use_support_units");
+            SupportMaxPerType = root.RequireInt("support_max_per_type", 0, 20);
+            SupportTrailTiles = root.RequireFix64("support_trail_tiles", "0", "20");
+            SupportRegroupTiles = root.RequireFix64("support_regroup_tiles", "1", "20");
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1103,6 +1126,7 @@ namespace Rts.Ai
                 "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
                 "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues", "use_research",
                 "use_casts", "wave_min_enemy_supply", "wave_melee_range_tiles", "wave_aim_weights", "wave_max_commands_per_think", "grounding_min_air_supply", "grounding_max_commands_per_think",
+                "use_support_units", "support_max_per_type", "support_trail_tiles", "support_regroup_tiles",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
@@ -1199,7 +1223,7 @@ namespace Rts.Ai
                 AiOpening one = new AiOpening(found.Id, 1, found.BuildOrder, found.Composition, found.HandoverSeconds, found.ExpandAtSeconds, found.EarlyExpansionSeconds,
                     found.AttackArmySupply, found.AttackMinSupply);
                 plans[forced.Key] = new AiFactionPlan(plan.FactionId, plan.WorkerUnitId, plan.SupplyBuildingId, plan.BuildOrder, plan.Composition, plan.AttackTideMin, plan.AttackTideMax,
-                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one });
+                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one }, plan.SupportUnits);
             }
             return new AiProfile(_root, Id, plans);
         }
@@ -1220,7 +1244,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings");
+                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings", "support_units");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -1313,7 +1337,35 @@ namespace Rts.Ai
                 }
             }
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content));
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content), ParseSupportUnits(node, faction, content));
+        }
+
+        /// <summary>Validates the "support_units" object of a faction plan (ai_mechanic_use.md section 1): each key a unit of the faction with supply above 0, each value 1 to 200.</summary>
+        /// <param name="node">The faction plan object.</param>
+        /// <param name="faction">The plan's faction.</param>
+        /// <param name="content">Units to check IDs against.</param>
+        private static SortedDictionary<string, int> ParseSupportUnits(JsonValue node, FactionDefinition faction, ContentCatalog content)
+        {
+            // Army supply per support unit by unit ID, in ordinal order.
+            SortedDictionary<string, int> support = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            // The support_units object.
+            JsonValue supportNode = node.Require("support_units");
+            if (supportNode.Kind != JsonKind.Object)
+            {
+                throw supportNode.Fail("must be an object");
+            }
+            // One unit ID and its JSON army supply per unit, in file order.
+            foreach (KeyValuePair<string, JsonValue> pair in supportNode.Members)
+            {
+                // Definition of the support unit.
+                UnitDefinition unit = RequireUnit(pair.Value, pair.Key, faction.Id, content);
+                if (unit.Supply <= 0)
+                {
+                    throw pair.Value.Fail("must be a unit with supply above 0 (found '" + pair.Key + "')");
+                }
+                support.Add(pair.Key, pair.Value.AsInt(1, 200));
+            }
+            return support;
         }
 
         /// <summary>Validates a build order array (the plan's or an opening's): each step names a structure of the faction.</summary>

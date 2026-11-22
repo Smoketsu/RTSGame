@@ -1,5 +1,5 @@
 // rts/tests/Sim.Tests/Ai/AiMechanicTests.cs
-// Tests of package P1 (casts) of rts/docs/specs/ai_mechanic_use.md: M1-1 to M1-5 (Downdraft, rule CG), M2-1 to M2-4 and the cast half of M2-8 (the wave, rule CW), V-1 and V-2 (the wave-aim draw, aim half),
+// Tests of packages P1 (casts) and P2 (support units: M2-5 to M2-7 and the support half of M2-8) of rts/docs/specs/ai_mechanic_use.md. P1: M1-1 to M1-5 (Downdraft, rule CG), M2-1 to M2-4 and the cast half of M2-8 (the wave, rule CW), V-1 and V-2 (the wave-aim draw, aim half),
 // the profile switch and its validation, and OFF-2 (the old variety stream). OFF-1 (the pins) is the existing hash tests, unchanged. Part of Rts.Sim.Tests. Each case builds a real greybox_1v1 simulation
 // (flat at height 1 for x 14 to 33, y 15 to 19), spawns units by script (as AiFightTests does) and runs AiBrain.Decide on the resulting view; the wave aim is set through AiVariety.SetWaveAimForTest.
 using System;
@@ -48,13 +48,29 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>The candidate's off-copy for comparison.</summary>
         private static AiProfile OffCopy => AiProfile.FromDataSet(Data, "aggressive_s5_r");
 
-        /// <summary>The candidate with use_casts written false (every other key at its candidate value).</summary>
+        /// <summary>The candidate with use_casts and use_support_units written false (every other key at its candidate value); P2 turned the second switch on in the candidate, so the P1 off-comparisons switch it off too.</summary>
         private static AiProfile CandidateCastsOff()
         {
             // The file text being edited.
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5_m.json")).Replace("\r\n", "\n");
             Assert.That(text, Does.Contain("\"use_casts\": true"));
-            return AiProfile.Parse(text.Replace("\"use_casts\": true", "\"use_casts\": false"), "ai/aggressive_s5_m.json", Data.Content);
+            Assert.That(text, Does.Contain("\"use_support_units\": true"));
+            return AiProfile.Parse(text.Replace("\"use_casts\": true", "\"use_casts\": false").Replace("\"use_support_units\": true", "\"use_support_units\": false"), "ai/aggressive_s5_m.json", Data.Content);
+        }
+
+        /// <summary>The candidate with its own text edited by the given old/new pairs (each old text must occur).</summary>
+        /// <param name="oldNewPairs">Old text, new text, old text, new text and so on.</param>
+        private static AiProfile CandidateEdited(params string[] oldNewPairs)
+        {
+            // The file text being edited.
+            string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5_m.json")).Replace("\r\n", "\n");
+            // Index of the old text of the pair being applied. Range: even numbers from 0.
+            for (int i = 0; i < oldNewPairs.Length; i += 2)
+            {
+                Assert.That(text, Does.Contain(oldNewPairs[i]));
+                text = text.Replace(oldNewPairs[i], oldNewPairs[i + 1]);
+            }
+            return AiProfile.Parse(text, "ai/aggressive_s5_m.json", Data.Content);
         }
 
         /// <summary>A started greybox_1v1 simulation with the given factions in slots 0 and 1.</summary>
@@ -462,6 +478,199 @@ namespace Rts.Sim.Tests.Ai
                     Assert.That(a.AttackAdvantageOffset, Is.EqualTo(b.AttackAdvantageOffset));
                 }
             }
+        }
+
+        // ------------------------------------------------------------------ P2 support units
+
+        /// <summary>A started greybox_1v1 match of one faction on both sides, explored, with P0's HQ and 5000 common and 400 rare; returns the simulation.</summary>
+        /// <param name="faction">Faction of both players.</param>
+        private Simulation SupportBase(string faction)
+        {
+            Simulation sim = Greybox(faction, faction);
+            ExploreKit.ExploreAll(sim);
+            Hq(sim, faction);
+            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
+            player!.SetStock(5000, 400);
+            return sim;
+        }
+
+        /// <summary>Spawns <paramref name="count"/> units of a definition for P0 on a grid in the flat area (x 15 to 23, y 15 and up).</summary>
+        /// <param name="sim">The match.</param>
+        /// <param name="definition">Unit definition ID.</param>
+        /// <param name="count">How many. Unit: units. Range: 0 to 27.</param>
+        private void SpawnArmy(Simulation sim, string definition, int count)
+        {
+            // Unit number. Range: 0 to count - 1.
+            for (int i = 0; i < count; i++)
+            {
+                Spawn(sim, definition, P0, (15 + i % 9).ToString(), (15 + i / 9).ToString());
+            }
+        }
+
+        /// <summary>The water scene of M2-5: two idle Tidepools and an army of <paramref name="graspers"/> Graspers (2 supply each) plus <paramref name="tidecallers"/> Tidecallers; returns the lower Tidepool's ID.</summary>
+        private EntityId SupportWaterScene(out Simulation sim, int graspers, int tidecallers = 0, int runners = 0)
+        {
+            sim = SupportBase("water");
+            EntityId pool = Spawn(sim, "water.tidepool", P0, "13.5", "10.5");
+            Spawn(sim, "water.tidepool", P0, "16.5", "10.5");
+            SpawnArmy(sim, "water.grasper", graspers);
+            for (int i = 0; i < tidecallers; i++)
+            {
+                Spawn(sim, "water.tidecaller", P0, (15 + i).ToString(), "19");
+            }
+            for (int i = 0; i < runners; i++)
+            {
+                Spawn(sim, "water.reef_runner", P0, (15 + i).ToString(), "18");
+            }
+            return pool;
+        }
+
+        /// <summary>The Train intents as "producer:definition", in order.</summary>
+        private static List<string> Trains(List<AiIntent> intents)
+        {
+            return Of(intents, AiIntentKind.Train).ConvertAll(i => i.Unit.Value + ":" + i.DefinitionId);
+        }
+
+        /// <summary>M2-5: 12 army supply gives one Tidecaller before any composition unit; 11 gives none; 3 Tidecallers and 60 supply give none (max 3); one already queued counts as had.</summary>
+        [Test]
+        public void M2_5_SupportTraining()
+        {
+            AiProfile profile = Candidate;
+            AiFactionPlan plan = profile.RequireFaction("water");
+            EntityId pool = SupportWaterScene(out Simulation twelve, 6);
+            // The Train intents of the 12-supply think.
+            List<string> trains = Trains(Decide(twelve, profile, new AiMemory { AttackThreshold = 8 }, "water"));
+            // Position of the Tidecaller purchase in the list.
+            int at = trains.IndexOf(pool.Value + ":water.tidecaller");
+            Assert.That(at, Is.GreaterThanOrEqualTo(0), "a Tidecaller is trained at the lowest-ID Tidepool");
+            for (int i = 0; i < at; i++)
+            {
+                Assert.That(plan.Composition.ContainsKey(trains[i].Substring(trains[i].IndexOf(':') + 1)), Is.False, "no composition unit before the Tidecaller");
+            }
+            SupportWaterScene(out Simulation eleven, 5, 0, 1);
+            Assert.That(Trains(Decide(eleven, profile, new AiMemory { AttackThreshold = 8 }, "water")).Exists(t => t.EndsWith(":water.tidecaller")), Is.False, "11 supply");
+            SupportWaterScene(out Simulation full, 27, 3);
+            Assert.That(Trains(Decide(full, profile, new AiMemory { AttackThreshold = 8 }, "water")).Exists(t => t.EndsWith(":water.tidecaller")), Is.False, "3 had, 60 supply");
+            EntityId queuedPool = SupportWaterScene(out Simulation queued, 6);
+            queued.Submit(new TrainUnitCommand(queued.Clock.Tick, P0, _sequence++, queuedPool, "water.tidecaller"));
+            queued.Step();
+            Assert.That(Trains(Decide(queued, profile, new AiMemory { AttackThreshold = 8 }, "water")).Exists(t => t.EndsWith(":water.tidecaller")), Is.False, "a queued Tidecaller counts as had");
+        }
+
+        /// <summary>The Skai scene of M2-6: 10 Talon Archers (20 supply), a Windspire and a Storm Spire, and a profile with the Stormcaller at weight 0 in the composition.</summary>
+        private Simulation SupportSkaiScene(out EntityId windspire, out EntityId spire)
+        {
+            Simulation sim = SupportBase("skai");
+            windspire = Spawn(sim, "skai.windspire", P0, "13.5", "10.5");
+            spire = Spawn(sim, "skai.storm_spire", P0, "16.5", "6.5");
+            // Three Roosts (8 supply each) so the Stormcaller's 3 supply fits under the cap with the 20-supply army.
+            Spawn(sim, "skai.roost", P0, "10.5", "13.5");
+            Spawn(sim, "skai.roost", P0, "12.5", "13.5");
+            Spawn(sim, "skai.roost", P0, "14.5", "13.5");
+            SpawnArmy(sim, "skai.talon_archer", 10);
+            return sim;
+        }
+
+        /// <summary>M2-6: 20 army supply, no Stormcaller Plans: the plans are bought at the Storm Spire; with the plans researched the Stormcaller is trained at the Windspire.</summary>
+        [Test]
+        public void M2_6_SupportResearch()
+        {
+            AiProfile profile = CandidateEdited("\"skai.stormcaller\": 10 }", "\"skai.stormcaller\": 0 }");
+            Simulation sim = SupportSkaiScene(out EntityId windspire, out EntityId spire);
+            Assert.That(Trains(Decide(sim, profile, new AiMemory { AttackThreshold = 8 }, "skai")), Does.Contain(spire.Value + ":skai.stormcaller_plans"));
+            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
+            player!.AddResearch("skai.stormcaller_plans");
+            Assert.That(Trains(Decide(sim, profile, new AiMemory { AttackThreshold = 8 }, "skai")), Does.Contain(windspire.Value + ":skai.stormcaller"));
+        }
+
+        /// <summary>M2-7: in stance Attack a Tidecaller is moved to the trail point (the armed group's mean, 3 tiles toward home) and gets no attack-move; with the switch off it gets no Move.</summary>
+        [Test]
+        public void M2_7_Trail()
+        {
+            Simulation sim = SupportBase("water");
+            // The three armed group members, and the Tidecaller at (18.5, 17.5).
+            List<EntityId> group = new List<EntityId>
+            {
+                Spawn(sim, "water.grasper", P0, "29.5", "17.5"),
+                Spawn(sim, "water.grasper", P0, "30.5", "17.5"),
+                Spawn(sim, "water.grasper", P0, "31.5", "17.5"),
+            };
+            EntityId tidecaller = Spawn(sim, "water.tidecaller", P0, "18.5", "17.5");
+            // Expected trail point: the group's mean position moved 3 tiles toward the HQ.
+            Fix64 sumX = Fix64.Zero;
+            Fix64 sumY = Fix64.Zero;
+            FixVec2 home = FixVec2.Zero;
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (group.Contains(unit.Id))
+                {
+                    sumX += unit.Position.X;
+                    sumY += unit.Position.Y;
+                }
+                if (unit.Owner == P0 && unit.Definition.Hq != null)
+                {
+                    home = unit.Position;
+                }
+            }
+            FixVec2 expected = new FixVec2(sumX / 3, sumY / 3).MoveTowards(home, Fix64.FromInt(3));
+            // A memory in stance Attack with that group, already staged.
+            AiMemory Attacking()
+            {
+                AiMemory memory = new AiMemory { AttackThreshold = 8, Stance = AiStance.Attack, AttackStaged = true };
+                foreach (EntityId id in group)
+                {
+                    memory.AttackGroup.Add(id);
+                }
+                return memory;
+            }
+            List<AiIntent> on = Decide(sim, Candidate, Attacking(), "water");
+            List<AiIntent> moves = on.FindAll(i => i.Kind == AiIntentKind.Move && i.Unit == tidecaller);
+            Assert.That(moves.Count, Is.EqualTo(1));
+            Assert.That(moves[0].Point, Is.EqualTo(expected));
+            Assert.That(on.Exists(i => i.Kind == AiIntentKind.AttackMove && i.Unit == tidecaller), Is.False);
+            List<AiIntent> off = Decide(sim, CandidateCastsOff(), Attacking(), "water");
+            Assert.That(off.Exists(i => i.Kind == AiIntentKind.Move && i.Unit == tidecaller), Is.False);
+            Assert.That(off.Exists(i => i.Kind == AiIntentKind.AttackMove && i.Unit == tidecaller), Is.True, "today's stance attack-move");
+            // Not attacking: it is sent to the rally point, and a unit already there is left alone.
+            Assert.That(Decide(sim, Candidate, new AiMemory { AttackThreshold = 8 }, "water").Exists(i => i.Kind == AiIntentKind.Move && i.Unit == tidecaller), Is.True);
+        }
+
+        /// <summary>M2-8 (support half): with both switches false M2-5's scene gives the intents of aggressive_s5_r; the same scene twice gives identical intents.</summary>
+        [Test]
+        public void M2_8_SupportOffAndDeterminism()
+        {
+            SupportWaterScene(out Simulation sim, 6);
+            Assert.That(Key(Decide(sim, CandidateCastsOff(), new AiMemory { AttackThreshold = 8 }, "water")), Is.EqualTo(Key(Decide(sim, OffCopy, new AiMemory { AttackThreshold = 8 }, "water"))));
+            SupportWaterScene(out Simulation a, 6);
+            SupportWaterScene(out Simulation b, 6);
+            Assert.That(Key(Decide(a, Candidate, new AiMemory { AttackThreshold = 8 }, "water")), Is.EqualTo(Key(Decide(b, Candidate, new AiMemory { AttackThreshold = 8 }, "water"))));
+        }
+
+        /// <summary>The support keys: false in every shipped profile but the candidate; empty support_units except in the candidate's plans; bad support_units are errors naming the file and key.</summary>
+        [Test]
+        public void Profiles_SupportSwitchAndValidation()
+        {
+            foreach (string id in Data.AiProfiles.Keys)
+            {
+                AiProfile profile = AiProfile.FromDataSet(Data, id);
+                Assert.That(profile.UseSupportUnits, Is.EqualTo(id == "aggressive_s5_m"), id);
+                Assert.That(profile.SupportMaxPerType, Is.EqualTo(3), id);
+                Assert.That(profile.SupportTrailTiles, Is.EqualTo(Fix64.FromInt(3)), id);
+                Assert.That(profile.SupportRegroupTiles, Is.EqualTo(Fix64.FromInt(3)), id);
+                foreach (AiFactionPlan plan in profile.Factions.Values)
+                {
+                    Assert.That(plan.SupportUnits.Count, Is.EqualTo(id == "aggressive_s5_m" ? 1 : 0), id);
+                }
+            }
+            AiProfile candidate = Candidate;
+            Assert.That(candidate.RequireFaction("water").SupportUnits["water.tidecaller"], Is.EqualTo(12));
+            Assert.That(candidate.RequireFaction("skai").SupportUnits["skai.stormcaller"], Is.EqualTo(20));
+            DataValidationException other = Expect.Throws<DataValidationException>(() => CandidateEdited("{ \"water.tidecaller\": 12 }", "{ \"skai.stormcaller\": 12 }"));
+            Assert.That(other.Message, Does.Contain("aggressive_s5_m.json").And.Contain("skai.stormcaller"));
+            DataValidationException range = Expect.Throws<DataValidationException>(() => CandidateEdited("{ \"water.tidecaller\": 12 }", "{ \"water.tidecaller\": 0 }"));
+            Assert.That(range.Message, Does.Contain("support_units"));
+            DataValidationException structure = Expect.Throws<DataValidationException>(() => CandidateEdited("{ \"water.tidecaller\": 12 }", "{ \"water.tidepool\": 12 }"));
+            Assert.That(structure.Message, Does.Contain("water.tidepool"));
         }
     }
 }
