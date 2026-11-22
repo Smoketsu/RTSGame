@@ -170,3 +170,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [ai_mechanic_use.md](ai_mechanic_use.md) | The skirmish AI casts Downdraft and the wave, trains and trails Tidecallers (and Stormcallers), breaches enemy walls, and walls in its base with walls and gates, behind `use_casts`, `use_support_units`, `use_wall_breach` and `use_walls` (off in every profile; candidate `aggressive_s5_m`). HQ Last Stand gets no rule (off in tuning). Packages P1 to P5, measurement bars fixed before any run; no Sim change, no pin moves | P-006 A | research_and_unlocks.md R2 (built); sim-reviewer on each package |
+
+## AI production and raid defence (22 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [ai_production_defence.md](ai_production_defence.md) | The reported causes of Skai's 72 of 72 over Water checked in the code (section 0); harness metrics first (worker losses, losses within 60 s of training, unanswered raid seconds, producers and capacity per income, mean bank), then four faction-neutral rule packages behind `use_production_capacity` (rules RR, PC; replaces rule X), `use_supply_ahead` (SA), `use_raid_workers` (RS, RW) and `use_raid_response` (RA), off in every profile, candidate `aggressive_s5_pd`. Behaviour bars per faction and matchup fixed before any run; no win-rate target; no Sim change, no unit number change, no pin moves | P-006 (slices of E and S) | ai_mechanic_use.md (built); sim-reviewer on each package |
