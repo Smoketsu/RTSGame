@@ -392,6 +392,12 @@ namespace Rts.Tools.BalanceHarness
                         {
                             continue;
                         }
+                        // The other slot's summary (this slot is slot 0 when its summary is Summary0).
+                        GameSummary? other = ReferenceEquals(slotGame.Value.Key, slotGame.Value.Value.Summary0) ? slotGame.Value.Value.Summary1 : slotGame.Value.Value.Summary0;
+                        if (detector.OpponentLayer is MovementLayer layer && !Fielded(other, layer, data))
+                        {
+                            continue;
+                        }
                         row.SlotGames++;
                         row.Used += slotGame.Value.Key.Mechanics.TryGetValue(detector.Id, out int uses) && uses >= 1 ? 1 : 0;
                     }
@@ -402,6 +408,29 @@ namespace Rts.Tools.BalanceHarness
                 }
             }
             return rows;
+        }
+
+        /// <summary>True when the summary trained or completed at least one unit (count at least 1) whose definition's layer is <paramref name="layer"/>; unknown IDs and a null summary count as no.</summary>
+        /// <param name="summary">The summary of one slot, or null.</param>
+        /// <param name="layer">The movement layer looked for.</param>
+        /// <param name="data">The data set (definitions).</param>
+        private static bool Fielded(GameSummary? summary, MovementLayer layer, DataSet data)
+        {
+            if (summary == null)
+            {
+                return false;
+            }
+            foreach (IReadOnlyDictionary<string, int> counts in new[] { summary.Trained, summary.Completed })
+            {
+                foreach (KeyValuePair<string, int> entry in counts)
+                {
+                    if (entry.Value >= 1 && data.Content.Units.TryGetValue(entry.Key, out UnitDefinition? definition) && definition.Layer == layer)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>The lower median (element (n - 1) / 2 of the ascending list) of a non-empty list of integers.</summary>

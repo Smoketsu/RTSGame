@@ -21,6 +21,7 @@ namespace Rts.Ai
             /// </summary>
             public void Walls()
             {
+                // The authored wall lines of the current map, set by TryGetValue. Range: non-null when the branch continues.
                 if (!_profile.UseWalls || !_profile.WallLines.TryGetValue(_view.MapId, out AiMapWalls? walls))
                 {
                     return;

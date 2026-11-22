@@ -90,6 +90,7 @@ namespace Rts.Tools.BalanceHarness
         {
             SpentCommon += common;
             SpentRare += rare;
+            // Running totals of this class: [0] common, [1] rare. Unit: resource units. Range: 0 upward.
             int[] split = ByClass[spendClass];
             split[0] += common;
             split[1] += rare;

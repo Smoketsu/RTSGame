@@ -95,9 +95,9 @@ namespace Rts.Sim.Data
             SortedDictionary<string, string> researchFiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
             // Faction file roots by faction ID, kept for the unit-list reference check.
             SortedDictionary<string, JsonValue> factionRoots = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
-            // Skirmish AI profile roots by profile ID, in ordinal ID order; validated by Rts.Ai, not here.
             // Authored AI wall-line trees by map ID (ai/walls/<map id>.json); never read by the simulation. Range: one entry per file.
             SortedDictionary<string, JsonValue> aiWallLines = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
+            // Skirmish AI profile roots by profile ID, in ordinal ID order; validated by Rts.Ai, not here.
             SortedDictionary<string, JsonValue> aiProfiles = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
 
             // Combat tuning, parsed ahead of the main loop because unit files are validated against its armour and damage
