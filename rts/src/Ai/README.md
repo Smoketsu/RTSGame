@@ -40,6 +40,7 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiAbilities.cs` | Casts (ai_mechanic_use.md P1, `use_casts`): `ChooseGrounding` (Downdraft centre) and `ChooseWave` / `WaveTiles` (wave direction); rules CG and CW in `AiBrain` call them right after unit control |
 | `AiWallLines.cs` | Authored wall lines (ai_mechanic_use.md P4): the parsed `ai/walls/<map id>.json` (`AiMapWalls`, `AiWallArea`, `AiWallLine`), `Parse` (validation against the map and tuning) and `HeldAreas` (which areas the AI holds, from its own units); attached to a profile by `AiProfile.FromDataSet` as `WallLines` |
 | `AiBrainWalls.cs` | Rule WL (`use_walls`): a partial of `AiBrain`'s `Turn` that orders `build_wall_line` and gates on the held areas' lines from spare money within `wall_max_spend_common` |
+| `AiBrainProduction.cs` | Rules RR and PC (`use_production_capacity`, ai_production_defence.md PD-1): a partial of `AiBrain`'s `Turn` with the capacity helpers (`Producible`, `RateOf`, `CapOfProducer`, `IncomePerMinute`, `WorkerRate`) and rule PC (a producer is built while producer capacity is below the measured army income; replaces rule X); `AiMemory.DepositLog` holds the income |
 | `AiBudget.cs` | Package B: the budget queue arithmetic on arrays (Open, Distribute, Close, the defence ceiling, the rare surplus helpers) |
 | `AiBrainBudget.cs` | Package B: the Open and Close steps of a think and the buying helpers of the six queues (part of `AiBrain.Turn`) |
 | `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
@@ -117,3 +118,9 @@ determinism review.
   `budget_rare_surplus_*` keys (every profile carries them; the switch false plays exactly as before). With the switch on the AI divides its bank between
   the queues in proportion to the weights and each rule buys only from its own queue's account (see the header of `AiBrain.cs`); `aggressive_s5_b` has
   it on and `abl_s5b_no_b` is the same file with it off (it plays exactly as `aggressive_s5`). Queue state lives in `AiMemory` (never hashed).
+- Production capacity (rts/docs/specs/ai_production_defence.md package PD-1, `AiBrainProduction.cs`): the root keys `use_production_capacity`,
+  `income_window_seconds` and `production_capacity_target` (every profile carries them; the old values false, 60 and 1 play exactly as before).
+  With the switch on, rule RR holds no common for an item that waits only for rare (`TrainSupport` skips a support unit short of rare; rule R in
+  `TryBuild` and `BuyResearch` reserves only the rare part), and rule PC replaces rule X: one producer is built while the producers' capacity is below
+  the measured army income (`AiMemory.DepositLog`, written by `SkirmishAiController.ReadEvents`). Only `aggressive_s5_pd` has it on (a copy of
+  `aggressive_s5_m`; its off-copy is `aggressive_s5_m`).

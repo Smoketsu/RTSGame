@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using Rts.Sim;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
+using Rts.Sim.Data;
 using Rts.Sim.Events;
 using Rts.Sim.Teams;
 using Rts.Sim.Units;
@@ -151,6 +152,13 @@ namespace Rts.Ai
         {
             foreach (SimEvent simEvent in sim.Events.Current)
             {
+                if (Profile.UseProductionCapacity && simEvent.Tick > Memory.LastEventTickRead && simEvent is ResourceDepositedEvent deposited
+                    && deposited.Owner == Player && deposited.Resource == ResourceKind.Common)
+                {
+                    // Rule PC (ai_production_defence.md section 2): an own common deposit is income; no other branch reads this event.
+                    Memory.DepositLog.Add((deposited.Tick, deposited.Amount));
+                    continue;
+                }
                 if (Profile.UseWalls && simEvent.Tick > Memory.LastEventTickRead)
                 {
                     // Rule WL (ai_mechanic_use.md M3.2): a wall-line tile of this AI that can never be built is remembered and not ordered again; other reasons are retried.

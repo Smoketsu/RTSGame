@@ -8,6 +8,7 @@
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
 // ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
+// ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity).
 using System.Collections.Generic;
 using Rts.Sim.Core;
 
@@ -142,6 +143,12 @@ namespace Rts.Ai
 
         /// <summary>Recent hits on own units, by the own unit's ID (ascending).</summary>
         public SortedDictionary<EntityId, DamageReport> RecentDamage { get; } = new SortedDictionary<EntityId, DamageReport>();
+
+        /// <summary>
+        /// Rule PC (ai_production_defence.md section 2, only with use_production_capacity): the own common deposits (tick, amount), in tick order, written by the controller from ResourceDepositedEvent and pruned at each think
+        /// to ticks above now minus income_window_seconds. Unit: Tick in ticks (0 upward), Common in resource units (1 upward). Empty at the start and while the switch is off. Not hashed.
+        /// </summary>
+        public List<(int Tick, int Common)> DepositLog { get; } = new List<(int Tick, int Common)>();
 
         /// <summary>Highest tick whose events were read, or -1. Unit: ticks.</summary>
         public int LastEventTickRead { get; set; } = -1;

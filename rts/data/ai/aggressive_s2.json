@@ -378,6 +378,12 @@
   "budget_rare_surplus_off": 80,
   // Package B: multiplier on the composition weight of units with a rare cost while the surplus is active (3 is the smallest integer at which the Water mix asks for the rare income it receives). Unit: factor. Range: 1 to 20 (integer). Source: specs/ai_budget_queues.md B.3; placeholder.
   "budget_rare_surplus_weight_factor": 3,
+  // Rules RR and PC: no common is held for an item that waits only for rare, and a producer is added while producer capacity is below army income x production_capacity_target (replaces rule X). Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_production_defence.md section 3; placeholder.
+  "use_production_capacity": false,
+  // Rule PC: common deposited to the own stock over this many seconds is the measured income. Unit: seconds. Range: 10 to 300. Source: rts/docs/specs/ai_production_defence.md section 3; placeholder.
+  "income_window_seconds": 60,
+  // Rule PC: producer capacity (common per minute the producers can turn into units) wanted per unit of army income (common per minute). Unit: fraction. Range: 0.1 to 3. Source: rts/docs/specs/ai_production_defence.md section 3; placeholder.
+  "production_capacity_target": 1,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {
