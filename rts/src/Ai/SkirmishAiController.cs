@@ -191,6 +191,13 @@ namespace Rts.Ai
                     Memory.RejectedSites.Add(sim.Terrain.IndexOf(build.TileX, build.TileY));
                     continue;
                 }
+                if (Profile.UseWallBreach && simEvent.Tick > Memory.LastEventTickRead && simEvent is MoveUnreachableEvent unreachable
+                    && sim.Units.TryGet(unreachable.Unit, out Unit? stuck) && stuck.Owner == Player)
+                {
+                    // Own unit whose move goal was unreachable (rule WB): remember the newest goal per unit.
+                    Memory.UnreachableGoals[unreachable.Unit] = (unreachable.Tick, unreachable.Goal);
+                    continue;
+                }
                 if (simEvent.Tick <= Memory.LastEventTickRead || !(simEvent is UnitDamagedEvent hit))
                 {
                     continue;

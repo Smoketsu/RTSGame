@@ -117,6 +117,9 @@
 // own unit with a ready grounding ability at the visible enemy flyer clump worth grounding_min_air_supply, then rule CW casts the wave from every own wave caster at
 // the 6 by 3 strip (one of eight directions) holding wave_min_enemy_supply of visible enemy ground army units (melee only for the melee aim drawn per match by AiVariety).
 // Casting changes no orders, so a caster still gets its stance orders. Draws: one wave-aim draw at the end of AiVariety.Create, only with use_casts.
+// ai_mechanic_use.md P3 (use_wall_breach): rule WB in rule 6 (Army), after the casts and before rule ST and the stance orders: each own armed, non-flying army unit that can hit ground and has a live
+// unreachable-goal record (AiMemory.UnreachableGoals, written by SkirmishAiController from MoveUnreachableEvent, dropped after wall_breach_memory_seconds) attacks the known enemy wall (Economy.IsWall, gates included)
+// minimising unit-to-wall plus wall-to-goal (attack_unit when the wall is visible, else an attack-move wall_breach_standoff_tiles short of it); with no wall known it attack-moves wall_probe_step_tiles toward its goal.
 // ai_mechanic_use.md P2 (use_support_units): in rule 5 (Produce), before the deficit loop, rule SU trains each plan support unit (support_units: unit ID to army supply
 // per unit) up to min(support_max_per_type, army supply / that number), at the lowest-ID free producer, skipping a unit whose first unmet requirement is not met; rule RQ-1's list gains
 // the support units still wanted, after the composition units. In rule 6 (Army), after the casts and before the stance orders, rule ST puts every unarmed army unit in _controlled
@@ -632,6 +635,24 @@ namespace Rts.Ai
             foreach (EntityId id in stale)
             {
                 memory.RecentDamage.Remove(id);
+            }
+            if (profile.UseWallBreach && memory.UnreachableGoals.Count > 0)
+            {
+                // Oldest tick an unreachable-goal record may have and still be used. Unit: ticks. Range: any int.
+                int oldest = view.Tick - view.SecondsToTicks(Fix64.FromInt(profile.WallBreachMemorySeconds));
+                // Records of dead units or older than the memory window.
+                List<EntityId> expired = new List<EntityId>();
+                foreach (KeyValuePair<EntityId, (int Tick, FixVec2 Goal)> pair in memory.UnreachableGoals)
+                {
+                    if (!alive.Contains(pair.Key) || pair.Value.Tick < oldest)
+                    {
+                        expired.Add(pair.Key);
+                    }
+                }
+                foreach (EntityId id in expired)
+                {
+                    memory.UnreachableGoals.Remove(id);
+                }
             }
             if (profile.UseEnemyModel)
             {
@@ -3444,6 +3465,66 @@ namespace Rts.Ai
             }
 
             /// <summary>
+            /// Rule WB (ai_mechanic_use.md M3.1, only with use_wall_breach): each own armed army unit that can hit ground, ascending ID, with a live unreachable-goal record, not already controlled this think, not fallen back
+            /// and not harassing, attacks the known enemy wall (gates included) minimising its distance to the wall plus the wall's distance to the goal (ties to the lower wall ID): attack_unit when the wall is visible now,
+            /// else an attack-move to wall_breach_standoff_tiles short of it; with no wall known, an attack-move wall_probe_step_tiles toward the goal. The unit joins <see cref="_controlled"/>.
+            /// </summary>
+            /// <param name="armyAll">Every own army unit that is not an active scout, ascending ID.</param>
+            private void BreachWalls(List<AiUnitView> armyAll)
+            {
+                // Breach orders still allowed this think. Unit: commands. Range: 0 to wall_breach_max_commands_per_think.
+                int budget = _profile.WallBreachMaxCommandsPerThink;
+                // One own army unit, ascending ID.
+                foreach (AiUnitView unit in armyAll)
+                {
+                    if (budget <= 0)
+                    {
+                        return;
+                    }
+                    if (!_memory.UnreachableGoals.TryGetValue(unit.Id, out (int Tick, FixVec2 Goal) record) || _controlled.Contains(unit.Id)
+                        || _memory.FallenBack.Contains(unit.Id) || _memory.HarassGroup.Contains(unit.Id)
+                        || unit.Definition.Layer == MovementLayer.Air || unit.Definition.Weapon == null || !unit.Definition.Weapon.CanTarget(MovementLayer.Ground))
+                    {
+                        continue;
+                    }
+                    // Best known wall so far: its ID and position, and the unit-to-wall-to-goal distance. Unit: tiles (Fix64), 0 upward.
+                    EntityId wallId = EntityId.None;
+                    FixVec2 wallPosition = FixVec2.Zero;
+                    Fix64 best = Fix64.Zero;
+                    foreach (KeyValuePair<EntityId, KnownStructure> pair in _memory.KnownEnemyStructures)
+                    {
+                        if (!_view.Content.Units.TryGetValue(pair.Value.DefinitionId, out UnitDefinition? wallDefinition) || !wallDefinition.Economy.IsWall)
+                        {
+                            continue;
+                        }
+                        // Detour length through this wall. Unit: tiles (Fix64). Range: 0 upward.
+                        Fix64 through = (unit.Position - pair.Value.Position).Length() + (pair.Value.Position - record.Goal).Length();
+                        if (!wallId.IsValid || through < best)
+                        {
+                            wallId = pair.Key;
+                            wallPosition = pair.Value.Position;
+                            best = through;
+                        }
+                    }
+                    // True when the chosen wall is among the enemies the team sees now.
+                    bool visibleNow = false;
+                    foreach (AiUnitView enemy in _view.VisibleEnemies)
+                    {
+                        visibleNow |= wallId.IsValid && enemy.Id == wallId;
+                    }
+                    // The breach order of this unit.
+                    AiIntent order = !wallId.IsValid ? AiIntent.AttackMove(unit.Id, Standable(unit.Position.MoveTowards(record.Goal, _profile.WallProbeStepTiles)))
+                        : visibleNow ? AiIntent.AttackUnit(unit.Id, wallId)
+                        : AiIntent.AttackMove(unit.Id, Standable(wallPosition.MoveTowards(unit.Position, _profile.WallBreachStandoffTiles)));
+                    if (Emit(order))
+                    {
+                        _controlled.Add(unit.Id);
+                        budget--;
+                    }
+                }
+            }
+
+            /// <summary>
             /// Rule ST (ai_mechanic_use.md M2.2, only with use_support_units): every unarmed army unit joins <see cref="_controlled"/> (no stance order) and moves to the trail point when it is more
             /// than support_regroup_tiles from it and not already walking to it. Trail point: in stance Attack with a live armed attack group, the group's mean position moved support_trail_tiles toward
             /// home and made standable; otherwise the rally point. A unit in the fallen-back or harass group already has its orders and is only marked controlled.
@@ -3520,6 +3601,10 @@ namespace Rts.Ai
                 {
                     CastGrounding();
                     CastWave();
+                }
+                if (_profile.UseWallBreach)
+                {
+                    BreachWalls(armyAll);
                 }
                 if (_profile.UseSupportUnits)
                 {

@@ -332,6 +332,16 @@
   "support_trail_tiles": 3,
   // Rule ST: distance from its trail point beyond which a support unit is ordered to move there. Unit: tiles (Fix64). Range: 1 to 20. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
   "support_regroup_tiles": 3,
+  // Rule WB: on (true) the AI records units whose move goal was unreachable and orders them to attack the enemy wall that seals the route; off (false) it records and orders nothing. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder (the switch is a measurement, shipped true only in aggressive_s5_m).
+  "use_wall_breach": false,
+  // Rule WB: how long an unreachable-goal record stays usable. Unit: seconds. Range: 1 to 120. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_breach_memory_seconds": 10,
+  // Rule WB: how far short of a remembered (not visible) wall the unit is attack-moved. Unit: tiles (Fix64). Range: 0.5 to 10. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_breach_standoff_tiles": 2,
+  // Rule WB: with no wall known, how far toward its goal the unit is attack-moved to find what blocks it. Unit: tiles (Fix64). Range: 1 to 20. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_probe_step_tiles": 6,
+  // Rule WB: most breach orders one think emits. Unit: commands. Range: 0 to 60. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wall_breach_max_commands_per_think": 12,
   // Package B: weight of each queue in the split of free common (relative; the army's 60 is the reference): economy 120 (a worker per 12 s needs 125 common per 30 s), expansion 120 (a depot is income like two workers), production 10 and tech 4 (about 0.21 of the army together, from the measured structure share), army 60, defence 6 (0.09 against the army, under the 0.15 behaviour bar). Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder beyond those anchors.
   "budget_common_weights": { "economy": 120, "expansion": 120, "production": 10, "army": 60, "tech": 4, "defence": 6 },
   // Package B: the same for free rare: production 30 (Storm Spire, Reef Workshop), army 60, tech 30 (half the army); 0 where no item costs rare. Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder.

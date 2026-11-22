@@ -1,5 +1,5 @@
 // rts/tests/Sim.Tests/Ai/AiMechanicTests.cs
-// Tests of packages P1 (casts) and P2 (support units: M2-5 to M2-7 and the support half of M2-8) of rts/docs/specs/ai_mechanic_use.md. P1: M1-1 to M1-5 (Downdraft, rule CG), M2-1 to M2-4 and the cast half of M2-8 (the wave, rule CW), V-1 and V-2 (the wave-aim draw, aim half),
+// Tests of packages P1 (casts), P2 (support units: M2-5 to M2-7 and the support half of M2-8), P2b (SN-1 to SN-7) and P3 (breach: WB-1 to WB-6 and the breach profile keys) of rts/docs/specs/ai_mechanic_use.md. P1: M1-1 to M1-5 (Downdraft, rule CG), M2-1 to M2-4 and the cast half of M2-8 (the wave, rule CW), V-1 and V-2 (the wave-aim draw, aim half),
 // the profile switch and its validation, and OFF-2 (the old variety stream). OFF-1 (the pins) is the existing hash tests, unchanged. Part of Rts.Sim.Tests. Each case builds a real greybox_1v1 simulation
 // (flat at height 1 for x 14 to 33, y 15 to 19), spawns units by script (as AiFightTests does) and runs AiBrain.Decide on the resulting view; the wave aim is set through AiVariety.SetWaveAimForTest.
 using System;
@@ -775,6 +775,170 @@ namespace Rts.Sim.Tests.Ai
                     Assert.That(plan.SupportNeeds.Count, Is.EqualTo(id == "aggressive_s5_m" && plan.FactionId == "skai" ? 1 : 0), id);
                 }
             }
+        }
+
+        // ------------------------------------------------------------------ P3 Breach (rule WB)
+
+        /// <summary>The unreachable goal of the breach scenes. Unit: tiles.</summary>
+        private static readonly FixVec2 BreachGoal = new FixVec2(Fix64.Parse("40.5"), Fix64.Parse("17.5"));
+
+        /// <summary>The breach scene: a Skai AI with a Talon Marksman at (18.5, 17.5) and, when <paramref name="wallAt"/> is given, a Water wall at that tile centre; returns the simulation and the Talon.</summary>
+        /// <param name="wallAt">Tile x of the wall on row 17, or -1 for none.</param>
+        /// <param name="unitId">Definition of the P0 unit at (18.5, 17.5).</param>
+        private (Simulation Sim, EntityId Unit) BreachScene(int wallAt, string unitId = "skai.talon_archer")
+        {
+            Simulation sim = Greybox("skai", "water");
+            Hq(sim, "skai");
+            EntityId unit = Spawn(sim, unitId, P0, "18.5", "17.5");
+            if (wallAt >= 0)
+            {
+                Spawn(sim, "water.coral_wall", P1, wallAt + ".5", "17.5");
+            }
+            return (sim, unit);
+        }
+
+        /// <summary>A memory holding an unreachable-goal record of <paramref name="unit"/> made <paramref name="ageTicks"/> ticks before the current tick.</summary>
+        private static AiMemory BreachMemory(Simulation sim, EntityId unit, int ageTicks)
+        {
+            AiMemory memory = new AiMemory { AttackThreshold = 8 };
+            memory.UnreachableGoals[unit] = (sim.Clock.Tick - ageTicks, BreachGoal);
+            return memory;
+        }
+
+        /// <summary>The intents that order <paramref name="unit"/>.</summary>
+        private static List<AiIntent> OrdersOf(List<AiIntent> intents, EntityId unit)
+        {
+            return intents.FindAll(i => i.Unit == unit && i.Kind != AiIntentKind.Train);
+        }
+
+        /// <summary>WB-1: a visible wall is attacked by name, and the unit gets no stance order.</summary>
+        [Test]
+        public void WB_1_VisibleWall()
+        {
+            (Simulation sim, EntityId talon) = BreachScene(22);
+            EntityId wall = EntityId.None;
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Definition.Id == "water.coral_wall")
+                {
+                    wall = unit.Id;
+                }
+            }
+            List<AiIntent> orders = OrdersOf(Decide(sim, Candidate, BreachMemory(sim, talon, 20), "skai"), talon);
+            Assert.That(orders.Count, Is.EqualTo(1));
+            Assert.That(orders[0].Kind, Is.EqualTo(AiIntentKind.AttackUnit));
+            Assert.That(orders[0].Target, Is.EqualTo(wall));
+        }
+
+        /// <summary>WB-2: a remembered wall that is not visible is approached with an attack-move to the standoff point.</summary>
+        [Test]
+        public void WB_2_RememberedWall()
+        {
+            (Simulation sim, EntityId talon) = BreachScene(-1);
+            AiMemory memory = BreachMemory(sim, talon, 20);
+            // A wall seen earlier, out of sight now (a made-up ID that no unit has).
+            memory.KnownEnemyStructures.Add(new EntityId(9999), new KnownStructure { Position = new FixVec2(Fix64.Parse("30.5"), Fix64.Parse("17.5")), DefinitionId = "water.coral_wall" });
+            List<AiIntent> orders = OrdersOf(Decide(sim, Candidate, memory, "skai"), talon);
+            Assert.That(orders.Count, Is.EqualTo(1));
+            Assert.That(orders[0].Kind, Is.EqualTo(AiIntentKind.AttackMove));
+            AssertCast(orders[0], talon, "28.5", "17.5");
+        }
+
+        /// <summary>WB-3: with no wall known the unit walks 6 tiles toward its goal.</summary>
+        [Test]
+        public void WB_3_NoKnownWall()
+        {
+            (Simulation sim, EntityId talon) = BreachScene(-1);
+            List<AiIntent> orders = OrdersOf(Decide(sim, Candidate, BreachMemory(sim, talon, 20), "skai"), talon);
+            Assert.That(orders.Count, Is.EqualTo(1));
+            Assert.That(orders[0].Kind, Is.EqualTo(AiIntentKind.AttackMove));
+            AssertCast(orders[0], talon, "24.5", "17.5");
+        }
+
+        /// <summary>WB-4: a record older than wall_breach_memory_seconds (10 s = 200 ticks) is dropped and gives no breach order; with the switch off a fresh record gives none either (the unit gets the intents of aggressive_s5_r).</summary>
+        [Test]
+        public void WB_4_OldEntryAndOff()
+        {
+            (Simulation sim, EntityId talon) = BreachScene(-1);
+            AiMemory old = BreachMemory(sim, talon, 220);
+            Decide(sim, Candidate, old, "skai");
+            Assert.That(old.UnreachableGoals.Count, Is.EqualTo(0));
+            AiMemory fresh = BreachMemory(sim, talon, 20);
+            Decide(sim, Candidate, fresh, "skai");
+            Assert.That(fresh.UnreachableGoals.Count, Is.EqualTo(1), "a 1 s old record is kept");
+            Assert.That(Key(Decide(sim, OffCopy, BreachMemory(sim, talon, 20), "skai")), Is.EqualTo(Key(Decide(sim, OffCopy, new AiMemory { AttackThreshold = 8 }, "skai"))));
+            // The candidate with the two other switches' values but wall breach off: same intents as the candidate with no record.
+            AiProfile breachOff = CandidateEdited("\"use_wall_breach\": true", "\"use_wall_breach\": false");
+            Assert.That(Key(Decide(sim, breachOff, BreachMemory(sim, talon, 20), "skai")), Is.EqualTo(Key(Decide(sim, breachOff, new AiMemory { AttackThreshold = 8 }, "skai"))));
+        }
+
+        /// <summary>WB-5: a flyer (no weapon that hits ground) with a record gets no breach order.</summary>
+        [Test]
+        public void WB_5_Flyer()
+        {
+            (Simulation sim, EntityId roc) = BreachScene(-1, "skai.roc_rider");
+            AiMemory memory = BreachMemory(sim, roc, 20);
+            // The Roc Rider's weapon hits ground, so the layer test is what excludes it: no probe step toward the goal.
+            List<AiIntent> orders = OrdersOf(Decide(sim, Candidate, memory, "skai"), roc);
+            Assert.That(orders.Exists(i => i.Kind == AiIntentKind.AttackMove && i.Point.X == Fix64.Parse("24.5") && i.Point.Y == Fix64.Parse("17.5")), Is.False);
+        }
+
+        /// <summary>WB-6: a unit ringed by eight enemy walls and ordered out is recorded by the controller with its goal; with the switch off nothing is recorded.</summary>
+        [Test]
+        public void WB_6_Recording()
+        {
+            foreach (bool on in new[] { true, false })
+            {
+                (Simulation sim, EntityId talon) = BreachScene(-1);
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        if (dx != 0 || dy != 0)
+                        {
+                            Spawn(sim, "water.coral_wall", P1, (18 + dx) + ".5", (17 + dy) + ".5");
+                        }
+                    }
+                }
+                sim.Submit(new MoveUnitCommand(sim.Clock.Tick, P0, _sequence++, talon, BreachGoal));
+                SkirmishAiController controller = new SkirmishAiController(P0, on ? Candidate : CandidateEdited("\"use_wall_breach\": true", "\"use_wall_breach\": false"));
+                controller.OnMatchStart(sim);
+                // Thinks (and steps) until the record shows or 60 ticks pass. Unit: ticks.
+                for (int i = 0; i < 60 && controller.Memory.UnreachableGoals.Count == 0; i++)
+                {
+                    controller.Think(sim, new ListCommandSink(sim.Clock.Tick));
+                    sim.Step();
+                }
+                controller.Think(sim, new ListCommandSink(sim.Clock.Tick));
+                if (on)
+                {
+                    Assert.That(controller.Memory.UnreachableGoals.ContainsKey(talon), Is.True);
+                    Assert.That(controller.Memory.UnreachableGoals[talon].Goal, Is.EqualTo(BreachGoal));
+                }
+                else
+                {
+                    Assert.That(controller.Memory.UnreachableGoals.Count, Is.EqualTo(0));
+                }
+            }
+        }
+
+        /// <summary>The breach keys: false in every shipped profile but the candidate, old values elsewhere and in the candidate; out-of-range values are errors naming the file and key.</summary>
+        [Test]
+        public void Profiles_BreachSwitchAndValidation()
+        {
+            foreach (string id in Data.AiProfiles.Keys)
+            {
+                AiProfile profile = AiProfile.FromDataSet(Data, id);
+                Assert.That(profile.UseWallBreach, Is.EqualTo(id == "aggressive_s5_m"), id);
+                Assert.That(profile.WallBreachMemorySeconds, Is.EqualTo(10), id);
+                Assert.That(profile.WallBreachStandoffTiles, Is.EqualTo(Fix64.FromInt(2)), id);
+                Assert.That(profile.WallProbeStepTiles, Is.EqualTo(Fix64.FromInt(6)), id);
+                Assert.That(profile.WallBreachMaxCommandsPerThink, Is.EqualTo(12), id);
+            }
+            DataValidationException range = Expect.Throws<DataValidationException>(() => CandidateEdited("\"wall_breach_memory_seconds\": 10", "\"wall_breach_memory_seconds\": 0"));
+            Assert.That(range.Message, Does.Contain("aggressive_s5_m.json").And.Contain("wall_breach_memory_seconds"));
+            DataValidationException standoff = Expect.Throws<DataValidationException>(() => CandidateEdited("\"wall_breach_standoff_tiles\": 2", "\"wall_breach_standoff_tiles\": 0.25"));
+            Assert.That(standoff.Message, Does.Contain("wall_breach_standoff_tiles"));
         }
     }
 }

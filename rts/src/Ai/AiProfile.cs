@@ -72,6 +72,8 @@
 //     values false, 3, 3, 3 and {} play exactly as before; only aggressive_s5_m has use_support_units true (water { water.tidecaller 12 }, skai { skai.stormcaller 20 }).
 //   * rts/docs/specs/ai_mechanic_use.md package P2b (support needs): in each faction plan, support_needs (object unit ID to a list of 0 to 3 distinct layer names ground, water, air; keys a subset of
 //     support_units; a non-empty list needs use_enemy_model). Every profile file carries it; {} everywhere except aggressive_s5_m's skai plan { skai.stormcaller ["air"] }.
+//   * rts/docs/specs/ai_mechanic_use.md package P3 (breach): use_wall_breach, wall_breach_memory_seconds (1 to 120), wall_breach_standoff_tiles (0.5 to 10), wall_probe_step_tiles (1 to 20) and
+//     wall_breach_max_commands_per_think (0 to 60). Every profile file carries them; the old values false, 10, 2, 6, 12 play exactly as before; only aggressive_s5_m has use_wall_breach true.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -753,6 +755,21 @@ namespace Rts.Ai
         /// <summary>Rule ST: distance from its trail point beyond which a support unit is ordered to move there. Unit: tiles (Fix64). Range: 1 to 20.</summary>
         public Fix64 SupportRegroupTiles { get; }
 
+        /// <summary>Rule WB (ai_mechanic_use.md M3.1): the AI records units whose move goal was unreachable and orders them to attack the enemy wall that seals the route. False: it records and orders nothing. Unit: boolean.</summary>
+        public bool UseWallBreach { get; }
+
+        /// <summary>Rule WB: how long an unreachable-goal record stays usable. Unit: seconds. Range: 1 to 120.</summary>
+        public int WallBreachMemorySeconds { get; }
+
+        /// <summary>Rule WB: how far short of a remembered (not visible) wall the unit is attack-moved. Unit: tiles (Fix64). Range: 0.5 to 10.</summary>
+        public Fix64 WallBreachStandoffTiles { get; }
+
+        /// <summary>Rule WB: with no wall known, how far toward its goal the unit is attack-moved. Unit: tiles (Fix64). Range: 1 to 20.</summary>
+        public Fix64 WallProbeStepTiles { get; }
+
+        /// <summary>Rule WB: most breach intents per think. Unit: commands. Range: 0 to 60.</summary>
+        public int WallBreachMaxCommandsPerThink { get; }
+
         /// <summary>Package B: weight of each queue in the split of free common, in <see cref="AiBudget.QueueIds"/> order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
         public IReadOnlyList<int> BudgetCommonWeights { get; }
 
@@ -997,6 +1014,11 @@ namespace Rts.Ai
             SupportMaxPerType = root.RequireInt("support_max_per_type", 0, 20);
             SupportTrailTiles = root.RequireFix64("support_trail_tiles", "0", "20");
             SupportRegroupTiles = root.RequireFix64("support_regroup_tiles", "1", "20");
+            UseWallBreach = root.RequireBool("use_wall_breach");
+            WallBreachMemorySeconds = root.RequireInt("wall_breach_memory_seconds", 1, 120);
+            WallBreachStandoffTiles = root.RequireFix64("wall_breach_standoff_tiles", "0.5", "10");
+            WallProbeStepTiles = root.RequireFix64("wall_probe_step_tiles", "1", "20");
+            WallBreachMaxCommandsPerThink = root.RequireInt("wall_breach_max_commands_per_think", 0, 60);
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1134,6 +1156,7 @@ namespace Rts.Ai
                 "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues", "use_research",
                 "use_casts", "wave_min_enemy_supply", "wave_melee_range_tiles", "wave_aim_weights", "wave_max_commands_per_think", "grounding_min_air_supply", "grounding_max_commands_per_think",
                 "use_support_units", "support_max_per_type", "support_trail_tiles", "support_regroup_tiles",
+                "use_wall_breach", "wall_breach_memory_seconds", "wall_breach_standoff_tiles", "wall_probe_step_tiles", "wall_breach_max_commands_per_think",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
