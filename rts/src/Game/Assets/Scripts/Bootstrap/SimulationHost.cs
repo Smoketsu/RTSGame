@@ -40,7 +40,8 @@
 //     Resources (modelFolder + definition ID; the uprooted HQ adds uprootedSuffix), scaled to 2 x radius (units) or the footprint
 //     (structures), else today's cube. Model units also get a disc in the owner's colour. Facing is presentation only: from the
 //     root's motion each frame, or towards a shot's target. Rigged models play idle, move, attack and death through ClipPlayer;
-//     a visible rigged unit's model is left as a corpse for one death clip while its root, ring and entry go at once. Fog and the
+//     a visible rigged unit's model is left as a corpse for one death clip (a flyer's drops to the ground over it) while its root,
+//     ring and entry go at once. Fog and the
 //     kill effect use SetUnitVisible and IsUnitVisible, which cover every renderer of the unit. Drawing never changes a hash.
 //   - Match end (UI-10): after each step MatchOutcome.Evaluate; once decided the host stops stepping (as the harness does), logs the
 //     result and writes the replay at once. Outcome exposes the result to the HUD.
@@ -169,6 +170,15 @@ namespace Rts.Game.Bootstrap
 
             /// <summary>When it is destroyed. Unit: Time.unscaledTime seconds.</summary>
             public float RemoveAt;
+
+            /// <summary>Clip length; the corpse lands over this time. Unit: seconds. Range: above 0.</summary>
+            public float Duration;
+
+            /// <summary>Height a flyer's corpse falls (the clips tumble in place at hover height, README part 3); 0 for ground units. Unit: world units. Range: 0 upward.</summary>
+            public float Fall;
+
+            /// <summary>The model's world height when it died. Unit: world units.</summary>
+            public float StartY;
         }
 
         /// <summary>Read-only handle to one unit's cube, handed to presentation code (selection, rings). Holds no simulation state.</summary>
@@ -1024,20 +1034,29 @@ namespace Rts.Game.Bootstrap
             view.Child.localRotation = Quaternion.Euler(0f, yaw, 0f);
         }
 
-        /// <summary>Destroys corpses whose death clip has run out, or all of them.</summary>
+        /// <summary>Lowers falling flyer corpses towards the ground, and destroys corpses whose death clip has run out, or all of them.</summary>
         /// <param name="all">True to remove every corpse (scene teardown).</param>
         private void RemoveFinishedCorpses(bool all)
         {
             for (int i = _corpses.Count - 1; i >= 0; i--)
             {
-                if (all || Time.unscaledTime >= _corpses[i].RemoveAt)
+                Corpse corpse = _corpses[i];
+                if (all || Time.unscaledTime >= corpse.RemoveAt)
                 {
-                    _corpses[i].Clips.Dispose();
-                    if (_corpses[i].Model != null)
+                    corpse.Clips.Dispose();
+                    if (corpse.Model != null)
                     {
-                        Destroy(_corpses[i].Model);
+                        Destroy(corpse.Model);
                     }
                     _corpses.RemoveAt(i);
+                }
+                else if (corpse.Fall > 0f && corpse.Model != null)
+                {
+                    // Fraction of the clip played. Unit: fraction. Range: 0 to 1. Squared so the fall speeds up like a drop.
+                    float t = 1f - (corpse.RemoveAt - Time.unscaledTime) / corpse.Duration;
+                    Vector3 position = corpse.Model.transform.position;
+                    position.y = corpse.StartY - corpse.Fall * t * t;
+                    corpse.Model.transform.position = position;
                 }
             }
         }
@@ -1535,7 +1554,17 @@ namespace Rts.Game.Bootstrap
                 view.Transform.position = view.Current;
                 view.Child.SetParent(_unitRoot, true);
                 view.Clips.Play(ClipPlayer.Death, 1f, true);
-                _corpses.Add(new Corpse { Model = view.Child.gameObject, Clips = view.Clips, RemoveAt = Time.unscaledTime + view.Clips.Length(ClipPlayer.Death) });
+                // Clip length. Unit: seconds.
+                float length = Mathf.Max(0.01f, view.Clips.Length(ClipPlayer.Death));
+                _corpses.Add(new Corpse
+                {
+                    Model = view.Child.gameObject,
+                    Clips = view.Clips,
+                    RemoveAt = Time.unscaledTime + length,
+                    Duration = length,
+                    Fall = view.Height - GroundHeight,
+                    StartY = view.Child.position.y,
+                });
             }
             else
             {

@@ -5,7 +5,8 @@
 // reads back per file: scale settings, bounds at scale 1 (longest x/z side 1.0 and lowest point 0, within 0.01), rig type, clips with their
 // loop flags, and each renderer's material and texture size. A file whose bounds are off is reported with "OFF" for the cloud session
 // (rts/tools/Models3D). Files with animation takes are rigged: Generic rig from this model, root node "root", one clip per take named as
-// the take, looping only for idle and move. Every other file gets no rig. Editor only; never touches the simulation. Part of Rts.Game.Editor.
+// the take, looping only for idle and move, with the root bone's motion baked into the pose (the game never applies root motion, and
+// the clips lift the root to keep feet above the ground); the read-back also counts each rigged file's bone scale curves. Every other file gets no rig. Editor only; never touches the simulation. Part of Rts.Game.Editor.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -111,6 +112,14 @@ namespace Rts.Game.EditorTools
                 {
                     clip.name = ClipName(clip.takeName);
                     clip.loopTime = Array.IndexOf(LoopingClips, clip.name) >= 0;
+                    // Root motion is off at runtime, so the root bone's own keys (ground_clamp lift, lunges, the flyers' bob) are baked
+                    // into the pose as authored instead of being extracted and dropped (README part 3).
+                    clip.lockRootRotation = true;
+                    clip.lockRootHeightY = true;
+                    clip.lockRootPositionXZ = true;
+                    clip.keepOriginalOrientation = true;
+                    clip.keepOriginalPositionY = true;
+                    clip.keepOriginalPositionXZ = true;
                 }
                 importer.clipAnimations = clips;
             }
@@ -313,8 +322,24 @@ namespace Rts.Game.EditorTools
                 line.Append(" | root " + importer.motionNodeName + " | clips");
                 foreach (ModelImporterClipAnimation clip in importer.clipAnimations)
                 {
-                    line.Append(" " + clip.name + (clip.loopTime ? ":loop" : ":once"));
+                    line.Append(" " + clip.name + (clip.loopTime ? ":loop" : ":once") + (clip.lockRootHeightY && clip.keepOriginalPositionY ? ":baked" : ":rootmotion"));
                 }
+                // Bone scale curves the imported clips kept (the Tidecaller bell and the Ink Lobber base squash need them).
+                int scaleCurves = 0;
+                foreach (UnityEngine.Object asset in AssetDatabase.LoadAllAssetsAtPath(path))
+                {
+                    if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__"))
+                    {
+                        foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(clip))
+                        {
+                            if (binding.propertyName.StartsWith("m_LocalScale"))
+                            {
+                                scaleCurves++;
+                            }
+                        }
+                    }
+                }
+                line.Append(" | scale curves " + scaleCurves);
             }
             return line.ToString();
         }
