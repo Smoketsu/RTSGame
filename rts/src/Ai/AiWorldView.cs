@@ -11,6 +11,7 @@
 // (planetary_cycles.md section 5: the active and next cycle, the allowed next cycles, who holds and captures the Core). The Core
 // capture status (capture team, contested flag, progress, holder) is PUBLIC because the shared timeline bar shows it to everyone; the
 // holder's pending pick is PRIVATE and is exposed only to the holder's own team (and for script picks).
+// ai_mechanic_use.md P2 adds, for own units only, the move target (rule ST asks whether a unit already walks to its trail point).
 // ai_mechanic_use.md P1 adds, for own units only, the wave and grounding ready ticks and the wave strip size. The wave ready tick is read
 // through FloodingMechanic (Rts.Sim.Factions.Water), a plumbing exception to "the AI never names a faction type" (AiCommandWriter in
 // AiIntent.cs is the other); the brain itself names no faction.
@@ -64,6 +65,9 @@ namespace Rts.Ai
 
         /// <summary>Own units: true while walking to a move target. Enemy units: always false (orders are hidden).</summary>
         public bool HasMoveTarget { get; }
+
+        /// <summary>Own units: destination of the active move order (meaningful only while <see cref="HasMoveTarget"/>; zero otherwise). Enemy units: zero. Unit: tiles. Range: inside the map.</summary>
+        public FixVec2 MoveTarget { get; }
 
         /// <summary>Own units: true while under an attack-move order. Enemy units: always false.</summary>
         public bool IsAttackMoving { get; }
@@ -124,8 +128,9 @@ namespace Rts.Ai
             HqState hqState, bool isUnderConstruction, bool hasMoveTarget, bool isAttackMoving, FixVec2 attackMoveGoal,
             EntityId attackTarget, bool isAttackTargetForced, GatherState gatherState, int gatherFieldIndex, IReadOnlyList<string> queue,
             BuildOrderState buildState = BuildOrderState.None, string buildDefinitionId = "", int buildTileX = -1, int buildTileY = -1,
-            int waveReadyTick = 0, int groundingReadyTick = 0)
+            int waveReadyTick = 0, int groundingReadyTick = 0, FixVec2 moveTarget = default)
         {
+            MoveTarget = moveTarget;
             WaveReadyTick = waveReadyTick;
             GroundingReadyTick = groundingReadyTick;
             BuildState = buildState;
@@ -159,7 +164,7 @@ namespace Rts.Ai
                 unit.IsUnderConstruction, unit.HasMoveTarget, unit.IsAttackMoving, unit.AttackMoveGoal, unit.AttackTarget,
                 unit.IsAttackTargetForced, unit.GatherState,
                 unit.GatherState == GatherState.Idle ? -1 : unit.GatherFieldIndex, new List<string>(unit.ProductionQueue).AsReadOnly(),
-                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY, waveReadyTick, unit.GroundingReadyTick);
+                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY, waveReadyTick, unit.GroundingReadyTick, unit.HasMoveTarget ? unit.MoveTarget : FixVec2.Zero);
         }
 
         /// <summary>Copies a visible enemy unit: only what a player sees (type, position, health, layer, HQ state, construction).</summary>
@@ -541,6 +546,7 @@ namespace Rts.Ai
                 view._blocked[index] = (tile.Blockers & TileBlockers.Wall) != 0 || ((tile.Blockers & (TileBlockers.Footprint | TileBlockers.BuiltWall | TileBlockers.Gate)) != 0 && view._visible[index]);
             }
 
+            // foundMechanic (in the next statement): the mechanic registered under FloodingMechanic.MechanicId, set by the lookup. Range: any IFactionMechanic when the lookup succeeds, otherwise null.
             // The flooding mechanic, or null when the match has none (then no unit has a wave cooldown).
             FloodingMechanic? flooding = sim.Mechanics.TryGetValue(FloodingMechanic.MechanicId, out IFactionMechanic? foundMechanic) ? foundMechanic as FloodingMechanic : null;
             // Own units in ascending ID order.

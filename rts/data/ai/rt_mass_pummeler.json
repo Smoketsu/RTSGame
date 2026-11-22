@@ -324,6 +324,14 @@
   "grounding_min_air_supply": 3,
   // Rule CG: most cast_grounding commands one think emits. Unit: commands. Range: 0 to 40. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
   "grounding_max_commands_per_think": 4,
+  // Rules SU (train support units by army size), ST (support trail) and RQ-1's support extension on; false: the AI trains no support units by rule and never trails them. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder (the switch is a measurement, shipped true only in aggressive_s5_m).
+  "use_support_units": false,
+  // Rule SU: most support units of one type the AI wants at once. Unit: units. Range: 0 to 20. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 Q-5: at most 3); placeholder.
+  "support_max_per_type": 3,
+  // Rule ST: how far behind the armed attack group, toward home, a support unit stands. Unit: tiles (Fix64). Range: 0 to 20. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "support_trail_tiles": 3,
+  // Rule ST: distance from its trail point beyond which a support unit is ordered to move there. Unit: tiles (Fix64). Range: 1 to 20. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "support_regroup_tiles": 3,
   // Package B: weight of each queue in the split of free common (relative; the army's 60 is the reference): economy 120 (a worker per 12 s needs 125 common per 30 s), expansion 120 (a depot is income like two workers), production 10 and tech 4 (about 0.21 of the army together, from the measured structure share), army 60, defence 6 (0.09 against the army, under the 0.15 behaviour bar). Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder beyond those anchors.
   "budget_common_weights": { "economy": 120, "expansion": 120, "production": 10, "army": 60, "tech": 4, "defence": 6 },
   // Package B: the same for free rare: production 30 (Storm Spire, Reef Workshop), army 60, tech 30 (half the army); 0 where no item costs rare. Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder.
@@ -368,6 +376,8 @@
       "attack_tide_max": 1,
       // Ignore the tide window at or above this army supply. Unit: supply. Range: 1 to 400. Source: placeholder.
       "attack_tide_override_supply": 20,
+      // Rule SU: support units trained by army size, as unit ID to army supply per unit (wanted = min(support_max_per_type, army supply / this)); {} = none. Unit: unit ID to supply per unit. Range: 0 to 20 entries, each value 1 to 200, each a unit of this faction with supply above 0. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 Q-5: 12 and 20); placeholder.
+      "support_units": {},
       // Openings, one of which is drawn by weight at match start (each: id, weight 0 to 100, build_order replacing the plan's for the whole game, composition and the four timing keys until handover_seconds); [] = none, the plan plays as written. Unit: array of openings. Range: 0 to 16 entries; weights sum above 0 when not empty. Source: skirmish_ai_v4_rl.md L.2; placeholder.
       "openings": [],
       // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.

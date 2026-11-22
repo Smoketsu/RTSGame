@@ -123,9 +123,13 @@ namespace Rts.Ai
         public static AiIntent UprootHq(EntityId hq) => new AiIntent(AiIntentKind.UprootHq, hq, -1, string.Empty, 0, 0, FixVec2.Zero);
 
         /// <summary>Cast the wave from <paramref name="caster"/> towards a point (the point only gives the direction).</summary>
+        /// <param name="caster">Own unit that can cast the wave. Range: a live own unit with a ready wave.</param>
+        /// <param name="target">Point that only gives the direction (the Sim's WaveDirection maps it to one of eight). Unit: tiles. Range: inside the map, not the caster's own position.</param>
         public static AiIntent CastWave(EntityId caster, FixVec2 target) => new AiIntent(AiIntentKind.CastWave, caster, -1, string.Empty, 0, 0, target);
 
         /// <summary>Cast Downdraft from <paramref name="caster"/> centred on a point.</summary>
+        /// <param name="caster">Own unit with a grounding ability. Range: a live own unit with a ready ability.</param>
+        /// <param name="target">Centre of the pulse. Unit: tiles. Range: inside the map and within the ability's range of the caster.</param>
         public static AiIntent CastGrounding(EntityId caster, FixVec2 target) => new AiIntent(AiIntentKind.CastGrounding, caster, -1, string.Empty, 0, 0, target);
 
         /// <summary>Builds the command for this intent.</summary>

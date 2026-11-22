@@ -90,12 +90,15 @@ namespace Rts.Ai
             SortedSet<int> tiles = new SortedSet<int>();
             // Half the width, rounded down. Unit: tiles. Range: 0 to 4.
             int half = (width - 1) / 2;
+            // Distance along the direction. Unit: tiles. Range: 1 to length.
             for (int s = 1; s <= length; s++)
             {
+                // Offset across the direction, left negative. Unit: tiles. Range: -half to half.
                 for (int o = -half; o <= half; o++)
                 {
-                    // Covered tile at distance s along and offset o across. Unit: tiles.
+                    // Tile column of the covered tile at distance s along and offset o across. Unit: tiles. Range: any, kept only inside the map.
                     int x = casterX + s * ux - o * uy;
+                    // Tile row of the same covered tile. Unit: tiles. Range: any, kept only inside the map.
                     int y = casterY + s * uy + o * ux;
                     if (x >= 0 && y >= 0 && x < mapWidth && y < mapHeight)
                     {
