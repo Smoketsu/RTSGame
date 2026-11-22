@@ -96,7 +96,7 @@ namespace Rts.Tools.BalanceHarness
                 // Determinism spot check: the first games of the first cell run again in this process, summaries included.
                 int verify = Math.Min(eval.LadderVerifyGames, games);
                 mismatches = BehaviourRunner.SpotCheck(records, g => GameRunner.Play(data, maps[0], matchups[0], g, SeedDerivation.GameSeed(baseSeed, maps[0], matchups[0], g), profile, profile, maxSeconds, null, -1, -1,
-                    new SummaryObserver(eval.SummaryBucketSeconds, eval.SummaryBankTimesSeconds)), verify, maps[0], matchups[0]);
+                    eval.NewObserver()), verify, maps[0], matchups[0]);
                 if (options.FightsFrom.Length == 0)
                 {
                     // The fight sweep of package C (about 22 s at 4 jobs); its own files go to a subfolder of the output folder.
@@ -144,7 +144,7 @@ namespace Rts.Tools.BalanceHarness
             }
             jsonl.Append(predictor == null ? "{\"predictor\":null}" : "{\"predictor\":{\"decided\":" + predictor.Decided.ToString(CultureInfo.InvariantCulture) + ",\"correct\":" + predictor.Correct.ToString(CultureInfo.InvariantCulture) + "}}").Append('\n');
             File.WriteAllText(Path.Combine(outDirectory, "balance.jsonl"), jsonl.ToString(), new UTF8Encoding(false));
-            File.WriteAllText(Path.Combine(outDirectory, "balance.md"), BalanceReport.Build(records, data, settings, meta, eval.SummaryBankTimesSeconds, checks), new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(outDirectory, "balance.md"), BalanceReport.Build(records, data, settings, meta, eval.SummaryBankTimesSeconds, checks, eval), new UTF8Encoding(false));
             foreach (BalanceCheck check in checks)
             {
                 output.Write(check.Line + "\n");

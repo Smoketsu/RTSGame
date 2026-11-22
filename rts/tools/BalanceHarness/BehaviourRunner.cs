@@ -275,7 +275,7 @@ namespace Rts.Tools.BalanceHarness
             // Determinism spot check: the first games of the first cell run again in this process, summaries included.
             int verify = Math.Min(settings.LadderVerifyGames, games);
             int mismatches = SpotCheck(records, g => GameRunner.PlayLadder(data, maps[0], matchups[0], g, baseSeed, options.ProfileA, options.ProfileB, maxSeconds, true, 0UL, null,
-                new SummaryObserver(settings.SummaryBucketSeconds, settings.SummaryBankTimesSeconds)), verify, maps[0], matchups[0]);
+                settings.NewObserver()), verify, maps[0], matchups[0]);
 
             // Lines: per check the candidate then the baseline.
             List<string> lines = new List<string>();

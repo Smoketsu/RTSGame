@@ -127,11 +127,16 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Effective layer of every unit seen, as of the last step it existed in (read by the detectors).</summary>
         private readonly SortedDictionary<EntityId, MovementLayer> _layers = new SortedDictionary<EntityId, MovementLayer>();
 
+        /// <summary>The production and defence metric collector, or null when the observer was built without settings (no metrics, no extra keys).</summary>
+        private readonly ProductionMetricsCollector? _metrics;
+
         /// <summary>Creates an observer.</summary>
         /// <param name="bucketSeconds">Seconds per income bucket. Unit: seconds. Range: 5 to 600.</param>
         /// <param name="bankSeconds">Seconds of the bank snapshots, ascending. Unit: seconds. Range: 1 to 8 entries of 1 to 7200.</param>
-        public SummaryObserver(int bucketSeconds, IReadOnlyList<int> bankSeconds)
+        /// <param name="metrics">The ai_eval.json settings of the production and defence metrics, or null for none.</param>
+        public SummaryObserver(int bucketSeconds, IReadOnlyList<int> bankSeconds, AiEvalSettings? metrics = null)
         {
+            _metrics = metrics == null ? null : new ProductionMetricsCollector(metrics);
             _bucketSeconds = bucketSeconds;
             _bankSeconds = bankSeconds;
         }
@@ -152,6 +157,7 @@ namespace Rts.Tools.BalanceHarness
                 _slots.Add(player.Id.Value, new Slot(_bankSeconds.Count));
             }
             Learn(sim);
+            _metrics?.Begin(sim);
         }
 
         /// <summary>Called after the controllers thought and before the step: notes the train and build commands each submitted.</summary>
@@ -179,6 +185,7 @@ namespace Rts.Tools.BalanceHarness
         public void AfterStep(Simulation sim)
         {
             Learn(sim);
+            _metrics?.Observe(sim, sim.Clock.Tick - 1, sim.Events.Current);
             // Commands the simulation refused this step.
             HashSet<Command> rejected = new HashSet<Command>();
             foreach (SimEvent simEvent in sim.Events.Current)
@@ -266,13 +273,18 @@ namespace Rts.Tools.BalanceHarness
             // Buckets that have started by the last tick. Unit: buckets. Range: 1 upward.
             int buckets = lastTick / _bucketTicks + 1;
             List<GameSummary> summaries = new List<GameSummary>();
+            // Metrics per slot in ascending player order, or null. Unit: one per slot.
+            ProductionMetrics[]? production = _metrics?.Results();
+            // Index of the slot being summarised. Range: 0 to slots - 1.
+            int slotIndex = 0;
             foreach (Slot slot in _slots.Values)
             {
                 while (slot.Income.Count < buckets)
                 {
                     slot.Income.Add(new int[2]);
                 }
-                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs, slot.FirstTick));
+                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs, slot.FirstTick, production?[slotIndex]));
+                slotIndex++;
             }
             return summaries.ToArray();
         }

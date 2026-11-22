@@ -440,6 +440,135 @@ namespace Rts.Tools.BalanceHarness
             return values[(values.Count - 1) / 2];
         }
 
+        /// <summary>The median of a list as text: the middle value, or for an even count the mean of the two middle values with ".5" when it is not whole; "-" for an empty list.</summary>
+        /// <param name="values">Integers in any order (sorted in place).</param>
+        public static string MedianText(List<int> values)
+        {
+            if (values.Count == 0)
+            {
+                return "-";
+            }
+            values.Sort();
+            // The two middle values added. Unit: same as the values. Range: twice the value range.
+            long twice = (long)values[(values.Count - 1) / 2] + values[values.Count / 2];
+            return (twice / 2).ToString(CultureInfo.InvariantCulture) + (twice % 2 != 0 ? ".5" : string.Empty);
+        }
+
+        /// <summary>The section "Production and defence metrics" (spec ai_production_defence.md sections 7 and 9): per (faction, cross or mirror) cell the median of each metric over the cell's slot-games, then per sample time the medians of the samples and of their two ratios. Empty text when no record carries metrics.</summary>
+        /// <param name="records">Records with summaries.</param>
+        /// <param name="bankSeconds">The bank times of the summaries, for the bank at 300 s. Unit: seconds.</param>
+        /// <param name="eval">The settings (sample times and income bucket length).</param>
+        public static string MetricsSection(IReadOnlyList<GameRecord> records, IReadOnlyList<int> bankSeconds, AiEvalSettings eval)
+        {
+            // Summaries by cell key "faction cross" or "faction mirror", ordinal key order.
+            SortedDictionary<string, List<GameSummary>> cells = new SortedDictionary<string, List<GameSummary>>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, KeyValuePair<GameSummary, GameRecord>> slotGame in SlotGames(records))
+            {
+                if (slotGame.Value.Key.Production == null)
+                {
+                    continue;
+                }
+                // Cell key of this slot-game.
+                string key = slotGame.Key + (slotGame.Value.Value.Slot0Faction == slotGame.Value.Value.Slot1Faction ? " mirror" : " cross");
+                if (!cells.TryGetValue(key, out List<GameSummary>? list))
+                {
+                    list = new List<GameSummary>();
+                    cells.Add(key, list);
+                }
+                list.Add(slotGame.Value.Key);
+            }
+            if (cells.Count == 0)
+            {
+                return string.Empty;
+            }
+            // Bank index of 300 s and the income buckets of 240 to 300 s; -1 when the settings do not have them.
+            int bank300 = -1;
+            for (int i = 0; i < bankSeconds.Count; i++)
+            {
+                bank300 = bankSeconds[i] == 300 ? i : bank300;
+            }
+            int firstBucket = eval.SummaryBucketSeconds > 0 && 240 % eval.SummaryBucketSeconds == 0 && 300 % eval.SummaryBucketSeconds == 0 ? 240 / eval.SummaryBucketSeconds : -1;
+            int lastBucket = firstBucket < 0 ? -1 : 300 / eval.SummaryBucketSeconds - 1;
+            StringBuilder sb = new StringBuilder();
+            sb.Append("\n## Production and defence metrics\n\nMedian over the cell's slot-games (the mean of the two middle values for an even count); cells are the slot's faction in a cross or a mirror matchup. Window ")
+                .Append(eval.SummaryWindowSeconds.ToString(CultureInfo.InvariantCulture)).Append(" s; raid radius ").Append(eval.RaidRadiusTiles.ToString(CultureInfo.InvariantCulture))
+                .Append(" tiles; income 240-300 is the sum of the income buckets covering 240 to 300 s (slot-games whose last bucket had not started are left out).\n\n");
+            sb.Append("| cell | slot-games | worker_losses | worker_fed_losses | raid_seconds | raid_unanswered_edge_seconds | bank_mean | bank at 300 s | income 240-300 |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+            foreach (KeyValuePair<string, List<GameSummary>> cell in cells)
+            {
+                List<int> losses = new List<int>();
+                List<int> fed = new List<int>();
+                List<int> raid = new List<int>();
+                List<int> unanswered = new List<int>();
+                List<int> mean = new List<int>();
+                List<int> bank = new List<int>();
+                List<int> income = new List<int>();
+                foreach (GameSummary summary in cell.Value)
+                {
+                    ProductionMetrics m = summary.Production!;
+                    losses.Add(m.WorkerLosses);
+                    fed.Add(m.WorkerFedLosses);
+                    raid.Add(m.RaidSeconds);
+                    unanswered.Add(m.RaidUnansweredEdgeSeconds);
+                    if (m.BankMean != null)
+                    {
+                        mean.Add(m.BankMean.Value);
+                    }
+                    if (bank300 >= 0 && bank300 < summary.Bank.Count && summary.Bank[bank300] != null)
+                    {
+                        bank.Add(summary.Bank[bank300]![0]);
+                    }
+                    if (firstBucket >= 0 && summary.Income.Count > lastBucket)
+                    {
+                        // Common deposited in the buckets of 240 to 300 s. Unit: common.
+                        int sum = 0;
+                        for (int b = firstBucket; b <= lastBucket; b++)
+                        {
+                            sum += summary.Income[b][0];
+                        }
+                        income.Add(sum);
+                    }
+                }
+                sb.Append("| ").Append(cell.Key).Append(" | ").Append(cell.Value.Count.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(MedianText(losses)).Append(" | ").Append(MedianText(fed)).Append(" | ")
+                    .Append(MedianText(raid)).Append(" | ").Append(MedianText(unanswered)).Append(" | ").Append(MedianText(mean)).Append(" | ").Append(MedianText(bank)).Append(" | ").Append(MedianText(income)).Append(" |\n");
+            }
+            sb.Append("\nSamples (null after the game's end are left out). The last two columns are the median of producers x 1000 / income_60 and of capacity x 60 / income_60 per slot-game (integer division; slot-games with income_60 0 left out).\n\n");
+            sb.Append("| cell | time (s) | n | producers | capacity | income_60 | army_supply | producers x 1000 / income_60 | capacity x 60 / income_60 |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+            foreach (KeyValuePair<string, List<GameSummary>> cell in cells)
+            {
+                for (int s = 0; s < eval.SummarySampleSeconds.Count; s++)
+                {
+                    List<int> producers = new List<int>();
+                    List<int> capacity = new List<int>();
+                    List<int> income60 = new List<int>();
+                    List<int> army = new List<int>();
+                    List<int> perIncome = new List<int>();
+                    List<int> capPerIncome = new List<int>();
+                    foreach (GameSummary summary in cell.Value)
+                    {
+                        ProductionMetrics m = summary.Production!;
+                        if (s >= m.Producers.Count || m.Producers[s] == null)
+                        {
+                            continue;
+                        }
+                        producers.Add(m.Producers[s]!.Value);
+                        capacity.Add(m.Capacity[s]!.Value);
+                        income60.Add(m.Income60[s]!.Value);
+                        army.Add(m.ArmySupply[s]!.Value);
+                        if (m.Income60[s]!.Value > 0)
+                        {
+                            perIncome.Add((int)((long)m.Producers[s]!.Value * 1000 / m.Income60[s]!.Value));
+                            capPerIncome.Add((int)((long)m.Capacity[s]!.Value * 60 / m.Income60[s]!.Value));
+                        }
+                    }
+                    sb.Append("| ").Append(cell.Key).Append(" | ").Append(eval.SummarySampleSeconds[s].ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(producers.Count.ToString(CultureInfo.InvariantCulture)).Append(" | ")
+                        .Append(MedianText(producers)).Append(" | ").Append(MedianText(capacity)).Append(" | ").Append(MedianText(income60)).Append(" | ").Append(MedianText(army)).Append(" | ")
+                        .Append(MedianText(perIncome)).Append(" | ").Append(MedianText(capPerIncome)).Append(" |\n");
+                }
+            }
+            return sb.ToString();
+        }
+
         /// <summary>The unspent rows: for every faction and bank time, the lower medians of the bank over the slot-games still running at that time.</summary>
         /// <param name="records">Records with summaries.</param>
         /// <param name="bankSeconds">The bank times of the summaries. Unit: seconds.</param>
@@ -550,7 +679,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="meta">Profile, base seed, games per cell and cap the run used.</param>
         /// <param name="bankSeconds">The bank times of the summaries. Unit: seconds.</param>
         /// <param name="checks">The checks from <see cref="Checks"/>.</param>
-        public static string Build(IReadOnlyList<GameRecord> records, DataSet data, BalanceSettings settings, BalanceMeta meta, IReadOnlyList<int> bankSeconds, IReadOnlyList<BalanceCheck> checks)
+        /// <param name="eval">The ai_eval.json settings, for the production and defence section; null leaves that section out.</param>
+        public static string Build(IReadOnlyList<GameRecord> records, DataSet data, BalanceSettings settings, BalanceMeta meta, IReadOnlyList<int> bankSeconds, IReadOnlyList<BalanceCheck> checks, AiEvalSettings? eval = null)
         {
             // Wilson z-score (tuning/harness_batch.json confidence_z). Range: 1 to 4.
             double z = HarnessStats.ToDouble(data.Tuning.HarnessBatch.ConfidenceZ);
@@ -671,6 +801,11 @@ namespace Rts.Tools.BalanceHarness
             {
                 sb.Append("| ").Append(row.Faction).Append(" | ").Append(row.Seconds.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(row.N.ToString(CultureInfo.InvariantCulture)).Append(" | ")
                     .Append(row.N > 0 ? row.MedianCommon.ToString(CultureInfo.InvariantCulture) : "-").Append(" | ").Append(row.N > 0 ? row.MedianRare.ToString(CultureInfo.InvariantCulture) : "-").Append(" |\n");
+            }
+            // 6b. production and defence metrics (only when the records carry them).
+            if (eval != null)
+            {
+                sb.Append(MetricsSection(records, bankSeconds, eval));
             }
             // 7. trust checks.
             sb.Append("\n## Trust checks\n\nBars are placeholders for the developer (balance_report.json).\n\n");
