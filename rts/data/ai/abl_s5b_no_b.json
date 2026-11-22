@@ -1,7 +1,7 @@
 // rts/data/ai/abl_s5b_no_b.json: ablation of the budget-queue candidate aggressive_s5_b with use_budget_queues false: it plays exactly as aggressive_s5 (test BQ-1) and is the named off-copy for reports and for packages built on the candidate (specs/ai_budget_queues.md B.2). Part of rts/data/ai; read by Rts.Ai.AiProfile.
 {
   "$schema_version": 1,
-  "$doc": "Ablation of aggressive_s5_b: the budget queues off (specs/ai_budget_queues.md B.2). Plays as aggressive_s5.",
+  "$doc": "Ablation of aggressive_s5_b: the budget queues off (specs/ai_budget_queues.md B.2). Plays as aggressive_s5. Research (use_research) is switched on here since 22 Nov 2026 by the developer's decision (research is on in the main AI); no other profile changed.",
   // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "abl_s5b_no_b",
   // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
@@ -308,8 +308,8 @@
   "harass_speed_ratio": 0,
   // Package B: the AI divides its bank between six budget queues (economy, expansion, production, army, tech, defence) instead of rule R's shared reservations; false plays exactly as before. Unit: boolean. Range: true or false. Source: specs/ai_budget_queues.md B.2; placeholder (the switch is a measurement, shipped true only in aggressive_s5_b).
   "use_budget_queues": false,
-  // Research rules RQ-1 and RQ-2 on: the AI queues research its army mix needs at its tech buildings, and, while the rare surplus is active (budget queues only), any research left. Off: research-gated units are never trained (research_and_unlocks.md R1.8). Unit: boolean. Range: true or false. Source: rts/docs/specs/research_and_unlocks.md R2.1; placeholder.
-  "use_research": false,
+  // Research rules RQ-1 and RQ-2 on: the AI queues research its army mix needs at its tech buildings, and, while the rare surplus is active (budget queues only), any research left. Off: research-gated units are never trained (research_and_unlocks.md R1.8). Unit: boolean. Range: true or false. Source: rts/docs/specs/research_and_unlocks.md R2.1; placeholder. Switched on in this profile on 22 Nov 2026 with aggressive_s5 (the developer: research is on in the main AI).
+  "use_research": true,
   // Rules CG (Downdraft) and CW (wave) on: an own caster off cooldown casts at a clump of visible enemies; false: the AI never casts. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder (the switch is a measurement, shipped true only in aggressive_s5_m).
   "use_casts": false,
   // Rule CW: least total supply of visible enemy ground army units one wave strip must catch before a Tidecaller casts. Unit: supply, weighted (Fix64). Range: 0.5 to 200. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 A2: two Pummelers); placeholder.
