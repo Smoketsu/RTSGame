@@ -113,6 +113,10 @@
 //      window and the regroup timer, without staging and without retreating. All in: with all_in_when_mined_out, once no
 //      field on the map has known resources (rule A), the attack threshold drops to 1 supply, the tide window is ignored, the army never
 //      retreats and every army unit joins the group each think (no reinforcements can come, so waiting only stalls the match).
+// ai_mechanic_use.md P1 (use_casts, AiAbilities.cs): in rule 6 (Army), right after unit control and before the stance orders, rule CG casts Downdraft from every
+// own unit with a ready grounding ability at the visible enemy flyer clump worth grounding_min_air_supply, then rule CW casts the wave from every own wave caster at
+// the 6 by 3 strip (one of eight directions) holding wave_min_enemy_supply of visible enemy ground army units (melee only for the melee aim drawn per match by AiVariety).
+// Casting changes no orders, so a caster still gets its stance orders. Draws: one wave-aim draw at the end of AiVariety.Create, only with use_casts.
 // Package B of specs/ai_budget_queues.md (AiBrainBudget.cs, AiBudget.cs; only with use_budget_queues, off in every profile but aggressive_s5_b): two budget steps join the rule order, Open after rule 2 (Gather) and Close after
 // rule 5b (ExtraProducer). Six queues (economy: 3a supply building and 4b workers; expansion: rule E depots; production: 3b build-order steps and rule X; army: 4c scout and rule P; tech: rules T and T2; defence: rule SD) each hold
 // an account per resource, filled at Open in proportion to per-queue weights from the money in no account, and buy only from their own account. The first item of a queue that fails only on money is its head: its cost is the
@@ -3205,6 +3209,63 @@ namespace Rts.Ai
                 return false;
             }
 
+            /// <summary>True when an ability whose cooldown ends at <paramref name="readyTick"/> can be cast by a command applied after the command delay (ai_mechanic_use.md section 2).</summary>
+            /// <param name="readyTick">First tick the ability may be cast. Unit: ticks. Range: 0 upward.</param>
+            private bool AbilityReady(int readyTick)
+            {
+                return readyTick <= _view.Tick + _memory.CommandDelayTicks;
+            }
+
+            /// <summary>Rule CG (ai_mechanic_use.md M1, only with use_casts): each own unit with a ready grounding ability, ascending ID, casts at the best visible flyer clump when it holds grounding_min_air_supply. Does not take control of the unit.</summary>
+            private void CastGrounding()
+            {
+                // Casts still allowed this think. Unit: commands. Range: 0 to grounding_max_commands_per_think.
+                int budget = _profile.GroundingMaxCommandsPerThink;
+                foreach (AiUnitView caster in _view.OwnUnits)
+                {
+                    if (budget <= 0)
+                    {
+                        return;
+                    }
+                    if (caster.Definition.GroundingAbility == null || caster.IsUnderConstruction || !AbilityReady(caster.GroundingReadyTick))
+                    {
+                        continue;
+                    }
+                    // Flyer supply the best pulse catches, and its centre. Unit: supply; tiles.
+                    int score = AiAbilities.ChooseGrounding(_view, caster, out FixVec2 target);
+                    if (score >= _profile.GroundingMinAirSupply && Emit(AiIntent.CastGrounding(caster.Id, target)))
+                    {
+                        budget--;
+                    }
+                }
+            }
+
+            /// <summary>Rule CW (ai_mechanic_use.md M2.3, only with use_casts): each own wave caster with a ready wave, ascending ID, casts at the best strip when it holds wave_min_enemy_supply of the drawn aim. Does not take control of the unit.</summary>
+            private void CastWave()
+            {
+                // Casts still allowed this think. Unit: commands. Range: 0 to wave_max_commands_per_think.
+                int budget = _profile.WaveMaxCommandsPerThink;
+                // True when the drawn aim is melee (also when there is no variety stream).
+                bool meleeOnly = _memory.Variety == null || _memory.Variety.WaveAim == WaveAim.Melee;
+                foreach (AiUnitView caster in _view.OwnUnits)
+                {
+                    if (budget <= 0)
+                    {
+                        return;
+                    }
+                    if (!caster.Definition.Flood.CanCastWave || caster.IsUnderConstruction || !AbilityReady(caster.WaveReadyTick))
+                    {
+                        continue;
+                    }
+                    // Enemy supply in the best strip, and the point that gives its direction. Unit: supply; tiles.
+                    Fix64 score = AiAbilities.ChooseWave(_view, caster, meleeOnly, _profile.WaveMeleeRangeTiles, out FixVec2 target);
+                    if (score >= _profile.WaveMinEnemySupply && Emit(AiIntent.CastWave(caster.Id, target)))
+                    {
+                        budget--;
+                    }
+                }
+            }
+
             /// <summary>Rule 6: the army stance machine (rules D, G, K and M of skirmish_ai_v2.md), with the package D rules HR, D.5 and D.6 before the stance orders.</summary>
             public void Army()
             {
@@ -3225,6 +3286,11 @@ namespace Rts.Ai
                 PrepareGroups(armyAll);
                 Harass(armyAll, armySupplyAll);
                 UnitControl(armyAll);
+                if (_profile.UseCasts)
+                {
+                    CastGrounding();
+                    CastWave();
+                }
                 // The army the stance orders go to: everyone except the harass, defend and fallen-back units (all of them when package D is off).
                 // Total supply of the stance army (declared by the call below). Unit: supply. Range: 0 upward.
                 List<AiUnitView> army = StanceArmy(armyAll, out int armySupply);

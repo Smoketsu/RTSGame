@@ -6,7 +6,8 @@
 // Part of Rts.Ai. It is created by SkirmishAiController.OnMatchStart only when the profile asks for variety (AiVariety.IsNeeded), is held by
 // AiMemory.Variety, is not simulation state and is never hashed. Pure integer arithmetic (Fix64 for ratios), no clock, no System.Random: the
 // same (match seed, player, profile) gives the same draws in the same order (R.2): opening, opening composition band, main composition band,
-// expansion offset at creation; then one advantage offset per DrawAttackAdvantageOffset call.
+// expansion offset at creation, then (only when use_casts, rts/docs/specs/ai_mechanic_use.md section 6) the wave aim; then one advantage offset
+// per DrawAttackAdvantageOffset call.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -14,6 +15,16 @@ using Rts.Sim.Teams;
 
 namespace Rts.Ai
 {
+    /// <summary>Which enemies the AI's wave pushes (rule CW, ai_mechanic_use.md M2.3), drawn once per match.</summary>
+    public enum WaveAim : byte
+    {
+        /// <summary>Only enemy units whose weapon range is at most wave_melee_range_tiles count.</summary>
+        Melee = 0,
+
+        /// <summary>Every enemy ground or water army unit with a weapon counts.</summary>
+        All = 1,
+    }
+
     /// <summary>The variety stream and the values drawn from it for one AI player. Mutable (the generator advances); owned by one controller.</summary>
     public sealed class AiVariety
     {
@@ -63,6 +74,16 @@ namespace Rts.Ai
         /// <summary>Offset added to attack_min_advantage until the next <see cref="DrawAttackAdvantageOffset"/>. Unit: ratio. Range: -attack_advantage_jitter to +attack_advantage_jitter in steps of 0.01; 0 before the first draw.</summary>
         public Fix64 AttackAdvantageOffset { get; private set; }
 
+        /// <summary>The wave aim drawn at match start when use_casts is on; <see cref="WaveAim.Melee"/> otherwise (no draw is made).</summary>
+        public WaveAim WaveAim { get; private set; }
+
+        /// <summary>Sets the wave aim by hand (tests only).</summary>
+        /// <param name="aim">Value for <see cref="WaveAim"/>.</param>
+        internal void SetWaveAimForTest(WaveAim aim)
+        {
+            WaveAim = aim;
+        }
+
         /// <summary>Private: use <see cref="Create"/> (or build by hand in tests through the properties).</summary>
         private AiVariety(DeterministicRandom rng, AiFactionPlan plan)
         {
@@ -111,7 +132,8 @@ namespace Rts.Ai
         /// <param name="plan">The player's faction plan.</param>
         public static bool IsNeeded(AiProfile profile, AiFactionPlan plan)
         {
-            return plan.Openings.Count > 0 || profile.CompositionJitterFraction > Fix64.Zero || profile.ExpandJitterSeconds > 0 || profile.AttackAdvantageJitter > Fix64.Zero;
+            return plan.Openings.Count > 0 || profile.CompositionJitterFraction > Fix64.Zero || profile.ExpandJitterSeconds > 0 || profile.AttackAdvantageJitter > Fix64.Zero
+                || profile.UseCasts;
         }
 
         /// <summary>
@@ -186,6 +208,12 @@ namespace Rts.Ai
             if (profile.ExpandJitterSeconds > 0)
             {
                 variety.ExpandOffsetSeconds = rng.NextIntInclusive(-profile.ExpandJitterSeconds, profile.ExpandJitterSeconds);
+            }
+            if (profile.UseCasts)
+            {
+                // The wave aim draw: a uniform integer from 0 to the weight sum - 1; melee takes the first WaveAimMeleeWeight values. Unit: weight. Range: 0 to 199.
+                int aimDraw = rng.NextInt(profile.WaveAimMeleeWeight + profile.WaveAimAllWeight);
+                variety.WaveAim = aimDraw < profile.WaveAimMeleeWeight ? WaveAim.Melee : WaveAim.All;
             }
             return variety;
         }

@@ -64,6 +64,9 @@
 //     build_order, composition, handover_seconds, expand_at_seconds, early_expansion_seconds, attack_army_supply and attack_min_supply; one is
 //     drawn at match start (AiVariety). Validated here: unique IDs, a weight sum above 0, and that every unit with a requires list has its
 //     required structures in the opening's build order.
+//   * rts/docs/specs/ai_mechanic_use.md package P1 (casts): use_casts, wave_min_enemy_supply, wave_melee_range_tiles, wave_aim_weights (object with exactly melee and all),
+//     wave_max_commands_per_think, grounding_min_air_supply and grounding_max_commands_per_think (every profile file carries them; the old values false, 4, 1,
+//     { melee 100, all 0 }, 4, 3, 4 play exactly as before; only aggressive_s5_m has use_casts true).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -700,6 +703,30 @@ namespace Rts.Ai
         /// <summary>Research rules RQ-1 and RQ-2 (research_and_unlocks.md R2.2): the AI queues the research its army mix needs, and with budget queues any research left while the rare surplus is on. False: research-gated units are never trained (R1.8). Unit: boolean.</summary>
         public bool UseResearch { get; }
 
+        /// <summary>Rules CG and CW (ai_mechanic_use.md M1, M2.3) and the wave-aim draw: the AI casts Downdraft and the wave. False: it never casts. Unit: boolean.</summary>
+        public bool UseCasts { get; }
+
+        /// <summary>Rule CW: least supply of visible enemy ground army units one wave strip must catch. Unit: supply, weighted (Fix64). Range: 0.5 to 200.</summary>
+        public Fix64 WaveMinEnemySupply { get; }
+
+        /// <summary>Rule CW: weapon range at or below which an enemy counts as melee for the melee aim. Unit: tiles (Fix64). Range: 0.5 to 3.</summary>
+        public Fix64 WaveMeleeRangeTiles { get; }
+
+        /// <summary>Wave-aim draw weight of the melee aim. Unit: weight. Range: 0 to 100; with <see cref="WaveAimAllWeight"/> the sum is above 0.</summary>
+        public int WaveAimMeleeWeight { get; }
+
+        /// <summary>Wave-aim draw weight of the all aim. Unit: weight. Range: 0 to 100; with <see cref="WaveAimMeleeWeight"/> the sum is above 0.</summary>
+        public int WaveAimAllWeight { get; }
+
+        /// <summary>Rule CW: most cast_wave intents per think. Unit: commands. Range: 0 to 40.</summary>
+        public int WaveMaxCommandsPerThink { get; }
+
+        /// <summary>Rule CG: least supply of visible enemy flyers one Downdraft must catch. Unit: supply. Range: 1 to 200.</summary>
+        public int GroundingMinAirSupply { get; }
+
+        /// <summary>Rule CG: most cast_grounding intents per think. Unit: commands. Range: 0 to 40.</summary>
+        public int GroundingMaxCommandsPerThink { get; }
+
         /// <summary>Package B: weight of each queue in the split of free common, in <see cref="AiBudget.QueueIds"/> order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
         public IReadOnlyList<int> BudgetCommonWeights { get; }
 
@@ -925,6 +952,21 @@ namespace Rts.Ai
             HarassSpeedRatio = root.RequireFix64("harass_speed_ratio", "0", "4");
             UseBudgetQueues = root.RequireBool("use_budget_queues");
             UseResearch = root.RequireBool("use_research");
+            UseCasts = root.RequireBool("use_casts");
+            WaveMinEnemySupply = root.RequireFix64("wave_min_enemy_supply", "0.5", "200");
+            WaveMeleeRangeTiles = root.RequireFix64("wave_melee_range_tiles", "0.5", "3");
+            // The wave aim weight object: exactly melee and all.
+            JsonValue aimNode = root.Require("wave_aim_weights");
+            aimNode.RejectUnknownKeys("melee", "all");
+            WaveAimMeleeWeight = aimNode.RequireInt("melee", 0, 100);
+            WaveAimAllWeight = aimNode.RequireInt("all", 0, 100);
+            if (WaveAimMeleeWeight + WaveAimAllWeight == 0)
+            {
+                throw aimNode.Fail("the weights must not all be 0");
+            }
+            WaveMaxCommandsPerThink = root.RequireInt("wave_max_commands_per_think", 0, 40);
+            GroundingMinAirSupply = root.RequireInt("grounding_min_air_supply", 1, 200);
+            GroundingMaxCommandsPerThink = root.RequireInt("grounding_max_commands_per_think", 0, 40);
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1060,6 +1102,7 @@ namespace Rts.Ai
                 "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
                 "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
                 "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues", "use_research",
+                "use_casts", "wave_min_enemy_supply", "wave_melee_range_tiles", "wave_aim_weights", "wave_max_commands_per_think", "grounding_min_air_supply", "grounding_max_commands_per_think",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.

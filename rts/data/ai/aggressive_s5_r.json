@@ -310,6 +310,20 @@
   "use_budget_queues": false,
   // Research rules RQ-1 and RQ-2 on: the AI queues research its army mix needs at its tech buildings, and, while the rare surplus is active (budget queues only), any research left. Off: research-gated units are never trained (research_and_unlocks.md R1.8). Unit: boolean. Range: true or false. Source: rts/docs/specs/research_and_unlocks.md R2.1; placeholder.
   "use_research": true,
+  // Rules CG (Downdraft) and CW (wave) on: an own caster off cooldown casts at a clump of visible enemies; false: the AI never casts. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder (the switch is a measurement, shipped true only in aggressive_s5_m).
+  "use_casts": false,
+  // Rule CW: least total supply of visible enemy ground army units one wave strip must catch before a Tidecaller casts. Unit: supply, weighted (Fix64). Range: 0.5 to 200. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 A2: two Pummelers); placeholder.
+  "wave_min_enemy_supply": 4,
+  // Rule CW: largest weapon range that counts as melee for the melee wave aim. Unit: tiles (Fix64). Range: 0.5 to 3. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wave_melee_range_tiles": 1,
+  // Rule CW: weights of the per-match wave aim draw (melee: only melee units count; all: every ground unit with a weapon counts). Unit: weight (relative). Range: object with exactly melee and all, each 0 to 100, sum above 0. Source: rts/docs/specs/ai_mechanic_use.md section 1 and Q-6; placeholder.
+  "wave_aim_weights": { "melee": 100, "all": 0 },
+  // Rule CW: most cast_wave commands one think emits. Unit: commands. Range: 0 to 40. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "wave_max_commands_per_think": 4,
+  // Rule CG: least total supply of visible enemy flyers one Downdraft must catch. Unit: supply. Range: 1 to 200. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 A2: one Roc Rider); placeholder.
+  "grounding_min_air_supply": 3,
+  // Rule CG: most cast_grounding commands one think emits. Unit: commands. Range: 0 to 40. Source: rts/docs/specs/ai_mechanic_use.md section 1; placeholder.
+  "grounding_max_commands_per_think": 4,
   // Package B: weight of each queue in the split of free common (relative; the army's 60 is the reference): economy 120 (a worker per 12 s needs 125 common per 30 s), expansion 120 (a depot is income like two workers), production 10 and tech 4 (about 0.21 of the army together, from the measured structure share), army 60, defence 6 (0.09 against the army, under the 0.15 behaviour bar). Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder beyond those anchors.
   "budget_common_weights": { "economy": 120, "expansion": 120, "production": 10, "army": 60, "tech": 4, "defence": 6 },
   // Package B: the same for free rare: production 30 (Storm Spire, Reef Workshop), army 60, tech 30 (half the army); 0 where no item costs rare. Unit: weight (relative). Range: 0 to 1000 each, sum above 0, exactly the six queue IDs. Source: specs/ai_budget_queues.md B.3; placeholder.
