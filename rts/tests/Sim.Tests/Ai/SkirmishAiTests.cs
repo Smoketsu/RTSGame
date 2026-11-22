@@ -335,7 +335,7 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>Parses rts/data/scripts/ai_vs_ai.json, builds and starts its simulation, submits its commands and creates its AI controllers.</summary>
-        private static Simulation StartAiVsAi(out List<SkirmishAiController> controllers, out CommandScript script)
+        private static Simulation StartAiVsAi(out List<SkirmishAiController> controllers, out CommandScript script, bool research = false)
         {
             // Path of the exit script in the real data folder.
             string path = Path.Combine(TestData.FindDataDirectory(), "scripts", "ai_vs_ai.json");
@@ -351,7 +351,11 @@ namespace Rts.Sim.Tests.Ai
             controllers = new List<SkirmishAiController>();
             foreach (KeyValuePair<PlayerId, string> pair in script.AiProfiles)
             {
-                controllers.Add(new SkirmishAiController(pair.Key, AiProfile.FromDataSet(Data, pair.Value)));
+                // The profile as shipped, or (RA-7) with use_research written true in its text.
+                AiProfile profile = research
+                    ? AiProfile.Parse(File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", pair.Value + ".json")).Replace("\"use_research\": false", "\"use_research\": true"), "ai/" + pair.Value + ".json", Data.Content)
+                    : AiProfile.FromDataSet(Data, pair.Value);
+                controllers.Add(new SkirmishAiController(pair.Key, profile));
             }
             return sim;
         }
@@ -966,6 +970,24 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(runs[0].GateOrLineBuilds, Is.Empty, "G-14, D-14: no gate build_structure and no build_wall_line");
             Assert.That(runs[0].ResearchGated, Is.Empty, "R-17b: no train_unit names a research item or a research-gated unit");
             Assert.That(runs[0].VisionViolations, Is.Empty);
+        }
+
+        /// <summary>RA-7 (research_and_unlocks.md R2.4): the exit script with both profiles on use_research runs twice with identical hashes, is decided and has zero rejections.</summary>
+        [Test]
+        public void ExitTest_AiVsAi_WithResearch_TwoRunsAreIdenticalAndDecided()
+        {
+            // The two runs of the exit script.
+            RunResult[] runs = new RunResult[2];
+            // Run index. Range: 0 to 1.
+            for (int run = 0; run < 2; run++)
+            {
+                Simulation sim = StartAiVsAi(out List<SkirmishAiController> controllers, out CommandScript script, true);
+                runs[run] = RunAi(sim, controllers, script.Ticks);
+            }
+            Assert.That(runs[1].Hashes, Is.EqualTo(runs[0].Hashes));
+            Assert.That(runs[1].FinalHash, Is.EqualTo(runs[0].FinalHash));
+            Assert.That(runs[0].Outcome!.IsDecided, Is.True, "decided within script.Ticks");
+            Assert.That(runs[0].Rejections, Is.Empty);
         }
     }
 }

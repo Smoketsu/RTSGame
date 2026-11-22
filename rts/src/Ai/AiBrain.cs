@@ -216,6 +216,7 @@ namespace Rts.Ai
             turn.BudgetOpen();
             turn.Structures();
             turn.Tech();
+            turn.Research();
             turn.StaticDefence();
             turn.Expand();
             turn.TrainWorkers();
@@ -1892,7 +1893,7 @@ namespace Rts.Ai
             /// Rule T2 (walls_and_tech.md T.4), run when rule T built nothing: among composition units with weight at least tech_min_weight_share x
             /// mix_resolution (descending weight, then ordinal ID) the first whose producer exists but whose requirements are not met gets its first
             /// unmet requirement built, unless an own unit (complete, under construction or a pending order) already has that definition.
-            /// A unit with a research item in its requires is skipped: until R2 the AI never researches (research_and_unlocks.md R1.8).
+            /// A unit with a research item in its requires is skipped when use_research is false (research_and_unlocks.md R1.8); with it on, a unit whose first unmet requirement is a research item is skipped (rule RQ-1 owns it, R2.2).
             /// </summary>
             private void TechPrerequisite()
             {
@@ -1907,18 +1908,19 @@ namespace Rts.Ai
                     }
                     // Definition of this composition unit and its first missing building.
                     UnitDefinition unit = _view.Content.Units[pair.Key];
-                    // True when the unit needs a research item: the AI never researches in R1 (research_and_unlocks.md R1.8), so T2 skips it.
+                    // True when the unit needs a research item and the AI does not research (use_research false): T2 skips it (research_and_unlocks.md R1.8).
                     bool needsResearch = false;
                     foreach (string required in unit.Economy.Requires)
                     {
-                        needsResearch |= _view.Content.Researches.ContainsKey(required);
+                        needsResearch |= !_profile.UseResearch && _view.Content.Researches.ContainsKey(required);
                     }
                     if (needsResearch)
                     {
                         continue;
                     }
                     string? missing = FirstUnmetRequirement(unit);
-                    if (missing == null || !AnyOwnTrains(pair.Key))
+                    // With use_research a research entry is rule RQ-1's to buy (R2.2), so T2 moves on to the next unit.
+                    if (missing == null || !AnyOwnTrains(pair.Key) || (_profile.UseResearch && _view.Content.Researches.ContainsKey(missing)))
                     {
                         continue;
                     }
@@ -1962,6 +1964,156 @@ namespace Rts.Ai
                 // The structure that trains the unit, or null when the faction has none.
                 UnitDefinition? structure = ProducerStructureFor(top);
                 return structure != null && TryBuild(structure, null, true, AiBudget.Tech);
+            }
+
+            /// <summary>
+            /// Rules RQ-1 and RQ-2 (research_and_unlocks.md R2.2, only when use_research): at most one research purchase per think, after rule T.
+            /// RQ-1 buys the research the heaviest mix unit needs; RQ-2 (budget queues, rare surplus on) buys any research left when RQ-1 bought nothing.
+            /// </summary>
+            public void Research()
+            {
+                if (!_profile.UseResearch)
+                {
+                    return;
+                }
+                if (!ResearchForMix() && _bq && _memory.RareSurplusActive)
+                {
+                    ResearchSurplus();
+                }
+            }
+
+            /// <summary>Rule RQ-1. Returns true when a research Train intent was emitted (building a researcher or recording a want is not a purchase).</summary>
+            private bool ResearchForMix()
+            {
+                // Composition units in the order RQ-1 considers them (descending weight, then ordinal ID).
+                List<KeyValuePair<string, int>> ranked = new List<KeyValuePair<string, int>>(_composition);
+                ranked.Sort((a, b) => a.Value != b.Value ? b.Value.CompareTo(a.Value) : string.CompareOrdinal(a.Key, b.Key));
+                foreach (KeyValuePair<string, int> pair in ranked)
+                {
+                    if (pair.Value <= 0 || !AnyOwnTrains(pair.Key))
+                    {
+                        continue;
+                    }
+                    // First unmet requirement of this unit; it is the research to buy when it is a research ID.
+                    string? missing = FirstUnmetRequirement(_view.Content.Units[pair.Key]);
+                    if (missing == null || !_view.Content.Researches.TryGetValue(missing, out ResearchDefinition? research))
+                    {
+                        continue;
+                    }
+                    if (ResearchQueued(research.Id))
+                    {
+                        return false;
+                    }
+                    // The lowest-ID complete idle researcher, or null.
+                    AiUnitView? researcher = IdleResearcher(research.Id);
+                    if (researcher != null)
+                    {
+                        return BuyResearch(researcher, research);
+                    }
+                    foreach (AiUnitView planned in _planned)
+                    {
+                        if (planned.IsStructure && Contains(planned.Definition.Economy.Researches, research.Id))
+                        {
+                            return false;
+                        }
+                    }
+                    // The ordinally lowest unit ID of the AI's faction that researches it, built when nothing of the kind exists in any state.
+                    foreach (UnitDefinition candidate in _view.Content.Units.Values)
+                    {
+                        if (string.Equals(candidate.FactionId, _plan.FactionId, StringComparison.Ordinal) && Contains(candidate.Economy.Researches, research.Id))
+                        {
+                            TryBuild(candidate, null, false, AiBudget.Tech);
+                            return false;
+                        }
+                    }
+                    return false;
+                }
+                return false;
+            }
+
+            /// <summary>Rule RQ-2: buys the ordinally first research of the AI's faction that is neither finished nor queued and has an idle complete researcher.</summary>
+            private void ResearchSurplus()
+            {
+                foreach (ResearchDefinition research in _view.Content.Researches.Values)
+                {
+                    if (!string.Equals(research.FactionId, _plan.FactionId, StringComparison.Ordinal) || _view.OwnResearched.Contains(research.Id) || ResearchQueued(research.Id))
+                    {
+                        continue;
+                    }
+                    AiUnitView? researcher = IdleResearcher(research.Id);
+                    if (researcher != null)
+                    {
+                        BuyResearch(researcher, research);
+                        return;
+                    }
+                }
+            }
+
+            /// <summary>True when some own unit has <paramref name="researchId"/> in its production queue.</summary>
+            /// <param name="researchId">Research ID.</param>
+            private bool ResearchQueued(string researchId)
+            {
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (Contains(unit.Queue, researchId))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>The lowest-ID own complete structure that lists <paramref name="researchId"/> in its researches and has an empty queue, or null.</summary>
+            /// <param name="researchId">Research ID.</param>
+            private AiUnitView? IdleResearcher(string researchId)
+            {
+                foreach (AiUnitView unit in _view.OwnUnits)
+                {
+                    if (unit.IsStructure && !unit.IsUnderConstruction && unit.Queue.Count == 0 && Contains(unit.Definition.Economy.Researches, researchId))
+                    {
+                        return unit;
+                    }
+                }
+                return null;
+            }
+
+            /// <summary>Queues <paramref name="research"/> at <paramref name="researcher"/> and pays it from the tech queue (budget queues) or by the rule R check (reserving the cost while workers earn). Returns true when the Train intent was emitted.</summary>
+            /// <param name="researcher">The idle complete researcher.</param>
+            /// <param name="research">The item to buy.</param>
+            private bool BuyResearch(AiUnitView researcher, ResearchDefinition research)
+            {
+                if (_bq)
+                {
+                    if (BqBlocked(AiBudget.Tech))
+                    {
+                        return false;
+                    }
+                    if (!BqCanPay(AiBudget.Tech, research.CostCommon, research.CostRare))
+                    {
+                        BqWant(AiBudget.Tech, research.CostCommon, research.CostRare);
+                        return false;
+                    }
+                }
+                else if ((research.CostCommon != 0 && _common - _reserveCommon < research.CostCommon) || (research.CostRare != 0 && _rare - _reserveRare < research.CostRare))
+                {
+                    if (_income)
+                    {
+                        _reserveCommon += research.CostCommon;
+                        _reserveRare += research.CostRare;
+                    }
+                    return false;
+                }
+                if (!Emit(AiIntent.Train(researcher.Id, research.Id)))
+                {
+                    return false;
+                }
+                if (_bq)
+                {
+                    BqPay(AiBudget.Tech, research.CostCommon, research.CostRare);
+                }
+                _common -= research.CostCommon;
+                _rare -= research.CostRare;
+                return true;
             }
 
             /// <summary>Own drop-offs for rule SD: the Rooted HQ and every complete drop-off structure, ascending ID.</summary>
@@ -2934,7 +3086,7 @@ namespace Rts.Ai
             {
                 foreach (string required in definition.Economy.Requires)
                 {
-                    // True once an own complete unit of the required definition is found, or the research item is finished (the AI never researches in R1, so for it this stays false).
+                    // True once an own complete unit of the required definition is found, or the research item is finished (the view's set stays empty unless the AI researched, which only use_research does).
                     bool met = _view.OwnResearched.Contains(required);
                     foreach (AiUnitView unit in _view.OwnUnits)
                     {
