@@ -36,7 +36,10 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Units trained by definition ID.</summary>
             public SortedDictionary<string, int> Trained { get; } = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
-            /// <summary>Structures completed by definition ID.</summary>
+            /// <summary>Tick of the first unit trained or research completed, by definition ID. Unit: ticks. Range: 0 upward.</summary>
+            public SortedDictionary<string, int> FirstTick { get; } = new SortedDictionary<string, int>(StringComparer.Ordinal);
+
+            /// <summary>Structures (and research items) completed by definition ID.</summary>
             public SortedDictionary<string, int> Completed { get; } = new SortedDictionary<string, int>(StringComparer.Ordinal);
 
             /// <summary>Mechanic uses by mechanic ID.</summary>
@@ -256,7 +259,7 @@ namespace Rts.Tools.BalanceHarness
                 {
                     slot.Income.Add(new int[2]);
                 }
-                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs));
+                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs, slot.FirstTick));
             }
             return summaries.ToArray();
         }
@@ -333,6 +336,7 @@ namespace Rts.Tools.BalanceHarness
             else if (simEvent is UnitTrainedEvent trained && _known.TryGetValue(trained.Unit, out Known? newUnit) && _slots.TryGetValue(newUnit.Owner.Value, out Slot? producer))
             {
                 producer.Trained[trained.DefinitionId] = (producer.Trained.TryGetValue(trained.DefinitionId, out int count) ? count : 0) + 1;
+                producer.FirstTick.TryAdd(trained.DefinitionId, trained.Tick);
             }
             else if (simEvent is StructureCompletedEvent done && _known.TryGetValue(done.Structure, out Known? built) && _slots.TryGetValue(built.Owner.Value, out Slot? builder))
             {
@@ -345,6 +349,7 @@ namespace Rts.Tools.BalanceHarness
             else if (simEvent is ResearchCompletedEvent researched && _slots.TryGetValue(researched.Owner.Value, out Slot? researcher))
             {
                 researcher.Completed[researched.ResearchId] = (researcher.Completed.TryGetValue(researched.ResearchId, out int count) ? count : 0) + 1;
+                researcher.FirstTick.TryAdd(researched.ResearchId, researched.Tick);
             }
             else if (simEvent is HqStateChangedEvent hq && _known.TryGetValue(hq.Unit, out Known? hqKnown) && _slots.TryGetValue(hqKnown.Owner.Value, out Slot? hqSlot) && sim.Units.TryGet(hq.Unit, out Unit? hqUnit))
             {
