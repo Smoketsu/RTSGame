@@ -164,3 +164,9 @@ Builders do not edit `docs/CHANGELOG.md`; they hand their bullets to the coordin
 | Spec | System | Plan step | Depends on |
 | --- | --- | --- | --- |
 | [interface_support.md](interface_support.md) | Simulation gaps for the Unity HUD: I1 placement query shared with `build_structure` (fog-safe), I2 wave preview shared with `cast_wave`, I3 ability names in unit data, I4 `cancel_production` with full refund (units and research), I5 `set_rally_point`; no pins move | 9 | player_interface.md; I4 after research R1 |
+
+## AI mechanic use (P-006 package A, 22 Nov 2026)
+
+| Spec | System | Plan step | Depends on |
+| --- | --- | --- | --- |
+| [ai_mechanic_use.md](ai_mechanic_use.md) | The skirmish AI casts Downdraft and the wave, trains and trails Tidecallers (and Stormcallers), breaches enemy walls, and walls in its base with walls and gates, behind `use_casts`, `use_support_units`, `use_wall_breach` and `use_walls` (off in every profile; candidate `aggressive_s5_m`). HQ Last Stand gets no rule (off in tuning). Packages P1 to P5, measurement bars fixed before any run; no Sim change, no pin moves | P-006 A | research_and_unlocks.md R2 (built); sim-reviewer on each package |
