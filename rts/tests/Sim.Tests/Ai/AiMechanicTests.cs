@@ -575,7 +575,7 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void M2_6_SupportResearch()
         {
-            AiProfile profile = CandidateEdited("\"skai.stormcaller\": 10 }", "\"skai.stormcaller\": 0 }");
+            AiProfile profile = CandidateEdited("\"skai.stormcaller\": 10 }", "\"skai.stormcaller\": 0 }", NeedsAir, "\"support_needs\": {},");
             Simulation sim = SupportSkaiScene(out EntityId windspire, out EntityId spire);
             Assert.That(Trains(Decide(sim, profile, new AiMemory { AttackThreshold = 8 }, "skai")), Does.Contain(spire.Value + ":skai.stormcaller_plans"));
             Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
@@ -671,6 +671,110 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(range.Message, Does.Contain("support_units"));
             DataValidationException structure = Expect.Throws<DataValidationException>(() => CandidateEdited("{ \"water.tidecaller\": 12 }", "{ \"water.tidepool\": 12 }"));
             Assert.That(structure.Message, Does.Contain("water.tidepool"));
+        }
+
+        /// <summary>The candidate's skai support_needs entry as written in the file, for the edits of M2-6 and SN-6.</summary>
+        private const string NeedsAir = "\"support_needs\": { \"skai.stormcaller\": [\"air\"] },";
+
+        /// <summary>The candidate with the Stormcaller at weight 0 in the composition (support_needs as shipped), as M2-6 uses it.</summary>
+        private static AiProfile StormcallerSupportOnly()
+        {
+            return CandidateEdited("\"skai.stormcaller\": 10 }", "\"skai.stormcaller\": 0 }");
+        }
+
+        /// <summary>The Stormcaller's Train intents as "producer:definition" from one think of the Skai scene.</summary>
+        /// <param name="sim">The scene.</param>
+        /// <param name="memory">The memory carried between thinks.</param>
+        private static List<string> StormcallerTrains(Simulation sim, AiMemory memory)
+        {
+            return Trains(Decide(sim, StormcallerSupportOnly(), memory, "skai")).FindAll(t => t.EndsWith(":skai.stormcaller") || t.EndsWith(":skai.stormcaller_plans"));
+        }
+
+        /// <summary>Marks the Stormcaller plans researched for P0.</summary>
+        /// <param name="sim">The scene.</param>
+        private static void ResearchPlans(Simulation sim)
+        {
+            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
+            player!.AddResearch("skai.stormcaller_plans");
+        }
+
+        /// <summary>SN-1 and SN-3: no sighting, or only a ground enemy: no Stormcaller Train.</summary>
+        [Test]
+        public void SN_1_3_NoAirSeen()
+        {
+            Simulation none = SupportSkaiScene(out _, out _);
+            ResearchPlans(none);
+            Assert.That(StormcallerTrains(none, new AiMemory { AttackThreshold = 8 }), Is.Empty, "SN-1");
+            Simulation ground = SupportSkaiScene(out _, out _);
+            ResearchPlans(ground);
+            Spawn(ground, "skai.talon_archer", P1, "23.5", "17.5");
+            Assert.That(StormcallerTrains(ground, new AiMemory { AttackThreshold = 8 }), Is.Empty, "SN-3");
+        }
+
+        /// <summary>SN-2 and SN-7 (determinism): a flyer seen unlocks the Stormcaller, and stays unlocked after it is gone; two runs give identical intents.</summary>
+        [Test]
+        public void SN_2_AirSeenLatches()
+        {
+            // Think intents of two fresh runs, as text.
+            List<string> keys = new List<string>();
+            for (int run = 0; run < 2; run++)
+            {
+                Simulation sim = SupportSkaiScene(out EntityId windspire, out _);
+                ResearchPlans(sim);
+                EntityId roc = Spawn(sim, "skai.roc_rider", P1, "23.5", "17.5");
+                AiMemory memory = new AiMemory { AttackThreshold = 8 };
+                Assert.That(StormcallerTrains(sim, memory), Does.Contain(windspire.Value + ":skai.stormcaller"));
+                Assert.That(memory.EnemyTypes.ContainsKey("skai.roc_rider"), Is.True);
+                sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, roc));
+                sim.Step();
+                List<string> again = StormcallerTrains(sim, memory);
+                Assert.That(memory.EnemyTypes.ContainsKey("skai.roc_rider"), Is.True, "kept after removal");
+                Assert.That(again, Does.Contain(windspire.Value + ":skai.stormcaller"), "latch");
+                keys.Add(string.Join(",", again));
+            }
+            Assert.That(keys[0], Is.EqualTo(keys[1]));
+        }
+
+        /// <summary>SN-4: the plans research waits for the need.</summary>
+        [Test]
+        public void SN_4_ResearchWaitsForNeed()
+        {
+            Simulation none = SupportSkaiScene(out _, out EntityId spire);
+            Assert.That(StormcallerTrains(none, new AiMemory { AttackThreshold = 8 }), Is.Empty);
+            Simulation seen = SupportSkaiScene(out _, out EntityId seenSpire);
+            Spawn(seen, "skai.roc_rider", P1, "23.5", "17.5");
+            Assert.That(StormcallerTrains(seen, new AiMemory { AttackThreshold = 8 }), Does.Contain(seenSpire.Value + ":skai.stormcaller_plans"));
+            Assert.That(spire.Value, Is.Not.EqualTo(0u));
+        }
+
+        /// <summary>SN-5: an unlisted unit (the water Tidecaller) is trained with no enemy seen.</summary>
+        [Test]
+        public void SN_5_UnlistedUnitUnchanged()
+        {
+            Assert.That(Candidate.RequireFaction("water").SupportNeeds, Is.Empty);
+            SupportWaterScene(out Simulation sim, 6);
+            Assert.That(Trains(Decide(sim, Candidate, new AiMemory { AttackThreshold = 8 }, "water")).Exists(t => t.EndsWith(":water.tidecaller")), Is.True);
+        }
+
+        /// <summary>SN-6: bad support_needs are errors naming the file and key; every other shipped profile has none.</summary>
+        [Test]
+        public void SN_6_Validation()
+        {
+            DataValidationException key = Expect.Throws<DataValidationException>(() => CandidateEdited(NeedsAir, "\"support_needs\": { \"skai.windrunner\": [] },"));
+            Assert.That(key.Message, Does.Contain("aggressive_s5_m.json").And.Contain("support_needs"));
+            DataValidationException name = Expect.Throws<DataValidationException>(() => CandidateEdited("[\"air\"]", "[\"flying\"]"));
+            Assert.That(name.Message, Does.Contain("aggressive_s5_m.json").And.Contain("flying"));
+            DataValidationException twice = Expect.Throws<DataValidationException>(() => CandidateEdited("[\"air\"]", "[\"air\", \"air\"]"));
+            Assert.That(twice.Message, Does.Contain("aggressive_s5_m.json").And.Contain("twice"));
+            DataValidationException model = Expect.Throws<DataValidationException>(() => CandidateEdited("\"use_enemy_model\": true", "\"use_enemy_model\": false"));
+            Assert.That(model.Message, Does.Contain("aggressive_s5_m.json").And.Contain("support_needs"));
+            foreach (string id in Data.AiProfiles.Keys)
+            {
+                foreach (AiFactionPlan plan in AiProfile.FromDataSet(Data, id).Factions.Values)
+                {
+                    Assert.That(plan.SupportNeeds.Count, Is.EqualTo(id == "aggressive_s5_m" && plan.FactionId == "skai" ? 1 : 0), id);
+                }
+            }
         }
     }
 }

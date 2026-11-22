@@ -44,8 +44,8 @@ namespace Rts.Sim.Tests.Ai
         {
             // The profile text with the switch set.
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", id + ".json")).Replace("\r\n", "\n");
-            Assert.That(text, Does.Contain("\"use_research\": false"));
-            return AiProfile.Parse(text.Replace("\"use_research\": false", research ? "\"use_research\": true" : "\"use_research\": false"), "ai/" + id + ".json", Data.Content);
+            Assert.That(text, Does.Contain("\"use_research\": false").Or.Contain("\"use_research\": true"));
+            return AiProfile.Parse(text.Replace("\"use_research\": true", "\"use_research\": false").Replace("\"use_research\": false", research ? "\"use_research\": true" : "\"use_research\": false"), "ai/" + id + ".json", Data.Content);
         }
 
         /// <summary>Spawns a unit with a script command, steps once and returns its ID.</summary>
@@ -131,20 +131,25 @@ namespace Rts.Sim.Tests.Ai
             throw new AssertionException("no " + definition);
         }
 
-        /// <summary>RA-1: the shipped profiles carry use_research false but the candidate; with it false the think equals the shipped profile's think.</summary>
+        /// <summary>RA-1: the old shipped profiles carry use_research false; aggressive_s5 carries it true (22 Nov 2026), and its copy with the switch written false never buys research.</summary>
         [Test]
         public void RA1_SwitchOffIsR1()
         {
-            foreach (string id in new[] { "aggressive", "aggressive_s3", "aggressive_s5", "aggressive_s5_b", "defensive" })
+            foreach (string id in new[] { "aggressive", "aggressive_s3", "defensive" })
             {
                 Assert.That(AiProfile.FromDataSet(Data, id).UseResearch, Is.False, id);
             }
             Assert.That(AiProfile.FromDataSet(Data, "aggressive_s5_r").UseResearch, Is.True);
+            Assert.That(AiProfile.FromDataSet(Data, "aggressive_s5").UseResearch, Is.True, "research is on in the main AI since 22 Nov 2026");
             WaterBase(out Simulation sim, true);
-            // Intents of the shipped profile and of the copy with the switch written false, as text.
-            List<string> shipped = Of(Decide(sim, AiProfile.FromDataSet(Data, "aggressive_s5")), AiIntentKind.Train);
-            List<string> copy = Of(Decide(sim, Profile("aggressive_s5", false)), AiIntentKind.Train);
-            Assert.That(copy, Is.EqualTo(shipped));
+            // The text of aggressive_s5's file (research on).
+            string onText = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5.json")).Replace("\r\n", "\n");
+            Assert.That(onText, Does.Contain("\"use_research\": true"));
+            // aggressive_s5 with the switch written false (the R1 behaviour).
+            AiProfile off = AiProfile.Parse(onText.Replace("\"use_research\": true", "\"use_research\": false"), "ai/aggressive_s5.json", Data.Content);
+            Assert.That(off.UseResearch, Is.False);
+            // Train intents of the switch-off copy, as text; it never buys research.
+            List<string> shipped = Of(Decide(sim, off), AiIntentKind.Train);
             Assert.That(shipped.Exists(s => s.EndsWith("_plans")), Is.False);
         }
 

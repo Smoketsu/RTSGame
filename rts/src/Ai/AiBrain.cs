@@ -361,6 +361,47 @@ namespace Rts.Ai
         }
 
         /// <summary>
+        /// Rule SU's need test (ai_mechanic_use.md M2.1b): true when the support unit has no entry in the plan's support_needs or an empty one;
+        /// otherwise true when some enemy army type sighted this match (a key of <see cref="AiMemory.EnemyTypes"/>, kept after its count decays to 0)
+        /// has a movement layer named in the entry. Existence test over ordinal-sorted keys, so no order affects the result.
+        /// </summary>
+        /// <param name="view">What the AI may know this think (its content catalogue gives each type's layer).</param>
+        /// <param name="plan">The profile's plan for the player's faction.</param>
+        /// <param name="memory">The controller's memory; read only.</param>
+        /// <param name="unitId">Support unit ID. Range: a key of the plan's support_units.</param>
+        internal static bool SupportNeedMet(AiWorldView view, AiFactionPlan plan, AiMemory memory, string unitId)
+        {
+            if (!plan.SupportNeeds.TryGetValue(unitId, out IReadOnlyList<MovementLayer>? layers) || layers.Count == 0)
+            {
+                return true;
+            }
+            // One sighted enemy army type ID, in ordinal order.
+            foreach (string type in memory.EnemyTypes.Keys)
+            {
+                if (view.Content.Units.TryGetValue(type, out UnitDefinition? definition) && ContainsLayer(layers, definition.Layer))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>True when the layer list holds the layer. Range: a list of 0 to 3 layers.</summary>
+        /// <param name="layers">The layers to search.</param>
+        /// <param name="layer">The layer looked for.</param>
+        private static bool ContainsLayer(IReadOnlyList<MovementLayer> layers, MovementLayer layer)
+        {
+            for (int i = 0; i < layers.Count; i++)
+            {
+                if (layers[i] == layer)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// The army supply needed for the next attack: attack_army_supply plus a draw of 0 to attack_supply_jitter. Called on the first
         /// think and when an attack ends (rule D); it also empties the attack group.
         /// </summary>
@@ -1996,7 +2037,7 @@ namespace Rts.Ai
                 // Composition units in the order RQ-1 considers them (descending weight, then ordinal ID).
                 List<KeyValuePair<string, int>> ranked = new List<KeyValuePair<string, int>>(_composition);
                 ranked.Sort((a, b) => a.Value != b.Value ? b.Value.CompareTo(a.Value) : string.CompareOrdinal(a.Key, b.Key));
-                // Unit IDs RQ-1 considers: the composition units with weight above 0, then (use_support_units) the support units still wanted, in ordinal ID order.
+                // Unit IDs RQ-1 considers, in order: the composition units with weight above 0, then (use_support_units) the support units still wanted, in ordinal ID order. Unit: unit IDs. Range: 0 to the composition size plus the support_units size; each a key of the units catalogue.
                 List<string> considered = new List<string>();
                 foreach (KeyValuePair<string, int> pair in ranked)
                 {
@@ -2007,7 +2048,7 @@ namespace Rts.Ai
                 }
                 if (_profile.UseSupportUnits)
                 {
-                    // One support entry: unit ID and army supply per unit, in ordinal ID order.
+                    // One support entry: Key is the unit ID (a unit of the plan's faction), Value the army supply that earns one unit (supply, 1 to 200); visited in ordinal ID order.
                     foreach (KeyValuePair<string, int> support in _plan.SupportUnits)
                     {
                         if (SupportWanted(support.Key, support.Value) > SupportHave(support.Key))
@@ -2016,7 +2057,7 @@ namespace Rts.Ai
                         }
                     }
                 }
-                // One considered unit ID.
+                // One considered unit ID (a key of the units catalogue), in the order of considered; the loop returns at the first research bought or awaited.
                 foreach (string unitId in considered)
                 {
                     if (!AnyOwnTrains(unitId))
@@ -3118,6 +3159,11 @@ namespace Rts.Ai
             /// <param name="supplyPerUnit">Army supply that earns one unit. Unit: supply. Range: 1 to 200.</param>
             private int SupportWanted(string unitId, int supplyPerUnit)
             {
+                // P2b (M2.1b): a unit whose need is unmet is not wanted at all.
+                if (!SupportNeedMet(_view, _plan, _memory, unitId))
+                {
+                    return 0;
+                }
                 return Math.Min(_profile.SupportMaxPerType, SupportArmySupply() / supplyPerUnit);
             }
 
@@ -3151,16 +3197,16 @@ namespace Rts.Ai
             /// </summary>
             private bool TrainSupport()
             {
-                // One support entry: unit ID and army supply per unit, in ordinal ID order.
+                // One support entry: Key is the unit ID (a unit of the plan's faction), Value the army supply that earns one unit (supply, 1 to 200); visited in ordinal ID order.
                 foreach (KeyValuePair<string, int> support in _plan.SupportUnits)
                 {
                     if (SupportWanted(support.Key, support.Value) <= SupportHave(support.Key))
                     {
                         continue;
                     }
-                    // Definition of the support unit.
+                    // Definition of the support unit (its cost, supply and requirements). Range: an entry of the units catalogue, faction of the plan, supply above 0.
                     UnitDefinition definition = _view.Content.Units[support.Key];
-                    // The lowest-ID free producer (null when requirements are unmet or none is free).
+                    // The lowest-ID free own structure that can train the unit now. Range: an own complete idle structure, or null when requirements are unmet or none is free.
                     AiUnitView? producer = FindFreeProducer(support.Key);
                     if (producer == null || !HasSupply(definition))
                     {
@@ -3405,13 +3451,15 @@ namespace Rts.Ai
             /// <param name="armyAll">Every own army unit that is not an active scout, ascending ID.</param>
             private void SupportTrail(List<AiUnitView> armyAll)
             {
-                // Where support units stand. Unit: tiles.
+                // Where support units stand. Unit: tiles (fixed-point x and y). Range: inside the map; starts at the rally point and is moved when an armed attack group is alive.
                 FixVec2 point = RallyPoint();
                 if (_memory.Stance == AiStance.Attack && _memory.AttackGroup.Count > 0)
                 {
-                    // Sum of the armed group members' positions, and how many there are. Unit: tiles; units.
+                    // Sum of the armed group members' x positions. Unit: tiles (fixed-point). Range: 0 to count times the map width.
                     Fix64 sumX = Fix64.Zero;
+                    // Sum of the armed group members' y positions. Unit: tiles (fixed-point). Range: 0 to count times the map height.
                     Fix64 sumY = Fix64.Zero;
+                    // How many armed attack-group members were summed. Unit: units. Range: 0 to the army size.
                     int count = 0;
                     foreach (AiUnitView unit in armyAll)
                     {
