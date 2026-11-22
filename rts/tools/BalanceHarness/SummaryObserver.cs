@@ -197,6 +197,10 @@ namespace Rts.Tools.BalanceHarness
                 {
                     _slots[entry.Key].Ledger.Spend(definition);
                 }
+                else if (sim.Content.Researches.TryGetValue(definitionId, out ResearchDefinition? research))
+                {
+                    _slots[entry.Key].Ledger.SpendResearch(research);
+                }
             }
             _pending.Clear();
             // Mechanic uses of this step's events, credited in event order.
@@ -337,6 +341,10 @@ namespace Rts.Tools.BalanceHarness
                 {
                     builder.DropOffs.Add(done.Tick);
                 }
+            }
+            else if (simEvent is ResearchCompletedEvent researched && _slots.TryGetValue(researched.Owner.Value, out Slot? researcher))
+            {
+                researcher.Completed[researched.ResearchId] = (researcher.Completed.TryGetValue(researched.ResearchId, out int count) ? count : 0) + 1;
             }
             else if (simEvent is HqStateChangedEvent hq && _known.TryGetValue(hq.Unit, out Known? hqKnown) && _slots.TryGetValue(hqKnown.Owner.Value, out Slot? hqSlot) && sim.Units.TryGet(hq.Unit, out Unit? hqUnit))
             {

@@ -169,6 +169,10 @@ namespace Rts.Tools.BalanceHarness
                 {
                     entry.Owner.Spend(trained);
                 }
+                else if (entry.Command is TrainUnitCommand researchOrder && sim.Content.Researches.TryGetValue(researchOrder.DefinitionId, out ResearchDefinition? research))
+                {
+                    entry.Owner.SpendResearch(research);
+                }
             }
             _pending.Clear();
             foreach (SimEvent simEvent in sim.Events.Current)
@@ -723,6 +727,13 @@ namespace Rts.Tools.BalanceHarness
             public void Spend(UnitDefinition definition)
             {
                 Ledger.Spend(definition);
+            }
+
+            /// <summary>Adds the cost of a research item to the spent totals.</summary>
+            /// <param name="research">The research item ordered.</param>
+            public void SpendResearch(ResearchDefinition research)
+            {
+                Ledger.SpendResearch(research);
             }
 
             /// <summary>Takes a refund back out of the spent totals.</summary>
