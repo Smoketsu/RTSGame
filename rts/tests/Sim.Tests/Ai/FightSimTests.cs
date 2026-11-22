@@ -108,8 +108,9 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void OldProfiles_FixedSeedGamesKeepTheirHash()
         {
+            // Re-pinned 22 Nov 2026 for use_research true in aggressive_s5 (developer decision): aggressive_s5 old end tick 10378 and hash 963626e47dd707bf, new 9505 and 837f8e7118a9c9de, winner slot0 unchanged; aggressive_s3 unchanged.
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hashes only, end ticks 10378 and 9223 and winners unchanged. Old values 2a9fdef3422f6141 and 1db9fc659b9f0eea.
-            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":10378,\"state_hash\":\"963626e47dd707bf\""));
+            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9505,\"state_hash\":\"837f8e7118a9c9de\""));
             Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9223,\"state_hash\":\"c04bdcc0d03b3910\""));
         }
 
