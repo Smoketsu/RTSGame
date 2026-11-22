@@ -145,6 +145,27 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Game times of the summary's bank snapshots (M.4.2). Unit: seconds. Range: 1 to 8 entries of 1 to 7200, ascending.</summary>
         public IReadOnlyList<int> SummaryBankTimesSeconds { get; private set; } = Array.Empty<int>();
 
+        /// <summary>Game time up to which the production and defence metrics count (spec ai_production_defence.md section 7). Unit: seconds. Range: 60 to 2400.</summary>
+        public int SummaryWindowSeconds { get; private set; }
+
+        /// <summary>Game times of the metric samples (producers, capacity, income_60, army_supply). Unit: seconds. Range: 1 to 8 entries of 1 to 7200, ascending.</summary>
+        public IReadOnlyList<int> SummarySampleSeconds { get; private set; } = Array.Empty<int>();
+
+        /// <summary>A worker killed this soon after its training counts as fed to a raid. Unit: seconds. Range: 1 to 600.</summary>
+        public int FedWindowSeconds { get; private set; }
+
+        /// <summary>Radius around an own drop-off for raid hits and for the defenders that answer them. Unit: tiles. Range: 1 to 30.</summary>
+        public int RaidRadiusTiles { get; private set; }
+
+        /// <summary>First game second counted in the bank mean. Unit: seconds. Range: 0 to 600.</summary>
+        public int BankMeanFromSeconds { get; private set; }
+
+        /// <summary>A summary observer with this file's bucket, bank times and metric settings: the one every harness mode that records summaries must use, so records and spot-check re-runs agree.</summary>
+        public SummaryObserver NewObserver()
+        {
+            return new SummaryObserver(SummaryBucketSeconds, SummaryBankTimesSeconds, this);
+        }
+
         /// <summary>The response scenarios in file order. Range: 1 to 64 entries.</summary>
         public IReadOnlyList<ResponseTest> ResponseTests { get; private set; } = Array.Empty<ResponseTest>();
 
@@ -169,7 +190,8 @@ namespace Rts.Tools.BalanceHarness
             root.RejectUnknownKeys("ladder_base_seed", "ladder_games_per_cell", "ladder_maps", "ladder_matchups", "ladder_max_game_seconds", "ladder_min_decided",
                 "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "opening_max_use_fraction", "opening_max_mirror_win_fraction",
                 "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests",
-                "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction", "summary_bucket_seconds", "summary_bank_times_seconds");
+                "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction", "summary_bucket_seconds", "summary_bank_times_seconds",
+                "summary_window_seconds", "summary_sample_seconds", "fed_window_seconds", "raid_radius_tiles", "bank_mean_from_seconds");
             AiEvalSettings settings = new AiEvalSettings();
             settings.LadderBaseSeed = (ulong)root.RequireInt("ladder_base_seed", 0, int.MaxValue);
             // Games per cell, checked for the multiple-of-4 rule (the seat rule needs whole blocks of four games).
@@ -213,6 +235,26 @@ namespace Rts.Tools.BalanceHarness
                 bankTimes.Add(seconds);
             }
             settings.SummaryBankTimesSeconds = bankTimes;
+            settings.SummaryWindowSeconds = root.RequireInt("summary_window_seconds", 60, 2400);
+            JsonValue sampleNode = root.Require("summary_sample_seconds");
+            if (sampleNode.Items.Count < 1 || sampleNode.Items.Count > 8)
+            {
+                throw sampleNode.Fail("must hold 1 to 8 entries (found " + sampleNode.Items.Count.ToString(CultureInfo.InvariantCulture) + ")");
+            }
+            List<int> sampleTimes = new List<int>();
+            foreach (JsonValue time in sampleNode.Items)
+            {
+                int seconds = time.AsInt(1, 7200);
+                if (sampleTimes.Count > 0 && seconds <= sampleTimes[sampleTimes.Count - 1])
+                {
+                    throw time.Fail("must be above the entry before it (found " + seconds.ToString(CultureInfo.InvariantCulture) + ")");
+                }
+                sampleTimes.Add(seconds);
+            }
+            settings.SummarySampleSeconds = sampleTimes;
+            settings.FedWindowSeconds = root.RequireInt("fed_window_seconds", 1, 600);
+            settings.RaidRadiusTiles = root.RequireInt("raid_radius_tiles", 1, 30);
+            settings.BankMeanFromSeconds = root.RequireInt("bank_mean_from_seconds", 0, 600);
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");

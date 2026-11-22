@@ -151,7 +151,7 @@ namespace Rts.Tools.BalanceHarness
         internal static SummaryObserver NewSummaryObserver(BatchOptions options)
         {
             AiEvalSettings settings = AiEvalSettings.Load(options.DataDirectory);
-            return new SummaryObserver(settings.SummaryBucketSeconds, settings.SummaryBankTimesSeconds);
+            return settings.NewObserver();
         }
 
         // ------------------------------------------------------------------ coordinator

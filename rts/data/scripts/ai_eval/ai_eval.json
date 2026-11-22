@@ -42,6 +42,16 @@
   "summary_bucket_seconds": 30,
   // Game times at which the game summary records each player's bank (null when the game ended earlier). Unit: list of seconds, ascending. Range: 1 to 8 entries of 1 to 7200. Source: balance_measurement.md M.6; placeholder.
   "summary_bank_times_seconds": [300, 600, 900],
+  // Length of the window the production and defence metrics of the game summary cover: losses, raid seconds and the bank mean count only up to this game time or the game's end. Unit: seconds. Range: 60 to 2400. Source: rts/docs/specs/ai_production_defence.md section 7; placeholder.
+  "summary_window_seconds": 600,
+  // Game times at which the summary samples producers, capacity, income_60 and army_supply (null after the game's end). Unit: list of seconds, ascending. Range: 1 to 8 entries of 1 to 7200. Source: rts/docs/specs/ai_production_defence.md section 7; placeholder.
+  "summary_sample_seconds": [180, 300, 450],
+  // A worker killed by an enemy within this long of its own training counts as fed to a raid (start workers never count). Unit: seconds. Range: 1 to 600. Source: rts/docs/specs/ai_production_defence.md section 7; placeholder.
+  "fed_window_seconds": 60,
+  // Distance from an own drop-off within which a hit on an own worker, structure or HQ is a raid second, and within which a defender, or its goal, answers it. Unit: tiles. Range: 1 to 30. Source: rts/docs/specs/ai_production_defence.md section 7; placeholder (equals defend_radius_tiles of the profiles).
+  "raid_radius_tiles": 12,
+  // First game second whose common bank enters the bank_mean metric (sampled at every whole second up to the window). Unit: seconds. Range: 0 to 600. Source: rts/docs/specs/ai_production_defence.md section 7; placeholder.
+  "bank_mean_from_seconds": 60,
   // Response tests, one per scenario script and AI-under-test faction. script: file in this folder; check: air_answer, armoured_answer, trade, raid or turtle; the other keys are that check's parameters (seconds are game seconds, fractions and ratios as named). Unit: objects. Range: 1 to 64 entries. Source: skirmish_ai_v3.md A.4; placeholder.
   "response_tests": [
     { "script": "response_roc_rush_skai.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },
