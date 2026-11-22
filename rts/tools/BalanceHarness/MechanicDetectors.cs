@@ -49,9 +49,13 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Detection: the event and the context; adds one entry to the list for each use (the player credited).</summary>
         public Action<SimEvent, IDetectorContext, List<PlayerId>> Detect { get; }
 
+        /// <summary>Opponent condition (spec ai_mechanic_use 7.3): when set, a slot-game counts only if the other slot trained or completed a unit of this layer; null for no condition.</summary>
+        public MovementLayer? OpponentLayer { get; }
+
         /// <summary>Bundles the values.</summary>
-        public MechanicDetector(string id, string what, Func<ContentCatalog, string, bool, bool> applicable, Action<SimEvent, IDetectorContext, List<PlayerId>> detect)
+        public MechanicDetector(string id, string what, Func<ContentCatalog, string, bool, bool> applicable, Action<SimEvent, IDetectorContext, List<PlayerId>> detect, MovementLayer? opponentLayer = null)
         {
+            OpponentLayer = opponentLayer;
             Id = id;
             What = what;
             Applicable = applicable;
@@ -66,7 +70,7 @@ namespace Rts.Tools.BalanceHarness
         public static readonly IReadOnlyList<MechanicDetector> All = new List<MechanicDetector>
         {
             new MechanicDetector("downdraft", "GroundingCastEvent (the caster's owner)", (c, f, core) => AnyUnit(c, f, d => d.GroundingAbility != null),
-                (e, x, o) => { if (e is GroundingCastEvent g) { Add(o, g.Owner); } }),
+                (e, x, o) => { if (e is GroundingCastEvent g) { Add(o, g.Owner); } }, MovementLayer.Air),
             new MechanicDetector("wave", "WaveCastEvent (the owner)", (c, f, core) => AnyUnit(c, f, d => d.Flood.CanCastWave),
                 (e, x, o) => { if (e is WaveCastEvent w) { Add(o, w.Owner); } }),
             new MechanicDetector("drench", "DrenchHitEvent (the attacker's owner)", (c, f, core) => AnyUnit(c, f, d => d.Weapon != null && d.Weapon.AppliesDrench),

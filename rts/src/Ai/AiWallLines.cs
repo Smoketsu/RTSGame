@@ -170,6 +170,7 @@ namespace Rts.Ai
                 }
                 // The kind text.
                 string kindText = node.RequireString("kind");
+                // The area kind parsed from the kind text. Unit: enum. Range: Main or Expansion.
                 AiWallAreaKind kind;
                 if (kindText == "main")
                 {
@@ -183,6 +184,7 @@ namespace Rts.Ai
                 {
                     throw node.Require("kind").Fail("must be 'main' or 'expansion' (found '" + kindText + "')");
                 }
+                // Spawn slot that owns the area. Unit: spawn index. Range: -1 (neutral) to the map's spawn count minus 1.
                 int slot = node.RequireInt("slot", -1, map.Spawns.Count - 1);
                 // Field indices of the area.
                 List<int> fields = new List<int>();
@@ -193,6 +195,7 @@ namespace Rts.Ai
                 }
                 foreach (JsonValue fieldNode in fieldNodes)
                 {
+                    // Resource field index listed by the area. Unit: index into the map's resource fields. Range: 0 to field count minus 1; unique across the file.
                     int index = fieldNode.AsInt(0, map.ResourceFields.Count - 1);
                     if (!usedFields.Add(index))
                     {
@@ -231,7 +234,9 @@ namespace Rts.Ai
                 foreach (JsonValue lineNode in lineNodes)
                 {
                     lineNode.RejectUnknownKeys("from", "to", "gate");
+                    // First tile of the line. Unit: tile coordinates. Range: inside the map.
                     (int X, int Y) from = ReadTile(lineNode.Require("from"), map);
+                    // Last tile of the line. Unit: tile coordinates. Range: inside the map.
                     (int X, int Y) to = ReadTile(lineNode.Require("to"), map);
                     // Tiles the line would have, before any limit. Unit: tiles. Range: 1 upward.
                     int length = Math.Max(Math.Abs(to.X - from.X), Math.Abs(to.Y - from.Y)) + 1;

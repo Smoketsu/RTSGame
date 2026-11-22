@@ -123,6 +123,49 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(rareSkai.ShareText, Is.EqualTo("0.500"));
         }
 
+        /// <summary>H-1 and H-2 (ai_mechanic_use 7.3): the skai/downdraft row counts only slot-games whose opponent fielded a flyer; every other detector's rows are unchanged.</summary>
+        [Test]
+        public void MechanicUse_DowndraftCountsOnlyAgainstAFlyer()
+        {
+            DataSet data = TestData.LoadAll();
+            Assert.That(data.Content.Units["skai.roc_rider"].Layer, Is.EqualTo(MovementLayer.Air), "test setup: the Roc Rider flies");
+            // Record A, Skai against Skai: slot 1 trained a Roc Rider; slot 0 trained no flyer and used downdraft once. Record B: Skai against Water, no flyer.
+            GameRecord a = Game(0, "skai", "skai", GameRecord.Slot0, 1, "", "", Summary(null, new Dictionary<string, int> { ["downdraft"] = 1, ["rare"] = 1 }), Summary(new Dictionary<string, int> { ["skai.roc_rider"] = 1 }));
+            GameRecord b = Game(1, "skai", "water", GameRecord.Slot0, 2, "", "", Summary(null, new Dictionary<string, int> { ["downdraft"] = 1 }), Summary());
+            UseRow row = BalanceReport.MechanicUse(new List<GameRecord> { a, b }, data).Find(r => r.Faction == "skai" && r.Id == "downdraft")!;
+            Assert.That(row.SlotGames, Is.EqualTo(1), "record A slot 0 only");
+            Assert.That(row.Used, Is.EqualTo(1));
+            Assert.That(row.ShareText, Is.EqualTo("1.000"));
+            // Without the Roc Rider the row has no slot-games and is not listed.
+            GameRecord noFlyer = Game(0, "skai", "skai", GameRecord.Slot0, 1, "", "", a.Summary0, Summary());
+            Assert.That(BalanceReport.MechanicUse(new List<GameRecord> { noFlyer, b }, data).Find(r => r.Faction == "skai" && r.Id == "downdraft"), Is.Null);
+            // H-2: every other row equals the unconditioned count (applicable slot-games of the faction, summaries with a count of at least 1).
+            List<GameRecord> records = new List<GameRecord> { a, b };
+            foreach (UseRow other in BalanceReport.MechanicUse(records, data))
+            {
+                if (other.Id == "downdraft")
+                {
+                    continue;
+                }
+                // Expected slot-games and uses of this row. Unit: slot-games.
+                int expectedGames = 0;
+                int expectedUsed = 0;
+                foreach (GameRecord record in records)
+                {
+                    foreach ((string faction, GameSummary? summary) in new[] { (record.Slot0Faction, record.Summary0), (record.Slot1Faction, record.Summary1) })
+                    {
+                        if (faction == other.Faction && MechanicDetectors.Require(other.Id).Applicable(data.Content, faction, data.Maps[record.Map].Core != null))
+                        {
+                            expectedGames++;
+                            expectedUsed += summary!.Mechanics.TryGetValue(other.Id, out int uses) && uses >= 1 ? 1 : 0;
+                        }
+                    }
+                }
+                Assert.That(other.SlotGames, Is.EqualTo(expectedGames), other.Faction + "/" + other.Id);
+                Assert.That(other.Used, Is.EqualTo(expectedUsed), other.Faction + "/" + other.Id);
+            }
+        }
+
         /// <summary>A fake detector context: owners, definitions and layers by entity, and the players of team 0.</summary>
         private sealed class FakeContext : IDetectorContext
         {

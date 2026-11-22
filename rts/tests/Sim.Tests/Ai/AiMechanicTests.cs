@@ -1481,6 +1481,40 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(summary.Mechanics.TryGetValue("wall", out int uses) ? uses : 0, Is.GreaterThan(0));
         }
 
+        /// <summary>WL-12b: GameTrace charges an accepted AI wall line the same way SummaryObserver does: the trace's final "spent=" common of player 0 equals the summary's total, which includes a positive wall class.</summary>
+        [Test]
+        public void Wl12b_TraceWallAccounting()
+        {
+            Simulation sim = WallScene("water");
+            SkirmishAiController controller = new SkirmishAiController(P0, WallProfile());
+            controller.OnMatchStart(sim);
+            controller.Memory.Variety!.SetWallStyleForTest(WallStyle.Funnel);
+            SummaryObserver observer = new SummaryObserver(30, new[] { 100 });
+            observer.Begin(sim);
+            // The trace's output text.
+            StringWriter text = new StringWriter();
+            GameTrace trace = new GameTrace(text, 30);
+            trace.Begin(sim, "wl12b");
+            List<IPlayerController> controllers = new List<IPlayerController> { controller };
+            // Steps taken. Unit: ticks. Range: 0 to 1500.
+            for (int i = 0; i < 1500; i++)
+            {
+                AiHost.ThinkAll(sim, controllers);
+                observer.AfterThink(controllers);
+                trace.AfterThink(sim, controllers);
+                sim.Step();
+                observer.AfterStep(sim);
+                trace.AfterStep(sim);
+            }
+            GameSummary summary = observer.Finish(sim.Clock.Tick - 1)[0];
+            trace.Finish(sim, MatchOutcome.Evaluate(sim.Players), sim.Clock.Tick - 1, 100);
+            Assert.That(summary.Spent["wall"][0], Is.GreaterThan(0));
+            // The last "spent=<n>c/" of the text is player 0's whole-game total.
+            System.Text.RegularExpressions.MatchCollection spent = System.Text.RegularExpressions.Regex.Matches(text.ToString(), "spent=(\\d+)c/");
+            Assert.That(spent.Count, Is.GreaterThan(0));
+            Assert.That(text.ToString(), Does.Contain("spent=" + summary.SpentCommon + "c/"));
+        }
+
         /// <summary>WL-13: the exit game: ai_vs_ai's two players on prototype_1v1, both aggressive_s5_m, run twice: identical hashes at every hash tick and no AI rejection other than site_occupied. Whether it is decided and which areas were walled is written to the test output.</summary>
         [Test]
         public void Wl13_ExitGame()
