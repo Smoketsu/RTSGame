@@ -101,8 +101,9 @@ namespace Rts.Game.Hud
             {
                 _commands = FindAnyObjectByType<LocalCommands>();
             }
-            if (_commands == null || !_commands.IsReady)
+            if (_commands == null || !_commands.IsReady || _commands.Host.IsPlayback)
             {
+                // A replay has its own playback bar (Main Menu) and no surrender or end screen.
                 return;
             }
             if (!_subscribed)

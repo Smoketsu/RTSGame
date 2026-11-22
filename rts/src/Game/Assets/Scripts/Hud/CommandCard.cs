@@ -202,7 +202,8 @@ namespace Rts.Game.Hud
             {
                 _abilities = GetComponent<AbilityTargeting>();
             }
-            Simulation sim = _commands != null && _selection != null && _commands.IsReady ? _commands.Host.Match : null;
+            // No orders in a replay: the card is hidden while one plays (player_interface_2.md UI-15).
+            Simulation sim = _commands != null && _selection != null && _commands.IsReady && !_commands.Host.IsPlayback ? _commands.Host.Match : null;
             _mode = sim == null ? CardMode.Hidden : ChooseMode(sim);
             _card.gameObject.SetActive(_mode != CardMode.Hidden);
             _queue.gameObject.SetActive(_mode == CardMode.Producer);

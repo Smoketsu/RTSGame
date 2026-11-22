@@ -91,6 +91,11 @@ namespace Rts.Game.Bootstrap
         /// <param name="command">A command built for <see cref="Tick"/> with <see cref="NextSequence"/> and issued by <see cref="LocalPlayer"/>.</param>
         public void Submit(Command command)
         {
+            if (_host.IsPlayback)
+            {
+                // A replay plays its recorded commands only; input must never reach its simulation (player_interface_2.md UI-15).
+                return;
+            }
             if (_host.IsAiPlayer(LocalPlayer))
             {
                 // The local slot is played by an AI (a script with an "ai" key on it): input must not compete with it.

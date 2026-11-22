@@ -34,7 +34,13 @@ namespace Rts.Game.Presentation
         /// Editor-only debug switch: draw everything as if the whole map were visible. Static so every presentation script reads one switch.
         /// Unit: on/off. Always false in a build.
         /// </summary>
-        public static bool ShowAll { get; private set; }
+        public static bool ShowAll { get => _showAll || Observer; private set => _showAll = value; }
+
+        /// <summary>The F8 switch's own state (editor only). Unit: on/off.</summary>
+        private static bool _showAll;
+
+        /// <summary>Observer view: everything visible, set by the host while a replay plays (also in builds). Unit: on/off.</summary>
+        public static bool Observer { get; set; }
 
         /// <summary>The host on the same object. Range: non-null after Awake.</summary>
         private SimulationHost _host;
@@ -95,7 +101,7 @@ namespace Rts.Game.Presentation
 #if UNITY_EDITOR
             if (GameInput.GetKeyDown(KeyCode.F8))
             {
-                ShowAll = !ShowAll;
+                ShowAll = !_showAll;
                 Debug.Log("[FogView] Show All " + (ShowAll ? "on" : "off") + " (editor only).");
             }
 #endif
