@@ -185,6 +185,12 @@ namespace Rts.Ai
         public SortedSet<int> UnreachableSites { get; } = new SortedSet<int>();
 
         /// <summary>
+        /// Rule WB (ai_mechanic_use.md M3.1, only with use_wall_breach): the last MoveUnreachableEvent of each own unit, by unit ID (ascending): the tick it was reported (ticks, 0 upward) and the goal it could not reach
+        /// (tiles). Overwritten by a newer event; entries of dead units and older than wall_breach_memory_seconds are dropped by the intel step. Not hashed.
+        /// </summary>
+        public SortedDictionary<EntityId, (int Tick, FixVec2 Goal)> UnreachableGoals { get; } = new SortedDictionary<EntityId, (int Tick, FixVec2 Goal)>();
+
+        /// <summary>
         /// Fields a relocation timed out on; skipped when choosing a relocation target until the HQ roots again, when the set is
         /// cleared (rule H step 4). Ascending. Range: each 0 to field count - 1; empty at the start.
         /// </summary>

@@ -32,7 +32,7 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiProfile.cs` | Parses and validates `rts/data/ai/<id>.json` (errors name file and field) |
 | `AiWorldView.cs` | What one player may know, copied out of the simulation once per think |
 | `AiMemory.cs` | Per-controller memory: stance, thresholds, known enemy structures, damage reports, sequence counter |
-| `AiBrain.cs` | The decision rules (pure: view + profile + memory + own generator to intents); ai_mechanic_use.md P2 (`use_support_units`) adds rule SU (train support units by army size, in `Produce`), the RQ-1 support extension and rule ST (support trail, in `Army`) |
+| `AiBrain.cs` | The decision rules (pure: view + profile + memory + own generator to intents); ai_mechanic_use.md P2 (`use_support_units`) adds rule SU (train support units by army size, in `Produce`), the RQ-1 support extension and rule ST (support trail, in `Army`); P3 (`use_wall_breach`) adds rule WB (attack the enemy wall that seals a unit's route, in `Army`, from `AiMemory.UnreachableGoals`) |
 | `AiIntel.cs` | Enemy model and scouting route (skirmish_ai_v3.md package B) |
 | `FightPredictor.cs` | Static fight predictor over unit definitions and the damage table (skirmish_ai_v3.md C.1) |
 | `AiCounter.cs` | Unit pool, counter scores and counter-mix weights (skirmish_ai_v3.md C.3 and C.4) |
