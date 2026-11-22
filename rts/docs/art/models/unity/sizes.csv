@@ -1,0 +1,27 @@
+# rts/docs/art/models/unity/sizes.csv: normalised size, yaw and file sizes of the static conversion of each approved model (written by convert_static.py; fbx_kb is the static FBX, rigged units keep a larger rigged FBX).
+data_id,source,yaw_deg,width_x,depth_z_unity,height_y_unity,scale_applied,glb_kb,fbx_kb,roundtrip
+skai.fledgling,rts/docs/art/models/batch1/skai_worker.glb,270,0.922,1.000,1.725,1.7254,1233,1303,ok
+skai.windrunner,rts/docs/art/models/trial2/skai_scout.glb,270,0.847,1.000,2.562,2.5632,1189,1254,ok
+skai.talon_archer,rts/docs/art/models/batch1/skai_marksman_v3.glb,270,0.436,1.000,1.088,1.0888,1189,1270,ok
+skai.stormcaller,rts/docs/art/models/batch1/skai_stormcaller_v4.glb,270,1.000,0.712,1.807,1.8076,1132,1217,ok
+skai.roc_rider,rts/docs/art/models/batch1/skai_roc_rider_v2.glb,270,1.000,0.818,0.569,1.0005,1248,1314,ok
+skai.thunderhead,rts/docs/art/models/batch1/skai_thunderhead_v6.glb,270,1.000,1.000,0.380,1.0005,2976,2520,ok
+water.tender,rts/docs/art/models/batch1/water_worker_v2.glb,270,1.000,0.826,1.249,1.2495,942,1027,ok
+water.shellback,rts/docs/art/models/trial2/water_clam.glb,270,1.000,0.999,1.267,1.2681,890,964,ok
+water.grasper,rts/docs/art/models/batch1/water_pummeler_v2.glb,270,1.000,0.876,1.564,1.5646,1025,1111,ok
+water.spoutling,rts/docs/art/models/batch1/water_spoutling.glb,270,1.000,0.823,1.533,1.5341,887,972,ok
+water.ink_lobber,rts/docs/art/models/trial2/water_snail.glb,270,0.904,1.000,2.082,2.0834,1172,1253,ok
+water.tidecaller,rts/docs/art/models/batch1/water_tidecaller.glb,270,1.000,0.996,1.513,1.5137,844,933,ok
+water.leviathan,rts/docs/art/models/batch1/water_leviathan.glb,270,1.000,0.985,0.959,1.0005,845,938,ok
+water.reef_runner,rts/docs/art/models/batch1/water_reef_runner.glb,270,0.651,1.000,2.247,2.2481,960,1051,ok
+skai.roost,rts/docs/art/models/buildings1/skai_roost.glb,270,1.000,0.821,1.417,1.4173,865,936,ok
+skai.windspire,rts/docs/art/models/buildings1/skai_windspire.glb,270,1.000,0.950,1.883,1.8841,892,942,ok
+skai.perch_tower,rts/docs/art/models/buildings1/skai_perch_tower.glb,270,1.000,0.947,1.287,1.2872,833,930,ok
+skai.perch_depot,rts/docs/art/models/buildings1/skai_perch_depot.glb,270,1.000,0.904,1.021,1.0214,1022,1107,ok
+skai.great_aerie,rts/docs/art/models/buildings1/skai_great_aerie_rooted.glb,270,1.000,0.757,1.478,1.4787,1333,1395,ok
+skai.great_aerie.uprooted,rts/docs/art/models/buildings1/skai_great_aerie_uprooted.glb,270,1.000,0.789,1.576,1.5766,1326,1404,ok
+water.grand_shell,rts/docs/art/models/buildings1/water_grand_shell.glb,270,0.658,1.000,0.655,1.0005,1085,1163,ok
+water.tidepool,rts/docs/art/models/buildings1/water_tidepool.glb,270,1.000,1.000,1.155,1.1551,1098,1182,ok
+water.shell_forge,rts/docs/art/models/buildings1/water_shell_forge.glb,270,0.968,1.000,0.991,1.0005,806,906,ok
+water.coral_turret,rts/docs/art/models/buildings1/water_coral_turret.glb,270,0.904,1.000,0.954,1.0005,974,1060,ok
+water.pearl_depot,rts/docs/art/models/buildings1/water_pearl_depot.glb,270,1.000,0.992,0.895,1.0005,981,1070,ok
