@@ -186,3 +186,23 @@ Clip content per unit (from the unit's JSON): ground and water units with a weap
 ### What the Unity session must check (all rigged units)
 
 Same list as part 2 (scale, facing +Z, texture, clip names, loop flags for idle and move, Generic rig with root bone `root`, armature node rotation or 100 times scale). In addition: bounds (several clips lift the root by `ground_clamp`, and the Reef Runner wheel turns a full 360 degrees: check it loops cleanly), the scale curves on the Tidecaller and Ink Lobber (Unity must keep bone scale animation), skinning at 3 to 4 bones per vertex, and that animation playback looks like the sheets. Not run in Unity at all.
+
+## Part 4: texture names and rest pose (22 Nov 2026, after the Unity import)
+
+All 25 FBX files were re-exported. **The Unity session must re-run its import settings** (the embedded texture name changed, the rigged files changed, and the `.fbm` rename workaround is no longer needed). The `.meta` files were not touched.
+
+### 1. Embedded texture name
+
+- Cause: the images come packed inside the GLB with no file path, so Blender wrote the embedded copy under the bare folder name `<id>.fbm` with no file name.
+- Fix (`name_texture` in `m3d_common.py`, used by both `convert_static.py` and `rig.py`): before export the image bytes are written to a temp file named `<data id>.jpg` or `<data id>.png` (chosen from the actual bytes, not the old name) and set as the image's file path and name. The FBX now embeds `<id>.fbm/<id>.<ext>`.
+- Check: after every export the script reads the FBX bytes back (`fbx_embedded_textures`), and fails if a name does not end in `<data id>.jpg` or `<data id>.png` or the embedded bytes do not match the extension. All 25 pass: 24 are `.jpg`, `skai.thunderhead` is `.png`.
+
+### 2. Rest pose
+
+- Cause: the rest pose was fine (the Blender re-import in REST position was always 1.0 and 0). Unity shows the first frame of a clip as the model's default pose, and frame 1 of `idle` (and `move`) was not the rest pose: the wave clips start at a crest or carry a bias, for example the Tidecaller bell scale of 1.03 at frame 1, the idle bob of 0.012 on the Thunderhead and Spoutling. Those numbers match what Unity measured. The static files have no clips, so they were fine.
+- Fix: every wave channel is now shifted so frame 1 and the last frame are exactly the rest pose (the motion in between is the same; only the constant lean or offset of a wave is gone, e.g. the lean of the Spoutling and Thunderhead moves is now smaller). Attack and death already started at rest.
+- The export itself now also writes the default pose with the scene on frame 0 (no clip active) and every bone cleared, and `extrapolation = NOTHING` on the clip strips.
+- Check in `rig.py` (fails the unit and exits non-zero): frame 1 of every clip must have longest footprint side 1.0 and lowest point 0 within 0.005 (`FIRST-FRAME` lines), the pose the export sees must satisfy it (`EXPORT-STATE`), and the re-imported FBX in REST position must satisfy it (`REST-POSE`), then the existing clip bounds comparison. `convert_static.py` runs the same rest check on all 25 shipped FBX files and writes `rest_longest_side` and `rest_lowest_z` into `sizes.csv`.
+- Result for the six units (frame 1 of idle and move, and rest): longest side 1.0000 and lowest point 0.0000 (within 0.0001) for `skai.fledgling`, `skai.thunderhead`, `water.grasper`, `water.ink_lobber`, `water.spoutling`, `water.tidecaller`.
+- `rts/tools/Models3D/fbx_pose.py` reads the bone default poses out of an FBX without Blender (used to confirm the stored default pose is the same in the old and new files, which showed the cause is the clips, not the stored pose).
+- Not verified: what Unity measures (only Blender).

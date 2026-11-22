@@ -202,7 +202,13 @@ def make_actions(arm, unit, fps, mesh=None):
             if ch is None:
                 frames = [(1, [0, 0, 0], [0, 0, 0], [1, 1, 1]), (n, [0, 0, 0], [0, 0, 0], [1, 1, 1])]
             elif "wave" in ch:
-                frames = [(f, *wave_value(ch["wave"], (f - 1) / (n - 1))) for f in range(1, n + 1)]
+                # Wave clips are shifted so frame 1 (and the last frame) is exactly the rest pose: Unity shows the first frame of a clip as the
+                # model's default pose, and a wave that starts at its crest or carries a bias would move the rest footprint and floor.
+                b0 = wave_value(ch["wave"], 0.0)
+                frames = []
+                for f in range(1, n + 1):
+                    r, l, sc = wave_value(ch["wave"], (f - 1) / (n - 1))
+                    frames.append((f, [x - y for x, y in zip(r, b0[0])], [x - y for x, y in zip(l, b0[1])], [x / y for x, y in zip(sc, b0[2])]))
             else:
                 frames = [(k[0], k[1], k[2] if len(k) > 2 else [0, 0, 0], k[3] if len(k) > 3 else [1, 1, 1]) for k in ch["keys"]]
             # Previous key's quaternion: keeps consecutive keys on the same side (q and -q are the same turn) so spins longer than 180 degrees play through.
@@ -235,7 +241,9 @@ def make_actions(arm, unit, fps, mesh=None):
         # One NLA track per clip, named like the action, so the FBX take gets exactly that name. Muted until export so it does not mix into the preview.
         track = arm.animation_data.nla_tracks.new()
         track.name = name
-        track.strips.new(name, 1, action)
+        strip = track.strips.new(name, 1, action)
+        # No hold before or after the strip: at frame 0 no clip is active, so the pose written to the FBX as the default pose is the rest pose.
+        strip.extrapolation = 'NOTHING'
         track.mute = True
         for pb in arm.pose.bones:
             pb.rotation_quaternion = (1, 0, 0, 0)
@@ -337,6 +345,14 @@ def run(unit_id, method, renders, sheet, export, dbg=None):
     # Deformed mesh bounds at four frames of every action, to compare after the FBX round trip.
     expected = {n: {f: pose_signature(arm, mesh, bpy.data.actions[n], f)
                     for f in set([1, 1 + (lengths[n] - 1) // 3, 1 + 2 * (lengths[n] - 1) // 3, lengths[n]])} for n in lengths}
+    # Frame 1 of every clip must be the rest pose (Unity shows it as the default pose): longest footprint side 1.0 and lowest point 0 within REST_TOL.
+    ok = True
+    for n in lengths:
+        sg = expected[n][1]
+        longest, low = max(sg[3] - sg[0], sg[4] - sg[1]), sg[2]
+        good = abs(longest - 1.0) <= C.REST_TOL and abs(low) <= C.REST_TOL
+        ok = ok and good
+        print("FIRST-FRAME %-6s longest %.4f lowest %.4f %s" % (n, longest, low, "ok" if good else "OUT OF TOLERANCE"))
     # Ground clearance of every clip over all its frames (negative = the mesh dips below the ground plane).
     for n in lengths:
         print("GROUND %-6s lowest z %.3f" % (n, lowest_point(arm, mesh, bpy.data.actions[n], 1, lengths[n])))
@@ -348,12 +364,31 @@ def run(unit_id, method, renders, sheet, export, dbg=None):
     bpy.context.view_layer.update()
     rest = evaluated_bounds(mesh)
     arm.data.pose_position = 'POSE'
-    ok = True
     if export:
         fbx = os.path.join(CS.OUT_DIR, unit_id + ".fbx")
+        C.name_texture(unit_id)
+        # The FBX stores the pose of the bones at export time as the model's default pose, which is what Unity shows without an animation.
+        # With the clips muted or the scene on frame 1 that pose was a mix of clip poses (idle and move frame 1 are not the rest pose), which
+        # moved the rest footprint and floor. Export with every pose bone cleared, no action, and the scene on frame 0 where no strip is active.
+        for pb in arm.pose.bones:
+            pb.rotation_quaternion = (1, 0, 0, 0)
+            pb.location = (0, 0, 0)
+            pb.scale = (1, 1, 1)
+        arm.animation_data.action = None
         set_nla_mute(arm, False)
+        bpy.context.scene.frame_set(0)
+        bpy.context.view_layer.update()
+        # The mesh as the export will see it (deformed at frame 0): must already satisfy the rest rule.
+        lo0, hi0 = evaluated_bounds(mesh)
+        export_state = (max(hi0[0] - lo0[0], hi0[1] - lo0[1]), lo0[2])
+        print("EXPORT-STATE pose: longest %.4f lowest %.4f" % export_state)
+        ok = ok and abs(export_state[0] - 1.0) <= C.REST_TOL and abs(export_state[1]) <= C.REST_TOL
         C.export_fbx(fbx, [arm, mesh])
         set_nla_mute(arm, True)
+        bpy.context.scene.frame_set(1)
+        tex = C.fbx_embedded_textures(fbx)
+        print("TEXTURE", [t[0] for t in tex])
+        ok = ok and len(tex) >= 1 and all(t[1] and t[0].endswith((unit_id + ".jpg", unit_id + ".png")) for t in tex)
         print("FBX takes:", fbx_take_names(fbx))
         print("EXPORTED", fbx, os.path.getsize(fbx) // 1024, "KB")
     # Optional large single-frame renders for inspection: "action:frame:view,..." (view is a key of m3d_common.VIEWS).
@@ -365,6 +400,10 @@ def run(unit_id, method, renders, sheet, export, dbg=None):
         C.render_view(os.path.join(renders, "dbg_%s_%s_%s.png" % (a, f, v)), v, CS.fit_scale(w, d, h) * 0.9, h / 2, 700)
     frames = render_sheet_frames(arm, mesh, w, d, h, unit_id, lengths, renders)
     if export:
+        # Rest pose of the exported FBX on a fresh re-import (pose cleared, no action, REST position) against the normalisation rule.
+        rm = C.measure_rest(fbx)
+        print("REST-POSE longest %.4f (w %.4f d %.4f h %.4f) lowest %.4f %s" % (rm[0], rm[1], rm[2], rm[3], rm[4], "ok" if C.rest_ok(rm) else "OUT OF TOLERANCE"))
+        ok = ok and C.rest_ok(rm)
         # Round trip into a fresh scene.
         C.reset_scene()
         bpy.ops.import_scene.fbx(filepath=fbx)
@@ -372,7 +411,7 @@ def run(unit_id, method, renders, sheet, export, dbg=None):
         meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
         print("REIMPORT armatures=%d meshes=%d bones=%d actions=%s" % (
             len(arms), len(meshes), len(arms[0].data.bones) if arms else 0, [a.name for a in bpy.data.actions]))
-        ok = len(arms) == 1 and len(meshes) == 1 and len(arms[0].data.bones) == len(unit["bones"])
+        ok = ok and len(arms) == 1 and len(meshes) == 1 and len(arms[0].data.bones) == len(unit["bones"])
         # Blender's FBX importer joins a bone to its parent when it is the parent's only child, and joined bones ignore translation
         # curves in Blender (not in Unity). Un-join them so the check sees the translation keys that are in the file.
         bpy.context.view_layer.objects.active = arms[0]
