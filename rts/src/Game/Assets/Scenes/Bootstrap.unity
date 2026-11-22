@@ -173,6 +173,8 @@ MonoBehaviour:
   logAiRejections: 0
   recordSession: 1
   dataDirectoryOverride: 
+  campaignDirectoryOverride: 
+  playMissionInputs: 0
   cubeScalePerRadius: 2
   minimumCubeSize: 0.4
 --- !u!4 &645787076
