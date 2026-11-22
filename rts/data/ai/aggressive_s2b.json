@@ -378,6 +378,8 @@
       "attack_tide_override_supply": 20,
       // Rule SU: support units trained by army size, as unit ID to army supply per unit (wanted = min(support_max_per_type, army supply / this)); {} = none. Unit: unit ID to supply per unit. Range: 0 to 20 entries, each value 1 to 200, each a unit of this faction with supply above 0. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 Q-5: 12 and 20); placeholder.
       "support_units": {},
+      // P2b: per support unit, the enemy movement layers of which at least one army type must have been sighted before rule SU trains it; a unit not listed, or listed with [], is always needed. Unit: object unit ID to list of layer names. Range: keys from support_units; names ground, water, air; a non-empty list needs use_enemy_model true. Source: rts/docs/specs/ai_mechanic_use.md M2.1b; placeholder.
+      "support_needs": {},
       // Openings, one of which is drawn by weight at match start (each: id, weight 0 to 100, build_order replacing the plan's for the whole game, composition and the four timing keys until handover_seconds); [] = none, the plan plays as written. Unit: array of openings. Range: 0 to 16 entries; weights sum above 0 when not empty. Source: skirmish_ai_v4_rl.md L.2; placeholder.
       "openings": [],
       // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.
@@ -409,6 +411,8 @@
       "attack_tide_override_supply": 20,
       // Rule SU: support units trained by army size, as unit ID to army supply per unit (wanted = min(support_max_per_type, army supply / this)); {} = none. Unit: unit ID to supply per unit. Range: 0 to 20 entries, each value 1 to 200, each a unit of this faction with supply above 0. Source: rts/docs/specs/ai_mechanic_use.md section 1 (v4 Q-5: 12 and 20); placeholder.
       "support_units": {},
+      // P2b: per support unit, the enemy movement layers of which at least one army type must have been sighted before rule SU trains it; a unit not listed, or listed with [], is always needed. Unit: object unit ID to list of layer names. Range: keys from support_units; names ground, water, air; a non-empty list needs use_enemy_model true. Source: rts/docs/specs/ai_mechanic_use.md M2.1b; placeholder.
+      "support_needs": {},
       // Openings, one of which is drawn by weight at match start (each: id, weight 0 to 100, build_order replacing the plan's for the whole game, composition and the four timing keys until handover_seconds); [] = none, the plan plays as written. Unit: array of openings. Range: 0 to 16 entries; weights sum above 0 when not empty. Source: skirmish_ai_v4_rl.md L.2; placeholder.
       "openings": [],
       // Planetary Cycle IDs, most wanted first; the AI picks the first one that may start next when its team holds the Core. Unit: cycle IDs. Range: every cycle in rts/data/cycles exactly once. Source: Win condition and twists / Planetary Cycles; PLACEHOLDER.

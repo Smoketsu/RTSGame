@@ -70,6 +70,8 @@
 //   * rts/docs/specs/ai_mechanic_use.md package P2 (support units): use_support_units, support_max_per_type, support_trail_tiles, support_regroup_tiles and, in each faction plan,
 //     support_units (object unit ID to army supply per unit, each 1 to 200; every ID a unit of the plan's faction with supply above 0). Every profile file carries them; the old
 //     values false, 3, 3, 3 and {} play exactly as before; only aggressive_s5_m has use_support_units true (water { water.tidecaller 12 }, skai { skai.stormcaller 20 }).
+//   * rts/docs/specs/ai_mechanic_use.md package P2b (support needs): in each faction plan, support_needs (object unit ID to a list of 0 to 3 distinct layer names ground, water, air; keys a subset of
+//     support_units; a non-empty list needs use_enemy_model). Every profile file carries it; {} everywhere except aggressive_s5_m's skai plan { skai.stormcaller ["air"] }.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -199,14 +201,19 @@ namespace Rts.Ai
         public IReadOnlyList<AiOpening> Openings { get; }
 
         /// <summary>Rule SU (ai_mechanic_use.md M2.1): support units the AI trains by army size, by unit ID in ordinal ID order; the value is the army supply that earns one unit. Unit: supply per unit. Range: 0 to 20 entries (empty = none), each value 1 to 200, each key a unit of this faction with supply above 0.</summary>
-        public IReadOnlyDictionary<string, int> SupportUnits { get; }
+        public SortedDictionary<string, int> SupportUnits { get; }
+
+        /// <summary>Rule SU's need (ai_mechanic_use.md M2.1b): per support unit ID, the enemy movement layers of which at least one sighted army type must be on before the unit is wanted; ordinal ID order. Unit: unit ID to layers. Range: keys a subset of <see cref="SupportUnits"/>; each list 0 to 3 distinct layers; a missing key or an empty list = always needed.</summary>
+        public SortedDictionary<string, IReadOnlyList<MovementLayer>> SupportNeeds { get; }
 
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
             IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
             IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null, string? scoutUnitId = null,
-            IReadOnlyList<AiOpening>? openings = null, IReadOnlyDictionary<string, int>? supportUnits = null)
+            IReadOnlyList<AiOpening>? openings = null, SortedDictionary<string, int>? supportUnits = null,
+            SortedDictionary<string, IReadOnlyList<MovementLayer>>? supportNeeds = null)
         {
+            SupportNeeds = supportNeeds ?? new SortedDictionary<string, IReadOnlyList<MovementLayer>>(StringComparer.Ordinal);
             SupportUnits = supportUnits ?? new SortedDictionary<string, int>(StringComparer.Ordinal);
             Openings = openings ?? Array.Empty<AiOpening>();
             ScoutUnitId = scoutUnitId ?? string.Empty;
@@ -228,7 +235,7 @@ namespace Rts.Ai
         public AiFactionPlan WithOrders(IReadOnlyList<AiBuildStep> buildOrder, IReadOnlyDictionary<string, int> composition)
         {
             return new AiFactionPlan(FactionId, WorkerUnitId, SupplyBuildingId, buildOrder, composition, AttackTideMin, AttackTideMax,
-                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings, SupportUnits);
+                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings, SupportUnits, SupportNeeds);
         }
     }
 
@@ -1143,7 +1150,20 @@ namespace Rts.Ai
             SortedDictionary<string, AiFactionPlan> plans = new SortedDictionary<string, AiFactionPlan>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonValue> pair in factionsNode.Members)
             {
-                plans.Add(pair.Key, ParseFaction(pair.Key, pair.Value, content, cycleIds));
+                // The parsed plan of this faction.
+                AiFactionPlan parsed = ParseFaction(pair.Key, pair.Value, content, cycleIds);
+                foreach (KeyValuePair<string, IReadOnlyList<MovementLayer>> need in parsed.SupportNeeds)
+                {
+                    if (need.Value.Count > 0 && !root.RequireBool("use_enemy_model"))
+                    {
+                        throw pair.Value.Require("support_needs").Fail("may only list layers when use_enemy_model is true (unit '" + need.Key + "')");
+                    }
+                    if (!parsed.SupportUnits.ContainsKey(need.Key))
+                    {
+                        throw pair.Value.Require("support_needs").Fail("names '" + need.Key + "', which is not a key of support_units");
+                    }
+                }
+                plans.Add(pair.Key, parsed);
             }
             if (plans.Count == 0)
             {
@@ -1223,7 +1243,7 @@ namespace Rts.Ai
                 AiOpening one = new AiOpening(found.Id, 1, found.BuildOrder, found.Composition, found.HandoverSeconds, found.ExpandAtSeconds, found.EarlyExpansionSeconds,
                     found.AttackArmySupply, found.AttackMinSupply);
                 plans[forced.Key] = new AiFactionPlan(plan.FactionId, plan.WorkerUnitId, plan.SupplyBuildingId, plan.BuildOrder, plan.Composition, plan.AttackTideMin, plan.AttackTideMax,
-                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one }, plan.SupportUnits);
+                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one }, plan.SupportUnits, plan.SupportNeeds);
             }
             return new AiProfile(_root, Id, plans);
         }
@@ -1244,7 +1264,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings", "support_units");
+                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings", "support_units", "support_needs");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -1337,7 +1357,7 @@ namespace Rts.Ai
                 }
             }
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content), ParseSupportUnits(node, faction, content));
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content), ParseSupportUnits(node, faction, content), ParseSupportNeeds(node));
         }
 
         /// <summary>Validates the "support_units" object of a faction plan (ai_mechanic_use.md section 1): each key a unit of the faction with supply above 0, each value 1 to 200.</summary>
@@ -1366,6 +1386,57 @@ namespace Rts.Ai
                 support.Add(pair.Key, pair.Value.AsInt(1, 200));
             }
             return support;
+        }
+
+        /// <summary>Validates the "support_needs" object of a faction plan (ai_mechanic_use.md M2.1b): each value a list of 0 to 3 distinct layer names (ground, water, air). Keys are checked against support_units by the caller.</summary>
+        /// <param name="node">The faction plan object.</param>
+        private static SortedDictionary<string, IReadOnlyList<MovementLayer>> ParseSupportNeeds(JsonValue node)
+        {
+            // Layers per support unit ID, in ordinal order.
+            SortedDictionary<string, IReadOnlyList<MovementLayer>> needs = new SortedDictionary<string, IReadOnlyList<MovementLayer>>(StringComparer.Ordinal);
+            // The support_needs object.
+            JsonValue needsNode = node.Require("support_needs");
+            if (needsNode.Kind != JsonKind.Object)
+            {
+                throw needsNode.Fail("must be an object");
+            }
+            // One unit ID and its JSON layer list, in file order.
+            foreach (KeyValuePair<string, JsonValue> pair in needsNode.Members)
+            {
+                // Layers of this entry, in file order. Range: 0 to 3 distinct values.
+                List<MovementLayer> layers = new List<MovementLayer>();
+                // One layer name node in the list.
+                foreach (JsonValue item in pair.Value.Items)
+                {
+                    // The name text. Range: ground, water or air.
+                    string name = item.AsString();
+                    // The layer the name stands for.
+                    MovementLayer layer;
+                    if (string.Equals(name, "ground", StringComparison.Ordinal))
+                    {
+                        layer = MovementLayer.Ground;
+                    }
+                    else if (string.Equals(name, "water", StringComparison.Ordinal))
+                    {
+                        layer = MovementLayer.Water;
+                    }
+                    else if (string.Equals(name, "air", StringComparison.Ordinal))
+                    {
+                        layer = MovementLayer.Air;
+                    }
+                    else
+                    {
+                        throw item.Fail("must be \"ground\", \"water\" or \"air\" (found '" + name + "')");
+                    }
+                    if (layers.Contains(layer))
+                    {
+                        throw item.Fail("lists the layer '" + name + "' twice");
+                    }
+                    layers.Add(layer);
+                }
+                needs.Add(pair.Key, layers.AsReadOnly());
+            }
+            return needs;
         }
 
         /// <summary>Validates a build order array (the plan's or an opening's): each step names a structure of the faction.</summary>
