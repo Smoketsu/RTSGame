@@ -322,6 +322,11 @@ namespace Rts.Ai
                 {
                     return false;
                 }
+                if (_view.IsOccupied(tile.X, tile.Y))
+                {
+                    // A ground unit (own, or an enemy this team sees) stands on the gate tile: the simulation would refuse with tile_occupied, so wait for the next think.
+                    return true;
+                }
                 if (TryBuild(gate, tile, false, AiBudget.Defence))
                 {
                     _memory.WallSpentCommon += gate.CostCommon;
