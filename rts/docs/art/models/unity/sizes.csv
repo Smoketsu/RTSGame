@@ -1,3 +1,4 @@
+# rts/docs/art/models/unity/sizes.csv: normalised size, yaw and file sizes of the static conversion of each approved model (written by convert_static.py; fbx_kb is the static FBX, rigged units keep a larger rigged FBX).
 data_id,source,yaw_deg,width_x,depth_z_unity,height_y_unity,scale_applied,glb_kb,fbx_kb,roundtrip
 skai.fledgling,rts/docs/art/models/batch1/skai_worker.glb,270,0.922,1.000,1.725,1.7254,1233,1303,ok
 skai.windrunner,rts/docs/art/models/trial2/skai_scout.glb,270,0.847,1.000,2.562,2.5632,1189,1254,ok

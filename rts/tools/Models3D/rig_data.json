@@ -1,0 +1,194 @@
+// rts/tools/Models3D/rig_data.json: per-unit rig tables read by rig.py: joint (bone) positions in normalised model space and the keyframed actions. Part of the model pipeline (rts/tools/Models3D); not read by the game.
+// Lines starting with // are comments; rig.py strips them before parsing, so everything else is plain JSON.
+//
+// Coordinates: the normalised model space of convert_static.py, in footprint units (longest footprint side = 1.0), Blender axes:
+// +X = the model's left, -Y = the model's front (forward), +Z = up, ground at z = 0, footprint centred on x = y = 0.
+// A bone is "head" (start, joint position) to "tail" (end); bones named *_l are on +X, *_r on -X.
+// Rotation values are degrees about the three armature-space axes (applied X, then Y, then Z) in the REST pose frame of the parent:
+//   +rx swings a hanging limb toward +Y (backwards) and tips a standing body forward (toward -Y);
+//   +ry lowers the +X side (so a +X wing goes up with negative ry and a -X wing goes up with positive ry);
+//   +rz turns the model counter-clockwise seen from above.
+// Location values are in footprint units along the same armature-space axes.
+// A "wave" channel is amp x sin(2 pi (cycles x t + phase)) + bias, t = 0..1 across the clip (first and last frame equal, so it loops); "keys" are [frame, [rx, ry, rz], [x, y, z]] poses.
+// "rot", "bias_rot" are degrees; "loc", "bias_loc" are footprint units; "cycles" (default 1) is the number of full waves per clip; "phase" is a fraction of a wave (0 to 1).
+{
+  "$doc": "Rig tables for the two pilot units.",
+  // Animation rate shared by all clips. Unit: frames per second. Range: 24 to 60. Source: task brief (30 fps).
+  "fps": 30,
+  "units": {
+    "skai.fledgling": {
+      // Weighting: soft nearest-bone. weight = exp(-(d - nearest d) / sigma) with d = (distance to the bone segment - radius) x bias; top max_influences kept, then smoothed over mesh edges.
+      // Per bone: "radius" = half thickness of the body part the bone moves. Unit: footprint units. Range: 0 to 0.3. "bias" = distance multiplier, below 1 pulls more vertices to the bone. Unit: factor. Range: 0.5 to 2.
+      // sigma: softness of the blend between neighbouring bones. Unit: footprint units. Range: 0.005 to 0.2 (small = hard borders, large = floppy).
+      "sigma": 0.045,
+      // Most bones that may move one vertex (Unity default allows 4). Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Passes of averaging each vertex weight with its edge neighbours (removes tearing at borders). Unit: passes. Range: 0 to 10.
+      "smooth_passes": 5,
+      "bones": [
+        // Ground anchor Unity moves and turns; every other bone hangs below it. No vertices belong to it.
+        {"name": "root", "parent": null, "head": [0, 0.08, 0.0], "tail": [0, 0.08, 0.15], "radius": 0.0, "bias": 1.0},
+        // Pelvis; legs and spine start here. Head at hip height z = 0.45.
+        {"name": "hips", "parent": "root", "head": [0, 0.08, 0.45], "tail": [0, 0.08, 0.56], "radius": 0.18, "bias": 1.0},
+        // Torso from hips to the shoulders; its axis sits at y = 0.14, between the chest and the backpack, so both follow it.
+        {"name": "spine", "parent": "hips", "head": [0, 0.14, 0.56], "tail": [0, 0.12, 0.86], "radius": 0.21, "bias": 1.0},
+        // Skull and beak, tail points along the beak (beak tip is at y = -0.5).
+        {"name": "head", "parent": "spine", "head": [0, 0.0, 0.88], "tail": [0, -0.28, 1.02], "radius": 0.14, "bias": 1.0},
+        // Model's left arm (+X): shoulder to elbow.
+        {"name": "arm_l_upper", "parent": "spine", "head": [0.28, 0.03, 0.78], "tail": [0.36, 0.03, 0.55], "radius": 0.08, "bias": 1.0},
+        // Model's left forearm and hand: elbow to fingertips.
+        {"name": "arm_l_lower", "parent": "arm_l_upper", "head": [0.36, 0.03, 0.55], "tail": [0.40, 0.03, 0.30], "radius": 0.13, "bias": 1.0},
+        // Model's right arm (-X): shoulder to elbow.
+        {"name": "arm_r_upper", "parent": "spine", "head": [-0.28, 0.03, 0.78], "tail": [-0.34, 0.03, 0.55], "radius": 0.08, "bias": 1.0},
+        // Model's right forearm with the yellow-striped tool and its spike: elbow to spike tip.
+        {"name": "arm_r_lower", "parent": "arm_r_upper", "head": [-0.34, 0.03, 0.55], "tail": [-0.42, 0.03, 0.26], "radius": 0.11, "bias": 1.0},
+        // Left thigh: hip to ankle.
+        {"name": "leg_l_upper", "parent": "hips", "head": [0.14, 0.08, 0.45], "tail": [0.14, 0.10, 0.20], "radius": 0.08, "bias": 1.0},
+        // Left shin and foot: ankle to toe tip.
+        {"name": "leg_l_lower", "parent": "leg_l_upper", "head": [0.14, 0.10, 0.20], "tail": [0.14, -0.08, 0.04], "radius": 0.09, "bias": 1.0},
+        // Right thigh: hip to ankle.
+        {"name": "leg_r_upper", "parent": "hips", "head": [-0.14, 0.08, 0.45], "tail": [-0.14, 0.10, 0.20], "radius": 0.08, "bias": 1.0},
+        // Right shin and foot: ankle to toe tip.
+        {"name": "leg_r_lower", "parent": "leg_r_upper", "head": [-0.14, 0.10, 0.20], "tail": [-0.14, -0.08, 0.04], "radius": 0.09, "bias": 1.0},
+        // Crane mast on the back: starts above the backpack (z = 1.05), runs up to the elbow at z = 1.5. Both masts (x = +-0.25) belong to this one bone.
+        {"name": "crane", "parent": "spine", "head": [0, 0.33, 1.05], "tail": [0, 0.43, 1.50], "radius": 0.04, "bias": 1.0},
+        // Crane boom and the floating cargo boxes: elbow to the hook end.
+        {"name": "crane_tip", "parent": "crane", "head": [0, 0.43, 1.50], "tail": [0, 0.05, 1.72], "radius": 0.06, "bias": 1.0}
+      ],
+      "actions": {
+        // Standing breathing and look-around. Unit: frames. Range: 20 to 40. Loops: first and last frame equal.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "spine": {"wave": {"rot": [2.0, 0, 1.5], "phase": 0.0}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.25}},
+          "arm_l_upper": {"wave": {"rot": [3.0, 0, 2.0], "phase": 0.3}},
+          "arm_r_upper": {"wave": {"rot": [3.0, 0, -2.0], "phase": 0.3}},
+          "crane": {"wave": {"rot": [3.0, 0, 0], "phase": 0.2}},
+          "crane_tip": {"wave": {"rot": [5.0, 0, 0], "phase": 0.45}}
+        }},
+        // Walk cycle, two steps per clip: legs swing opposite, arms swing against the legs, hips bob twice. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "hips": {"wave": {"loc": [0, 0, 0.012], "bias_loc": [0, 0, 0.03], "cycles": 2, "phase": 0.25, "rot": [0, 0, 3.0]}},
+          "spine": {"wave": {"rot": [3.0, 0, -4.0], "cycles": 1, "phase": 0.0, "bias_rot": [2.0, 0, 0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "cycles": 1, "phase": 0.0}},
+          "leg_l_upper": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.0}},
+          "leg_l_lower": {"wave": {"rot": [-7.0, 0, 0], "phase": 0.0, "bias_rot": [-6.0, 0, 0]}},
+          "leg_r_upper": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.5}},
+          "leg_r_lower": {"wave": {"rot": [-7.0, 0, 0], "phase": 0.5, "bias_rot": [-6.0, 0, 0]}},
+          "arm_l_upper": {"wave": {"rot": [-14.0, 0, 0], "phase": 0.5}},
+          "arm_r_upper": {"wave": {"rot": [-14.0, 0, 0], "phase": 0.0}},
+          "arm_l_lower": {"wave": {"rot": [-8.0, 0, 0], "phase": 0.6, "bias_rot": [-6.0, 0, 0]}},
+          "arm_r_lower": {"wave": {"rot": [-8.0, 0, 0], "phase": 0.1, "bias_rot": [-6.0, 0, 0]}},
+          "crane": {"wave": {"rot": [3.0, 0, 0], "cycles": 2, "phase": 0.3}},
+          "crane_tip": {"wave": {"rot": [6.0, 0, 0], "cycles": 2, "phase": 0.55}}
+        }},
+        // Strike with the right (-X) tool arm: wind up, hit forward, recover. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "hips": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [7, [0, 0, 0], [0, 0.03, 0]], [12, [0, 0, 0], [0, -0.07, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "spine": {"keys": [[1, [0, 0, 0]], [7, [-7, 0, 8]], [12, [16, 0, -12]], [18, [8, 0, -4]], [24, [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [7, [-6, 0, 0]], [12, [10, 0, 6]], [24, [0, 0, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [7, [45, 0, 0]], [12, [-70, 0, 0]], [18, [-40, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_lower": {"keys": [[1, [0, 0, 0]], [7, [20, 0, 0]], [12, [-15, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [7, [20, 0, 0]], [12, [-25, 0, 0]], [24, [0, 0, 0]]]},
+          "crane": {"keys": [[1, [0, 0, 0]], [7, [-6, 0, 0]], [12, [8, 0, 0]], [24, [0, 0, 0]]]},
+          "crane_tip": {"keys": [[1, [0, 0, 0]], [7, [-10, 0, 0]], [12, [14, 0, 0]], [18, [-4, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Stagger and fall onto the +X side with the crane arms folding; ends lying down and holds the last pose. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [0, -6, 0], [0, 0.02, 0]], [22, [0, 55, 0], [0, 0, 0.26]], [30, [0, 86, 0], [0, 0, 0.38]], [36, [0, 84, 0], [0, 0, 0.38]]]},
+          "hips": {"keys": [[1, [0, 0, 0]], [8, [-8, 0, 0]], [22, [10, 0, 0]], [36, [4, 0, 0]]]},
+          "spine": {"keys": [[1, [0, 0, 0]], [8, [-14, 0, 0]], [22, [10, 0, 0]], [36, [6, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [8, [-18, 0, 0]], [22, [20, 0, 10]], [36, [16, 0, 14]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [8, [-30, 0, 0]], [22, [10, 0, 0]], [36, [0, 0, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [8, [-30, 0, 0]], [22, [20, 0, 0]], [36, [10, 0, 0]]]},
+          "leg_l_upper": {"keys": [[1, [0, 0, 0]], [8, [8, 0, 0]], [36, [-25, 0, 0]]]},
+          "leg_r_upper": {"keys": [[1, [0, 0, 0]], [8, [-8, 0, 0]], [36, [10, 0, 0]]]},
+          "crane": {"keys": [[1, [0, 0, 0]], [8, [-10, 0, 0]], [22, [14, 0, 0]], [36, [20, 0, 0]]]},
+          "crane_tip": {"keys": [[1, [0, 0, 0]], [8, [-20, 0, 0]], [22, [40, 0, 0]], [36, [60, 0, 0]]]}
+        }}
+      }
+    },
+    "skai.roc_rider": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.04,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes on the weights. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, -0.02, 0.0], "tail": [0, -0.02, 0.10], "radius": 0.0, "bias": 1.0},
+        // Bird's torso from the tail root to the chest, carries the legs.
+        {"name": "body", "parent": "root", "head": [0, 0.12, 0.22], "tail": [0, -0.15, 0.24], "radius": 0.1, "bias": 1.0},
+        // The rider on top of the bird; held rigid, it bobs with the body.
+        {"name": "rider", "parent": "body", "head": [0, 0.04, 0.30], "tail": [0, 0.04, 0.55], "radius": 0.1, "bias": 1.0},
+        // Neck, head and beak of the roc; beak tip is at y = -0.4.
+        {"name": "head", "parent": "body", "head": [0, -0.17, 0.26], "tail": [0, -0.40, 0.34], "radius": 0.14, "bias": 1.0},
+        // Tail feathers, from the tail root to the feather tips at y = +0.42.
+        {"name": "tail", "parent": "body", "head": [0, 0.12, 0.22], "tail": [0, 0.42, 0.20], "radius": 0.05, "bias": 1.0},
+        // Left wing (+X), inner section: shoulder to the first wing joint.
+        {"name": "wing_l1", "parent": "body", "head": [0.09, -0.05, 0.26], "tail": [0.25, -0.05, 0.26], "radius": 0.04, "bias": 1.0},
+        // Left wing, middle section.
+        {"name": "wing_l2", "parent": "wing_l1", "head": [0.25, -0.05, 0.26], "tail": [0.38, -0.05, 0.25], "radius": 0.04, "bias": 1.0},
+        // Left wing, flight-feather tip.
+        {"name": "wing_l3", "parent": "wing_l2", "head": [0.38, -0.05, 0.25], "tail": [0.50, -0.05, 0.25], "radius": 0.04, "bias": 1.0},
+        // Right wing (-X), inner section.
+        {"name": "wing_r1", "parent": "body", "head": [-0.09, -0.05, 0.26], "tail": [-0.25, -0.05, 0.26], "radius": 0.04, "bias": 1.0},
+        // Right wing, middle section.
+        {"name": "wing_r2", "parent": "wing_r1", "head": [-0.25, -0.05, 0.26], "tail": [-0.38, -0.05, 0.25], "radius": 0.04, "bias": 1.0},
+        // Right wing, flight-feather tip.
+        {"name": "wing_r3", "parent": "wing_r2", "head": [-0.38, -0.05, 0.25], "tail": [-0.50, -0.05, 0.25], "radius": 0.04, "bias": 1.0}
+      ],
+      "actions": {
+        // Hover: slow small wing beats and body bob. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.012], "phase": 0.25, "rot": [2.0, 0, 0]}},
+          "head": {"wave": {"rot": [3.0, 0, 3.0], "phase": 0.4}},
+          "tail": {"wave": {"rot": [5.0, 0, 3.0], "phase": 0.5}},
+          "wing_l1": {"wave": {"rot": [0, -9.0, 0], "phase": 0.0}},
+          "wing_l2": {"wave": {"rot": [0, -7.0, 0], "phase": 0.08}},
+          "wing_l3": {"wave": {"rot": [0, -6.0, 0], "phase": 0.16}},
+          "wing_r1": {"wave": {"rot": [0, 9.0, 0], "phase": 0.0}},
+          "wing_r2": {"wave": {"rot": [0, 7.0, 0], "phase": 0.08}},
+          "wing_r3": {"wave": {"rot": [0, 6.0, 0], "phase": 0.16}}
+        }},
+        // Wing flap, one full beat per clip, tips lag behind the shoulders; body rises on the downstroke. Loops.
+        "move": {"frames": 20, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.03], "phase": 0.25, "rot": [3.0, 0, 0]}},
+          "head": {"wave": {"rot": [-4.0, 0, 0], "phase": 0.25}},
+          "tail": {"wave": {"rot": [7.0, 0, 0], "phase": 0.35}},
+          "wing_l1": {"wave": {"rot": [0, -32.0, 0], "phase": 0.0, "bias_rot": [0, -6.0, 0]}},
+          "wing_l2": {"wave": {"rot": [0, -22.0, 0], "phase": 0.1}},
+          "wing_l3": {"wave": {"rot": [0, -16.0, 0], "phase": 0.2}},
+          "wing_r1": {"wave": {"rot": [0, 32.0, 0], "phase": 0.0, "bias_rot": [0, 6.0, 0]}},
+          "wing_r2": {"wave": {"rot": [0, 22.0, 0], "phase": 0.1}},
+          "wing_r3": {"wave": {"rot": [0, 16.0, 0], "phase": 0.2}}
+        }},
+        // Rear up, then dive at the target (body pitches nose-down, head thrusts forward), then pull out. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [-16, 0, 0], [0, 0.03, 0.03]], [14, [26, 0, 0], [0, -0.12, 0.05]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [8, [-6, 0, 0]], [14, [6, 0, 0]], [24, [0, 0, 0]]]},
+          "tail": {"keys": [[1, [0, 0, 0]], [8, [14, 0, 0]], [14, [-18, 0, 0]], [24, [0, 0, 0]]]},
+          "wing_l1": {"keys": [[1, [0, 0, 0]], [8, [0, -45, 0]], [14, [0, 28, 0]], [24, [0, 0, 0]]]},
+          "wing_l2": {"keys": [[1, [0, 0, 0]], [8, [0, -25, 0]], [14, [0, 18, 0]], [24, [0, 0, 0]]]},
+          "wing_l3": {"keys": [[1, [0, 0, 0]], [8, [0, -15, 0]], [14, [0, 14, 0]], [24, [0, 0, 0]]]},
+          "wing_r1": {"keys": [[1, [0, 0, 0]], [8, [0, 45, 0]], [14, [0, -28, 0]], [24, [0, 0, 0]]]},
+          "wing_r2": {"keys": [[1, [0, 0, 0]], [8, [0, 25, 0]], [14, [0, -18, 0]], [24, [0, 0, 0]]]},
+          "wing_r3": {"keys": [[1, [0, 0, 0]], [8, [0, 15, 0]], [14, [0, -14, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Wings fold up, the bird pitches nose-down and rolls, dropping toward the ground. Holds the last pose. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [14, [0, 0, 20], [0, 0, 0.06]], [36, [0, 0, 55], [0, 0, 0.10]]]},
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [14, [28, 18, 0], [0, 0, 0]], [36, [42, 48, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [14, [30, 0, 10]], [36, [40, 0, 20]]]},
+          "tail": {"keys": [[1, [0, 0, 0]], [14, [-25, 0, 0]], [36, [-40, 0, 10]]]},
+          "wing_l1": {"keys": [[1, [0, 0, 0]], [14, [0, -40, 0]], [36, [0, -25, 0]]]},
+          "wing_l2": {"keys": [[1, [0, 0, 0]], [14, [0, -25, 0]], [36, [0, -25, 0]]]},
+          "wing_l3": {"keys": [[1, [0, 0, 0]], [14, [0, -20, 0]], [36, [0, -35, 0]]]},
+          "wing_r1": {"keys": [[1, [0, 0, 0]], [14, [0, 40, 0]], [36, [0, 25, 0]]]},
+          "wing_r2": {"keys": [[1, [0, 0, 0]], [14, [0, 25, 0]], [36, [0, 25, 0]]]},
+          "wing_r3": {"keys": [[1, [0, 0, 0]], [14, [0, 20, 0]], [36, [0, 35, 0]]]}
+        }}
+      }
+    }
+  }
+}

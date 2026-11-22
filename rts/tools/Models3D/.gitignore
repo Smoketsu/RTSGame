@@ -1,0 +1,3 @@
+# rts/tools/Models3D/.gitignore: keeps Python bytecode from the Blender scripts out of the repository.
+__pycache__/
+*.pyc

@@ -2,6 +2,7 @@
 # Converts the 25 approved Tripo GLB models (14 units, 11 buildings) to Unity-ready static FBX files and checks each result.
 # Run from the repository root:
 #   blender -b -noaudio --python rts/tools/Models3D/convert_static.py -- [--only <data id>] [--probe <dir>] [--renders <dir>]
+# Models that rig.py has rigged (see rig_data.json) are converted for checking only; their rigged FBX in the output folder is left alone.
 # Default: converts every model into rts/src/Game/Assets/Resources/Models/<data id>.fbx, re-imports each FBX into a fresh scene to
 # verify bounds and facing, writes rts/docs/art/models/unity/sizes.csv and renders top/front/three_quarter checks into --renders.
 # --probe <dir> only renders the four side views of each model at yaw 0 (used to decide the YAW values below) and exports nothing.
@@ -11,6 +12,7 @@
 # it faces +Z in Unity (Blender -Y). Unity scales the instance by (2 x radius_tiles x tile size) for units, or by the building's
 # footprint width in tiles for buildings; height follows from the table in rts/docs/art/models/unity/README.md.
 import csv
+import json
 import os
 import sys
 
@@ -55,6 +57,14 @@ MODELS = [
 OUT_DIR = os.path.join(C.REPO, "rts/src/Game/Assets/Resources/Models")
 # Folder for the size table. Unit: path.
 DOC_DIR = os.path.join(C.REPO, "rts/docs/art/models/unity")
+# Data IDs that rig.py has rigged. Their FBX in OUT_DIR holds the armature and clips, so this script must not overwrite it: it exports their
+# static version to the --renders folder instead (for the checks and the sheets only). Read from rig_data.json; no rigs means an empty set.
+RIGGED = set()
+try:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "rig_data.json")) as _f:
+        RIGGED = set(json.loads("".join(l for l in _f if not l.strip().startswith("//")))["units"])
+except OSError:
+    pass
 # Largest allowed distance between the model before export and after the FBX round trip (centroid and bounds). Unit: footprint units. Range: 0.0001 to 0.01.
 TOL = 0.002
 
@@ -105,7 +115,7 @@ def convert(only, renders):
         # Centroid before export, for the round-trip facing check.
         c0 = centroid(obj)
         # Path of the FBX being written.
-        fbx = os.path.join(OUT_DIR, mid + ".fbx")
+        fbx = os.path.join(renders if mid in RIGGED else OUT_DIR, mid + ".fbx")
         C.export_fbx(fbx, [obj])
         # Renders of the normalised model (top, front, three-quarter), later assembled into contact sheets.
         C.add_ground()
@@ -134,6 +144,7 @@ def convert(only, renders):
     if not only:
         os.makedirs(DOC_DIR, exist_ok=True)
         with open(os.path.join(DOC_DIR, "sizes.csv"), "w", newline="") as f:
+            f.write("# rts/docs/art/models/unity/sizes.csv: normalised size, yaw and file sizes of the static conversion of each approved model (written by convert_static.py; fbx_kb is the static FBX, rigged units keep a larger rigged FBX).\n")
             wr = csv.writer(f)
             wr.writerow(["data_id", "source", "yaw_deg", "width_x", "depth_z_unity", "height_y_unity", "scale_applied", "glb_kb", "fbx_kb", "roundtrip"])
             wr.writerows(rows)

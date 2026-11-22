@@ -97,7 +97,7 @@ def normalise(obj, yaw_deg, footprint=1.0):
 
 def export_fbx(path, objects):
     """Export `objects` (mesh and optional armature) to an FBX at `path` for Unity: texture embedded,
-    forward -Z / up Y, scale and space baked in, every action baked, no leaf bones."""
+    forward -Z / up Y, scale and space baked in, every NLA strip baked as one clip, no leaf bones (static meshes have no strips)."""
     bpy.ops.object.select_all(action='DESELECT')
     for o in objects:
         o.select_set(True)
@@ -107,8 +107,10 @@ def export_fbx(path, objects):
         path_mode='COPY', embed_textures=True,
         axis_forward='-Z', axis_up='Y',
         apply_scale_options='FBX_SCALE_ALL', bake_space_transform=True,
-        add_leaf_bones=False, bake_anim=True, bake_anim_use_all_actions=True,
-        bake_anim_use_nla_strips=False, bake_anim_use_all_bones=True,
+        add_leaf_bones=False, bake_anim=True,
+        # Clips come from NLA strips (one track per action, named like the action): in this mode the FBX take is named exactly
+        # "idle"; with bake_anim_use_all_actions Blender 4.0 names it "Armature|idle" (checked by reading the FBX strings).
+        bake_anim_use_all_actions=False, bake_anim_use_nla_strips=True, bake_anim_use_all_bones=True,
         bake_anim_force_startend_keying=True, bake_anim_simplify_factor=0.0,
         mesh_smooth_type='FACE')
 
