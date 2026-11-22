@@ -69,13 +69,25 @@ def nearest_bone_weights(mesh_obj, unit):
     """Soft nearest-bone weights: w_i = exp(-(d_i*bias_i - min_j d_j*bias_j) / sigma), top max_influences kept, smoothed over edges, rows sum to 1.
     Bones without a parent (the root) get no weight. Returns (n x bones array, list of weighted bone names)."""
     # Vertex positions (n x 3, footprint units).
-    p = np.array([v.co[:] for v in mesh_obj.data.vertices])
+    p_all = np.array([v.co[:] for v in mesh_obj.data.vertices])
+    # The generator meshes are split into over a hundred loose shells with duplicated vertices on every seam. Weights are computed per unique
+    # position (p) and copied to every duplicate (inv maps vertex -> unique position), otherwise the copies drift apart and cracks open.
+    p, inv = np.unique(np.round(p_all, 5), axis=0, return_inverse=True)
+    inv = inv.reshape(-1)
     # Bones that receive weight (everything below the root anchor).
     bones = [b for b in unit["bones"] if b["parent"]]
     # Biased distance of every vertex to every weighted bone (n x bones).
     # The bone's radius (how thick the part it moves is) is subtracted first, so thick parts claim their whole volume.
     d = np.stack([(point_segment_distance(p, np.array(b["head"]), np.array(b["tail"])) - b.get("radius", 0.0)) * b.get("bias", 1.0)
                   for b in bones], axis=1)
+    # Boxes: a vertex inside one of a bone's "boxes" ([xmin, ymin, zmin, xmax, ymax, zmax], footprint units) is moved 5 units nearer to that bone,
+    # so the box decides which bone owns the vertex (used to cut rigid parts of machines exactly where the mesh has a seam). First bone listed wins overlaps.
+    for j, b in enumerate(bones):
+        for bx in b.get("boxes", []):
+            inside = np.all((p >= np.array(bx[:3])) & (p <= np.array(bx[3:])), axis=1)
+            # Vertices already claimed by an earlier bone's box keep that claim.
+            claimed = d.min(axis=1) < -4.0
+            d[inside & ~claimed, j] -= 10.0
     # Softmax-like weights relative to the nearest bone.
     w = np.exp(-(d - d.min(axis=1, keepdims=True)) / unit["sigma"])
     # Keep only the strongest max_influences per vertex.
@@ -85,7 +97,9 @@ def nearest_bone_weights(mesh_obj, unit):
     w = np.where(w >= thr, w, 0.0)
     w /= w.sum(axis=1, keepdims=True)
     # Edge list for smoothing (m x 2 vertex indices).
-    e = np.array([ed.vertices[:] for ed in mesh_obj.data.edges])
+    e = inv[np.array([ed.vertices[:] for ed in mesh_obj.data.edges])]
+    e = np.unique(np.sort(e, axis=1), axis=0)
+    e = e[e[:, 0] != e[:, 1]]
     for _ in range(unit["smooth_passes"]):
         # Sum of neighbour weights and neighbour count per vertex.
         acc = np.zeros_like(w)
@@ -99,7 +113,7 @@ def nearest_bone_weights(mesh_obj, unit):
         thr = -np.sort(-w, axis=1)[:, k - 1:k]
         w = np.where(w >= thr, w, 0.0)
         w /= w.sum(axis=1, keepdims=True)
-    return w, [b["name"] for b in bones]
+    return w[inv], [b["name"] for b in bones]
 
 
 def bind(mesh_obj, arm, unit, method):
@@ -140,6 +154,15 @@ def to_local(pb, euler_deg, loc):
     return ((r.inverted() @ q @ r).to_quaternion(), r.inverted() @ mathutils.Vector(loc))
 
 
+def to_local_scale(pb, scl):
+    """Convert an armature-space scale (3 factors, 1 = unchanged) to the pose bone's own axes (approximate: axes are matched by the bone's rest orientation)."""
+    # Absolute rest rotation inverse: maps armature axes to the bone's local axes for axis-aligned bones.
+    m = pb.bone.matrix_local.to_3x3().inverted()
+    # Per-axis deviation from 1, carried into the bone's local axes.
+    dev = mathutils.Vector([abs(m[i][0]) * (scl[0] - 1) + abs(m[i][1]) * (scl[1] - 1) + abs(m[i][2]) * (scl[2] - 1) for i in range(3)])
+    return mathutils.Vector((1, 1, 1)) + dev
+
+
 def wave_value(spec, t):
     """Value of a wave spec at clip time t (0 to 1): amp x sin(2 pi (cycles t + phase)) + bias, for rotation (degrees) and location (footprint units); bias_rot and bias_loc add a constant. Returns (rot, loc)."""
     # Phase angle in radians.
@@ -147,12 +170,14 @@ def wave_value(spec, t):
     s = math.sin(a)
     rot = [x * s + b for x, b in zip(spec.get("rot", [0, 0, 0]), spec.get("bias_rot", [0, 0, 0]))]
     loc = [x * s + b for x, b in zip(spec.get("loc", [0, 0, 0]), spec.get("bias_loc", [0, 0, 0]))]
-    return rot, loc
+    # Scale: 1 + amp x sin + bias (unitless factors); "scl" is the amplitude, "bias_scl" the constant offset from 1.
+    scl = [1 + x * s + b for x, b in zip(spec.get("scl", [0, 0, 0]), spec.get("bias_scl", [0, 0, 0]))]
+    return rot, loc, scl
 
 
-def make_actions(arm, unit, fps):
+def make_actions(arm, unit, fps, mesh=None):
     """Create one Blender action per entry of unit['actions'] (named exactly idle, move, attack, death) and key every bone in each.
-    Returns {action name: frame count}."""
+    Returns {action name: frame count}. With unit["ground_clamp"] and a mesh, the root bone is lifted on every frame where the deformed mesh would dip below z = 0."""
     bpy.context.scene.render.fps = fps
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode='POSE')
@@ -170,19 +195,39 @@ def make_actions(arm, unit, fps):
             pb.rotation_mode = 'QUATERNION'
             pb.rotation_quaternion = (1, 0, 0, 0)
             pb.location = (0, 0, 0)
+            pb.scale = (1, 1, 1)
         for pb in arm.pose.bones:
             # Channel spec for this bone, or none (the bone is keyed at rest on the first and last frame).
             ch = act["channels"].get(pb.name)
             if ch is None:
-                frames = [(1, [0, 0, 0], [0, 0, 0]), (n, [0, 0, 0], [0, 0, 0])]
+                frames = [(1, [0, 0, 0], [0, 0, 0], [1, 1, 1]), (n, [0, 0, 0], [0, 0, 0], [1, 1, 1])]
             elif "wave" in ch:
                 frames = [(f, *wave_value(ch["wave"], (f - 1) / (n - 1))) for f in range(1, n + 1)]
             else:
-                frames = [(k[0], k[1], k[2] if len(k) > 2 else [0, 0, 0]) for k in ch["keys"]]
-            for (f, rot, loc) in frames:
+                frames = [(k[0], k[1], k[2] if len(k) > 2 else [0, 0, 0], k[3] if len(k) > 3 else [1, 1, 1]) for k in ch["keys"]]
+            # Previous key's quaternion: keeps consecutive keys on the same side (q and -q are the same turn) so spins longer than 180 degrees play through.
+            prev = None
+            for (f, rot, loc, scl) in frames:
                 pb.rotation_quaternion, pb.location = to_local(pb, rot, loc)
+                if prev is not None and prev.dot(pb.rotation_quaternion) < 0:
+                    pb.rotation_quaternion = -pb.rotation_quaternion
+                prev = pb.rotation_quaternion.copy()
+                pb.scale = to_local_scale(pb, scl)
                 pb.keyframe_insert("rotation_quaternion", frame=f, group=pb.name)
                 pb.keyframe_insert("location", frame=f, group=pb.name)
+                pb.keyframe_insert("scale", frame=f, group=pb.name)
+        if unit.get("ground_clamp") and mesh is not None:
+            # Lift the root on every frame where the deformed mesh would dip below the ground (z = 0), then re-key the root location.
+            root = arm.pose.bones["root"]
+            for f in range(1, n + 1):
+                bpy.context.scene.frame_set(f)
+                bpy.context.view_layer.update()
+                lo = evaluated_bounds(mesh)[0][2]
+                if lo < -0.002:
+                    base = root.location.copy()
+                    root.location = base + to_local(root, [0, 0, 0], [0, 0, -lo + 0.002])[1]
+                    root.keyframe_insert("location", frame=f, group="root")
+            bpy.context.scene.frame_set(1)
         action.use_frame_range = True
         action.frame_start, action.frame_end = 1, n
         if act["loop"]:
@@ -195,6 +240,7 @@ def make_actions(arm, unit, fps):
         for pb in arm.pose.bones:
             pb.rotation_quaternion = (1, 0, 0, 0)
             pb.location = (0, 0, 0)
+            pb.scale = (1, 1, 1)
     arm.animation_data.action = None
     bpy.ops.object.mode_set(mode='OBJECT')
     return lengths
@@ -242,15 +288,22 @@ def set_nla_mute(arm, mute):
         t.mute = mute
 
 
-def render_sheet_frames(arm, w, d, h, unit_id, lengths, renders):
+def render_sheet_frames(arm, mesh, w, d, h, unit_id, lengths, renders):
     """Render 4 evenly spaced three-quarter frames of every action. Returns the list of (caption, png path) in action order."""
     C.add_ground()
-    # Orthographic width and look-at height that frame the model with margin.
-    scale = CS.fit_scale(w, d, h) * 1.15
     # (caption, path) list.
     out = []
     for name, n in lengths.items():
         action = bpy.data.actions[name]
+        # Frame this clip's four sampled poses: half the widest horizontal reach and the highest point decide the orthographic width (footprint units)
+        # and the height the camera looks at, so every clip fills its row.
+        reach, top = 0.0, 0.0
+        for f in (1, 1 + (n - 1) // 3, 1 + 2 * (n - 1) // 3, n):
+            sig = pose_signature(arm, mesh, action, f)
+            reach = max(reach, float(np.abs(sig[[0, 1, 3, 4]]).max()))
+            top = max(top, float(sig[5]))
+        scale = max(1.2 * h, 2.2 * reach, 1.25 * top)
+        look = max(h, top) / 2
         arm.animation_data.action = action
         # One-shot clips include the last frame in the 4 samples; looping clips do not (last equals first).
         loop = n and action.use_cyclic
@@ -258,7 +311,7 @@ def render_sheet_frames(arm, w, d, h, unit_id, lengths, renders):
             f = round(1 + i * (n - 1) / (4 if loop else 3))
             bpy.context.scene.frame_set(f)
             path = os.path.join(renders, "%s_%s_%d.png" % (unit_id, name, i))
-            C.render_view(path, "three_quarter", scale, h / 2, 300)
+            C.render_view(path, "three_quarter", scale, look, 300)
             out.append(("%s %s f%d" % (unit_id, name, f), path))
     arm.animation_data.action = None
     return out
@@ -278,7 +331,7 @@ def run(unit_id, method, renders, sheet, export, dbg=None):
     arm = build_armature(unit)
     note = bind(mesh, arm, unit, method)
     print("WEIGHTS:", note)
-    lengths = make_actions(arm, unit, table["fps"])
+    lengths = make_actions(arm, unit, table["fps"], mesh)
     print("BONES (%d): %s" % (len(unit["bones"]), ", ".join(b["name"] for b in unit["bones"])))
     print("CLIPS:", lengths)
     # Deformed mesh bounds at four frames of every action, to compare after the FBX round trip.
@@ -310,7 +363,7 @@ def run(unit_id, method, renders, sheet, export, dbg=None):
         bpy.context.scene.frame_set(int(f))
         C.add_ground()
         C.render_view(os.path.join(renders, "dbg_%s_%s_%s.png" % (a, f, v)), v, CS.fit_scale(w, d, h) * 0.9, h / 2, 700)
-    frames = render_sheet_frames(arm, w, d, h, unit_id, lengths, renders)
+    frames = render_sheet_frames(arm, mesh, w, d, h, unit_id, lengths, renders)
     if export:
         # Round trip into a fresh scene.
         C.reset_scene()

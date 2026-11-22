@@ -9,6 +9,7 @@
 //   +ry lowers the +X side (so a +X wing goes up with negative ry and a -X wing goes up with positive ry);
 //   +rz turns the model counter-clockwise seen from above.
 // Location values are in footprint units along the same armature-space axes.
+// Scale: "scl" (wave amplitude) and "bias_scl" are unitless factors added to 1; a key may carry a 4th element [sx, sy, sz] (1 = unchanged).
 // A "wave" channel is amp x sin(2 pi (cycles x t + phase)) + bias, t = 0..1 across the clip (first and last frame equal, so it loops); "keys" are [frame, [rx, ry, rz], [x, y, z]] poses.
 // "rot", "bias_rot" are degrees; "loc", "bias_loc" are footprint units; "cycles" (default 1) is the number of full waves per clip; "phase" is a fraction of a wave (0 to 1).
 {
@@ -23,13 +24,15 @@
       "sigma": 0.045,
       // Most bones that may move one vertex (Unity default allows 4). Unit: count. Range: 1 to 4.
       "max_influences": 4,
+      // Lift the root on frames where the deformed mesh would dip below the ground. Unit: boolean. Range: true or false. Used for ground units.
+      "ground_clamp": true,
       // Passes of averaging each vertex weight with its edge neighbours (removes tearing at borders). Unit: passes. Range: 0 to 10.
       "smooth_passes": 5,
       "bones": [
         // Ground anchor Unity moves and turns; every other bone hangs below it. No vertices belong to it.
         {"name": "root", "parent": null, "head": [0, 0.08, 0.0], "tail": [0, 0.08, 0.15], "radius": 0.0, "bias": 1.0},
         // Pelvis; legs and spine start here. Head at hip height z = 0.45.
-        {"name": "hips", "parent": "root", "head": [0, 0.08, 0.45], "tail": [0, 0.08, 0.56], "radius": 0.18, "bias": 1.0},
+        {"name": "hips", "parent": "root", "head": [0, 0.08, 0.45], "tail": [0, 0.08, 0.56], "radius": 0.25, "bias": 1.0},
         // Torso from hips to the shoulders; its axis sits at y = 0.14, between the chest and the backpack, so both follow it.
         {"name": "spine", "parent": "hips", "head": [0, 0.14, 0.56], "tail": [0, 0.12, 0.86], "radius": 0.21, "bias": 1.0},
         // Skull and beak, tail points along the beak (beak tip is at y = -0.5).
@@ -43,11 +46,11 @@
         // Model's right forearm with the yellow-striped tool and its spike: elbow to spike tip.
         {"name": "arm_r_lower", "parent": "arm_r_upper", "head": [-0.34, 0.03, 0.55], "tail": [-0.42, 0.03, 0.26], "radius": 0.11, "bias": 1.0},
         // Left thigh: hip to ankle.
-        {"name": "leg_l_upper", "parent": "hips", "head": [0.14, 0.08, 0.45], "tail": [0.14, 0.10, 0.20], "radius": 0.08, "bias": 1.0},
+        {"name": "leg_l_upper", "parent": "hips", "head": [0.14, 0.08, 0.45], "tail": [0.14, 0.10, 0.20], "radius": 0.06, "bias": 1.0},
         // Left shin and foot: ankle to toe tip.
         {"name": "leg_l_lower", "parent": "leg_l_upper", "head": [0.14, 0.10, 0.20], "tail": [0.14, -0.08, 0.04], "radius": 0.09, "bias": 1.0},
         // Right thigh: hip to ankle.
-        {"name": "leg_r_upper", "parent": "hips", "head": [-0.14, 0.08, 0.45], "tail": [-0.14, 0.10, 0.20], "radius": 0.08, "bias": 1.0},
+        {"name": "leg_r_upper", "parent": "hips", "head": [-0.14, 0.08, 0.45], "tail": [-0.14, 0.10, 0.20], "radius": 0.06, "bias": 1.0},
         // Right shin and foot: ankle to toe tip.
         {"name": "leg_r_lower", "parent": "leg_r_upper", "head": [-0.14, 0.10, 0.20], "tail": [-0.14, -0.08, 0.04], "radius": 0.09, "bias": 1.0},
         // Crane mast on the back: starts above the backpack (z = 1.05), runs up to the elbow at z = 1.5. Both masts (x = +-0.25) belong to this one bone.
@@ -67,15 +70,15 @@
         }},
         // Walk cycle, two steps per clip: legs swing opposite, arms swing against the legs, hips bob twice. Loops.
         "move": {"frames": 24, "loop": true, "channels": {
-          "hips": {"wave": {"loc": [0, 0, 0.012], "bias_loc": [0, 0, 0.03], "cycles": 2, "phase": 0.25, "rot": [0, 0, 3.0]}},
+          "hips": {"wave": {"loc": [0, 0, 0.012], "bias_loc": [0, 0, 0.0], "cycles": 2, "phase": 0.25, "rot": [0, 0, 3.0]}},
           "spine": {"wave": {"rot": [3.0, 0, -4.0], "cycles": 1, "phase": 0.0, "bias_rot": [2.0, 0, 0]}},
           "head": {"wave": {"rot": [-2.0, 0, 4.0], "cycles": 1, "phase": 0.0}},
-          "leg_l_upper": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.0}},
-          "leg_l_lower": {"wave": {"rot": [-7.0, 0, 0], "phase": 0.0, "bias_rot": [-6.0, 0, 0]}},
-          "leg_r_upper": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.5}},
-          "leg_r_lower": {"wave": {"rot": [-7.0, 0, 0], "phase": 0.5, "bias_rot": [-6.0, 0, 0]}},
-          "arm_l_upper": {"wave": {"rot": [-14.0, 0, 0], "phase": 0.5}},
-          "arm_r_upper": {"wave": {"rot": [-14.0, 0, 0], "phase": 0.0}},
+          "leg_l_upper": {"wave": {"rot": [-32.0, 0, 0], "phase": 0.0}},
+          "leg_l_lower": {"wave": {"rot": [-12.0, 0, 0], "phase": 0.0, "bias_rot": [-10.0, 0, 0]}},
+          "leg_r_upper": {"wave": {"rot": [-32.0, 0, 0], "phase": 0.5}},
+          "leg_r_lower": {"wave": {"rot": [-12.0, 0, 0], "phase": 0.5, "bias_rot": [-10.0, 0, 0]}},
+          "arm_l_upper": {"wave": {"rot": [-24.0, 0, 0], "phase": 0.5}},
+          "arm_r_upper": {"wave": {"rot": [-24.0, 0, 0], "phase": 0.0}},
           "arm_l_lower": {"wave": {"rot": [-8.0, 0, 0], "phase": 0.6, "bias_rot": [-6.0, 0, 0]}},
           "arm_r_lower": {"wave": {"rot": [-8.0, 0, 0], "phase": 0.1, "bias_rot": [-6.0, 0, 0]}},
           "crane": {"wave": {"rot": [3.0, 0, 0], "cycles": 2, "phase": 0.3}},
@@ -86,7 +89,7 @@
           "hips": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [7, [0, 0, 0], [0, 0.03, 0]], [12, [0, 0, 0], [0, -0.07, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
           "spine": {"keys": [[1, [0, 0, 0]], [7, [-7, 0, 8]], [12, [16, 0, -12]], [18, [8, 0, -4]], [24, [0, 0, 0]]]},
           "head": {"keys": [[1, [0, 0, 0]], [7, [-6, 0, 0]], [12, [10, 0, 6]], [24, [0, 0, 0]]]},
-          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [7, [45, 0, 0]], [12, [-70, 0, 0]], [18, [-40, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [7, [35, 0, 0]], [12, [-52, 0, 0]], [18, [-30, 0, 0]], [24, [0, 0, 0]]]},
           "arm_r_lower": {"keys": [[1, [0, 0, 0]], [7, [20, 0, 0]], [12, [-15, 0, 0]], [24, [0, 0, 0]]]},
           "arm_l_upper": {"keys": [[1, [0, 0, 0]], [7, [20, 0, 0]], [12, [-25, 0, 0]], [24, [0, 0, 0]]]},
           "crane": {"keys": [[1, [0, 0, 0]], [7, [-6, 0, 0]], [12, [8, 0, 0]], [24, [0, 0, 0]]]},
@@ -165,15 +168,15 @@
         }},
         // Rear up, then dive at the target (body pitches nose-down, head thrusts forward), then pull out. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
         "attack": {"frames": 24, "loop": false, "channels": {
-          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [-16, 0, 0], [0, 0.03, 0.03]], [14, [26, 0, 0], [0, -0.12, 0.05]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [-16, 0, 0], [0, 0.03, 0.03]], [14, [22, 0, 0], [0, -0.12, 0.05]], [24, [0, 0, 0], [0, 0, 0]]]},
           "head": {"keys": [[1, [0, 0, 0]], [8, [-6, 0, 0]], [14, [6, 0, 0]], [24, [0, 0, 0]]]},
           "tail": {"keys": [[1, [0, 0, 0]], [8, [14, 0, 0]], [14, [-18, 0, 0]], [24, [0, 0, 0]]]},
-          "wing_l1": {"keys": [[1, [0, 0, 0]], [8, [0, -45, 0]], [14, [0, 28, 0]], [24, [0, 0, 0]]]},
-          "wing_l2": {"keys": [[1, [0, 0, 0]], [8, [0, -25, 0]], [14, [0, 18, 0]], [24, [0, 0, 0]]]},
-          "wing_l3": {"keys": [[1, [0, 0, 0]], [8, [0, -15, 0]], [14, [0, 14, 0]], [24, [0, 0, 0]]]},
-          "wing_r1": {"keys": [[1, [0, 0, 0]], [8, [0, 45, 0]], [14, [0, -28, 0]], [24, [0, 0, 0]]]},
-          "wing_r2": {"keys": [[1, [0, 0, 0]], [8, [0, 25, 0]], [14, [0, -18, 0]], [24, [0, 0, 0]]]},
-          "wing_r3": {"keys": [[1, [0, 0, 0]], [8, [0, 15, 0]], [14, [0, -14, 0]], [24, [0, 0, 0]]]}
+          "wing_l1": {"keys": [[1, [0, 0, 0]], [8, [0, -45, 0]], [14, [0, 8, 0]], [24, [0, 0, 0]]]},
+          "wing_l2": {"keys": [[1, [0, 0, 0]], [8, [0, -25, 0]], [14, [0, 6, 0]], [24, [0, 0, 0]]]},
+          "wing_l3": {"keys": [[1, [0, 0, 0]], [8, [0, -15, 0]], [14, [0, 5, 0]], [24, [0, 0, 0]]]},
+          "wing_r1": {"keys": [[1, [0, 0, 0]], [8, [0, 45, 0]], [14, [0, -8, 0]], [24, [0, 0, 0]]]},
+          "wing_r2": {"keys": [[1, [0, 0, 0]], [8, [0, 25, 0]], [14, [0, -6, 0]], [24, [0, 0, 0]]]},
+          "wing_r3": {"keys": [[1, [0, 0, 0]], [8, [0, 15, 0]], [14, [0, -5, 0]], [24, [0, 0, 0]]]}
         }},
         // Wings fold up, the bird pitches nose-down and rolls, dropping toward the ground. Holds the last pose. One-shot.
         "death": {"frames": 36, "loop": false, "channels": {
@@ -187,6 +190,883 @@
           "wing_r1": {"keys": [[1, [0, 0, 0]], [14, [0, 40, 0]], [36, [0, 25, 0]]]},
           "wing_r2": {"keys": [[1, [0, 0, 0]], [14, [0, 25, 0]], [36, [0, 25, 0]]]},
           "wing_r3": {"keys": [[1, [0, 0, 0]], [14, [0, 20, 0]], [36, [0, 35, 0]]]}
+        }}
+      }
+    }
+    ,
+    "skai.windrunner": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.04,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes on the weights. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 4,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0, 0.0], "tail": [0, 0, 0.2], "radius": 0.0, "bias": 1.0},
+        // Pelvis and feather skirt, at the top of the legs (z = 1.2).
+        {"name": "hips", "parent": "root", "head": [0, 0, 1.2], "tail": [0, 0, 1.35], "radius": 0.2, "bias": 1.0},
+        // Torso, chest and shoulder pads.
+        {"name": "spine", "parent": "hips", "head": [0, 0, 1.35], "tail": [0, 0, 1.85], "radius": 0.2, "bias": 1.0},
+        // Neck, head, beak and the swept-back crest (crest tips at y = +0.55, z = 2.5).
+        {"name": "head", "parent": "spine", "head": [0, 0, 1.95], "tail": [0, 0, 2.35], "radius": 0.25, "bias": 1.0},
+        // Left arm (+X), shoulder to elbow.
+        {"name": "arm_l_upper", "parent": "spine", "head": [0.24, 0, 1.82], "tail": [0.32, 0, 1.4], "radius": 0.1, "bias": 1.0},
+        // Left forearm and hand.
+        {"name": "arm_l_lower", "parent": "arm_l_upper", "head": [0.32, 0, 1.4], "tail": [0.37, 0, 1.0], "radius": 0.09, "bias": 1.0},
+        // Right arm (-X), shoulder to elbow.
+        {"name": "arm_r_upper", "parent": "spine", "head": [-0.24, 0, 1.82], "tail": [-0.32, 0, 1.4], "radius": 0.1, "bias": 1.0},
+        // Right forearm and hand.
+        {"name": "arm_r_lower", "parent": "arm_r_upper", "head": [-0.32, 0, 1.4], "tail": [-0.37, 0, 1.0], "radius": 0.09, "bias": 1.0},
+        // Left thigh, hip to knee.
+        {"name": "leg_l_thigh", "parent": "hips", "head": [0.1, 0, 1.2], "tail": [0.1, 0, 0.85], "radius": 0.07, "bias": 1.0},
+        // Left shin, knee to ankle.
+        {"name": "leg_l_shin", "parent": "leg_l_thigh", "head": [0.1, 0, 0.85], "tail": [0.1, 0, 0.5], "radius": 0.06, "bias": 1.0},
+        // Left foot with the three yellow toes and the long back claw, ankle to toe tip.
+        {"name": "leg_l_foot", "parent": "leg_l_shin", "head": [0.1, 0, 0.5], "tail": [0.1, -0.12, 0.04], "radius": 0.07, "bias": 1.0},
+        // Right thigh.
+        {"name": "leg_r_thigh", "parent": "hips", "head": [-0.1, 0, 1.2], "tail": [-0.1, 0, 0.85], "radius": 0.07, "bias": 1.0},
+        // Right shin.
+        {"name": "leg_r_shin", "parent": "leg_r_thigh", "head": [-0.1, 0, 0.85], "tail": [-0.1, 0, 0.5], "radius": 0.06, "bias": 1.0},
+        // Right foot.
+        {"name": "leg_r_foot", "parent": "leg_r_shin", "head": [-0.1, 0, 0.5], "tail": [-0.1, -0.12, 0.04], "radius": 0.07, "bias": 1.0}
+      ],
+      "actions": {
+        // Breathing and a look-around. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "spine": {"wave": {"rot": [1.5, 0, 1.0], "phase": 0.0}},
+          "head": {"wave": {"rot": [-2.0, 0, 5.0], "phase": 0.25}},
+          "arm_l_upper": {"wave": {"rot": [2.0, 0, 1.5], "phase": 0.3}},
+          "arm_r_upper": {"wave": {"rot": [2.0, 0, -1.5], "phase": 0.3}},
+          "arm_l_lower": {"wave": {"rot": [2.0, 0, 0], "phase": 0.5}},
+          "arm_r_lower": {"wave": {"rot": [2.0, 0, 0], "phase": 0.5}}
+        }},
+        // Fast striding walk, two steps per clip; arms swing against the legs. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "hips": {"wave": {"loc": [0, 0, 0.02], "cycles": 2, "phase": 0.25, "rot": [0, 0, 3.0]}},
+          "spine": {"wave": {"rot": [2.0, 0, -4.0], "phase": 0.0, "bias_rot": [4.0, 0, 0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.0}},
+          "leg_l_thigh": {"wave": {"rot": [-32.0, 0, 0], "phase": 0.0}},
+          "leg_l_shin": {"wave": {"rot": [18.0, 0, 0], "phase": 0.0, "bias_rot": [18.0, 0, 0]}},
+          "leg_l_foot": {"wave": {"rot": [14.0, 0, 0], "phase": 0.0, "bias_rot": [-12.0, 0, 0]}},
+          "leg_r_thigh": {"wave": {"rot": [-32.0, 0, 0], "phase": 0.5}},
+          "leg_r_shin": {"wave": {"rot": [18.0, 0, 0], "phase": 0.5, "bias_rot": [18.0, 0, 0]}},
+          "leg_r_foot": {"wave": {"rot": [14.0, 0, 0], "phase": 0.5, "bias_rot": [-12.0, 0, 0]}},
+          "arm_l_upper": {"wave": {"rot": [-26.0, 0, 0], "phase": 0.5}},
+          "arm_r_upper": {"wave": {"rot": [-26.0, 0, 0], "phase": 0.0}},
+          "arm_l_lower": {"wave": {"rot": [-10.0, 0, 0], "phase": 0.6, "bias_rot": [-10.0, 0, 0]}},
+          "arm_r_lower": {"wave": {"rot": [-10.0, 0, 0], "phase": 0.1, "bias_rot": [-10.0, 0, 0]}}
+        }},
+        // Ranged attack: right arm winds back and flings forward (a throw/shot). One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "spine": {"keys": [[1, [0, 0, 0]], [7, [-8, 0, 10]], [11, [12, 0, -12]], [24, [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [7, [-6, 0, 0]], [11, [8, 0, 6]], [24, [0, 0, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [7, [70, 0, 0]], [11, [-110, 0, 0]], [16, [-70, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_lower": {"keys": [[1, [0, 0, 0]], [7, [30, 0, 0]], [11, [-30, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [7, [-30, 0, 0]], [11, [-50, 0, 0]], [24, [0, 0, 0]]]},
+          "leg_l_thigh": {"keys": [[1, [0, 0, 0]], [11, [-12, 0, 0]], [24, [0, 0, 0]]]},
+          "leg_r_thigh": {"keys": [[1, [0, 0, 0]], [11, [12, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Falls over backwards (+Y), arms flung out; lies on its back. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [8, 0, 0], [0, 0, 0]], [26, [-60, 0, 0], [0, 0, 0]], [36, [-88, 0, 0], [0, 0, 0]]]},
+          "spine": {"keys": [[1, [0, 0, 0]], [10, [-10, 0, 0]], [36, [6, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-14, 0, 0]], [36, [-10, 0, 8]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [10, [-30, -20, 0]], [36, [10, -55, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [10, [-30, 20, 0]], [36, [10, 55, 0]]]},
+          "leg_l_thigh": {"keys": [[1, [0, 0, 0]], [26, [-20, 0, 0]], [36, [-10, 0, 0]]]},
+          "leg_l_shin": {"keys": [[1, [0, 0, 0]], [26, [30, 0, 0]], [36, [20, 0, 0]]]},
+          "leg_r_thigh": {"keys": [[1, [0, 0, 0]], [26, [-5, 0, 0]], [36, [-2, 0, 0]]]}
+        }}
+      }
+    },
+    "skai.talon_archer": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.03,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0.03, 0.13, 0.0], "tail": [0.03, 0.13, 0.15], "radius": 0.0, "bias": 1.0},
+        // Pelvis and the feather skirt (z 0.3 to 0.6).
+        {"name": "hips", "parent": "root", "head": [0.03, 0.13, 0.5], "tail": [0.03, 0.13, 0.62], "radius": 0.2, "bias": 1.0},
+        // Torso and backpack.
+        {"name": "spine", "parent": "hips", "head": [0.03, 0.14, 0.62], "tail": [0.03, 0.14, 0.85], "radius": 0.14, "bias": 1.0},
+        // Neck, head and the long beak (tip at y = -0.18).
+        {"name": "head", "parent": "spine", "head": [0.03, 0.13, 0.86], "tail": [0.03, 0.08, 1.02], "radius": 0.14, "bias": 1.0},
+        // The rifle together with both arms and hands as one rigid part (the arms are fused to the rifle). The box cuts it from the torso at y = 0.
+        {"name": "gun", "parent": "spine", "head": [0.0, 0.05, 0.76], "tail": [-0.12, -0.45, 0.76], "radius": 0.1, "bias": 1.0, "boxes": [[-0.32, -0.58, 0.58, 0.14, 0.0, 0.92]]},
+        // Left wing blade (flat plate on the back, +X).
+        {"name": "blade_l", "parent": "spine", "head": [0.1, 0.28, 0.7], "tail": [0.19, 0.4, 0.95], "radius": 0.05, "bias": 1.0, "boxes": [[0.1, 0.2, 0.55, 0.3, 0.55, 1.0]]},
+        // Right wing blade (-X).
+        {"name": "blade_r", "parent": "spine", "head": [-0.04, 0.28, 0.7], "tail": [-0.13, 0.4, 0.95], "radius": 0.05, "bias": 1.0, "boxes": [[-0.3, 0.2, 0.55, -0.0, 0.55, 1.0]]},
+        // Left leg, hidden thigh to ankle (the yellow shin).
+        {"name": "leg_l", "parent": "hips", "head": [0.1, 0.14, 0.55], "tail": [0.1, 0.16, 0.15], "radius": 0.04, "bias": 1.0},
+        // Left foot, ankle to toe tip.
+        {"name": "foot_l", "parent": "leg_l", "head": [0.1, 0.16, 0.15], "tail": [0.1, 0.02, 0.03], "radius": 0.05, "bias": 1.0},
+        // Right leg.
+        {"name": "leg_r", "parent": "hips", "head": [-0.04, 0.14, 0.55], "tail": [-0.04, 0.16, 0.15], "radius": 0.04, "bias": 1.0},
+        // Right foot.
+        {"name": "foot_r", "parent": "leg_r", "head": [-0.04, 0.16, 0.15], "tail": [-0.04, 0.02, 0.03], "radius": 0.05, "bias": 1.0}
+      ],
+      "actions": {
+        // Breathing; rifle held steady, head scans. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "spine": {"wave": {"rot": [1.5, 0, 1.0], "phase": 0.0}},
+          "head": {"wave": {"rot": [-2.0, 0, 6.0], "phase": 0.25}},
+          "gun": {"wave": {"rot": [1.0, 0, 1.0], "phase": 0.4}},
+          "blade_l": {"wave": {"rot": [0, 0, 3.0], "phase": 0.2}},
+          "blade_r": {"wave": {"rot": [0, 0, -3.0], "phase": 0.2}}
+        }},
+        // Walk with the rifle carried; legs stride, blades sway. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "hips": {"wave": {"loc": [0, 0, 0.012], "cycles": 2, "phase": 0.25, "rot": [0, 0, 3.0]}},
+          "spine": {"wave": {"rot": [1.5, 0, -3.0], "phase": 0.0, "bias_rot": [3.0, 0, 0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.0}},
+          "gun": {"wave": {"rot": [2.0, 0, 2.0], "cycles": 2, "phase": 0.1}},
+          "leg_l": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.0}},
+          "foot_l": {"wave": {"rot": [10.0, 0, 0], "phase": 0.0, "bias_rot": [-10.0, 0, 0]}},
+          "leg_r": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.5}},
+          "foot_r": {"wave": {"rot": [10.0, 0, 0], "phase": 0.5, "bias_rot": [-10.0, 0, 0]}},
+          "blade_l": {"wave": {"rot": [0, 0, 6.0], "cycles": 2, "phase": 0.3}},
+          "blade_r": {"wave": {"rot": [0, 0, -6.0], "cycles": 2, "phase": 0.3}}
+        }},
+        // Aim, fire and recoil: the rifle kicks up and back, the body rocks, the blades flare. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "spine": {"keys": [[1, [0, 0, 0]], [6, [4, 0, 0]], [9, [-8, 0, 0]], [16, [-2, 0, 0]], [24, [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [6, [6, 0, 0]], [9, [-6, 0, 0]], [24, [0, 0, 0]]]},
+          "gun": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [6, [4, 0, 0], [0, -0.02, 0]], [9, [-12, 0, 0], [0, 0.06, 0]], [16, [-3, 0, 0], [0, 0.02, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "blade_l": {"keys": [[1, [0, 0, 0]], [9, [0, 0, 20]], [24, [0, 0, 0]]]},
+          "blade_r": {"keys": [[1, [0, 0, 0]], [9, [0, 0, -20]], [24, [0, 0, 0]]]},
+          "leg_l": {"keys": [[1, [0, 0, 0]], [9, [6, 0, 0]], [24, [0, 0, 0]]]},
+          "leg_r": {"keys": [[1, [0, 0, 0]], [9, [-6, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Drops the rifle arm, topples sideways (+X) with the rifle level and lies still. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [0, -6, 0], [0, 0, 0]], [26, [0, 55, 0], [0, 0, 0]], [36, [0, 86, 0], [0, 0, 0]]]},
+          "spine": {"keys": [[1, [0, 0, 0]], [10, [-8, 0, 0]], [36, [10, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-12, 0, 0]], [36, [20, 0, 10]]]},
+          "gun": {"keys": [[1, [0, 0, 0]], [10, [-10, 0, 0]], [36, [30, 0, 14]]]},
+          "blade_l": {"keys": [[1, [0, 0, 0]], [26, [0, 0, 18]], [36, [0, 0, 28]]]},
+          "blade_r": {"keys": [[1, [0, 0, 0]], [26, [0, 0, -18]], [36, [0, 0, -28]]]},
+          "leg_l": {"keys": [[1, [0, 0, 0]], [26, [-10, 0, 0]], [36, [-4, 0, 0]]]}
+        }}
+      }
+    },
+    "skai.stormcaller": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.035,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0.12, 0, 0.0], "tail": [0.12, 0, 0.15], "radius": 0.0, "bias": 1.0},
+        // Pelvis and long feather skirt (z 0.2 to 0.8, half width 0.3).
+        {"name": "hips", "parent": "root", "head": [0.12, 0, 0.62], "tail": [0.12, 0, 0.75], "radius": 0.28, "bias": 1.0},
+        // Torso and backpack with its two discs (backpack at y +0.1 to +0.4).
+        {"name": "spine", "parent": "hips", "head": [0.12, 0.08, 0.75], "tail": [0.12, 0.08, 1.15], "radius": 0.24, "bias": 1.0},
+        // Head with the owl ears (tips at z 1.55).
+        {"name": "head", "parent": "spine", "head": [0.12, 0, 1.2], "tail": [0.12, 0, 1.45], "radius": 0.17, "bias": 1.0},
+        // Left arm (+X), shoulder to elbow.
+        {"name": "arm_l_upper", "parent": "spine", "head": [0.37, 0, 1.12], "tail": [0.4, 0, 0.85], "radius": 0.08, "bias": 1.0},
+        // Left forearm and hand.
+        {"name": "arm_l_lower", "parent": "arm_l_upper", "head": [0.4, 0, 0.85], "tail": [0.42, 0, 0.6], "radius": 0.09, "bias": 1.0},
+        // Right arm (-X), shoulder to elbow; it holds the staff.
+        {"name": "arm_r_upper", "parent": "spine", "head": [-0.12, 0, 1.1], "tail": [-0.2, -0.1, 0.9], "radius": 0.08, "bias": 1.0},
+        // Right forearm and hand, elbow to the grip.
+        {"name": "arm_r_lower", "parent": "arm_r_upper", "head": [-0.2, -0.1, 0.9], "tail": [-0.32, -0.25, 1.0], "radius": 0.09, "bias": 1.0},
+        // The staff (0 to 1.8 high) with the yellow trident, a rigid part held by the right hand. The box cuts it from the body.
+        {"name": "staff", "parent": "arm_r_lower", "head": [-0.35, -0.27, 0.9], "tail": [-0.35, -0.27, 1.8], "radius": 0.08, "bias": 1.0, "boxes": [[-0.55, -0.42, 0.0, -0.24, -0.12, 1.9]]},
+        // Left leg, hidden thigh to ankle.
+        {"name": "leg_l", "parent": "hips", "head": [0.24, 0, 0.6], "tail": [0.24, 0, 0.2], "radius": 0.06, "bias": 1.0},
+        // Left foot.
+        {"name": "foot_l", "parent": "leg_l", "head": [0.24, 0, 0.2], "tail": [0.24, -0.12, 0.03], "radius": 0.06, "bias": 1.0},
+        // Right leg.
+        {"name": "leg_r", "parent": "hips", "head": [0.03, 0, 0.6], "tail": [0.03, 0, 0.2], "radius": 0.06, "bias": 1.0},
+        // Right foot.
+        {"name": "foot_r", "parent": "leg_r", "head": [0.03, 0, 0.2], "tail": [0.03, -0.12, 0.03], "radius": 0.06, "bias": 1.0}
+      ],
+      "actions": {
+        // Breathing and a slow staff sway. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "spine": {"wave": {"rot": [1.5, 0, 1.0], "phase": 0.0}},
+          "head": {"wave": {"rot": [-2.0, 0, 5.0], "phase": 0.25}},
+          "arm_l_upper": {"wave": {"rot": [2.0, 0, 1.5], "phase": 0.3}},
+          "arm_r_upper": {"wave": {"rot": [1.5, 0, 0], "phase": 0.3}},
+          "hips": {"wave": {"rot": [0, 0, 1.5], "phase": 0.5}}
+        }},
+        // Stately walk with the staff planted (staff swings a little with the right arm). Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "hips": {"wave": {"loc": [0, 0, 0.012], "cycles": 2, "phase": 0.25, "rot": [0, 0, 3.0]}},
+          "spine": {"wave": {"rot": [1.5, 0, -3.0], "phase": 0.0, "bias_rot": [2.0, 0, 0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.0}},
+          "leg_l": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.0}},
+          "foot_l": {"wave": {"rot": [10.0, 0, 0], "phase": 0.0, "bias_rot": [-10.0, 0, 0]}},
+          "leg_r": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.5}},
+          "foot_r": {"wave": {"rot": [10.0, 0, 0], "phase": 0.5, "bias_rot": [-10.0, 0, 0]}},
+          "arm_l_upper": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.5}},
+          "arm_r_upper": {"wave": {"rot": [-8.0, 0, 0], "phase": 0.0}}
+        }},
+        // Cast: raises the staff and strikes it forward, the left hand flares. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "spine": {"keys": [[1, [0, 0, 0]], [8, [-6, 0, 0]], [13, [10, 0, 0]], [24, [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [8, [-8, 0, 0]], [13, [8, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [8, [-25, 0, 0]], [13, [-60, 0, 0]], [18, [-35, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_lower": {"keys": [[1, [0, 0, 0]], [8, [-10, 0, 0]], [13, [-20, 0, 0]], [24, [0, 0, 0]]]},
+          "staff": {"keys": [[1, [0, 0, 0]], [8, [22, 0, 0]], [13, [-32, 0, 0]], [18, [-12, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [8, [-40, 0, 0]], [13, [-70, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_l_lower": {"keys": [[1, [0, 0, 0]], [13, [-30, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Staff slips, falls backward and lies on its back. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [8, 0, 0], [0, 0, 0]], [26, [-60, 0, 0], [0, 0, 0]], [36, [-88, 0, 0], [0, 0, 0]]]},
+          "spine": {"keys": [[1, [0, 0, 0]], [10, [-8, 0, 0]], [36, [6, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-12, 0, 0]], [36, [-8, 0, 10]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [10, [-30, -15, 0]], [36, [8, -50, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [10, [-30, 0, 0]], [36, [20, 30, 0]]]},
+          "leg_l": {"keys": [[1, [0, 0, 0]], [26, [-15, 0, 0]], [36, [-8, 0, 0]]]}
+        }}
+      }
+    },
+    "skai.thunderhead": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.03,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Air unit: the body stays at the model's origin height (no ground clamp). Unit: boolean. Range: true or false.
+      "ground_clamp": false,
+      "bones": [
+        // Anchor at the model origin; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0, 0.0], "tail": [0, 0, 0.1], "radius": 0.0, "bias": 1.0},
+        // Central fuselage, from behind the cockpit to the tail root.
+        {"name": "body", "parent": "root", "head": [0, -0.15, 0.17], "tail": [0, 0.2, 0.2], "radius": 0.12, "bias": 1.0},
+        // Nose with the white eagle beak (tip at y = -0.5).
+        {"name": "head", "parent": "body", "head": [0, -0.2, 0.15], "tail": [0, -0.5, 0.12], "radius": 0.1, "bias": 1.0},
+        // Rear spine and the tail fin (y +0.3 to +0.5).
+        {"name": "tail", "parent": "body", "head": [0, 0.25, 0.2], "tail": [0, 0.5, 0.17], "radius": 0.1, "bias": 1.0},
+        // Left wing (+X), inner half of the delta wing.
+        {"name": "wing_l1", "parent": "body", "head": [0.12, -0.02, 0.16], "tail": [0.3, -0.02, 0.16], "radius": 0.1, "bias": 1.0},
+        // Left wing, outer half with the upturned tip fin.
+        {"name": "wing_l2", "parent": "wing_l1", "head": [0.3, -0.02, 0.16], "tail": [0.5, -0.02, 0.24], "radius": 0.12, "bias": 1.0},
+        // Right wing (-X), inner half.
+        {"name": "wing_r1", "parent": "body", "head": [-0.12, -0.02, 0.16], "tail": [-0.3, -0.02, 0.16], "radius": 0.1, "bias": 1.0},
+        // Right wing, outer half.
+        {"name": "wing_r2", "parent": "wing_r1", "head": [-0.3, -0.02, 0.16], "tail": [-0.5, -0.02, 0.24], "radius": 0.12, "bias": 1.0},
+        // Left weapon pod (the six-tube block under the wing); rigid.
+        {"name": "pod_l", "parent": "wing_l1", "head": [0.28, 0.04, 0.12], "tail": [0.28, 0.04, 0.02], "radius": 0.06, "bias": 1.0, "boxes": [[0.18, -0.08, -0.01, 0.42, 0.2, 0.108]]},
+        // Right weapon pod; rigid.
+        {"name": "pod_r", "parent": "wing_r1", "head": [-0.28, 0.04, 0.12], "tail": [-0.28, 0.04, 0.02], "radius": 0.06, "bias": 1.0, "boxes": [[-0.42, -0.08, -0.01, -0.18, 0.2, 0.108]]}
+      ],
+      "actions": {
+        // Hover: slow bob and gentle wing flex. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.012], "phase": 0.25, "rot": [1.5, 0, 0]}},
+          "head": {"wave": {"rot": [2.0, 0, 3.0], "phase": 0.4}},
+          "tail": {"wave": {"rot": [3.0, 0, 2.0], "phase": 0.5}},
+          "wing_l1": {"wave": {"rot": [0, -3.0, 0], "phase": 0.0}},
+          "wing_l2": {"wave": {"rot": [0, -6.0, 0], "phase": 0.1}},
+          "wing_r1": {"wave": {"rot": [0, 3.0, 0], "phase": 0.0}},
+          "wing_r2": {"wave": {"rot": [0, 6.0, 0], "phase": 0.1}}
+        }},
+        // Forward flight: nose down a little, wings ripple with tips lagging, pods sway. Loops.
+        "move": {"frames": 20, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.02], "phase": 0.25, "rot": [2.0, 0, 0], "bias_rot": [6.0, 0, 0]}},
+          "head": {"wave": {"rot": [-3.0, 0, 0], "phase": 0.3}},
+          "tail": {"wave": {"rot": [6.0, 0, 0], "phase": 0.4}},
+          "wing_l1": {"wave": {"rot": [0, -14.0, 0], "phase": 0.0}},
+          "wing_l2": {"wave": {"rot": [0, -22.0, 0], "phase": 0.15}},
+          "wing_r1": {"wave": {"rot": [0, 14.0, 0], "phase": 0.0}},
+          "wing_r2": {"wave": {"rot": [0, 22.0, 0], "phase": 0.15}},
+          "pod_l": {"wave": {"rot": [3.0, 0, 0], "phase": 0.2}},
+          "pod_r": {"wave": {"rot": [3.0, 0, 0], "phase": 0.2}}
+        }},
+        // Strafing run: nose dips, wings sweep up, both pods kick back as they fire. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [-8, 0, 0], [0, 0.02, 0.02]], [12, [16, 0, 0], [0, -0.06, -0.02]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [12, [8, 0, 0]], [24, [0, 0, 0]]]},
+          "wing_l1": {"keys": [[1, [0, 0, 0]], [8, [0, -12, 0]], [12, [0, 6, 0]], [24, [0, 0, 0]]]},
+          "wing_l2": {"keys": [[1, [0, 0, 0]], [8, [0, -18, 0]], [12, [0, 8, 0]], [24, [0, 0, 0]]]},
+          "wing_r1": {"keys": [[1, [0, 0, 0]], [8, [0, 12, 0]], [12, [0, -6, 0]], [24, [0, 0, 0]]]},
+          "wing_r2": {"keys": [[1, [0, 0, 0]], [8, [0, 18, 0]], [12, [0, -8, 0]], [24, [0, 0, 0]]]},
+          "pod_l": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [12, [0, 0, 0], [0, 0.0, 0]], [14, [-12, 0, 0], [0, 0.06, 0]], [18, [0, 0, 0], [0, 0.02, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "pod_r": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [12, [0, 0, 0], [0, 0.0, 0]], [14, [-12, 0, 0], [0, 0.06, 0]], [18, [0, 0, 0], [0, 0.02, 0]], [24, [0, 0, 0], [0, 0, 0]]]}
+        }},
+        // Loses lift: rolls over onto one wing, nose drops, wings fold up, pods droop. Stays at the origin height. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [14, [14, 22, 8], [0, 0, 0]], [36, [22, 50, 16], [0, 0, 0]]]},
+          "body": {"keys": [[1, [0, 0, 0]], [14, [8, 0, 0]], [36, [10, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [14, [12, 0, 6]], [36, [16, 0, 10]]]},
+          "tail": {"keys": [[1, [0, 0, 0]], [14, [-10, 0, 5]], [36, [-16, 0, 8]]]},
+          "wing_l1": {"keys": [[1, [0, 0, 0]], [14, [0, -14, 0]], [36, [0, -10, 0]]]},
+          "wing_l2": {"keys": [[1, [0, 0, 0]], [14, [0, -22, 0]], [36, [0, -18, 0]]]},
+          "wing_r1": {"keys": [[1, [0, 0, 0]], [14, [0, 14, 0]], [36, [0, 10, 0]]]},
+          "wing_r2": {"keys": [[1, [0, 0, 0]], [14, [0, 22, 0]], [36, [0, 18, 0]]]},
+          "pod_l": {"keys": [[1, [0, 0, 0]], [36, [20, 0, 0]]]},
+          "pod_r": {"keys": [[1, [0, 0, 0]], [36, [20, 0, 0]]]}
+        }}
+      }
+    }
+    ,
+    "water.tender": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.04,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0.05, 0.0], "tail": [0, 0.05, 0.15], "radius": 0.0, "bias": 1.0},
+        // Torso with the shoulder ring and the backpack tank (box: y 0.14 to 0.5, z 0.6 to 1.35).
+        {"name": "body", "parent": "root", "head": [0, 0.05, 0.5], "tail": [0, 0.08, 0.75], "radius": 0.28, "bias": 1.0, "boxes": [[-0.3, 0.14, 0.6, 0.3, 0.5, 1.35]]},
+        // Head with the diving-helmet ring and beak.
+        {"name": "head", "parent": "body", "head": [0, -0.02, 0.75], "tail": [0, -0.08, 1.0], "radius": 0.25, "bias": 1.0},
+        // Left arm (+X), shoulder to elbow.
+        {"name": "arm_l_upper", "parent": "body", "head": [0.25, 0, 0.55], "tail": [0.36, -0.03, 0.43], "radius": 0.08, "bias": 1.0},
+        // Left forearm and the cyan pincer.
+        {"name": "arm_l_lower", "parent": "arm_l_upper", "head": [0.36, -0.03, 0.43], "tail": [0.42, -0.05, 0.28], "radius": 0.09, "bias": 1.0},
+        // Right arm (-X), shoulder to elbow.
+        {"name": "arm_r_upper", "parent": "body", "head": [-0.25, 0, 0.55], "tail": [-0.36, -0.03, 0.43], "radius": 0.08, "bias": 1.0},
+        // Right forearm and pincer.
+        {"name": "arm_r_lower", "parent": "arm_r_upper", "head": [-0.36, -0.03, 0.43], "tail": [-0.42, -0.05, 0.28], "radius": 0.09, "bias": 1.0},
+        // Front tentacles (toward -Y): sway bone for the skirt.
+        {"name": "tent_f", "parent": "body", "head": [0, -0.1, 0.48], "tail": [0, -0.35, 0.08], "radius": 0.1, "bias": 1.0},
+        // Rear tentacles (+Y).
+        {"name": "tent_b", "parent": "body", "head": [0, 0.2, 0.48], "tail": [0, 0.35, 0.08], "radius": 0.1, "bias": 1.0},
+        // Left tentacles (+X).
+        {"name": "tent_l", "parent": "body", "head": [0.2, 0.05, 0.48], "tail": [0.28, 0.05, 0.03], "radius": 0.1, "bias": 1.0},
+        // Right tentacles (-X).
+        {"name": "tent_r", "parent": "body", "head": [-0.2, 0.05, 0.48], "tail": [-0.28, 0.05, 0.03], "radius": 0.1, "bias": 1.0}
+      ],
+      "actions": {
+        // Breathing, head tilt, tentacles sway. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.008], "phase": 0.25, "rot": [1.0, 0, 1.5]}},
+          "head": {"wave": {"rot": [-2.0, 0, 5.0], "phase": 0.3}},
+          "arm_l_upper": {"wave": {"rot": [3.0, 0, 2.0], "phase": 0.3}},
+          "arm_r_upper": {"wave": {"rot": [3.0, 0, -2.0], "phase": 0.3}},
+          "tent_f": {"wave": {"rot": [8.0, 0, 0], "phase": 0.0}},
+          "tent_b": {"wave": {"rot": [-8.0, 0, 0], "phase": 0.5}},
+          "tent_l": {"wave": {"rot": [0, -8.0, 0], "phase": 0.25}},
+          "tent_r": {"wave": {"rot": [0, 8.0, 0], "phase": 0.25}}
+        }},
+        // Tentacle walk: the four tentacle groups paddle in turn, the body bobs and rolls. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.03], "bias_loc": [0, 0, 0.0], "cycles": 2, "phase": 0.25, "rot": [4.0, 0, 5.0]}},
+          "head": {"wave": {"rot": [-3.0, 0, 6.0], "phase": 0.2}},
+          "arm_l_upper": {"wave": {"rot": [-16.0, 0, 0], "phase": 0.5}},
+          "arm_r_upper": {"wave": {"rot": [-16.0, 0, 0], "phase": 0.0}},
+          "tent_f": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.0}},
+          "tent_b": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.5}},
+          "tent_l": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.25}},
+          "tent_r": {"wave": {"rot": [-30.0, 0, 0], "phase": 0.75}}
+        }},
+        // Pincer jab (the tender's weak weapon and tool): right pincer wound back and thrust out. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [7, [-6, 0, 8], [0, 0.03, 0]], [11, [10, 0, -10], [0, -0.1, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [11, [10, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [7, [55, 0, 0]], [11, [-85, 0, 0]], [16, [-50, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r_lower": {"keys": [[1, [0, 0, 0]], [7, [25, 0, 0]], [11, [-25, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [11, [-30, 0, 0]], [24, [0, 0, 0]]]},
+          "tent_f": {"keys": [[1, [0, 0, 0]], [11, [-20, 0, 0]], [24, [0, 0, 0]]]},
+          "tent_b": {"keys": [[1, [0, 0, 0]], [11, [20, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Collapses: tentacles splay flat, the body sinks and slumps forward. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [-8, 0, 0], [0, 0.02, 0]], [26, [14, 0, 0], [0, -0.03, -0.12]], [36, [18, 0, 0], [0, -0.04, -0.18]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-10, 0, 0]], [36, [12, 0, 6]]]},
+          "arm_l_upper": {"keys": [[1, [0, 0, 0]], [10, [-20, 0, 0]], [36, [10, -40, 0]]]},
+          "arm_r_upper": {"keys": [[1, [0, 0, 0]], [10, [-20, 0, 0]], [36, [10, 40, 0]]]},
+          "tent_f": {"keys": [[1, [0, 0, 0]], [26, [-40, 0, 0]], [36, [-46, 0, 0]]]},
+          "tent_b": {"keys": [[1, [0, 0, 0]], [26, [40, 0, 0]], [36, [46, 0, 0]]]},
+          "tent_l": {"keys": [[1, [0, 0, 0]], [26, [0, -40, 0]], [36, [0, -46, 0]]]},
+          "tent_r": {"keys": [[1, [0, 0, 0]], [26, [0, 40, 0]], [36, [0, 46, 0]]]}
+        }}
+      }
+    },
+    "water.grasper": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.03,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0.1, 0.0], "tail": [0, 0.1, 0.15], "radius": 0.0, "bias": 1.0},
+        // Armoured torso and abdomen segments.
+        {"name": "body", "parent": "root", "head": [0, 0.1, 0.45], "tail": [0, 0.1, 1.0], "radius": 0.2, "bias": 1.0},
+        // Head, eye stalks and antennae (tips at z 1.55).
+        {"name": "head", "parent": "body", "head": [0, 0.0, 1.1], "tail": [0, -0.05, 1.35], "radius": 0.16, "bias": 1.0},
+        // Left arm with the big striped fist (+X); the box holds the whole fist (centre about x 0.28, y -0.2, z 0.7).
+        {"name": "arm_l", "parent": "body", "head": [0.22, 0.0, 1.0], "tail": [0.28, -0.2, 0.7], "radius": 0.12, "bias": 1.0, "boxes": [[0.06, -0.46, 0.4, 0.5, -0.02, 0.98]]},
+        // Right arm with its fist (-X).
+        {"name": "arm_r", "parent": "body", "head": [-0.22, 0.0, 1.0], "tail": [-0.28, -0.2, 0.7], "radius": 0.12, "bias": 1.0, "boxes": [[-0.5, -0.46, 0.4, -0.06, -0.02, 0.98]]},
+        // Left lower claws and legs (+X), hip to the claw tips.
+        {"name": "leg_l", "parent": "body", "head": [0.12, 0.15, 0.45], "tail": [0.3, 0.1, 0.02], "radius": 0.1, "bias": 1.0},
+        // Right lower claws and legs (-X).
+        {"name": "leg_r", "parent": "body", "head": [-0.12, 0.15, 0.45], "tail": [-0.3, 0.1, 0.02], "radius": 0.1, "bias": 1.0}
+      ],
+      "actions": {
+        // Breathing; the fists rock a little, antennae twitch with the head. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.008], "phase": 0.25, "rot": [1.5, 0, 1.5]}},
+          "head": {"wave": {"rot": [-3.0, 0, 6.0], "phase": 0.3}},
+          "arm_l": {"wave": {"rot": [4.0, 0, 2.0], "phase": 0.3}},
+          "arm_r": {"wave": {"rot": [4.0, 0, -2.0], "phase": 0.3}},
+          "leg_l": {"wave": {"rot": [2.0, 0, 0], "phase": 0.5}},
+          "leg_r": {"wave": {"rot": [-2.0, 0, 0], "phase": 0.5}}
+        }},
+        // Scuttling gait: the lower legs alternate, the body rocks, the fists swing against it. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.02], "cycles": 2, "phase": 0.25, "rot": [3.0, 0, 5.0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 5.0], "phase": 0.0}},
+          "arm_l": {"wave": {"rot": [-18.0, 0, 0], "phase": 0.5}},
+          "arm_r": {"wave": {"rot": [-18.0, 0, 0], "phase": 0.0}},
+          "leg_l": {"wave": {"rot": [-26.0, 0, 0], "phase": 0.0}},
+          "leg_r": {"wave": {"rot": [-26.0, 0, 0], "phase": 0.5}}
+        }},
+        // Double punch: right fist then left fist driven forward. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [6, [-6, 0, 10], [0, 0.03, 0]], [9, [8, 0, -12], [0, -0.07, 0]], [14, [-4, 0, 10], [0, 0.02, 0]], [17, [8, 0, -8], [0, -0.07, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [9, [8, 0, 0]], [17, [8, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_r": {"keys": [[1, [0, 0, 0]], [6, [50, 0, 0]], [9, [-70, 0, 0]], [12, [-20, 0, 0]], [24, [0, 0, 0]]]},
+          "arm_l": {"keys": [[1, [0, 0, 0]], [12, [0, 0, 0]], [14, [50, 0, 0]], [17, [-70, 0, 0]], [20, [-20, 0, 0]], [24, [0, 0, 0]]]},
+          "leg_l": {"keys": [[1, [0, 0, 0]], [9, [-10, 0, 0]], [24, [0, 0, 0]]]},
+          "leg_r": {"keys": [[1, [0, 0, 0]], [9, [10, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Topples sideways (+X) under the weight of the fists and lies still. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [0, -6, 0], [0, 0, 0]], [26, [0, 55, 0], [0, 0, 0]], [36, [0, 86, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-10, 0, 0]], [36, [14, 0, 12]]]},
+          "arm_l": {"keys": [[1, [0, 0, 0]], [10, [-15, 0, 0]], [36, [10, 0, 0]]]},
+          "arm_r": {"keys": [[1, [0, 0, 0]], [10, [-15, 0, 0]], [36, [10, 20, 0]]]},
+          "leg_l": {"keys": [[1, [0, 0, 0]], [26, [-12, 0, 0]], [36, [-4, 0, 0]]]},
+          "leg_r": {"keys": [[1, [0, 0, 0]], [26, [8, 0, 0]], [36, [4, 0, 0]]]}
+        }}
+      }
+    },
+    "water.reef_runner": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.03,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0.02, 0.0], "tail": [0, 0.02, 0.15], "radius": 0.0, "bias": 1.0},
+        // The gear wheel (rigid, radius 0.32, axle along X at z 0.38); spins about X. The box cuts it from the tail above.
+        {"name": "wheel", "parent": "root", "head": [0, 0.02, 0.38], "tail": [0.15, 0.02, 0.38], "radius": 0.3, "bias": 1.0, "boxes": [[-0.25, -0.36, 0.02, 0.25, 0.36, 0.58], [-0.25, -0.34, 0.58, 0.25, 0.08, 0.7]]},
+        // Curled tail between the wheel and the belly.
+        {"name": "tail", "parent": "root", "head": [0, 0.15, 0.64], "tail": [0, 0.2, 1.0], "radius": 0.1, "bias": 1.0},
+        // Belly, lower body.
+        {"name": "body_low", "parent": "tail", "head": [0, 0.12, 0.95], "tail": [0, 0.1, 1.35], "radius": 0.2, "bias": 1.0},
+        // Chest and neck up to the head.
+        {"name": "body_up", "parent": "body_low", "head": [0, 0.1, 1.35], "tail": [0, 0.02, 1.62], "radius": 0.2, "bias": 1.0},
+        // Head with the eyes and the long snout (tip at y = -0.5).
+        {"name": "head", "parent": "body_up", "head": [0, -0.02, 1.7], "tail": [0, -0.45, 1.58], "radius": 0.17, "bias": 1.0},
+        // Crest plumes on the back of the head (z 1.9 to 2.25).
+        {"name": "crest", "parent": "body_up", "head": [0, 0.08, 1.88], "tail": [0, 0.33, 2.25], "radius": 0.14, "bias": 1.0},
+        // Left side fin (+X).
+        {"name": "fin_l", "parent": "body_low", "head": [0.1, 0.2, 1.25], "tail": [0.33, 0.22, 1.25], "radius": 0.06, "bias": 1.0, "boxes": [[0.1, 0.05, 1.05, 0.45, 0.4, 1.45]]},
+        // Right side fin (-X).
+        {"name": "fin_r", "parent": "body_low", "head": [-0.1, 0.2, 1.25], "tail": [-0.33, 0.22, 1.25], "radius": 0.06, "bias": 1.0, "boxes": [[-0.45, 0.05, 1.05, -0.1, 0.4, 1.45]]}
+      ],
+      "actions": {
+        // Hovering sway: spine breathes, crest and fins ripple, the wheel idles. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "body_low": {"wave": {"rot": [1.5, 0, 2.0], "phase": 0.0}},
+          "body_up": {"wave": {"rot": [1.5, 0, -2.0], "phase": 0.2}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.4}},
+          "crest": {"wave": {"rot": [4.0, 0, 3.0], "phase": 0.6}},
+          "tail": {"wave": {"rot": [0, 0, 3.0], "phase": 0.0}},
+          "fin_l": {"wave": {"rot": [0, 0, 8.0], "phase": 0.3}},
+          "fin_r": {"wave": {"rot": [0, 0, -8.0], "phase": 0.3}}
+        }},
+        // Rolling: the wheel turns one full turn, the body leans forward and weaves, fins flutter. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "wheel": {"keys": [[1, [0, 0, 0]], [7, [-90, 0, 0]], [13, [-180, 0, 0]], [19, [-270, 0, 0]], [24, [-360, 0, 0]]]},
+          "tail": {"wave": {"rot": [0, 0, 6.0], "phase": 0.0}},
+          "body_low": {"wave": {"loc": [0, 0, 0.012], "cycles": 2, "phase": 0.25, "rot": [2.0, 0, 5.0], "bias_rot": [4.0, 0, 0]}},
+          "body_up": {"wave": {"rot": [2.0, 0, -6.0], "phase": 0.15, "bias_rot": [4.0, 0, 0]}},
+          "head": {"wave": {"rot": [-3.0, 0, 6.0], "phase": 0.3}},
+          "crest": {"wave": {"rot": [8.0, 0, 5.0], "phase": 0.5, "bias_rot": [10.0, 0, 0]}},
+          "fin_l": {"wave": {"rot": [0, 0, 20.0], "cycles": 2, "phase": 0.0}},
+          "fin_r": {"wave": {"rot": [0, 0, -20.0], "cycles": 2, "phase": 0.0}}
+        }},
+        // Ranged lunge: rears back, thrusts the head and snout forward, crest and fins flare. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "body_low": {"keys": [[1, [0, 0, 0]], [8, [-8, 0, 0]], [12, [14, 0, 0]], [24, [0, 0, 0]]]},
+          "body_up": {"keys": [[1, [0, 0, 0]], [8, [-12, 0, 0]], [12, [20, 0, 0]], [24, [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [8, [-10, 0, 0]], [12, [14, 0, 0]], [24, [0, 0, 0]]]},
+          "crest": {"keys": [[1, [0, 0, 0]], [8, [-20, 0, 0]], [12, [24, 0, 0]], [24, [0, 0, 0]]]},
+          "fin_l": {"keys": [[1, [0, 0, 0]], [12, [0, 0, 35]], [24, [0, 0, 0]]]},
+          "fin_r": {"keys": [[1, [0, 0, 0]], [12, [0, 0, -35]], [24, [0, 0, 0]]]},
+          "wheel": {"keys": [[1, [0, 0, 0]], [12, [-120, 0, 0]], [24, [-180, 0, 0]]]}
+        }},
+        // Tips over sideways (+X) and lies on the ground. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [0, -5, 0], [0, 0, 0]], [26, [0, 55, 0], [0, 0, 0]], [36, [0, 86, 0], [0, 0, 0]]]},
+          "body_low": {"keys": [[1, [0, 0, 0]], [10, [-6, 0, 0]], [36, [6, 0, 8]]]},
+          "body_up": {"keys": [[1, [0, 0, 0]], [10, [-10, 0, 0]], [36, [10, 0, 12]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-12, 0, 0]], [36, [16, 0, 10]]]},
+          "crest": {"keys": [[1, [0, 0, 0]], [36, [10, 0, 14]]]},
+          "fin_l": {"keys": [[1, [0, 0, 0]], [36, [0, 0, 25]]]},
+          "fin_r": {"keys": [[1, [0, 0, 0]], [36, [0, 0, -25]]]},
+          "wheel": {"keys": [[1, [0, 0, 0]], [26, [-100, 0, 0]], [36, [-120, 0, 0]]]}
+        }}
+      }
+    }
+    ,
+    "water.tidecaller": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.04,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0, 0.0], "tail": [0, 0, 0.15], "radius": 0.0, "bias": 1.0},
+        // The bell (dome, rim and crown above z = 0.86); pulses by scaling about its lower rim.
+        {"name": "bell", "parent": "root", "head": [0, 0, 0.92], "tail": [0, 0, 1.45], "radius": 0.45, "bias": 1.0, "boxes": [[-0.6, -0.6, 0.86, 0.6, 0.6, 1.6]]},
+        // Tentacle group at the front-left (+X, -Y): upper half, z 0.88 to 0.5.
+        {"name": "tfl_a", "parent": "bell", "head": [0.17, -0.1, 0.88], "tail": [0.19, -0.1, 0.5], "radius": 0.08, "bias": 1.0},
+        // Same group, lower half, z 0.5 to 0.05.
+        {"name": "tfl_b", "parent": "tfl_a", "head": [0.19, -0.1, 0.5], "tail": [0.2, -0.12, 0.05], "radius": 0.08, "bias": 1.0},
+        // Front-right group (-X, -Y), upper half.
+        {"name": "tfr_a", "parent": "bell", "head": [-0.17, -0.1, 0.88], "tail": [-0.19, -0.1, 0.5], "radius": 0.08, "bias": 1.0},
+        // Front-right group, lower half.
+        {"name": "tfr_b", "parent": "tfr_a", "head": [-0.19, -0.1, 0.5], "tail": [-0.2, -0.12, 0.05], "radius": 0.08, "bias": 1.0},
+        // Back-left group (+X, +Y), upper half.
+        {"name": "tbl_a", "parent": "bell", "head": [0.17, 0.1, 0.88], "tail": [0.19, 0.1, 0.5], "radius": 0.08, "bias": 1.0},
+        // Back-left group, lower half.
+        {"name": "tbl_b", "parent": "tbl_a", "head": [0.19, 0.1, 0.5], "tail": [0.2, 0.12, 0.05], "radius": 0.08, "bias": 1.0},
+        // Back-right group (-X, +Y), upper half.
+        {"name": "tbr_a", "parent": "bell", "head": [-0.17, 0.1, 0.88], "tail": [-0.19, 0.1, 0.5], "radius": 0.08, "bias": 1.0},
+        // Back-right group, lower half.
+        {"name": "tbr_b", "parent": "tbr_a", "head": [-0.19, 0.1, 0.5], "tail": [-0.2, 0.12, 0.05], "radius": 0.08, "bias": 1.0}
+      ],
+      "actions": {
+        // Slow pulse of the bell and a lazy tentacle sway. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "bell": {"wave": {"scl": [0.03, 0.03, -0.04], "loc": [0, 0, 0.012], "phase": 0.25}},
+          "tfl_a": {"wave": {"rot": [5.0, 3.0, 0], "phase": 0.0}},
+          "tfr_a": {"wave": {"rot": [5.0, -3.0, 0], "phase": 0.15}},
+          "tbl_a": {"wave": {"rot": [-5.0, 3.0, 0], "phase": 0.3}},
+          "tbr_a": {"wave": {"rot": [-5.0, -3.0, 0], "phase": 0.45}},
+          "tfl_b": {"wave": {"rot": [8.0, 4.0, 0], "phase": 0.15}},
+          "tfr_b": {"wave": {"rot": [8.0, -4.0, 0], "phase": 0.3}},
+          "tbl_b": {"wave": {"rot": [-8.0, 4.0, 0], "phase": 0.45}},
+          "tbr_b": {"wave": {"rot": [-8.0, -4.0, 0], "phase": 0.6}}
+        }},
+        // Swimming: a full bell contraction per clip, the tentacles trail and ripple behind. Loops.
+        "move": {"frames": 20, "loop": true, "channels": {
+          "bell": {"wave": {"scl": [0.08, 0.08, -0.12], "loc": [0, 0, 0.03], "phase": 0.25, "rot": [4.0, 0, 0]}},
+          "tfl_a": {"wave": {"rot": [12.0, 5.0, 0], "phase": 0.1, "bias_rot": [8.0, 0, 0]}},
+          "tfr_a": {"wave": {"rot": [12.0, -5.0, 0], "phase": 0.1, "bias_rot": [8.0, 0, 0]}},
+          "tbl_a": {"wave": {"rot": [12.0, 5.0, 0], "phase": 0.1, "bias_rot": [8.0, 0, 0]}},
+          "tbr_a": {"wave": {"rot": [12.0, -5.0, 0], "phase": 0.1, "bias_rot": [8.0, 0, 0]}},
+          "tfl_b": {"wave": {"rot": [20.0, 8.0, 0], "phase": 0.25, "bias_rot": [10.0, 0, 0]}},
+          "tfr_b": {"wave": {"rot": [20.0, -8.0, 0], "phase": 0.25, "bias_rot": [10.0, 0, 0]}},
+          "tbl_b": {"wave": {"rot": [20.0, 8.0, 0], "phase": 0.25, "bias_rot": [10.0, 0, 0]}},
+          "tbr_b": {"wave": {"rot": [20.0, -8.0, 0], "phase": 0.25, "bias_rot": [10.0, 0, 0]}}
+        }},
+        // Casts the wave: the bell squeezes, then swells wide as the tentacles fling outward and up. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z], [sx, sy, sz]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "bell": {"keys": [[1, [0, 0, 0], [0, 0, 0], [1, 1, 1]], [8, [0, 0, 0], [0, 0, 0.04], [0.9, 0.9, 1.15]], [13, [0, 0, 0], [0, 0, -0.02], [1.18, 1.18, 0.8]], [24, [0, 0, 0], [0, 0, 0], [1, 1, 1]]]},
+          "tfl_a": {"keys": [[1, [0, 0, 0]], [8, [8, 0, 0]], [13, [-28, -20, 0]], [24, [0, 0, 0]]]},
+          "tfr_a": {"keys": [[1, [0, 0, 0]], [8, [8, 0, 0]], [13, [-28, 20, 0]], [24, [0, 0, 0]]]},
+          "tbl_a": {"keys": [[1, [0, 0, 0]], [8, [-8, 0, 0]], [13, [28, -20, 0]], [24, [0, 0, 0]]]},
+          "tbr_a": {"keys": [[1, [0, 0, 0]], [8, [-8, 0, 0]], [13, [28, 20, 0]], [24, [0, 0, 0]]]},
+          "tfl_b": {"keys": [[1, [0, 0, 0]], [13, [-25, -18, 0]], [24, [0, 0, 0]]]},
+          "tfr_b": {"keys": [[1, [0, 0, 0]], [13, [-25, 18, 0]], [24, [0, 0, 0]]]},
+          "tbl_b": {"keys": [[1, [0, 0, 0]], [13, [25, -18, 0]], [24, [0, 0, 0]]]},
+          "tbr_b": {"keys": [[1, [0, 0, 0]], [13, [25, 18, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Deflates: the bell sags and sinks as the tentacles spread and go limp on the ground. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [14, [6, 0, 4], [0, 0, -0.18]], [36, [10, 0, 8], [0, 0, -0.5]]]},
+          "bell": {"keys": [[1, [0, 0, 0], [0, 0, 0], [1, 1, 1]], [14, [0, 0, 0], [0, 0, 0], [1.08, 1.08, 0.85]], [36, [0, 0, 0], [0, 0, 0], [1.2, 1.2, 0.55]]]},
+          "tfl_a": {"keys": [[1, [0, 0, 0]], [14, [-18, -22, 0]], [36, [-28, -40, 0]]]},
+          "tfr_a": {"keys": [[1, [0, 0, 0]], [14, [-18, 22, 0]], [36, [-28, 40, 0]]]},
+          "tbl_a": {"keys": [[1, [0, 0, 0]], [14, [18, -22, 0]], [36, [28, -40, 0]]]},
+          "tbr_a": {"keys": [[1, [0, 0, 0]], [14, [18, 22, 0]], [36, [28, 40, 0]]]},
+          "tfl_b": {"keys": [[1, [0, 0, 0]], [36, [-20, -30, 0]]]},
+          "tfr_b": {"keys": [[1, [0, 0, 0]], [36, [-20, 30, 0]]]},
+          "tbl_b": {"keys": [[1, [0, 0, 0]], [36, [20, -30, 0]]]},
+          "tbr_b": {"keys": [[1, [0, 0, 0]], [36, [20, 30, 0]]]}
+        }}
+      }
+    },
+    "water.spoutling": {
+      // Soft nearest-bone blend width. Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.035,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 4,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 3,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0, 0.0], "tail": [0, 0, 0.15], "radius": 0.0, "bias": 1.0},
+        // Cone body with the scalloped skirt (hem at z 0.4 to 0.5, radius 0.5).
+        {"name": "body", "parent": "root", "head": [0, 0, 0.5], "tail": [0, 0, 0.95], "radius": 0.35, "bias": 1.0},
+        // Head dome with the eyes and the rim of the cannon mount (z 0.85 to 1.15).
+        {"name": "head", "parent": "body", "head": [0, 0, 0.95], "tail": [0, -0.02, 1.15], "radius": 0.25, "bias": 1.0},
+        // The triple cannon (barrels reach y = -0.45, z = 1.55). The box cuts it from the head.
+        {"name": "cannon", "parent": "head", "head": [0, 0.05, 1.18], "tail": [0, -0.35, 1.55], "radius": 0.12, "bias": 1.0, "boxes": [[-0.3, -0.55, 1.17, 0.3, 0.15, 1.65]]},
+        // Beard of face tentacles under the eyes (z 0.42 to 0.8, in front).
+        {"name": "beard", "parent": "body", "head": [0, -0.2, 0.82], "tail": [0, -0.25, 0.45], "radius": 0.1, "bias": 1.0, "boxes": [[-0.15, -0.35, 0.42, 0.15, -0.12, 0.8]]},
+        // Left curled tentacle under the skirt (+X).
+        {"name": "tent_l", "parent": "body", "head": [0.2, -0.1, 0.45], "tail": [0.2, -0.05, 0.1], "radius": 0.1, "bias": 1.0, "boxes": [[0.08, -0.22, 0.05, 0.42, 0.12, 0.45]]},
+        // Right curled tentacle (-X).
+        {"name": "tent_r", "parent": "body", "head": [-0.2, -0.1, 0.45], "tail": [-0.2, -0.05, 0.1], "radius": 0.1, "bias": 1.0, "boxes": [[-0.42, -0.22, 0.05, -0.08, 0.12, 0.45]]},
+        // The thin tail spike down to the ground.
+        {"name": "spike", "parent": "body", "head": [0, 0, 0.42], "tail": [0, 0, 0.0], "radius": 0.04, "bias": 1.0, "boxes": [[-0.08, -0.08, 0.0, 0.08, 0.08, 0.4]]}
+      ],
+      "actions": {
+        // Hovering bob with a slow sway of body, beard and tentacles. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.012], "phase": 0.25, "rot": [1.5, 0, 2.0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.3}},
+          "cannon": {"wave": {"rot": [2.0, 0, 3.0], "phase": 0.5}},
+          "beard": {"wave": {"rot": [8.0, 0, 3.0], "phase": 0.1}},
+          "tent_l": {"wave": {"rot": [8.0, 0, 6.0], "phase": 0.0}},
+          "tent_r": {"wave": {"rot": [8.0, 0, -6.0], "phase": 0.3}},
+          "spike": {"wave": {"rot": [6.0, 0, 5.0], "phase": 0.2}}
+        }},
+        // Gliding: the body leans into the move, bobs twice, tentacles and spike trail behind. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "body": {"wave": {"loc": [0, 0, 0.05], "cycles": 2, "phase": 0.25, "rot": [4.0, 0, 7.0], "bias_rot": [12.0, 0, 0]}},
+          "head": {"wave": {"rot": [-2.0, 0, 4.0], "phase": 0.2, "bias_rot": [-4.0, 0, 0]}},
+          "cannon": {"wave": {"rot": [3.0, 0, 3.0], "cycles": 2, "phase": 0.5}},
+          "beard": {"wave": {"rot": [14.0, 0, 5.0], "phase": 0.0, "bias_rot": [14.0, 0, 0]}},
+          "tent_l": {"wave": {"rot": [16.0, 0, 10.0], "phase": 0.0, "bias_rot": [16.0, 0, 0]}},
+          "tent_r": {"wave": {"rot": [16.0, 0, -10.0], "phase": 0.5, "bias_rot": [16.0, 0, 0]}},
+          "spike": {"wave": {"rot": [12.0, 0, 12.0], "phase": 0.25, "bias_rot": [14.0, 0, 0]}}
+        }},
+        // Fires the cannon: it tips up, kicks back, then settles; the body recoils and the beard flares. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "body": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [-4, 0, 0], [0, -0.01, 0]], [11, [-10, 0, 0], [0, 0.05, 0]], [18, [-3, 0, 0], [0, 0.01, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [8, [4, 0, 0]], [11, [-8, 0, 0]], [24, [0, 0, 0]]]},
+          "cannon": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [8, 0, 0], [0, -0.02, 0]], [11, [-14, 0, 0], [0, 0.07, 0]], [18, [-3, 0, 0], [0, 0.02, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "beard": {"keys": [[1, [0, 0, 0]], [11, [30, 0, 0]], [24, [0, 0, 0]]]},
+          "tent_l": {"keys": [[1, [0, 0, 0]], [11, [20, 0, 18]], [24, [0, 0, 0]]]},
+          "tent_r": {"keys": [[1, [0, 0, 0]], [11, [20, 0, -18]], [24, [0, 0, 0]]]},
+          "spike": {"keys": [[1, [0, 0, 0]], [11, [14, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Tips over sideways (+X), cannon drooping, tentacles limp. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [0, -6, 0], [0, 0, 0]], [26, [0, 55, 0], [0, 0, 0]], [36, [0, 84, 0], [0, 0, 0]]]},
+          "head": {"keys": [[1, [0, 0, 0]], [10, [-8, 0, 0]], [36, [14, 0, 10]]]},
+          "cannon": {"keys": [[1, [0, 0, 0]], [10, [-10, 0, 0]], [36, [30, 0, 12]]]},
+          "beard": {"keys": [[1, [0, 0, 0]], [36, [10, 0, 10]]]},
+          "tent_l": {"keys": [[1, [0, 0, 0]], [36, [12, 0, 24]]]},
+          "tent_r": {"keys": [[1, [0, 0, 0]], [36, [12, 0, -24]]]},
+          "spike": {"keys": [[1, [0, 0, 0]], [36, [18, 0, 12]]]}
+        }}
+      }
+    },
+    "water.shellback": {
+      // Soft nearest-bone blend width (narrow: rigid parts with a hard blend at the joints). Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.012,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 3,
+      // Edge-neighbour smoothing passes (1 = narrow blend at the joint). Unit: passes. Range: 0 to 10.
+      "smooth_passes": 1,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0, 0.0], "tail": [0, 0, 0.15], "radius": 0.0, "bias": 1.0},
+        // Hull between the treads (the chassis plate and its lights), z up to 0.42.
+        {"name": "hull", "parent": "root", "head": [0, 0, 0.25], "tail": [0, 0, 0.38], "radius": 0.5, "bias": 1.0, "boxes": [[-0.55, -0.55, 0.0, 0.55, 0.55, 0.42]]},
+        // Left tread as one rigid piece (+X side, z up to 0.4).
+        {"name": "tread_l", "parent": "root", "head": [0.37, 0, 0.2], "tail": [0.37, -0.1, 0.2], "radius": 0.1, "bias": 1.0, "boxes": [[0.26, -0.55, 0.0, 0.6, 0.55, 0.42]]},
+        // Right tread as one rigid piece (-X side).
+        {"name": "tread_r", "parent": "root", "head": [-0.37, 0, 0.2], "tail": [-0.37, -0.1, 0.2], "radius": 0.1, "bias": 1.0, "boxes": [[-0.6, -0.55, 0.0, -0.26, 0.55, 0.42]]},
+        // Lower half of the clam shell with the pearl (z 0.42 to 0.735; the pearl box reaches up to 0.88).
+        {"name": "shell_low", "parent": "hull", "head": [0, 0.3, 0.45], "tail": [0, -0.2, 0.55], "radius": 0.3, "bias": 1.0, "boxes": [[-0.15, -0.3, 0.5, 0.15, 0.05, 0.88], [-0.6, -0.6, 0.42, 0.6, 0.6, 0.735]]},
+        // Upper half of the shell (z above 0.735), hinged at the back (y = +0.45, z = 0.7); opens by rotating about X.
+        {"name": "shell_up", "parent": "hull", "head": [0, 0.45, 0.7], "tail": [0, -0.3, 0.85], "radius": 0.4, "bias": 1.0, "boxes": [[-0.6, -0.6, 0.735, 0.6, 0.6, 1.4]]}
+      ],
+      "actions": {
+        // Idle: the shell cracks open a little and closes again, as if breathing. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "shell_up": {"wave": {"rot": [-5.0, 0, 0], "phase": 0.0, "bias_rot": [-3.0, 0, 0]}},
+          "hull": {"wave": {"loc": [0, 0, 0.006], "phase": 0.25}},
+          "shell_low": {"wave": {"rot": [1.0, 0, 0], "phase": 0.3}}
+        }},
+        // Tank crawl: the hull rocks and bounces, the treads shudder in turn and the shell rattles. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "hull": {"wave": {"loc": [0, 0.03, 0.022], "cycles": 4, "phase": 0.0, "rot": [3.0, 0, 4.5]}},
+          "tread_l": {"wave": {"loc": [0, 0, 0.02], "cycles": 4, "phase": 0.25}},
+          "tread_r": {"wave": {"loc": [0, 0, 0.02], "cycles": 4, "phase": 0.75}},
+          "shell_low": {"wave": {"rot": [1.5, 0, 0], "cycles": 4, "phase": 0.2}},
+          "shell_up": {"wave": {"rot": [-3.0, 0, 0], "cycles": 4, "phase": 0.4, "bias_rot": [-2.0, 0, 0]}}
+        }},
+        // Chomp: the hull lunges, the shell flings wide open and snaps shut. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "hull": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [-2, 0, 0], [0, 0.03, 0]], [13, [3, 0, 0], [0, -0.1, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "shell_up": {"keys": [[1, [0, 0, 0]], [8, [-34, 0, 0]], [12, [-34, 0, 0]], [14, [2, 0, 0]], [18, [-6, 0, 0]], [24, [0, 0, 0]]]},
+          "shell_low": {"keys": [[1, [0, 0, 0]], [8, [5, 0, 0]], [14, [-2, 0, 0]], [24, [0, 0, 0]]]}
+        }},
+        // Breaks down: the hull tilts and settles, the shell sags open and stays open. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [14, [4, 0, 3], [0, 0, 0]], [36, [8, 0, 8], [0, 0, 0]]]},
+          "hull": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [14, [0, 0, 0], [0, 0, -0.01]], [36, [0, 0, 0], [0, 0, -0.02]]]},
+          "shell_up": {"keys": [[1, [0, 0, 0]], [14, [-22, 0, 4]], [26, [-34, 0, 6]], [36, [-30, 0, 8]]]},
+          "shell_low": {"keys": [[1, [0, 0, 0]], [36, [4, 0, -2]]]},
+          "tread_l": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [36, [0, 0, 0], [0, 0, 0.02]]]}
+        }}
+      }
+    }
+    ,
+    "water.leviathan": {
+      // Soft nearest-bone blend width (narrow: rigid parts with a hard blend at the joints). Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.012,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 3,
+      // Edge-neighbour smoothing passes (1 = narrow blend at the joint). Unit: passes. Range: 0 to 10.
+      "smooth_passes": 1,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0.05, 0.0], "tail": [0, 0.05, 0.15], "radius": 0.0, "bias": 1.0},
+        // Carapace with its spikes and the mouth parts: everything not claimed by a part below.
+        {"name": "hull", "parent": "root", "head": [0, 0.05, 0.45], "tail": [0, 0.05, 0.62], "radius": 0.5, "bias": 1.0},
+        // Turret ring and body (y > -0.1, z 0.66 up); turns about Z.
+        {"name": "turret", "parent": "hull", "head": [0, 0.14, 0.65], "tail": [0, 0.14, 0.82], "radius": 0.2, "bias": 1.0, "boxes": [[-0.3, -0.1, 0.66, 0.3, 0.4, 1.0]]},
+        // The twin barrels (y < -0.1, z 0.7 up), recoil along Y.
+        {"name": "barrels", "parent": "turret", "head": [0, 0.0, 0.82], "tail": [0, -0.42, 0.9], "radius": 0.1, "bias": 1.0, "boxes": [[-0.3, -0.55, 0.68, 0.3, -0.1, 1.0]]},
+        // Left claw (+X), rigid: from the joint at the carapace edge to the pincer tips.
+        {"name": "claw_l", "parent": "hull", "head": [0.2, -0.12, 0.4], "tail": [0.2, -0.3, 0.12], "radius": 0.15, "bias": 1.0, "boxes": [[0.02, -0.5, 0.0, 0.34, -0.1, 0.42]]},
+        // Right claw (-X), rigid.
+        {"name": "claw_r", "parent": "hull", "head": [-0.2, -0.12, 0.4], "tail": [-0.2, -0.3, 0.12], "radius": 0.15, "bias": 1.0, "boxes": [[-0.34, -0.5, 0.0, -0.02, -0.1, 0.42]]},
+        // Left front legs (+X, y < 0.08): the two front legs as one rigid part, from the body edge down to the feet.
+        {"name": "leg_l_f", "parent": "hull", "head": [0.4, -0.12, 0.45], "tail": [0.48, -0.12, 0.02], "radius": 0.08, "bias": 1.0, "boxes": [[0.28, -0.45, 0.0, 0.6, 0.08, 0.46]]},
+        // Left rear legs (+X, y > 0.08): the rear legs as one rigid part.
+        {"name": "leg_l_b", "parent": "hull", "head": [0.4, 0.25, 0.45], "tail": [0.48, 0.25, 0.02], "radius": 0.08, "bias": 1.0, "boxes": [[0.28, 0.08, 0.0, 0.6, 0.55, 0.46]]},
+        // Right front legs (-X).
+        {"name": "leg_r_f", "parent": "hull", "head": [-0.4, -0.12, 0.45], "tail": [-0.48, -0.12, 0.02], "radius": 0.08, "bias": 1.0, "boxes": [[-0.6, -0.45, 0.0, -0.28, 0.08, 0.46]]},
+        // Right rear legs (-X).
+        {"name": "leg_r_b", "parent": "hull", "head": [-0.4, 0.25, 0.45], "tail": [-0.48, 0.25, 0.02], "radius": 0.08, "bias": 1.0, "boxes": [[-0.6, 0.08, 0.0, -0.28, 0.55, 0.46]]}
+      ],
+      "actions": {
+        // Idle: slow breathing of the hull, the turret scans, the claws open and close a little. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "hull": {"wave": {"loc": [0, 0, 0.008], "phase": 0.25, "rot": [0.8, 0, 0]}},
+          "turret": {"wave": {"rot": [0, 0, 10.0], "phase": 0.0}},
+          "barrels": {"wave": {"rot": [2.0, 0, 0], "phase": 0.3}},
+          "claw_l": {"wave": {"rot": [0, 0, 6.0], "phase": 0.2}},
+          "claw_r": {"wave": {"rot": [0, 0, -6.0], "phase": 0.2}}
+        }},
+        // Eight-legged walk: diagonal leg groups swing in turn, the hull bobs twice per clip, the turret counter-turns. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "hull": {"wave": {"loc": [0, 0, 0.012], "cycles": 2, "phase": 0.25, "rot": [0, 0, 2.5]}},
+          "turret": {"wave": {"rot": [0, 0, -5.0], "phase": 0.0}},
+          "claw_l": {"wave": {"rot": [-5.0, 0, 0], "cycles": 2, "phase": 0.0}},
+          "claw_r": {"wave": {"rot": [-5.0, 0, 0], "cycles": 2, "phase": 0.5}},
+          "leg_l_f": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.0}},
+          "leg_r_b": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.0}},
+          "leg_r_f": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.5}},
+          "leg_l_b": {"wave": {"rot": [-22.0, 0, 0], "phase": 0.5}}
+        }},
+        // Fires the twin cannon: the turret traverses, the barrels kick back along Y and the hull rocks, the claws rear up. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "hull": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [9, [-1, 0, 0], [0, 0, 0]], [11, [-3, 0, 0], [0, 0.05, 0]], [18, [0, 0, 0], [0, 0.01, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "turret": {"keys": [[1, [0, 0, 0]], [9, [0, 0, 14]], [24, [0, 0, 0]]]},
+          "barrels": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [9, [3, 0, 0], [0, 0, 0]], [11, [-6, 0, 0], [0, 0.1, 0]], [18, [-1, 0, 0], [0, 0.02, 0]], [24, [0, 0, 0], [0, 0, 0]]]},
+          "claw_l": {"keys": [[1, [0, 0, 0]], [11, [25, 0, 8]], [24, [0, 0, 0]]]},
+          "claw_r": {"keys": [[1, [0, 0, 0]], [11, [25, 0, -8]], [24, [0, 0, 0]]]}
+        }},
+        // Legs buckle outward, the hull settles to the ground, the turret droops and the claws drop. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "hull": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [12, [-3, 0, 2], [0, 0, -0.04]], [30, [3, 0, 4], [0, 0, -0.2]], [36, [3, 0, 4], [0, 0, -0.2]]]},
+          "turret": {"keys": [[1, [0, 0, 0]], [30, [8, 0, 24]], [36, [8, 0, 26]]]},
+          "barrels": {"keys": [[1, [0, 0, 0]], [30, [18, 0, 0]], [36, [18, 0, 0]]]},
+          "claw_l": {"keys": [[1, [0, 0, 0]], [30, [-12, 0, 14]], [36, [-12, 0, 14]]]},
+          "claw_r": {"keys": [[1, [0, 0, 0]], [30, [-12, 0, -14]], [36, [-12, 0, -14]]]},
+          "leg_l_f": {"keys": [[1, [0, 0, 0]], [12, [0, -8, 0]], [30, [-6, -55, 0]]]},
+          "leg_l_b": {"keys": [[1, [0, 0, 0]], [12, [0, -8, 0]], [30, [6, -55, 0]]]},
+          "leg_r_f": {"keys": [[1, [0, 0, 0]], [12, [0, 8, 0]], [30, [-6, 55, 0]]]},
+          "leg_r_b": {"keys": [[1, [0, 0, 0]], [12, [0, 8, 0]], [30, [6, 55, 0]]]}
+        }}
+      }
+    },
+    "water.ink_lobber": {
+      // Soft nearest-bone blend width (narrow for the rigid cannon, softer for the shell bend through the smoothing passes). Unit: footprint units. Range: 0.005 to 0.2.
+      "sigma": 0.02,
+      // Most bones that may move one vertex. Unit: count. Range: 1 to 4.
+      "max_influences": 3,
+      // Edge-neighbour smoothing passes. Unit: passes. Range: 0 to 10.
+      "smooth_passes": 2,
+      // Lift the root on frames where the mesh would dip below the ground. Unit: boolean. Range: true or false.
+      "ground_clamp": true,
+      "bones": [
+        // Ground anchor; no vertices.
+        {"name": "root", "parent": null, "head": [0, 0.05, 0.0], "tail": [0, 0.05, 0.15], "radius": 0.0, "bias": 1.0},
+        // Slug-like base plate with its lights (z up to 0.55), rigid.
+        {"name": "base", "parent": "root", "head": [0, 0.05, 0.12], "tail": [0, 0.05, 0.4], "radius": 0.45, "bias": 1.0, "boxes": [[-0.55, -0.6, 0.0, 0.55, 0.6, 0.55]]},
+        // Lower shell cone, z 0.55 to 1.2.
+        {"name": "shell_low", "parent": "base", "head": [0, 0.1, 0.55], "tail": [0, 0.15, 1.2], "radius": 0.3, "bias": 1.0},
+        // Upper shell cone and tip, z 1.2 to 2.1.
+        {"name": "shell_up", "parent": "shell_low", "head": [0, 0.15, 1.2], "tail": [0, 0.35, 2.1], "radius": 0.2, "bias": 1.0},
+        // The cannon barrel on the front mount (y -0.58 to -0.28, z 0.5 to 0.8), rigid.
+        {"name": "cannon", "parent": "base", "head": [0, -0.28, 0.68], "tail": [0, -0.52, 0.68], "radius": 0.08, "bias": 1.0, "boxes": [[-0.12, -0.6, 0.55, 0.12, -0.28, 0.8]]}
+      ],
+      "actions": {
+        // Idle: the shell sways a little and the cannon bobs. Unit: frames. Range: 20 to 40. Loops.
+        "idle": {"frames": 30, "loop": true, "channels": {
+          "base": {"wave": {"loc": [0, 0, 0.006], "phase": 0.25, "scl": [0.01, 0.01, -0.015]}},
+          "shell_low": {"wave": {"rot": [1.5, 0, 1.5], "phase": 0.0}},
+          "shell_up": {"wave": {"rot": [2.5, 0, 2.5], "phase": 0.2}},
+          "cannon": {"wave": {"rot": [2.0, 0, 0], "phase": 0.5}}
+        }},
+        // Slither: the base squashes and stretches, the shell rocks side to side on it. Loops.
+        "move": {"frames": 24, "loop": true, "channels": {
+          "base": {"wave": {"scl": [0.06, 0.06, -0.12], "loc": [0, 0, 0.02], "cycles": 2, "phase": 0.0}},
+          "shell_low": {"wave": {"rot": [5.0, 0, 9.0], "cycles": 2, "phase": 0.25}},
+          "shell_up": {"wave": {"rot": [8.0, 0, 14.0], "cycles": 2, "phase": 0.4}},
+          "cannon": {"wave": {"rot": [5.0, 0, 5.0], "cycles": 2, "phase": 0.2}}
+        }},
+        // Lobs a shell: the cannon dips and fires with a kick, the shell leans back then forward. One-shot. Each key is [frame, [rx, ry, rz], [x, y, z]].
+        "attack": {"frames": 24, "loop": false, "channels": {
+          "base": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [0, 0, 0], [0, -0.02, 0], [1.06, 1.06, 0.9]], [11, [0, 0, 0], [0, 0.07, 0], [0.96, 0.96, 1.06]], [24, [0, 0, 0], [0, 0, 0], [1, 1, 1]]]},
+          "shell_low": {"keys": [[1, [0, 0, 0]], [8, [-9, 0, 0]], [11, [12, 0, 0]], [24, [0, 0, 0]]]},
+          "shell_up": {"keys": [[1, [0, 0, 0]], [8, [-16, 0, 0]], [11, [20, 0, 0]], [18, [-4, 0, 0]], [24, [0, 0, 0]]]},
+          "cannon": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [8, [14, 0, 0], [0, -0.03, 0]], [11, [-22, 0, 0], [0, 0.14, 0]], [18, [-4, 0, 0], [0, 0.03, 0]], [24, [0, 0, 0], [0, 0, 0]]]}
+        }},
+        // The whole machine tips over sideways (+X) and lies still, the cannon drooping. One-shot.
+        "death": {"frames": 36, "loop": false, "channels": {
+          "root": {"keys": [[1, [0, 0, 0], [0, 0, 0]], [10, [0, -4, 0], [0, 0, 0]], [26, [0, 55, 0], [0, 0, 0]], [36, [0, 84, 0], [0, 0, 0]]]},
+          "shell_low": {"keys": [[1, [0, 0, 0]], [10, [-4, 0, 0]], [36, [6, 0, 8]]]},
+          "shell_up": {"keys": [[1, [0, 0, 0]], [10, [-8, 0, 0]], [36, [10, 0, 14]]]},
+          "cannon": {"keys": [[1, [0, 0, 0]], [10, [-8, 0, 0]], [36, [28, 0, 10]]]}
         }}
       }
     }
