@@ -32,17 +32,20 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Class of any other structure.</summary>
         public const string ClassStructure = "structure";
 
+        /// <summary>Class of a research item (research_and_unlocks.md R2.3).</summary>
+        public const string ClassResearch = "research";
+
         /// <summary>Common resource spent, less refunds. Unit: resource units. Range: 0 upward.</summary>
         public int SpentCommon { get; private set; }
 
         /// <summary>Rare resource spent, less refunds. Unit: resource units. Range: 0 upward.</summary>
         public int SpentRare { get; private set; }
 
-        /// <summary>Net spending by class as [common, rare], one entry for each of the seven classes, in ordinal class order. Unit: resource units. Range: 0 upward each.</summary>
+        /// <summary>Net spending by class as [common, rare], one entry for each of the eight classes, in ordinal class order. Unit: resource units. Range: 0 upward each.</summary>
         public SortedDictionary<string, int[]> ByClass { get; } = new SortedDictionary<string, int[]>(StringComparer.Ordinal)
         {
             [ClassArmy] = new int[2], [ClassDropOff] = new int[2], [ClassHq] = new int[2], [ClassStaticDefence] = new int[2],
-            [ClassStructure] = new int[2], [ClassWall] = new int[2], [ClassWorker] = new int[2],
+            [ClassResearch] = new int[2], [ClassStructure] = new int[2], [ClassWall] = new int[2], [ClassWorker] = new int[2],
         };
 
         /// <summary>The class of a definition: hq, worker, army, static_defence, wall (wall or gate), drop_off, structure; the first that applies in that order of the spec.</summary>
@@ -77,6 +80,17 @@ namespace Rts.Tools.BalanceHarness
             int[] split = ByClass[ClassOf(definition)];
             split[0] += definition.CostCommon;
             split[1] += definition.CostRare;
+        }
+
+        /// <summary>Adds the cost of an accepted research order to the totals and to the research class.</summary>
+        /// <param name="research">The research item ordered.</param>
+        public void SpendResearch(ResearchDefinition research)
+        {
+            SpentCommon += research.CostCommon;
+            SpentRare += research.CostRare;
+            int[] split = ByClass[ClassResearch];
+            split[0] += research.CostCommon;
+            split[1] += research.CostRare;
         }
 
         /// <summary>Takes a refund back out of the totals, and out of the class of <paramref name="definition"/> when it is known.</summary>

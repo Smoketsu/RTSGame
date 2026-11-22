@@ -117,8 +117,17 @@ namespace Rts.Ai
             /// <param name="definition">The item to buy.</param>
             private bool BqCanPay(int queue, UnitDefinition definition)
             {
-                return (definition.CostCommon == 0 || _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Common)] >= definition.CostCommon)
-                    && (definition.CostRare == 0 || _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Rare)] >= definition.CostRare);
+                return BqCanPay(queue, definition.CostCommon, definition.CostRare);
+            }
+
+            /// <summary>True when the account of <paramref name="queue"/> covers a cost (a resource it does not cost is not checked); the research items use it too.</summary>
+            /// <param name="queue">Queue index. Range: 0 to 5.</param>
+            /// <param name="common">Common cost. Unit: resource units. Range: 0 to 100000.</param>
+            /// <param name="rare">Rare cost. Unit: resource units. Range: 0 to 100000.</param>
+            private bool BqCanPay(int queue, int common, int rare)
+            {
+                return (common == 0 || _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Common)] >= common)
+                    && (rare == 0 || _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Rare)] >= rare);
             }
 
             /// <summary>Records <paramref name="definition"/> as the head of <paramref name="queue"/> that failed only on money this think: its cost becomes the queue's want and the queue buys nothing more this think.</summary>
@@ -126,9 +135,18 @@ namespace Rts.Ai
             /// <param name="definition">The head item.</param>
             private void BqWant(int queue, UnitDefinition definition)
             {
+                BqWant(queue, definition.CostCommon, definition.CostRare);
+            }
+
+            /// <summary>Records a cost as the head of <paramref name="queue"/> that failed only on money this think (a research item uses it too).</summary>
+            /// <param name="queue">Queue index. Range: 0 to 5.</param>
+            /// <param name="common">Common cost. Unit: resource units. Range: 0 to 100000.</param>
+            /// <param name="rare">Rare cost. Unit: resource units. Range: 0 to 100000.</param>
+            private void BqWant(int queue, int common, int rare)
+            {
                 _hasWant[queue] = true;
-                _thisWant[AiBudget.Cell(queue, AiBudget.Common)] = definition.CostCommon;
-                _thisWant[AiBudget.Cell(queue, AiBudget.Rare)] = definition.CostRare;
+                _thisWant[AiBudget.Cell(queue, AiBudget.Common)] = common;
+                _thisWant[AiBudget.Cell(queue, AiBudget.Rare)] = rare;
             }
 
             /// <summary>Takes the cost of a bought item from the queue's account and adds it to the queue's cumulative spending.</summary>
@@ -136,10 +154,19 @@ namespace Rts.Ai
             /// <param name="definition">The item bought.</param>
             private void BqPay(int queue, UnitDefinition definition)
             {
-                _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Common)] -= definition.CostCommon;
-                _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Rare)] -= definition.CostRare;
-                _memory.BudgetSpent[AiBudget.Cell(queue, AiBudget.Common)] += definition.CostCommon;
-                _memory.BudgetSpent[AiBudget.Cell(queue, AiBudget.Rare)] += definition.CostRare;
+                BqPay(queue, definition.CostCommon, definition.CostRare);
+            }
+
+            /// <summary>Takes a cost from the queue's account and adds it to the queue's cumulative spending (a research item uses it too).</summary>
+            /// <param name="queue">Queue index. Range: 0 to 5.</param>
+            /// <param name="common">Common cost. Unit: resource units. Range: 0 to 100000.</param>
+            /// <param name="rare">Rare cost. Unit: resource units. Range: 0 to 100000.</param>
+            private void BqPay(int queue, int common, int rare)
+            {
+                _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Common)] -= common;
+                _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Rare)] -= rare;
+                _memory.BudgetSpent[AiBudget.Cell(queue, AiBudget.Common)] += common;
+                _memory.BudgetSpent[AiBudget.Cell(queue, AiBudget.Rare)] += rare;
             }
 
             /// <summary>The defence ceiling (B.1.2): false when buying <paramref name="definition"/> would take the defence queue's share of all spending above budget_defence_max_spend_share.</summary>

@@ -46,11 +46,16 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Completion tick of each own non-HQ drop-off structure, ascending. Unit: ticks. Range: 0 upward; empty for none or for an old record.</summary>
         public IReadOnlyList<int> DropOffTicks { get; }
 
-        /// <summary>Bundles the values; the last two default to empty (a record from before package B0).</summary>
+        /// <summary>Tick of the first unit trained or research completed, by definition ID, ordinal order (research_and_unlocks.md R2.5: the time of the first Thunderhead and each research item); empty for a record from before this field. Unit: ticks. Range: 0 upward.</summary>
+        public IReadOnlyDictionary<string, int> FirstTick { get; }
+
+        /// <summary>Bundles the values; the last three default to empty (a record from before package B0, or before the first-tick map).</summary>
         public GameSummary(int spentCommon, int spentRare, IReadOnlyDictionary<string, int[]> spent, IReadOnlyList<int[]?> bank, IReadOnlyList<int[]> income, IReadOnlyList<int[]> hqMoves,
             IReadOnlyDictionary<string, int> trained, IReadOnlyDictionary<string, int> completed, IReadOnlyDictionary<string, int> mechanics,
-            IReadOnlyList<int?>? workers = null, IReadOnlyList<int>? dropOffTicks = null)
+            IReadOnlyList<int?>? workers = null, IReadOnlyList<int>? dropOffTicks = null,
+            IReadOnlyDictionary<string, int>? firstTick = null)
         {
+            FirstTick = firstTick ?? new SortedDictionary<string, int>(StringComparer.Ordinal);
             Workers = workers ?? Array.Empty<int?>();
             DropOffTicks = dropOffTicks ?? Array.Empty<int>();
             SpentCommon = spentCommon;
@@ -101,7 +106,12 @@ namespace Rts.Tools.BalanceHarness
             {
                 sb.Append(i > 0 ? "," : "").Append(Int(DropOffTicks[i]));
             }
-            sb.Append("]}");
+            sb.Append(']');
+            if (FirstTick.Count > 0)
+            {
+                sb.Append(",\"first_tick\":").Append(Counts(FirstTick));
+            }
+            sb.Append('}');
             return sb.ToString();
         }
 
@@ -147,8 +157,10 @@ namespace Rts.Tools.BalanceHarness
                     dropOffs.Add(item.AsInt());
                 }
             }
+            // First-tick map; a record without it reads as empty.
+            IReadOnlyDictionary<string, int>? firstTick = node.TryGetMember("first_tick", out JsonValue? firstNode) ? ReadCounts(firstNode) : null;
             return new GameSummary(node.RequireInt("spent_common", int.MinValue, int.MaxValue), node.RequireInt("spent_rare", int.MinValue, int.MaxValue), spent, bank, income, moves,
-                ReadCounts(node.Require("trained")), ReadCounts(node.Require("completed")), ReadCounts(node.Require("mechanics")), workers, dropOffs);
+                ReadCounts(node.Require("trained")), ReadCounts(node.Require("completed")), ReadCounts(node.Require("mechanics")), workers, dropOffs, firstTick);
         }
 
         /// <summary>An integer as invariant text.</summary>

@@ -697,6 +697,9 @@ namespace Rts.Ai
         /// <summary>Package B: the AI divides its bank between six budget queues instead of rule R's reservations. Unit: boolean.</summary>
         public bool UseBudgetQueues { get; }
 
+        /// <summary>Research rules RQ-1 and RQ-2 (research_and_unlocks.md R2.2): the AI queues the research its army mix needs, and with budget queues any research left while the rare surplus is on. False: research-gated units are never trained (R1.8). Unit: boolean.</summary>
+        public bool UseResearch { get; }
+
         /// <summary>Package B: weight of each queue in the split of free common, in <see cref="AiBudget.QueueIds"/> order. Unit: weight. Range: 0 to 1000 each, sum above 0.</summary>
         public IReadOnlyList<int> BudgetCommonWeights { get; }
 
@@ -921,6 +924,7 @@ namespace Rts.Ai
             ThreatDefenceReleaseFraction = root.RequireFix64("threat_defence_release_fraction", "0", "1");
             HarassSpeedRatio = root.RequireFix64("harass_speed_ratio", "0", "4");
             UseBudgetQueues = root.RequireBool("use_budget_queues");
+            UseResearch = root.RequireBool("use_research");
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1055,7 +1059,7 @@ namespace Rts.Ai
                 "attack_retreat_grace_seconds", "harass_max_seconds", "rare_bank_return_cap", "composition_jitter_fraction", "expand_jitter_seconds", "attack_advantage_jitter",
                 "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
                 "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
-                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues",
+                "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues", "use_research",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.

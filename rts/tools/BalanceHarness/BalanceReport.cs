@@ -75,7 +75,7 @@ namespace Rts.Tools.BalanceHarness
     /// <summary>One line of the use tables: a unit or a mechanic of one faction.</summary>
     public sealed class UseRow
     {
-        /// <summary>"unit" or "mechanic".</summary>
+        /// <summary>"unit", "research" or "mechanic".</summary>
         public string Kind { get; }
 
         /// <summary>Faction ID.</summary>
@@ -347,6 +347,23 @@ namespace Rts.Tools.BalanceHarness
                     {
                         GameSummary summary = slotGame.Value.Key;
                         if (slotGame.Key == faction && ((summary.Trained.TryGetValue(id, out int trained) && trained >= 1) || (summary.Completed.TryGetValue(id, out int completed) && completed >= 1)))
+                        {
+                            row.Used++;
+                        }
+                    }
+                    rows.Add(row);
+                }
+                // Research items of this faction, in ordinal ID order (research_and_unlocks.md R2.3); used when completed at least once.
+                foreach (ResearchDefinition research in data.Content.Researches.Values)
+                {
+                    if (research.FactionId != faction)
+                    {
+                        continue;
+                    }
+                    UseRow row = new UseRow("research", faction, research.Id) { SlotGames = total };
+                    foreach (KeyValuePair<string, KeyValuePair<GameSummary, GameRecord>> slotGame in slotGames)
+                    {
+                        if (slotGame.Key == faction && slotGame.Value.Key.Completed.TryGetValue(research.Id, out int done) && done >= 1)
                         {
                             row.Used++;
                         }
