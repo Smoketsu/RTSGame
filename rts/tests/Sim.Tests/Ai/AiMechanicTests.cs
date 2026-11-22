@@ -1426,6 +1426,35 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(controller.Memory.WallTilesRefused, Does.Not.Contain(21 * 96 + 4));
         }
 
+        /// <summary>WL-10b: a line the simulation refuses whole (its only tile is a resource field, so every tile is filtered and no skipped-tile event follows) is remembered by the first tile of the order, so the AI stops re-sending it.</summary>
+        [Test]
+        public void Wl10b_WholeLineRefusalIsRemembered()
+        {
+            Simulation sim = WallScene("water");
+            SkirmishAiController controller = new SkirmishAiController(P0, WallProfile());
+            controller.OnMatchStart(sim);
+            // The worker that gets the order: any free own worker. Unit: entity ID.
+            EntityId worker = NearestFree(sim, P0, 7, 10, new List<EntityId>());
+            sim.Submit(new BuildWallLineCommand(sim.Clock.Tick, P0, _sequence++, worker, "water.coral_wall", new[] { (7, 10) }));
+            sim.Step();
+            controller.Think(sim, new ListCommandSink(sim.Clock.Tick));
+            Assert.That(controller.Memory.WallTilesRefused, Does.Contain(10 * 96 + 7), "the first tile of the refused line is remembered");
+        }
+
+        /// <summary>WL-10c: a gate tile with a ground unit standing on it (here an enemy the AI's workers see; it costs no supply of the AI's own) is not ordered this think, because the simulation would refuse it as tile_occupied; once the tile is free it is ordered.</summary>
+        [Test]
+        public void Wl10c_GateWaitsForAnOccupiedTile()
+        {
+            Simulation sim = WallScene("water");
+            AiProfile profile = WallProfile();
+            // A visible ground unit of the enemy on the east-ramp gate tile (22,8).
+            EntityId blocker = Spawn(sim, "water.tender", new PlayerId(1), "22.5", "8.5");
+            Assert.That(WallText(DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Does.Not.Contain("water.coral_gate"), "no gate order onto an occupied tile");
+            sim.Submit(new RemoveUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, blocker));
+            sim.Step();
+            Assert.That(WallText(DecideFor(sim, P0, profile, WallMemory(profile, "water", WallStyle.Sealed), "water"), "water"), Does.Contain("water.coral_gate (22,8)"), "the free tile is ordered");
+        }
+
         /// <summary>WL-11: a line never explored: the nearest worker is sent to look (Move) and the other lines go on.</summary>
         [Test]
         public void Wl11_Unexplored()

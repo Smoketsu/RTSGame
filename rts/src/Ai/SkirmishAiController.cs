@@ -159,6 +159,12 @@ namespace Rts.Ai
                     {
                         Memory.WallTilesRefused.Add(sim.Terrain.IndexOf(skipped.TileX, skipped.TileY));
                     }
+                    else if (simEvent is CommandRejectedEvent lineRejected && lineRejected.Command is BuildWallLineCommand lineOrder && lineOrder.Issuer == Player && lineOrder.Tiles.Count > 0
+                        && (lineRejected.Reason == "tile_blocked" || lineRejected.Reason == "on_resource_field") && sim.Terrain.Contains(lineOrder.Tiles[0].X, lineOrder.Tiles[0].Y))
+                    {
+                        // A line refused whole (every tile filtered) names the reason of its first tile, so that tile is the one that can never be built (usually an enemy wall hidden in fog): remember it.
+                        Memory.WallTilesRefused.Add(sim.Terrain.IndexOf(lineOrder.Tiles[0].X, lineOrder.Tiles[0].Y));
+                    }
                     else if (simEvent is CommandRejectedEvent gateRejected && (gateRejected.Reason == "tile_blocked" || gateRejected.Reason == "on_resource_field")
                         && gateRejected.Command is BuildStructureCommand gateOrder && gateOrder.Issuer == Player && sim.Terrain.Contains(gateOrder.TileX, gateOrder.TileY)
                         && sim.Content.Units.TryGetValue(gateOrder.DefinitionId, out UnitDefinition? gateDefinition) && gateDefinition.Economy.IsGate)
