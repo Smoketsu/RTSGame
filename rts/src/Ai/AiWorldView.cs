@@ -11,6 +11,9 @@
 // (planetary_cycles.md section 5: the active and next cycle, the allowed next cycles, who holds and captures the Core). The Core
 // capture status (capture team, contested flag, progress, holder) is PUBLIC because the shared timeline bar shows it to everyone; the
 // holder's pending pick is PRIVATE and is exposed only to the holder's own team (and for script picks).
+// ai_mechanic_use.md P1 adds, for own units only, the wave and grounding ready ticks and the wave strip size. The wave ready tick is read
+// through FloodingMechanic (Rts.Sim.Factions.Water), a plumbing exception to "the AI never names a faction type" (AiCommandWriter in
+// AiIntent.cs is the other); the brain itself names no faction.
 using System;
 using System.Collections.Generic;
 using Rts.Sim;
@@ -18,6 +21,8 @@ using Rts.Sim.Core;
 using Rts.Sim.Cycles;
 using Rts.Sim.Data;
 using Rts.Sim.Economy;
+using Rts.Sim.Factions;
+using Rts.Sim.Factions.Water;
 using Rts.Sim.Teams;
 using Rts.Sim.Terrain;
 using Rts.Sim.Units;
@@ -47,6 +52,12 @@ namespace Rts.Ai
 
         /// <summary>HQ state; Rooted for units that are not HQs.</summary>
         public HqState HqState { get; }
+
+        /// <summary>Own units: first tick the wave can be cast again (0 when never cast, or the unit cannot cast). Enemy units: 0. Unit: ticks. Range: 0 upward.</summary>
+        public int WaveReadyTick { get; }
+
+        /// <summary>Own units: first tick the grounding ability can be cast again (Unit.GroundingReadyTick). Enemy units: 0. Unit: ticks. Range: 0 upward.</summary>
+        public int GroundingReadyTick { get; }
 
         /// <summary>True while a structure is being built.</summary>
         public bool IsUnderConstruction { get; }
@@ -112,8 +123,11 @@ namespace Rts.Ai
         public AiUnitView(EntityId id, PlayerId owner, UnitDefinition definition, FixVec2 position, Fix64 health, MovementLayer layer,
             HqState hqState, bool isUnderConstruction, bool hasMoveTarget, bool isAttackMoving, FixVec2 attackMoveGoal,
             EntityId attackTarget, bool isAttackTargetForced, GatherState gatherState, int gatherFieldIndex, IReadOnlyList<string> queue,
-            BuildOrderState buildState = BuildOrderState.None, string buildDefinitionId = "", int buildTileX = -1, int buildTileY = -1)
+            BuildOrderState buildState = BuildOrderState.None, string buildDefinitionId = "", int buildTileX = -1, int buildTileY = -1,
+            int waveReadyTick = 0, int groundingReadyTick = 0)
         {
+            WaveReadyTick = waveReadyTick;
+            GroundingReadyTick = groundingReadyTick;
             BuildState = buildState;
             BuildDefinitionId = buildDefinitionId;
             BuildTileX = buildTileX;
@@ -138,13 +152,14 @@ namespace Rts.Ai
 
         /// <summary>Copies an own unit, including its orders and production queue.</summary>
         /// <param name="unit">A unit of the AI's player.</param>
-        internal static AiUnitView Own(Unit unit)
+        /// <param name="waveReadyTick">The unit's wave ready tick from the flooding mechanic, 0 when none. Unit: ticks. Range: 0 upward.</param>
+        internal static AiUnitView Own(Unit unit, int waveReadyTick = 0)
         {
             return new AiUnitView(unit.Id, unit.Owner, unit.Definition, unit.Position, unit.Health, unit.EffectiveLayer, unit.HqState,
                 unit.IsUnderConstruction, unit.HasMoveTarget, unit.IsAttackMoving, unit.AttackMoveGoal, unit.AttackTarget,
                 unit.IsAttackTargetForced, unit.GatherState,
                 unit.GatherState == GatherState.Idle ? -1 : unit.GatherFieldIndex, new List<string>(unit.ProductionQueue).AsReadOnly(),
-                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY);
+                unit.BuildState, unit.BuildDefinitionId, unit.BuildTileX, unit.BuildTileY, waveReadyTick, unit.GroundingReadyTick);
         }
 
         /// <summary>Copies a visible enemy unit: only what a player sees (type, position, health, layer, HQ state, construction).</summary>
@@ -267,6 +282,12 @@ namespace Rts.Ai
 
         /// <summary>Largest HQ-to-field distance for rooting (tuning/hq.json). Unit: tiles. Range: 0.5 to 64.</summary>
         public Fix64 HqRootMaxDistanceTiles { get; private set; }
+
+        /// <summary>Length of the wave strip (tuning/flood.json wave_length_tiles). Unit: tiles. Range: 1 to 20.</summary>
+        public int WaveLengthTiles { get; internal set; }
+
+        /// <summary>Width of the wave strip (tuning/flood.json wave_width_tiles). Unit: tiles. Range: 1 to 9, odd.</summary>
+        public int WaveWidthTiles { get; internal set; }
 
         /// <summary>Tide level: 0 at low tide, 1 at high tide (triangle over tide_cycle_seconds). Unit: fraction. Range: 0 to 1.</summary>
         public Fix64 TideLevel { get; private set; }
@@ -437,6 +458,8 @@ namespace Rts.Ai
             view.GatherSlotsRare = sim.Tuning.Economy.GatherSlotsRare;
             view.GatherTicksPerTrip = sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock);
             view.InteractRangeTiles = Fix64.Max(sim.Tuning.Economy.InteractRangeTiles, sim.Tuning.Terrain.ArrivalRadiusTiles);
+            view.WaveLengthTiles = sim.Tuning.Flood.WaveLengthTiles;
+            view.WaveWidthTiles = sim.Tuning.Flood.WaveWidthTiles;
             view.HqRootMaxDistanceTiles = sim.Tuning.Hq.HqRootMaxDistanceToFieldTiles;
             // Tide cycle length. Unit: ticks. Range: 2 upward.
             int tideTicks = Math.Max(2, sim.Tuning.Match.TideCycleTicks(sim.Clock));
@@ -518,13 +541,21 @@ namespace Rts.Ai
                 view._blocked[index] = (tile.Blockers & TileBlockers.Wall) != 0 || ((tile.Blockers & (TileBlockers.Footprint | TileBlockers.BuiltWall | TileBlockers.Gate)) != 0 && view._visible[index]);
             }
 
+            // The flooding mechanic, or null when the match has none (then no unit has a wave cooldown).
+            FloodingMechanic? flooding = sim.Mechanics.TryGetValue(FloodingMechanic.MechanicId, out IFactionMechanic? foundMechanic) ? foundMechanic as FloodingMechanic : null;
             // Own units in ascending ID order.
             List<AiUnitView> own = new List<AiUnitView>();
             foreach (Unit unit in sim.Units.All)
             {
                 if (unit.Owner == player)
                 {
-                    own.Add(AiUnitView.Own(unit));
+                    // The unit's wave ready tick, 0 when it has not cast. Unit: ticks.
+                    int waveReady = 0;
+                    if (flooding != null && flooding.TryGetNextWaveTick(unit.Id, out int nextWave))
+                    {
+                        waveReady = nextWave;
+                    }
+                    own.Add(AiUnitView.Own(unit, waveReady));
                     view.MarkOccupied(terrain, unit);
                 }
             }

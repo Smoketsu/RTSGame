@@ -2,10 +2,13 @@
 // What the brain decided, before it becomes a command, and the writer that turns intents into commands (spec section 6:
 // AiBrain -> intents -> AiCommandWriter). Part of Rts.Ai. The writer stamps each command with the sink's schedule tick, the AI's
 // player as issuer and the next sequence number from AiMemory, in intent order, so (issuer, sequence) is unique for the match.
+// ai_mechanic_use.md P1: this file constructs CastWaveCommand (Rts.Sim.Factions.Water), a plumbing exception to "the AI never names a faction type"
+// (AiWorldView.cs is the other); the brain itself names no faction.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Commands;
 using Rts.Sim.Core;
+using Rts.Sim.Factions.Water;
 
 namespace Rts.Ai
 {
@@ -38,6 +41,12 @@ namespace Rts.Ai
 
         /// <summary>UprootHqCommand(unit = the HQ): a relocation begins (skirmish_ai_v2.md B.5 rule H).</summary>
         UprootHq = 8,
+
+        /// <summary>CastWaveCommand(caster, target point): a Tidecaller's wave (ai_mechanic_use.md M2.3).</summary>
+        CastWave = 9,
+
+        /// <summary>CastGroundingCommand(caster, target point): a Stormcaller's Downdraft (ai_mechanic_use.md M1).</summary>
+        CastGrounding = 10,
     }
 
     /// <summary>One decided action. Immutable.</summary>
@@ -113,6 +122,12 @@ namespace Rts.Ai
         /// <summary>Uproot a Rooted HQ so it can move to a new field.</summary>
         public static AiIntent UprootHq(EntityId hq) => new AiIntent(AiIntentKind.UprootHq, hq, -1, string.Empty, 0, 0, FixVec2.Zero);
 
+        /// <summary>Cast the wave from <paramref name="caster"/> towards a point (the point only gives the direction).</summary>
+        public static AiIntent CastWave(EntityId caster, FixVec2 target) => new AiIntent(AiIntentKind.CastWave, caster, -1, string.Empty, 0, 0, target);
+
+        /// <summary>Cast Downdraft from <paramref name="caster"/> centred on a point.</summary>
+        public static AiIntent CastGrounding(EntityId caster, FixVec2 target) => new AiIntent(AiIntentKind.CastGrounding, caster, -1, string.Empty, 0, 0, target);
+
         /// <summary>Builds the command for this intent.</summary>
         /// <param name="tick">Tick to schedule. Unit: ticks.</param>
         /// <param name="issuer">The AI's player.</param>
@@ -139,6 +154,10 @@ namespace Rts.Ai
                     return new AttackUnitCommand(tick, issuer, sequence, Unit, Target);
                 case AiIntentKind.PickCycle:
                     return new PickCycleCommand(tick, issuer, sequence, DefinitionId);
+                case AiIntentKind.CastWave:
+                    return new CastWaveCommand(tick, issuer, sequence, Unit, Point);
+                case AiIntentKind.CastGrounding:
+                    return new CastGroundingCommand(tick, issuer, sequence, Unit, Point);
                 default:
                     throw new InvalidOperationException("Unknown intent kind " + Kind + ".");
             }

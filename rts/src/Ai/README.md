@@ -37,6 +37,7 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `FightPredictor.cs` | Static fight predictor over unit definitions and the damage table (skirmish_ai_v3.md C.1) |
 | `AiCounter.cs` | Unit pool, counter scores and counter-mix weights (skirmish_ai_v3.md C.3 and C.4) |
 | `AiBrainFight.cs` | The package D fight choices (second half of the brain's working state): attack and retreat by prediction, target choice, rule HR harassment, measured defence, unit control (skirmish_ai_v3.md D) |
+| `AiAbilities.cs` | Casts (ai_mechanic_use.md P1, `use_casts`): `ChooseGrounding` (Downdraft centre) and `ChooseWave` / `WaveTiles` (wave direction); rules CG and CW in `AiBrain` call them right after unit control |
 | `AiBudget.cs` | Package B: the budget queue arithmetic on arrays (Open, Distribute, Close, the defence ceiling, the rare surplus helpers) |
 | `AiBrainBudget.cs` | Package B: the Open and Close steps of a think and the buying helpers of the six queues (part of `AiBrain.Turn`) |
 | `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
