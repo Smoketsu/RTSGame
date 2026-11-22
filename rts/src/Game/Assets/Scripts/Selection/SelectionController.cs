@@ -7,7 +7,8 @@
 //   Left click            select the nearest own unit under the cursor (Shift adds); click on nothing clears
 //   Left drag             draw a rectangle and select every own unit inside it (Shift adds)
 //   Ctrl + 0..9           store the selection in a control group;  0..9 recalls it (Shift adds)
-//   Right click           ground: MoveUnitCommand per unit;  enemy unit: AttackUnitCommand per armed unit
+//   Right click           ground: MoveUnitCommand per unit;  enemy unit: AttackUnitCommand per armed unit;  a resource field: GatherCommand
+//                         per selected worker, the others move (player_interface_3.md UI-16: the tutorial asks for it)
 //   A, then left click    AttackMoveCommand per unit to the clicked ground point (Esc or right click cancels)
 //   S                     StopCommand per unit
 //   R / U                 RootHqCommand / UprootHqCommand for selected mobile HQs
@@ -616,7 +617,7 @@ namespace Rts.Game.UnitSelection
 
         // ------------------------------------------------------------------ orders
 
-        /// <summary>Right click: attack an enemy under the cursor, else move to the ground point; selected producers that cannot walk set their rally point there.</summary>
+        /// <summary>Right click: attack an enemy under the cursor, else gather from a resource field there (workers) and move to the ground point (the rest); selected producers that cannot walk set their rally point there.</summary>
         private void IssueRightClickOrder()
         {
             if (_selected.Count == 0)
@@ -639,7 +640,7 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
-            IssueGroundOrder(ToSimPoint(point));
+            IssueGroundOrder(ToSimPoint(point), FieldAt(point));
         }
 
         /// <summary>
@@ -648,6 +649,14 @@ namespace Rts.Game.UnitSelection
         /// </summary>
         /// <param name="destination">Target point in tiles (built from integer cells).</param>
         public void IssueGroundOrder(FixVec2 destination)
+        {
+            IssueGroundOrder(destination, null);
+        }
+
+        /// <summary>The ground order of IssueGroundOrder, where selected workers gather from a resource field at the point instead of moving.</summary>
+        /// <param name="destination">Target point in tiles (built from integer cells).</param>
+        /// <param name="field">The resource field under the point, or null for a plain ground order.</param>
+        private void IssueGroundOrder(FixVec2 destination, ResourceFieldState field)
         {
             if (_commands == null || !_commands.IsReady)
             {
@@ -659,7 +668,11 @@ namespace Rts.Game.UnitSelection
                 {
                     continue;
                 }
-                if (CanMove(unit))
+                if (field != null && unit.Definition.Economy.CanGather)
+                {
+                    Submit(new GatherCommand(CurrentTick(), _localPlayer, NextSequence(), id, field.Index));
+                }
+                else if (CanMove(unit))
                 {
                     Submit(new MoveUnitCommand(CurrentTick(), _localPlayer, NextSequence(), id, destination));
                 }
@@ -759,6 +772,25 @@ namespace Rts.Game.UnitSelection
             {
                 return;
             }
+            ResourceFieldState best = FieldAt(point);
+            if (best == null)
+            {
+                Debug.Log("[SelectionController] G: no resource field under the cursor.");
+                return;
+            }
+            foreach (EntityId id in _selected)
+            {
+                if (_host.Match.Units.TryGet(id, out Unit unit) && unit.Definition.Economy.CanGather)
+                {
+                    Submit(new GatherCommand(CurrentTick(), _localPlayer, NextSequence(), id, best.Index));
+                }
+            }
+        }
+
+        /// <summary>The live resource field nearest a ground point, within one tile of the point's tile; null when there is none.</summary>
+        /// <param name="point">World ground point from TryPickGround.</param>
+        private ResourceFieldState FieldAt(Vector3 point)
+        {
             // Tile under the cursor.
             int tileX = Mathf.FloorToInt(point.x);
             int tileY = Mathf.FloorToInt(point.z);
@@ -780,18 +812,7 @@ namespace Rts.Game.UnitSelection
                     best = field;
                 }
             }
-            if (best == null)
-            {
-                Debug.Log("[SelectionController] G: no resource field under the cursor.");
-                return;
-            }
-            foreach (EntityId id in _selected)
-            {
-                if (_host.Match.Units.TryGet(id, out Unit unit) && unit.Definition.Economy.CanGather)
-                {
-                    Submit(new GatherCommand(CurrentTick(), _localPlayer, NextSequence(), id, best.Index));
-                }
-            }
+            return best;
         }
 
         /// <summary>True when an order to walk makes sense: the unit has a speed and is not a rooted or changing HQ.</summary>

@@ -30,6 +30,11 @@
 //   - Replay playback (player_interface_2.md UI-15): a request of kind Replay reads the file and steps a Rts.Replay.ReplayPlayback
 //     instead of a recorder: no recorder, no AI, LocalCommands drops every order, fog is off (FogView.Observer), and stepping stops
 //     at the replay's last tick or its first desync. PlaybackSpeed scales real time into ticks (0 pauses); maxStepsPerFrame stays.
+//   - Campaign missions (player_interface_3.md UI-16): a request of kind Mission parses <campaign>/missions/<id>.json, refuses any
+//     mission without exactly one human slot, builds the simulation from the mission, attaches the recorder, then the MissionRunner
+//     (its setup commands go through Submit, so into the replay). Each step: camera and selection signals (or the scripted inputs
+//     when playMissionInputs is on), AI, step, runner.AfterStep, views; stepping stops when the mission is won or lost, never on
+//     MatchOutcome. Signals are reported only here, inside the step loop.
 //   - Match end (UI-10): after each step MatchOutcome.Evaluate; once decided the host stops stepping (as the harness does), logs the
 //     result and writes the replay at once. Outcome exposes the result to the HUD.
 //
@@ -60,7 +65,10 @@ using Rts.Sim.Factions;
 using Rts.Sim.Teams;
 using Rts.Sim.Units;
 using Rts.Ai;
+using Rts.Campaign;
+using Rts.Game.CameraRig;
 using Rts.Game.Presentation;
+using Rts.Game.UnitSelection;
 using Rts.Replay;
 using UnityEngine;
 // Unity 6.6 added UnityEngine.EntityId; this alias makes every EntityId in this file the simulation's entity ID.
@@ -179,6 +187,12 @@ namespace Rts.Game.Bootstrap
         /// <summary>Absolute path of a data directory to use instead of the default lookup. Unit: file path. Range: empty (default lookup) or an existing folder.</summary>
         [SerializeField] private string dataDirectoryOverride = "";
 
+        /// <summary>Absolute path of the campaign folder (missions/, inputs/) instead of the one beside the data folder. Unit: file path. Range: empty (default) or an existing folder.</summary>
+        [SerializeField] private string campaignDirectoryOverride = "";
+
+        /// <summary>Play a mission's scripted inputs (<campaign>/inputs/<id>.json) instead of reporting camera and selection: the parity check of player_interface_3.md 7.2. Unit: on/off. Default off.</summary>
+        [SerializeField] private bool playMissionInputs = false;
+
         /// <summary>Cube edge length per unit of Definition.Radius. Unit: world units per tile of radius. Range: 0.1 to 4; 2 makes the cube as wide as the unit's collision circle.</summary>
         [SerializeField, Range(0.1f, 4f)] private float cubeScalePerRadius = 2f;
 
@@ -208,6 +222,27 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>The replay being played (kind Replay), else null.</summary>
         private ReplayPlayback _playback;
+
+        /// <summary>The campaign mission runner (kind Mission), else null.</summary>
+        private MissionRunner _mission;
+
+        /// <summary>Cues the mission runner has shown, oldest first; the HUD draws them. Range: non-null.</summary>
+        private readonly MissionCueQueue _cues = new MissionCueQueue();
+
+        /// <summary>The mission's scripted inputs when playMissionInputs is on, else null.</summary>
+        private MissionInputs _inputs;
+
+        /// <summary>Camera focus last reported to the mission, in tiles; null before the first report.</summary>
+        private FixVec2? _lastFocus;
+
+        /// <summary>Selection last reported to the mission, ascending entity ID; null before the first report.</summary>
+        private List<EntityId> _lastSelection;
+
+        /// <summary>The camera controller, for the mission's camera signal. Range: null until found.</summary>
+        private RtsCameraController _camera;
+
+        /// <summary>The selection controller, for the mission's selection signal and sim points. Range: null until found.</summary>
+        private SelectionController _selection;
 
         /// <summary>Folder the data was read from. Range: an existing folder after Awake succeeds.</summary>
         private string _dataDirectory;
@@ -271,6 +306,30 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>Where the camera should start (the local player's spawn in a skirmish), or null for the map centre. Unit: tiles (x, y).</summary>
         public Vector2? StartFocus { get; private set; }
+
+        /// <summary>The mission runner of a Mission request (objectives, status), else null. Read-only for the HUD.</summary>
+        public MissionRunner Mission => _mission;
+
+        /// <summary>Every cue the mission has shown so far, oldest first. Empty outside missions.</summary>
+        public IReadOnlyList<MissionCue> MissionCues => _cues.Cues;
+
+        /// <summary>The campaign folder: the Inspector override, else "campaign" beside the data folder (rts/campaign in the editor). Unit: absolute folder path.</summary>
+        public string CampaignDirectory => !string.IsNullOrEmpty(campaignDirectoryOverride) ? campaignDirectoryOverride
+            : Path.GetFullPath(Path.Combine(_dataDirectory ?? ResolveDataDirectory(), "..", "campaign"));
+
+        /// <summary>Collects the mission's cues for the HUD; it never calls the simulation or the runner (player_interface_3.md rule 2).</summary>
+        private sealed class MissionCueQueue : IMissionPresenter
+        {
+            /// <summary>Every cue shown, oldest first.</summary>
+            public readonly List<MissionCue> Cues = new List<MissionCue>();
+
+            /// <summary>Appends a cue; called by the runner during Start and AfterStep.</summary>
+            /// <param name="cue">The cue.</param>
+            public void Show(MissionCue cue)
+            {
+                Cues.Add(cue);
+            }
+        }
 
         /// <summary>The replay playback of a Replay request, else null.</summary>
         public ReplayPlayback Playback => _playback;
@@ -414,6 +473,11 @@ namespace Rts.Game.Bootstrap
             if (request.Kind == MatchKind.Replay)
             {
                 StartPlayback(request);
+                return;
+            }
+            if (request.Kind == MatchKind.Mission)
+            {
+                StartMission(request);
                 return;
             }
             try
@@ -576,6 +640,149 @@ namespace Rts.Game.Bootstrap
             }
         }
 
+        /// <summary>
+        /// Starts a campaign mission in the order of player_interface_3.md section 3: parse, single-player check, AI controllers, simulation
+        /// from the mission, recorder, runner (setup commands through Submit), AI start, local slot and camera start. A failure is kept in StartError.
+        /// </summary>
+        /// <param name="request">A Mission request with its mission ID (file name without .json).</param>
+        private void StartMission(MatchRequest request)
+        {
+            try
+            {
+                // The mission file and its parse; a DataValidationException names the file and field.
+                string path = Path.Combine(CampaignDirectory, "missions", request.MissionId + ".json");
+                MissionDefinition mission = MissionLoader.Parse(File.ReadAllText(path), "missions/" + request.MissionId + ".json", Data, BuiltInMechanics.ScriptParsers);
+                // The one human slot. Range: a slot of the mission.
+                MissionPlayer human = null;
+                // Human slots in the mission. Range: exactly 1 to start.
+                int humans = 0;
+                foreach (MissionPlayer player in mission.Players)
+                {
+                    if (player.IsHuman)
+                    {
+                        human = player;
+                        humans++;
+                    }
+                }
+                if (humans != 1)
+                {
+                    throw new InvalidOperationException("Missions are single-player only (" + mission.Id + " has " + humans + " human slots).");
+                }
+                MissionInputs inputs = null;
+                if (playMissionInputs)
+                {
+                    string inputsPath = Path.Combine(CampaignDirectory, "inputs", request.MissionId + ".json");
+                    inputs = MissionInputs.Parse(File.ReadAllText(inputsPath), "inputs/" + request.MissionId + ".json", mission, Data);
+                }
+                // AI controllers of "ai:" slots, ascending slot (same as script mode).
+                List<IPlayerController> controllers = new List<IPlayerController>();
+                foreach (MissionPlayer player in mission.Players)
+                {
+                    if (player.AiProfile != null)
+                    {
+                        controllers.Add(new SkirmishAiController(player.Setup.Id, AiProfile.FromDataSet(Data, player.AiProfile)));
+                    }
+                }
+                controllers.Sort((a, b) => a.Player.CompareTo(b.Player));
+                MapDefinition map = Data.RequireMap(mission.MapId);
+
+                _sim = mission.CreateSimulation(Data);
+                _sim.Start();
+                if (recordSession)
+                {
+                    // Before the runner submits its setup commands: the recorder refuses a simulation that already holds commands.
+                    _recorder = new ReplayRecorder(_sim, mission.PlayerSetups(), BuiltInMechanics.CreateCodecRegistry());
+                }
+                _cues.Cues.Clear();
+                _mission = new MissionRunner(mission, _cues, Submit);
+                _mission.Start(_sim);
+                _inputs = inputs;
+                _controllers.AddRange(controllers);
+                foreach (IPlayerController controller in controllers)
+                {
+                    _aiPlayers.Add(controller.Player);
+                }
+                AiHost.StartAll(_sim, _controllers);
+                LocalSlotOverride = human.Setup.Id.Value;
+                FixVec2 spawn = map.Spawns[human.Setup.Id.Value];
+                StartFocus = new Vector2(spawn.X.ToFloatForPresentation(), spawn.Y.ToFloatForPresentation());
+                // No script tick limit: the mission's max_seconds ends it.
+                _scriptTicks = int.MaxValue;
+                _scriptFinished = false;
+                _lastFocus = null;
+                _lastSelection = null;
+                _tickSeconds = 1f / _sim.Clock.TicksPerSecond;
+                _unitRoot = new GameObject("Simulation Units").transform;
+                ProcessEvents();
+                CurrentRequest = request;
+                StartError = null;
+                Debug.Log("[SimulationHost] Mission started: " + mission.Id + " (" + mission.DisplayName + ") on " + mission.MapId + ", seed " + mission.Seed
+                    + (inputs != null ? ", playing its scripted inputs." : "."));
+            }
+            catch (Exception exception)
+            {
+                StartError = exception.Message;
+                Debug.LogError("[SimulationHost] Could not start the mission: " + exception.Message);
+                _sim = null;
+                _recorder = null;
+                _mission = null;
+                _inputs = null;
+                _controllers.Clear();
+                _aiPlayers.Clear();
+                LocalSlotOverride = null;
+                StartFocus = null;
+            }
+        }
+
+        /// <summary>
+        /// Reports the camera focus and the selection to the mission when they changed since the last report, or both when the last step
+        /// activated an objective (so an earlier selection still counts). At most one signal of each kind per step; called only from StepOnce.
+        /// </summary>
+        private void ReportMissionSignals()
+        {
+            if (_camera == null)
+            {
+                _camera = FindAnyObjectByType<RtsCameraController>();
+            }
+            if (_selection == null)
+            {
+                _selection = FindAnyObjectByType<SelectionController>();
+            }
+            if (_camera == null || _selection == null)
+            {
+                return;
+            }
+            // True when an objective started counting on this tick (activated by the last AfterStep, or at Start for tick 0).
+            bool activated = false;
+            foreach (ObjectiveState objective in _mission.Objectives)
+            {
+                if (objective.Status == ObjectiveStatus.Active && objective.FirstCountingTick == _sim.Clock.Tick)
+                {
+                    activated = true;
+                }
+            }
+            // Camera focus in tiles through integer cells, as every other sim point from Unity.
+            FixVec2 focus = _selection.ToSimPoint(new Vector3(_camera.FocusTiles.x, 0f, _camera.FocusTiles.y));
+            if (activated || _lastFocus == null || _lastFocus.Value.X != focus.X || _lastFocus.Value.Y != focus.Y)
+            {
+                _mission.ReportSignal(new CameraMovedSignal(focus.X, focus.Y));
+                _lastFocus = focus;
+            }
+            // The selection, ascending entity ID.
+            List<EntityId> selection = new List<EntityId>(_selection.Selected);
+            selection.Sort();
+            bool changed = _lastSelection == null || _lastSelection.Count != selection.Count;
+            for (int i = 0; !changed && i < selection.Count; i++)
+            {
+                changed = selection[i] != _lastSelection[i];
+            }
+            if (activated || changed)
+            {
+                _mission.ReportSignal(new SelectionChangedSignal(selection));
+                _lastSelection = selection;
+            }
+        }
+
         /// <summary>The AI controllers' sink: schedules for the current tick and submits through the host (and so through the recorder).</summary>
         private sealed class HostCommandSink : ICommandSink
         {
@@ -644,7 +851,9 @@ namespace Rts.Game.Bootstrap
         }
 
         /// <summary>True while ticks should still run: the script has not finished, or continueAfterScript keeps the match going. Unit: on/off.</summary>
-        private bool ShouldStep => IsPlayback ? !_playback.IsFinished : _outcome == null && (!_scriptFinished || continueAfterScript);
+        private bool ShouldStep => IsPlayback ? !_playback.IsFinished
+            : _mission != null ? _mission.Status == MissionStatus.Running
+            : _outcome == null && (!_scriptFinished || continueAfterScript);
 
         /// <summary>Positions every cube between its previous and current tick position. Runs after all Update calls.</summary>
         private void LateUpdate()
@@ -697,6 +906,18 @@ namespace Rts.Game.Bootstrap
         /// <summary>Runs exactly one simulation tick and updates the picture state from it.</summary>
         private void StepOnce()
         {
+            if (_mission != null)
+            {
+                // Step (a) of player_interface_3.md section 3: the scripted inputs, or Unity's camera and selection.
+                if (_inputs != null)
+                {
+                    _inputs.BeforeStep(_sim, _mission, Submit);
+                }
+                else
+                {
+                    ReportMissionSignals();
+                }
+            }
             // Each AI thinks exactly once before every stepped tick, ascending player (player_interface_2.md rule 2).
             foreach (IPlayerController controller in _controllers)
             {
@@ -714,9 +935,22 @@ namespace Rts.Game.Bootstrap
             {
                 _sim.Step();
             }
+            // The mission reads the step's events exactly once, before the views (step d).
+            _mission?.AfterStep(_sim);
             // Shift every existing cube's blend window forward before new events add or remove cubes.
             RefreshViewStates();
             ProcessEvents();
+            if (_mission != null)
+            {
+                // A one-team match is "decided" from tick 0, so a mission stops only on its own status (rule 4).
+                if (_mission.Status != MissionStatus.Running)
+                {
+                    Debug.Log("[SimulationHost] mission " + _mission.Status + " at tick " + _mission.EndTick + (_mission.EndReason.Length > 0 ? " (" + _mission.EndReason + ")" : "") + ", final hash "
+                        + _sim.ComputeStateHash().ToString("x16"));
+                    WriteReplay();
+                }
+                return;
+            }
             if (!_scriptFinished && _sim.Clock.Tick >= _scriptTicks)
             {
                 // The clock counts ticks already stepped, so this is the state after exactly the script's tick count,
@@ -747,7 +981,7 @@ namespace Rts.Game.Bootstrap
             }
             try
             {
-// Replay file path in the shared replay folder; the wall clock only names the file, never feeds the simulation.
+                // Replay file path in the shared replay folder; the wall clock only names the file, never feeds the simulation.
                 string path = ReplayFiles.NewPath();
                 File.WriteAllBytes(path, ReplayWriter.Write(_recorder.Finish(), BuiltInMechanics.CreateCodecRegistry()));
                 Debug.Log("[SimulationHost] Replay written: " + path + " (" + _sim.Clock.Tick + " ticks, " + _recorder.CommandCount + " commands).");

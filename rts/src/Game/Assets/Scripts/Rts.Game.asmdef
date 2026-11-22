@@ -5,6 +5,7 @@
     "Rts.Sim",
     "Rts.Replay",
     "Rts.Ai",
+    "Rts.Campaign",
     "UnityEngine.UI",
     "Unity.InputSystem"
   ],

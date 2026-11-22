@@ -99,7 +99,7 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>
         /// Makes sure the "HUD" object exists with every panel (adding missing ones to an existing HUD): one screen-space Canvas scaled from a 1920 x 1080 landscape
-        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, Core widget, selected-unit panel, minimap, command card, build placement, ability targeting, game menu and end screen, replay playback bar, message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
+        /// reference (match 0.5, player_interface.md rule 7) carrying the HUD panels: resource bar, timeline bar, Core widget, selected-unit panel, minimap, command card, build placement, ability targeting, game menu and end screen, replay playback bar, mission objectives and messages (missions only), message line; plus an EventSystem with the Input System UI module. Built from code so no scene or prefab is edited by text.
         /// </summary>
         /// <returns>The existing or new message line, the first HUD panel.</returns>
         public static MessageLine EnsureHud()
@@ -117,6 +117,12 @@ namespace Rts.Game.Bootstrap
             EnsureComponent<AbilityTargeting>(hud);
             EnsureComponent<GameMenu>(hud);
             EnsureComponent<PlaybackBar>(hud);
+            SimulationHost host = Object.FindAnyObjectByType<SimulationHost>();
+            if (host != null && host.Mission != null)
+            {
+                // Objectives, mission messages and highlight rings, only while a campaign mission runs (player_interface_3.md section 5).
+                EnsureComponent<MissionHud>(hud);
+            }
             EnsureEventSystem();
             return EnsureComponent<MessageLine>(hud);
         }

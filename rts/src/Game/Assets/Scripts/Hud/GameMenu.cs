@@ -6,7 +6,12 @@
 // set after the deciding step, when stepping stops and the replay is written) the screen shows Victory if the local team won, Draw
 // when nobody is left, else Defeat, with the cause of the last player who left the match, and Restart, Main Menu and Quit. If the
 // local player is out but the match goes on, it shows "Defeated" with Keep Watching (hides the screen; orders are then refused by the
-// simulation) and Main Menu. Quit stops Play Mode in the editor and quits a player. Part of Rts.Game (presentation only).
+// simulation) and Main Menu. Quit stops Play Mode in the editor and quits a player. In a campaign mission (player_interface_3.md UI-16
+// section 6) the screen follows host.Mission instead: "Mission complete" when won; when lost, "Out of time", or "Mission failed" with
+// the HQ loss, the failed objective's text or the raw reason on the cause line; always with Restart, Main Menu and Quit. A local
+// player who is out while the mission still runs (a surrender, when defeat_when does not match it) gets the "Defeated" screen.
+// Part of Rts.Game (presentation only).
+using Rts.Campaign;
 using Rts.Game.Bootstrap;
 using Rts.Sim;
 using Rts.Sim.Commands;
@@ -113,13 +118,21 @@ namespace Rts.Game.Hud
             }
             Simulation sim = _commands.Host.Match;
             MatchOutcome outcome = _commands.Host.Outcome;
+            // The mission, if one runs; its own status ends the match (outcome stays null in a mission).
+            MissionRunner mission = _commands.Host.Mission;
+            bool missionOver = mission != null && mission.Status != MissionStatus.Running;
             bool localOut = sim.Players.TryGet(_commands.LocalPlayer, out Player player) && !player.IsInMatch;
-            bool showEnd = outcome != null || (localOut && !_watching);
+            // Out but the match (or mission) goes on: "Defeated". A surrender does not end tutorial_01, whose defeat_when asks for "defeated".
+            bool showEnd = outcome != null || missionOver || (localOut && !_watching);
             _end.SetActive(showEnd);
             if (showEnd)
             {
                 Show(null);
-                if (outcome != null)
+                if (missionOver)
+                {
+                    ShowMissionEnd(mission);
+                }
+                else if (outcome != null)
                 {
                     _endTitle.text = outcome.IsDraw ? "Draw" : outcome.Winner == sim.Players.TeamOf(_commands.LocalPlayer) ? "Victory" : "Defeat";
                 }
@@ -127,9 +140,12 @@ namespace Rts.Game.Hud
                 {
                     _endTitle.text = "Defeated";
                 }
-                _endCause.text = _lastCause.Length > 0 ? "Cause: " + _lastCause : "";
+                if (!missionOver)
+                {
+                    _endCause.text = _lastCause.Length > 0 ? "Cause: " + _lastCause : "";
+                }
                 // Decided: Restart, Main Menu, Quit. Out but the match goes on: Keep Watching, Main Menu.
-                bool decided = outcome != null;
+                bool decided = outcome != null || missionOver;
                 _keepWatching.gameObject.SetActive(!decided);
                 _restart.gameObject.SetActive(decided);
                 _quit.gameObject.SetActive(decided);
@@ -139,6 +155,32 @@ namespace Rts.Game.Hud
             if (GameInput.GetKeyDown(MenuKey))
             {
                 Show(_menu.activeSelf || _confirm.activeSelf ? null : _menu);
+            }
+        }
+
+        /// <summary>Fills the end screen for a finished mission from its status and end reason (player_interface_3.md section 6).</summary>
+        /// <param name="mission">A mission that is won or lost.</param>
+        private void ShowMissionEnd(MissionRunner mission)
+        {
+            // Prefix of the end reason when an objective's fail condition ended the mission; the objective ID follows it.
+            const string objectiveFailed = "objective_failed:";
+            string reason = mission.EndReason;
+            // Index of the failed objective for an objective_failed reason, else -1.
+            int failed = reason.StartsWith(objectiveFailed) ? mission.Mission.IndexOfObjective(reason.Substring(objectiveFailed.Length)) : -1;
+            _endCause.text = "";
+            if (mission.Status == MissionStatus.Won)
+            {
+                _endTitle.text = "Mission complete";
+            }
+            else if (reason == "timeout")
+            {
+                _endTitle.text = "Out of time";
+            }
+            else
+            {
+                // The title stays short at its large size; the detail goes on the cause line.
+                _endTitle.text = "Mission failed";
+                _endCause.text = reason == "defeat" ? "Your HQ was lost" : failed >= 0 ? mission.Mission.Objectives[failed].Text : "(" + reason + ")";
             }
         }
 

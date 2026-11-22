@@ -20,6 +20,9 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>Playback of a replay file (UI-15).</summary>
         Replay,
+
+        /// <summary>A campaign mission from rts/campaign/missions (UI-16).</summary>
+        Mission,
     }
 
     /// <summary>Who plays a setup slot.</summary>
@@ -74,6 +77,9 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>Replay file to play for kind Replay, else null. Unit: absolute file path.</summary>
         public string ReplayPath;
+
+        /// <summary>Mission to play for kind Mission (its file name without .json), else null.</summary>
+        public string MissionId;
     }
 
     /// <summary>The pending match request and the scene reload that starts it.</summary>

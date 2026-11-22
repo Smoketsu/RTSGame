@@ -17,6 +17,14 @@
         "com.rtsgame.sim": "0.1.0"
       }
     },
+    "com.rtsgame.campaign": {
+      "version": "file:../../Campaign",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.rtsgame.sim": "0.1.0"
+      }
+    },
     "com.rtsgame.replay": {
       "version": "file:../../Replay",
       "depth": 0,
