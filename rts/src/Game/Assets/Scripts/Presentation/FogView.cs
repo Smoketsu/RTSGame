@@ -141,11 +141,8 @@ namespace Rts.Game.Presentation
                 {
                     continue;
                 }
-                Renderer cube = view.Transform.GetComponent<Renderer>();
-                if (cube != null)
-                {
-                    cube.enabled = CanSee(sim, team, unit);
-                }
+                // Every renderer of the unit (model or cube, and its owner disc).
+                _host.SetUnitVisible(view.Id, CanSee(sim, team, unit));
             }
         }
 

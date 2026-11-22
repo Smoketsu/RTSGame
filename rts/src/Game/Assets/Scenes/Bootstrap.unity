@@ -177,6 +177,14 @@ MonoBehaviour:
   playMissionInputs: 0
   cubeScalePerRadius: 2
   minimumCubeSize: 0.4
+  modelFolder: Models/
+  uprootedSuffix: .uprooted
+  modelScaleMultiplier: 1
+  structureYawDegrees: 180
+  turnThreshold: 0.0001
+  ownerDiscDiameter: 1.1
+  constructionMinHeight: 0.15
+  moveStrideNormalised: 0.34
 --- !u!4 &645787076
 Transform:
   m_ObjectHideFlags: 0

@@ -35,6 +35,13 @@
 //     (its setup commands go through Submit, so into the replay). Each step: camera and selection signals (or the scripted inputs
 //     when playMissionInputs is on), AI, step, runner.AfterStep, views; stepping stops when the mission is won or lost, never on
 //     MatchOutcome. Signals are reported only here, inside the step loop.
+//   - 3D models (player_interface_4.md UI-17): each unit keeps a root object with the cube's position, height, blend and uniform
+//     scale (picking, the selection ring, health bars and GateView read that root). Its one child is the unit's model from
+//     Resources (modelFolder + definition ID; the uprooted HQ adds uprootedSuffix), scaled to 2 x radius (units) or the footprint
+//     (structures), else today's cube. Model units also get a disc in the owner's colour. Facing is presentation only: from the
+//     root's motion each frame, or towards a shot's target. Rigged models play idle, move, attack and death through ClipPlayer;
+//     a visible rigged unit's model is left as a corpse for one death clip while its root, ring and entry go at once. Fog and the
+//     kill effect use SetUnitVisible and IsUnitVisible, which cover every renderer of the unit. Drawing never changes a hash.
 //   - Match end (UI-10): after each step MatchOutcome.Evaluate; once decided the host stops stepping (as the harness does), logs the
 //     result and writes the replay at once. Outcome exposes the result to the HUD.
 //
@@ -101,6 +108,67 @@ namespace Rts.Game.Bootstrap
 
             /// <summary>Cube centre height above the terrain surface under it. Unit: world units. Range: 0.5 (ground and water) or 2 (air).</summary>
             public float Height;
+
+            /// <summary>The root's uniform scale, the old cube edge. Unit: world units. Range: minimumCubeSize upward.</summary>
+            public float Size;
+
+            /// <summary>The model's world size: 2 x radius for a unit, the footprint for a structure. Unit: world units (tiles). Range: above 0.</summary>
+            public float WorldSize;
+
+            /// <summary>The drawn child: the model, or the cube when the unit has no model. Range: non-null until the unit is removed.</summary>
+            public Transform Child;
+
+            /// <summary>Data ID of the model the child shows, or null for the cube.</summary>
+            public string ModelId;
+
+            /// <summary>The child's local scale before construction squashes it. Unit: local scale (uniform). Range: above 0.</summary>
+            public float ChildScale;
+
+            /// <summary>The owner disc under a model, or null for a cube.</summary>
+            public GameObject Disc;
+
+            /// <summary>Every renderer of the unit (child and disc), for fog. Rebuilt when the child changes.</summary>
+            public Renderer[] Renderers;
+
+            /// <summary>True while the unit is drawn (not hidden by fog). Unit: on/off.</summary>
+            public bool Visible = true;
+
+            /// <summary>The child's yaw. Unit: degrees about +Y; 0 faces +Z. Range: -180 to 360.</summary>
+            public float Yaw;
+
+            /// <summary>True for a mobile unit (no footprint), whose model turns with its motion. Unit: on/off.</summary>
+            public bool Mobile;
+
+            /// <summary>The root's position last frame, for the motion heading. Unit: world units.</summary>
+            public Vector3 LastFramePosition;
+
+            /// <summary>Clip playback of a rigged model, else null.</summary>
+            public ClipPlayer Clips;
+
+            /// <summary>Move clip loops per tile walked: 1 / (moveStrideNormalised x WorldSize) times the clip length. Unit: playback speed per tile per second.</summary>
+            public float MoveRate;
+
+            /// <summary>The unit's speed. Unit: tiles per second. Range: 0 upward.</summary>
+            public float Speed;
+
+            /// <summary>True when the unit fired this tick (attack clip). Reset after the clips are chosen. Unit: on/off.</summary>
+            public bool Fired;
+
+            /// <summary>True once the unit was killed this tick; its removal then leaves a corpse when it is rigged and visible. Unit: on/off.</summary>
+            public bool Dying;
+        }
+
+        /// <summary>A rigged model left behind by a killed unit, playing its death clip.</summary>
+        private struct Corpse
+        {
+            /// <summary>The detached model.</summary>
+            public GameObject Model;
+
+            /// <summary>Its clip playback, disposed with it.</summary>
+            public ClipPlayer Clips;
+
+            /// <summary>When it is destroyed. Unit: Time.unscaledTime seconds.</summary>
+            public float RemoveAt;
         }
 
         /// <summary>Read-only handle to one unit's cube, handed to presentation code (selection, rings). Holds no simulation state.</summary>
@@ -199,6 +267,36 @@ namespace Rts.Game.Bootstrap
         /// <summary>Smallest cube edge so tiny units stay visible. Unit: world units. Range: 0.1 to 2.</summary>
         [SerializeField, Range(0.1f, 2f)] private float minimumCubeSize = 0.4f;
 
+        /// <summary>Resources folder of the unit models, with the trailing slash (player_interface_4.md section 2).</summary>
+        [SerializeField] private string modelFolder = "Models/";
+
+        /// <summary>Suffix of the Uprooted HQ model's file name after the HQ's data ID.</summary>
+        [SerializeField] private string uprootedSuffix = ".uprooted";
+
+        /// <summary>Extra uniform scale on every model (placeholder). Unit: multiplier. Range: 0.1 to 4.</summary>
+        [SerializeField, Range(0.1f, 4f)] private float modelScaleMultiplier = 1f;
+
+        /// <summary>Yaw of structure models (and the first yaw of units) so doors face the camera (placeholder). Unit: degrees. Range: 0 to 360.</summary>
+        [SerializeField, Range(0f, 360f)] private float structureYawDegrees = 180f;
+
+        /// <summary>Smallest horizontal motion that turns a model or counts as moving (placeholder). Unit: world units squared. Range: 0 to 0.01.</summary>
+        [SerializeField, Range(0f, 0.01f)] private float turnThreshold = 0.0001f;
+
+        /// <summary>Owner disc diameter as a multiple of the model's world size (placeholder). Unit: multiplier. Range: 0.5 to 2.</summary>
+        [SerializeField, Range(0.5f, 2f)] private float ownerDiscDiameter = 1.1f;
+
+        /// <summary>Lowest drawn height of a structure model under construction (placeholder). Unit: fraction of full height. Range: 0 to 1.</summary>
+        [SerializeField, Range(0f, 1f)] private float constructionMinHeight = 0.15f;
+
+        /// <summary>Ground covered per move clip loop, as a fraction of the model's world size (README: 0.17 per step, two steps; placeholder). Unit: model sizes per loop. Range: 0.05 to 2.</summary>
+        [SerializeField, Range(0.05f, 2f)] private float moveStrideNormalised = 0.34f;
+
+        /// <summary>Owner disc thickness. Unit: world units.</summary>
+        private const float DiscHeight = 0.02f;
+
+        /// <summary>Owner disc centre above the terrain, under the selection ring. Unit: world units.</summary>
+        private const float DiscLift = 0.03f;
+
         /// <summary>Cube centre height above the terrain for ground and water units. Unit: world units. Range: 0 to 5; 0.5 rests a unit cube on the ground.</summary>
         private const float GroundHeight = 0.5f;
 
@@ -279,6 +377,12 @@ namespace Rts.Game.Bootstrap
 
         /// <summary>Cube per live simulation unit. Presentation state only, never hashed or fed back.</summary>
         private readonly Dictionary<EntityId, UnitView> _views = new Dictionary<EntityId, UnitView>();
+
+        /// <summary>Model and clip lookups by data ID. Range: non-null after first use.</summary>
+        private ModelLibrary _models;
+
+        /// <summary>Killed rigged models still playing their death clip. Presentation only.</summary>
+        private readonly List<Corpse> _corpses = new List<Corpse>();
 
         /// <summary>One material per player slot, shared by all of that player's cubes (no per-cube material instances to leak).</summary>
         private readonly Dictionary<byte, Material> _playerMaterials = new Dictionary<byte, Material>();
@@ -399,6 +503,40 @@ namespace Rts.Game.Bootstrap
         /// <param name="transform">The cube's transform when found; null otherwise.</param>
         /// <returns>True when the unit has a live cube.</returns>
         public bool TryGetViewTransform(EntityId id, out Transform transform)
+        {
+            return TryGetViewRoot(id, out transform);
+        }
+
+        /// <summary>Shows or hides every renderer of a unit (model or cube, and its owner disc). Used by fog of war.</summary>
+        /// <param name="id">The simulation unit.</param>
+        /// <param name="visible">True to draw the unit.</param>
+        public void SetUnitVisible(EntityId id, bool visible)
+        {
+            if (!_views.TryGetValue(id, out UnitView view) || view.Visible == visible)
+            {
+                return;
+            }
+            view.Visible = visible;
+            foreach (Renderer renderer in view.Renderers)
+            {
+                if (renderer != null)
+                {
+                    renderer.enabled = visible;
+                }
+            }
+        }
+
+        /// <summary>True when a unit has a view and is drawn (not hidden by fog).</summary>
+        /// <param name="id">The simulation unit.</param>
+        public bool IsUnitVisible(EntityId id)
+        {
+            return _views.TryGetValue(id, out UnitView view) && view.Visible;
+        }
+
+        /// <summary>Finds the root of a unit's view.</summary>
+        /// <param name="id">The simulation unit.</param>
+        /// <param name="transform">The root when found; null otherwise.</param>
+        private bool TryGetViewRoot(EntityId id, out Transform transform)
         {
             if (_views.TryGetValue(id, out UnitView view) && view.Transform != null)
             {
@@ -817,6 +955,7 @@ namespace Rts.Game.Bootstrap
         /// <summary>Turns elapsed real time into whole ticks, at most maxStepsPerFrame of them.</summary>
         private void Update()
         {
+            RemoveFinishedCorpses(false);
             if (_sim == null)
             {
                 return;
@@ -855,12 +994,51 @@ namespace Rts.Game.Bootstrap
             : _mission != null ? _mission.Status == MissionStatus.Running
             : _outcome == null && (!_scriptFinished || continueAfterScript);
 
-        /// <summary>Positions every cube between its previous and current tick position. Runs after all Update calls.</summary>
+        /// <summary>Positions every root between its previous and current tick position, and turns moving models to their heading. Runs after all Update calls.</summary>
         private void LateUpdate()
         {
             foreach (UnitView view in _views.Values)
             {
-                view.Transform.position = Vector3.Lerp(view.Previous, view.Current, _alpha);
+                Vector3 position = Vector3.Lerp(view.Previous, view.Current, _alpha);
+                view.Transform.position = position;
+                if (view.Mobile && view.ModelId != null)
+                {
+                    // Heading from this frame's horizontal motion (EventView's rule); below the threshold the last yaw is kept.
+                    float dx = position.x - view.LastFramePosition.x;
+                    float dz = position.z - view.LastFramePosition.z;
+                    if (dx * dx + dz * dz > turnThreshold)
+                    {
+                        SetYaw(view, Mathf.Atan2(dx, dz) * Mathf.Rad2Deg);
+                    }
+                }
+                view.LastFramePosition = position;
+            }
+        }
+
+        /// <summary>Turns a view's child (never the root, whose ring and health bars assume no rotation).</summary>
+        /// <param name="view">A unit view.</param>
+        /// <param name="yaw">Yaw about +Y. Unit: degrees; 0 faces +Z.</param>
+        private static void SetYaw(UnitView view, float yaw)
+        {
+            view.Yaw = yaw;
+            view.Child.localRotation = Quaternion.Euler(0f, yaw, 0f);
+        }
+
+        /// <summary>Destroys corpses whose death clip has run out, or all of them.</summary>
+        /// <param name="all">True to remove every corpse (scene teardown).</param>
+        private void RemoveFinishedCorpses(bool all)
+        {
+            for (int i = _corpses.Count - 1; i >= 0; i--)
+            {
+                if (all || Time.unscaledTime >= _corpses[i].RemoveAt)
+                {
+                    _corpses[i].Clips.Dispose();
+                    if (_corpses[i].Model != null)
+                    {
+                        Destroy(_corpses[i].Model);
+                    }
+                    _corpses.RemoveAt(i);
+                }
             }
         }
 
@@ -894,7 +1072,12 @@ namespace Rts.Game.Bootstrap
                 }
             }
             _playerMaterials.Clear();
+            foreach (UnitView view in _views.Values)
+            {
+                view.Clips?.Dispose();
+            }
             _views.Clear();
+            RemoveFinishedCorpses(true);
             EventRaised = null;
             if (_unitRoot != null)
             {
@@ -1058,6 +1241,82 @@ namespace Rts.Game.Bootstrap
                         SnapView(pushed.Unit, pushedView.Height);
                     }
                 }
+                else if (simEvent is ShotFiredEvent shot && _views.TryGetValue(shot.Attacker, out UnitView attacker))
+                {
+                    // The attacker plays its attack clip and turns to its target (presentation only; the simulation has no facing).
+                    attacker.Fired = true;
+                    if (attacker.ModelId != null && _views.TryGetValue(shot.Target, out UnitView target))
+                    {
+                        Vector3 towards = target.Current - attacker.Current;
+                        if (towards.x * towards.x + towards.z * towards.z > turnThreshold)
+                        {
+                            SetYaw(attacker, Mathf.Atan2(towards.x, towards.z) * Mathf.Rad2Deg);
+                        }
+                    }
+                }
+                else if (simEvent is UnitKilledEvent killed && _views.TryGetValue(killed.Victim, out UnitView victim))
+                {
+                    // Its UnitRemovedEvent follows in the same tick; the removal then leaves a corpse for the death clip.
+                    victim.Dying = true;
+                }
+                else if (simEvent is HqStateChangedEvent hqChanged && _views.TryGetValue(hqChanged.Unit, out UnitView hqView)
+                    && _sim.Units.TryGet(hqChanged.Unit, out Unit hqUnit))
+                {
+                    // Rooted and Uprooting show the rooted model; Uprooted and Rooting the uprooted one when it exists.
+                    string modelId = ModelIdFor(hqUnit);
+                    if (modelId != hqView.ModelId)
+                    {
+                        MakeChild(hqView, hqUnit, modelId);
+                    }
+                }
+            }
+            UpdateModels();
+        }
+
+        /// <summary>
+        /// After each step: the construction height of structure models and the clip of each rigged model (attack when it fired this tick
+        /// and until that clip ends, move when it moved more than the threshold, else idle).
+        /// </summary>
+        private void UpdateModels()
+        {
+            foreach (UnitView view in _views.Values)
+            {
+                if (view.ModelId == null || !_sim.Units.TryGet(view.Id, out Unit unit))
+                {
+                    view.Fired = false;
+                    continue;
+                }
+                // Construction: the model grows from constructionMinHeight to full height (cubes behave as before).
+                float height = 1f;
+                if (unit.IsUnderConstruction)
+                {
+                    // Ticks a full build takes. Range: 1 upward.
+                    int buildTicks = Mathf.Max(1, Rts.Sim.Economy.EconomyRules.BuildTicks(_sim, unit.Definition));
+                    height = Mathf.Max(constructionMinHeight, 1f - (float)unit.ConstructionTicksRemaining / buildTicks);
+                }
+                view.Child.localScale = new Vector3(view.ChildScale, view.ChildScale * height, view.ChildScale);
+                if (view.Clips != null && !view.Dying)
+                {
+                    float dx = view.Current.x - view.Previous.x;
+                    float dz = view.Current.z - view.Previous.z;
+                    if (view.Fired)
+                    {
+                        view.Clips.Play(ClipPlayer.Attack, 1f, true);
+                    }
+                    else if (view.Clips.Current == ClipPlayer.Attack && view.Clips.PlayingOnce)
+                    {
+                        // Let the attack finish before walking or idling.
+                    }
+                    else if (dx * dx + dz * dz > turnThreshold)
+                    {
+                        view.Clips.Play(ClipPlayer.Move, view.Speed * view.MoveRate, false);
+                    }
+                    else
+                    {
+                        view.Clips.Play(ClipPlayer.Idle, 1f, false);
+                    }
+                }
+                view.Fired = false;
             }
         }
 
@@ -1071,6 +1330,17 @@ namespace Rts.Game.Bootstrap
                 view.Height = height;
                 view.Current = ToWorld(unit.Position, height);
                 view.Previous = view.Current;
+                PlaceDisc(view);
+            }
+        }
+
+        /// <summary>Keeps the owner disc just above the terrain under the root, whatever the root's height.</summary>
+        /// <param name="view">A unit view.</param>
+        private static void PlaceDisc(UnitView view)
+        {
+            if (view.Disc != null)
+            {
+                view.Disc.transform.localPosition = new Vector3(0f, (DiscLift - view.Height) / view.Size, 0f);
             }
         }
 
@@ -1106,51 +1376,173 @@ namespace Rts.Game.Bootstrap
             {
                 return;
             }
-            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = spawned.DefinitionId + " " + spawned.Unit;
-            cube.transform.SetParent(_unitRoot, false);
+            // The root: today's cube transform without a renderer (picking, ring, health bars and GateView read it).
+            GameObject root = new GameObject(spawned.DefinitionId + " " + spawned.Unit);
+            root.transform.SetParent(_unitRoot, false);
 
-            // Presentation only: cubes need no physics, so drop the collider the primitive comes with.
-            Collider boxCollider = cube.GetComponent<Collider>();
-            if (boxCollider != null)
-            {
-                Destroy(boxCollider);
-            }
-
-            // Cube edge length. Unit: world units (tiles). Range: minimumCubeSize upward.
+            // Root scale, the old cube edge length. Unit: world units (tiles). Range: minimumCubeSize upward.
             float size = Mathf.Max(minimumCubeSize, unit.Definition.Radius.ToFloatForPresentation() * cubeScalePerRadius);
-            cube.transform.localScale = new Vector3(size, size, size);
+            root.transform.localScale = new Vector3(size, size, size);
 
-            Renderer cubeRenderer = cube.GetComponent<Renderer>();
-            if (_templateMaterial == null)
-            {
-                _templateMaterial = cubeRenderer.sharedMaterial;
-            }
-            cubeRenderer.sharedMaterial = GetPlayerMaterial(spawned.Owner);
-
+            // Footprint of a structure. Unit: tiles. Range: 0 for mobile units.
+            int footprint = unit.Definition.Economy.FootprintTiles;
             // Height by movement layer: air units float, everything else sits on the ground.
             float height = unit.Definition.Layer == MovementLayer.Air ? AirHeight : GroundHeight;
             UnitView view = new UnitView
             {
                 Id = spawned.Unit,
-                Transform = cube.transform,
+                Transform = root.transform,
                 Height = height,
+                Size = size,
+                WorldSize = footprint > 0 ? footprint : 2f * unit.Definition.Radius.ToFloatForPresentation(),
+                Mobile = footprint == 0,
+                Yaw = structureYawDegrees,
+                Speed = unit.Definition.SpeedTilesPerSecond.ToFloatForPresentation(),
                 Previous = ToWorld(spawned.Position, height),
                 Current = ToWorld(unit.Position, height),
             };
-            cube.transform.position = view.Previous;
+            root.transform.position = view.Previous;
+            view.LastFramePosition = view.Previous;
+            MakeChild(view, unit, ModelIdFor(unit));
             _views.Add(spawned.Unit, view);
         }
 
-        /// <summary>Destroys the cube of a removed unit, if there is one.</summary>
+        /// <summary>
+        /// The model ID to draw a unit with, or null for the cube: the definition ID, or for an HQ that is Uprooted or Rooting the ID plus
+        /// uprootedSuffix when that model exists.
+        /// </summary>
+        /// <param name="unit">A live unit.</param>
+        private string ModelIdFor(Unit unit)
+        {
+            if (_models == null)
+            {
+                _models = new ModelLibrary(modelFolder);
+            }
+            string id = unit.Definition.Id;
+            if (unit.Definition.Hq != null && (unit.HqState == HqState.Uprooted || unit.HqState == HqState.Rooting) && _models.Model(id + uprootedSuffix) != null)
+            {
+                return id + uprootedSuffix;
+            }
+            return _models.Model(id) != null ? id : null;
+        }
+
+        /// <summary>
+        /// (Re)builds a view's child: the model (scaled to WorldSize, feet on the ground, current yaw, clips when rigged, owner disc) or
+        /// the cube. Replaces an existing child (HQ swap) and rebuilds the renderer list, keeping the fog state.
+        /// </summary>
+        /// <param name="view">The unit's view.</param>
+        /// <param name="unit">The live unit.</param>
+        /// <param name="modelId">Model to show, or null for the cube.</param>
+        private void MakeChild(UnitView view, Unit unit, string modelId)
+        {
+            if (view.Child != null)
+            {
+                view.Clips?.Dispose();
+                view.Clips = null;
+                Destroy(view.Child.gameObject);
+            }
+            if (view.Disc != null)
+            {
+                Destroy(view.Disc);
+                view.Disc = null;
+            }
+            view.ModelId = modelId;
+            GameObject child;
+            if (modelId == null)
+            {
+                // No model (walls, gates, some buildings): today's cube in the owner's colour.
+                child = Primitive(PrimitiveType.Cube, view.Transform, unit.Owner);
+                view.ChildScale = 1f;
+                child.transform.localScale = Vector3.one;
+            }
+            else
+            {
+                child = Instantiate(_models.Model(modelId), view.Transform, false);
+                // Uniform child scale so the model's normalised 1.0 becomes WorldSize in the world.
+                view.ChildScale = view.WorldSize / view.Size * modelScaleMultiplier;
+                child.transform.localScale = new Vector3(view.ChildScale, view.ChildScale, view.ChildScale);
+                // Feet on the terrain for ground units; an air model hovers AirHeight - GroundHeight above it.
+                child.transform.localPosition = new Vector3(0f, -GroundHeight / view.Size, 0f);
+                foreach (SkinnedMeshRenderer skinned in child.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    skinned.quality = SkinQuality.Bone4;
+                }
+                Animator animator = child.GetComponentInChildren<Animator>();
+                if (animator != null)
+                {
+                    view.Clips = new ClipPlayer(animator, _models.Clips(modelId));
+                    // Move playback per tile per second: one loop covers moveStrideNormalised x WorldSize tiles.
+                    view.MoveRate = view.Clips.Length(ClipPlayer.Move) / (moveStrideNormalised * view.WorldSize);
+                    view.Clips.Play(ClipPlayer.Idle, 1f, false);
+                }
+                // Owner disc (placeholder until the developer picks how players are told apart).
+                view.Disc = Primitive(PrimitiveType.Cylinder, view.Transform, unit.Owner);
+                Renderer disc = view.Disc.GetComponent<Renderer>();
+                disc.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                disc.receiveShadows = false;
+                // Disc diameter in root units; a cylinder primitive is 2 units tall, so its Y scale is half the thickness.
+                float diameter = ownerDiscDiameter * view.WorldSize / view.Size;
+                view.Disc.transform.localScale = new Vector3(diameter, DiscHeight / 2f / view.Size, diameter);
+                PlaceDisc(view);
+            }
+            child.name = modelId ?? "Cube";
+            view.Child = child.transform;
+            SetYaw(view, view.Yaw);
+            view.Renderers = view.Transform.GetComponentsInChildren<Renderer>(true);
+            foreach (Renderer renderer in view.Renderers)
+            {
+                renderer.enabled = view.Visible;
+            }
+        }
+
+        /// <summary>A primitive under a root with no collider and the owner's shared material.</summary>
+        /// <param name="type">Cube or cylinder.</param>
+        /// <param name="parent">The unit's root.</param>
+        /// <param name="owner">Owner, for the colour.</param>
+        private GameObject Primitive(PrimitiveType type, Transform parent, PlayerId owner)
+        {
+            GameObject primitive = GameObject.CreatePrimitive(type);
+            // Presentation only: no physics, so drop the collider the primitive comes with.
+            Collider collider = primitive.GetComponent<Collider>();
+            if (collider != null)
+            {
+                Destroy(collider);
+            }
+            primitive.transform.SetParent(parent, false);
+            Renderer renderer = primitive.GetComponent<Renderer>();
+            if (_templateMaterial == null)
+            {
+                _templateMaterial = renderer.sharedMaterial;
+            }
+            renderer.sharedMaterial = GetPlayerMaterial(owner);
+            return primitive;
+        }
+
+        /// <summary>
+        /// Removes a removed unit's view. A killed, visible, rigged model stays behind as a corpse playing its death clip for one clip length;
+        /// the root, ring, disc and the view entry go at once, so picking, fog and the HUD never see the corpse.
+        /// </summary>
         /// <param name="id">The removed unit.</param>
         private void DestroyView(EntityId id)
         {
-            if (_views.TryGetValue(id, out UnitView view))
+            if (!_views.TryGetValue(id, out UnitView view))
             {
-                Destroy(view.Transform.gameObject);
-                _views.Remove(id);
+                return;
             }
+            if (view.Dying && view.Visible && view.Clips != null && view.Clips.Has(ClipPlayer.Death))
+            {
+                // Snap to the last tick, then detach keeping the world pose.
+                view.Transform.position = view.Current;
+                view.Child.SetParent(_unitRoot, true);
+                view.Clips.Play(ClipPlayer.Death, 1f, true);
+                _corpses.Add(new Corpse { Model = view.Child.gameObject, Clips = view.Clips, RemoveAt = Time.unscaledTime + view.Clips.Length(ClipPlayer.Death) });
+            }
+            else
+            {
+                view.Clips?.Dispose();
+            }
+            Destroy(view.Transform.gameObject);
+            _views.Remove(id);
         }
 
         /// <summary>The colour that marks a player everywhere (cubes, Core ring, HUD): slot 0 blue, 1 red, then the fallbacks; grey for no owner.</summary>

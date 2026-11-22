@@ -199,7 +199,7 @@ namespace Rts.Game.Presentation
             else if (simEvent is UnitKilledEvent killed)
             {
                 // The unit is already gone, so its cube's last position (still known this frame) marks the spot.
-                if (_host.TryGetViewTransform(killed.Victim, out Transform cube) && cube.GetComponent<Renderer>() is Renderer renderer && renderer.enabled)
+                if (_host.TryGetViewTransform(killed.Victim, out Transform cube) && _host.IsUnitVisible(killed.Victim))
                 {
                     AddRing(cube.position, 0.8f, new Color(1f, 0.5f, 0.15f, 1f), now);
                 }
