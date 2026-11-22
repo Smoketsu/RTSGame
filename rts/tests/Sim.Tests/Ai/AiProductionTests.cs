@@ -39,6 +39,9 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>Next script sequence number for spawns and orders. Unit: counter. Range: 0 upward.</summary>
         private uint _sequence;
 
+        /// <summary>The tuning the next <see cref="Scene"/> uses; the shipped one unless a test replaced it (SA-4 lowers the supply cap limit). Null means the shipped tuning.</summary>
+        private Tuning? _tuning;
+
         /// <summary>The text of a profile file with line endings normalised.</summary>
         /// <param name="id">Profile ID (file name without extension).</param>
         private static string ProfileText(string id)
@@ -143,7 +146,7 @@ namespace Rts.Sim.Tests.Ai
                 new PlayerSetup(P1, new TeamId(1), enemy, "B"),
             };
             Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players,
-                BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap("greybox_1v1")));
+                BuiltInMechanics.CreateRegistry(), _tuning ?? Data.Tuning, Data.RequireMap("greybox_1v1")));
             sim.Start();
             ExploreKit.ExploreAll(sim);
             Spawn(sim, faction == "skai" ? "skai.great_aerie" : "water.grand_shell", P0, "8", "8");
@@ -429,6 +432,135 @@ namespace Rts.Sim.Tests.Ai
             }
         }
 
+        // ------------------------------------------------------------------ Rule SA
+
+        /// <summary>
+        /// The Skai scene of SA-1: four complete Roosts and one Windspire (cap 50), a spare fourth worker, <paramref name="army"/> Windrunners, and <paramref name="constructing"/> Roosts ordered to workers (pending, each 8 supply); common set last.
+        /// </summary>
+        private Simulation SupplyScene(int constructing, int army, int common)
+        {
+            Simulation sim = Scene("skai", 600, 5000, At("skai.roost", "14.5", "17.5"), At("skai.roost", "16.5", "17.5"), At("skai.roost", "18.5", "17.5"), At("skai.roost", "20.5", "17.5"), At("skai.windspire", "22.5", "17.5"));
+            // A fourth worker that stays free to build, so a fourth supply structure has a builder.
+            Spawn(sim, "skai.fledgling", P0, "12", "12");
+            for (int i = 0; i < army; i++)
+            {
+                Spawn(sim, "skai.windrunner", P0, (15 + i % 9).ToString(), (14 + i / 9).ToString());
+            }
+            // The own workers, ascending ID.
+            List<EntityId> workers = new List<EntityId>();
+            foreach (AiUnitView unit in AiWorldView.Build(sim, P0, Array.Empty<int>()).OwnUnits)
+            {
+                if (unit.IsWorker)
+                {
+                    workers.Add(unit.Id);
+                }
+            }
+            for (int i = 0; i < constructing; i++)
+            {
+                sim.Submit(new BuildStructureCommand(sim.Clock.Tick, P0, _sequence++, workers[i], "skai.roost", 14 + 3 * i, 21));
+                sim.Step();
+            }
+            Assert.That(sim.Players.TryGet(P0, out Player? player), Is.True);
+            player!.SetStock(common, 0);
+            return sim;
+        }
+
+        /// <summary>The supply headroom SupplyCap + P - SupplyUsed of a scene with <paramref name="constructing"/> Roosts pending (8 supply each). Unit: supply.</summary>
+        private static int Headroom(Simulation sim, int constructing)
+        {
+            AiWorldView view = AiWorldView.Build(sim, P0, Array.Empty<int>());
+            Assert.That(view.SupplyCap, Is.EqualTo(50), "base 10 + four Roosts and a Windspire at 8");
+            return view.SupplyCap + 8 * constructing - view.SupplyUsed;
+        }
+
+        /// <summary>A Skai profile whose supply_buffer is <paramref name="buffer"/> (0 to 40, so the arithmetic of SA-1 sits on the edge) and whose pending cap is <paramref name="maxPending"/>.</summary>
+        private static AiProfile SupplyProfile(int buffer, int maxPending = 3, bool on = true)
+        {
+            return Hand("aggressive_s5_pd", "\"supply_buffer\": 3", "\"supply_buffer\": " + buffer, "\"supply_ahead_max_pending\": 3", "\"supply_ahead_max_pending\": " + maxPending,
+                "\"use_supply_ahead\": true", on ? "\"use_supply_ahead\": true" : "\"use_supply_ahead\": false");
+        }
+
+        /// <summary>The Skai plan of the SA tests.</summary>
+        private static AiFactionPlan SkaiPlan(AiProfile profile)
+        {
+            return Plan(profile, "skai", ("skai.windrunner", 30), ("skai.talon_archer", 20));
+        }
+
+        /// <summary>
+        /// SA-1: with one Roost pending the projected need is N = 4 x 2 + 3 + 3 = 14 supply; a second Roost is ordered exactly when the headroom is below N + supply_buffer (tested at the edge: buffer H - 13 orders, H - 14 does not); the switch off orders none.
+        /// </summary>
+        [Test]
+        public void SA1_SecondSupplyStructure()
+        {
+            Simulation sim = SupplyScene(1, 5, 400);
+            // Headroom: cap 50 + 8 pending - used 8.
+            int headroom = Headroom(sim, 1);
+            AiProfile at = SupplyProfile(headroom - 13);
+            Assert.That(Builds(Decide(sim, at, SkaiPlan(at), Memory(sim, 0)), "skai.roost"), Is.EqualTo(1), "headroom " + headroom + " < 14 + " + (headroom - 13));
+            AiProfile below = SupplyProfile(headroom - 14);
+            Assert.That(Builds(Decide(SupplyScene(1, 5, 400), below, SkaiPlan(below), Memory(sim, 0)), "skai.roost"), Is.EqualTo(0), "headroom is not below N + buffer");
+            AiProfile off = SupplyProfile(headroom - 13, 3, false);
+            Assert.That(Builds(Decide(SupplyScene(1, 5, 400), off, SkaiPlan(off), Memory(sim, 0)), "skai.roost"), Is.EqualTo(0), "switch off: one is already under construction");
+        }
+
+        /// <summary>SA-2: with three Roosts pending and supply_ahead_max_pending 3 none is ordered; with 4 one is (so the cap is the only thing that stops it).</summary>
+        [Test]
+        public void SA2_PendingCap()
+        {
+            Simulation sim = SupplyScene(3, 23, 400);
+            // Headroom: cap 50 + 24 pending - used 26.
+            int headroom = Headroom(sim, 3);
+            AiProfile capped = SupplyProfile(headroom - 13, 3);
+            Assert.That(Builds(Decide(sim, capped, SkaiPlan(capped), Memory(sim, 0)), "skai.roost"), Is.EqualTo(0));
+            AiProfile open = SupplyProfile(headroom - 13, 4);
+            Assert.That(Builds(Decide(SupplyScene(3, 23, 400), open, SkaiPlan(open), Memory(sim, 0)), "skai.roost"), Is.EqualTo(1));
+        }
+
+        /// <summary>SA-3: with 100 common (a Roost costs 150) none is ordered and nothing is reserved.</summary>
+        [Test]
+        public void SA3_NoReservation()
+        {
+            Simulation sim = SupplyScene(1, 5, 100);
+            AiProfile profile = SupplyProfile(Headroom(sim, 1) - 13);
+            (int CommonBefore, int RareBefore, int Common, int Rare, List<AiIntent> Intents)? probe = AiBrain.ProbeReserves(AiWorldView.Build(sim, P0, Array.Empty<int>()), profile, SkaiPlan(profile), Memory(sim, 0), true);
+            Assert.That(probe, Is.Not.Null);
+            Assert.That(Builds(probe!.Value.Intents, "skai.roost"), Is.EqualTo(0));
+            Assert.That((probe.Value.Common, probe.Value.Rare), Is.EqualTo((0, 0)));
+        }
+
+        /// <summary>SA-4: with the supply cap limit at the cap plus the pending supply (58) none is ordered; one above it (59) the same scene orders one.</summary>
+        [Test]
+        public void SA4_SupplyLimit()
+        {
+            Tuning shipped = Data.Tuning;
+            foreach ((int limit, int expected) in new[] { (58, 0), (59, 1) })
+            {
+                SupplyTuning supply = new SupplyTuning(JsonReader.Parse("{ \"supply_cap\": " + limit + ", \"static_defence_supply_cost\": " + shipped.Supply.StaticDefenceSupplyCost
+                    + ", \"static_defences_per_base_max\": " + shipped.Supply.StaticDefencesPerBaseMax + " }", "supply.json"));
+                _tuning = new Tuning(shipped.Match, shipped.Hq, shipped.Momentum, shipped.Status, shipped.Flood, supply, shipped.Earth, shipped.Online, shipped.Harness, shipped.Terrain, shipped.Combat, shipped.Economy, shipped.HarnessBatch);
+                Simulation sim = SupplyScene(1, 5, 400);
+                _tuning = null;
+                AiProfile profile = SupplyProfile(Headroom(sim, 1) - 13);
+                Assert.That(Builds(Decide(sim, profile, SkaiPlan(profile), Memory(sim, 0)), "skai.roost"), Is.EqualTo(expected), "limit " + limit);
+            }
+        }
+
+        /// <summary>D-1 (SA): SA-1 run twice from identical inputs gives identical intents.</summary>
+        [Test]
+        public void D1_SupplyAheadTwice()
+        {
+            // Intents of each run.
+            string[] runs = new string[2];
+            for (int run = 0; run < 2; run++)
+            {
+                Simulation sim = SupplyScene(1, 5, 400);
+                AiProfile profile = SupplyProfile(Headroom(sim, 1) - 13);
+                runs[run] = Key(Decide(sim, profile, SkaiPlan(profile), Memory(sim, 0)));
+            }
+            Assert.That(runs[0], Does.Contain("Build"));
+            Assert.That(runs[1], Is.EqualTo(runs[0]));
+        }
+
         // ------------------------------------------------------------------ Determinism and the off path
 
         /// <summary>D-1 (PC): PC-1 run twice from identical inputs gives identical intents and memory.</summary>
@@ -458,6 +590,8 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(profile.UseProductionCapacity, Is.EqualTo(id == "aggressive_s5_pd"), id);
                 Assert.That(profile.IncomeWindowSeconds, Is.EqualTo(60), id);
                 Assert.That(profile.ProductionCapacityTarget, Is.EqualTo(Fix64.One), id);
+                Assert.That(profile.UseSupplyAhead, Is.EqualTo(id == "aggressive_s5_pd"), id);
+                Assert.That(profile.SupplyAheadMaxPending, Is.EqualTo(id == "aggressive_s5_pd" ? 3 : 1), id);
             }
             DataValidationException range = Expect.Throws<DataValidationException>(() => Hand("aggressive_s5_pd", "\"income_window_seconds\": 60", "\"income_window_seconds\": 5"));
             Assert.That(range.Message, Does.Contain("income_window_seconds"));
@@ -508,10 +642,12 @@ namespace Rts.Sim.Tests.Ai
         public void Off2_OldBehaviourAndDraws()
         {
             AiProfile baseline = AiProfile.FromDataSet(Data, "aggressive_s5_m");
-            AiProfile twin = AiProfile.Parse(ProfileText("aggressive_s5_m").Replace("\"income_window_seconds\": 60", "\"income_window_seconds\": 120").Replace("\"production_capacity_target\": 1,", "\"production_capacity_target\": 2,"),
+            AiProfile twin = AiProfile.Parse(ProfileText("aggressive_s5_m").Replace("\"income_window_seconds\": 60", "\"income_window_seconds\": 120").Replace("\"production_capacity_target\": 1,", "\"production_capacity_target\": 2,").Replace("\"supply_ahead_max_pending\": 1", "\"supply_ahead_max_pending\": 6"),
                 "ai/aggressive_s5_m.json", Data.Content);
             Assert.That(twin.UseProductionCapacity, Is.False);
             Assert.That(twin.IncomeWindowSeconds, Is.EqualTo(120));
+            Assert.That(twin.UseSupplyAhead, Is.False);
+            Assert.That(twin.SupplyAheadMaxPending, Is.EqualTo(6));
             Assert.That(Trace(twin, twin), Is.EqualTo(Trace(baseline, baseline)));
         }
     }

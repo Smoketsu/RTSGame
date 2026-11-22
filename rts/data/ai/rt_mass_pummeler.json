@@ -384,6 +384,10 @@
   "income_window_seconds": 60,
   // Rule PC: producer capacity (common per minute the producers can turn into units) wanted per unit of army income (common per minute). Unit: fraction. Range: 0.1 to 3. Source: rts/docs/specs/ai_production_defence.md section 3; placeholder.
   "production_capacity_target": 1,
+  // Rule SA: another supply structure may be ordered while one is under construction when what the producers can train during one supply build would fill the cap. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_production_defence.md section 4; placeholder.
+  "use_supply_ahead": false,
+  // Rule SA: most supply structures under construction or ordered at once. Unit: structures. Range: 1 to 8. Source: rts/docs/specs/ai_production_defence.md section 4; placeholder.
+  "supply_ahead_max_pending": 1,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

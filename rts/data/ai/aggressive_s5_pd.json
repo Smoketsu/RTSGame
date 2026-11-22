@@ -1,4 +1,4 @@
-// rts/data/ai/aggressive_s5_pd.json: candidate of rts/docs/specs/ai_production_defence.md: a copy of aggressive_s5_m.json with id changed and use_production_capacity true (candidate income window and capacity target); each later package turns its own switch on here. Its off-copy for comparison is aggressive_s5_m.
+// rts/data/ai/aggressive_s5_pd.json: candidate of rts/docs/specs/ai_production_defence.md: a copy of aggressive_s5_m.json with id changed, use_production_capacity and use_supply_ahead true (candidate income window, capacity target and pending cap); each later package turns its own switch on here. Its off-copy for comparison is aggressive_s5_m.
 {
   "$schema_version": 1,
   "$doc": "Package AI-E profile (aggressive_s4r plus the saturation economy of field_saturation.md E1 and E2); the AI-P switches (P1, P2) are off since 19 Nov 2026 after the AI-P gate failed, see docs/reports/ai_p/README.md. Every number is a placeholder.",
@@ -384,6 +384,10 @@
   "income_window_seconds": 60,
   // Rule PC: producer capacity (common per minute the producers can turn into units) wanted per unit of army income (common per minute). Unit: fraction. Range: 0.1 to 3. Source: rts/docs/specs/ai_production_defence.md section 3; placeholder.
   "production_capacity_target": 1,
+  // Rule SA: another supply structure may be ordered while one is under construction when what the producers can train during one supply build would fill the cap. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_production_defence.md section 4; placeholder.
+  "use_supply_ahead": true,
+  // Rule SA: most supply structures under construction or ordered at once. Unit: structures. Range: 1 to 8. Source: rts/docs/specs/ai_production_defence.md section 4; placeholder.
+  "supply_ahead_max_pending": 3,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

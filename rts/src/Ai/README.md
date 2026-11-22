@@ -40,7 +40,7 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiAbilities.cs` | Casts (ai_mechanic_use.md P1, `use_casts`): `ChooseGrounding` (Downdraft centre) and `ChooseWave` / `WaveTiles` (wave direction); rules CG and CW in `AiBrain` call them right after unit control |
 | `AiWallLines.cs` | Authored wall lines (ai_mechanic_use.md P4): the parsed `ai/walls/<map id>.json` (`AiMapWalls`, `AiWallArea`, `AiWallLine`), `Parse` (validation against the map and tuning) and `HeldAreas` (which areas the AI holds, from its own units); attached to a profile by `AiProfile.FromDataSet` as `WallLines` |
 | `AiBrainWalls.cs` | Rule WL (`use_walls`): a partial of `AiBrain`'s `Turn` that orders `build_wall_line` and gates on the held areas' lines from spare money within `wall_max_spend_common` |
-| `AiBrainProduction.cs` | Rules RR and PC (`use_production_capacity`, ai_production_defence.md PD-1): a partial of `AiBrain`'s `Turn` with the capacity helpers (`Producible`, `RateOf`, `CapOfProducer`, `IncomePerMinute`, `WorkerRate`) and rule PC (a producer is built while producer capacity is below the measured army income; replaces rule X); `AiMemory.DepositLog` holds the income |
+| `AiBrainProduction.cs` | Rules RR, PC and SA (`use_production_capacity`, `use_supply_ahead`, ai_production_defence.md PD-1 and PD-2): a partial of `AiBrain`'s `Turn` with the capacity helpers (`Producible`, `RateOf`, `CapOfProducer`, `IncomePerMinute`, `WorkerRate`) and rule PC (a producer is built while producer capacity is below the measured army income; replaces rule X); `AiMemory.DepositLog` holds the income |
 | `AiBudget.cs` | Package B: the budget queue arithmetic on arrays (Open, Distribute, Close, the defence ceiling, the rare surplus helpers) |
 | `AiBrainBudget.cs` | Package B: the Open and Close steps of a think and the buying helpers of the six queues (part of `AiBrain.Turn`) |
 | `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
@@ -124,3 +124,7 @@ determinism review.
   `TryBuild` and `BuyResearch` reserves only the rare part), and rule PC replaces rule X: one producer is built while the producers' capacity is below
   the measured army income (`AiMemory.DepositLog`, written by `SkirmishAiController.ReadEvents`). Only `aggressive_s5_pd` has it on (a copy of
   `aggressive_s5_m`; its off-copy is `aggressive_s5_m`).
+- Supply ahead (rts/docs/specs/ai_production_defence.md package PD-2, `AiBrainProduction.cs`): the root keys `use_supply_ahead` and `supply_ahead_max_pending`
+  (every profile carries them; the old values false and 1 play exactly as before). With the switch on, rule SA (in `Structures`, after rule 3a) orders one more
+  supply structure while others are pending when the supply the producers can add during one supply build would not fit under the cap, up to
+  `supply_ahead_max_pending` at once, only when it can be paid now. Only `aggressive_s5_pd` has it on (3).

@@ -1,6 +1,6 @@
 // rts/src/Ai/AiBrainProduction.cs
-// Production capacity rules of the skirmish AI (rts/docs/specs/ai_production_defence.md package PD-1, only with use_production_capacity): the section 2 helpers (Producible, RateOf, CapOfProducer,
-// IncomePerMinute, WorkerRate), the deposit log pruning, rule RR's money test and rule PC (build a producer while producer capacity is below army income; replaces rule X). Part of Rts.Ai (a partial of AiBrain's Turn).
+// Production capacity and supply rules of the skirmish AI (rts/docs/specs/ai_production_defence.md packages PD-1, only with use_production_capacity, and PD-2, only with use_supply_ahead): the section 2 helpers (Producible, RateOf, CapOfProducer,
+// IncomePerMinute, WorkerRate), the deposit log pruning, rule RR's money test, rule PC (build a producer while producer capacity is below army income; replaces rule X) and rule SA (order a supply structure ahead of what the producers can use). Part of Rts.Ai (a partial of AiBrain's Turn).
 // Reads only the view, the profile and memory (the deposit log holds the player's own deposits). No random draw. Integers and Fix64 only; own structures walked in the ascending ID order of the planned list.
 using System;
 using System.Collections.Generic;
@@ -205,16 +205,81 @@ namespace Rts.Ai
                 {
                     return;
                 }
-                // True when the structure can be paid now, so nothing is reserved (spec step 8).
-                // A resource the structure does not cost is not checked (as in CanPay and TryBuild): a rare reservation never blocks a common-only structure.
-                bool payable = _bq
-                    ? (structure.CostCommon == 0 || _memory.BudgetAccounts[AiBudget.Cell(AiBudget.Production, AiBudget.Common)] + FreeCommon() >= structure.CostCommon)
-                        && (structure.CostRare == 0 || _memory.BudgetAccounts[AiBudget.Cell(AiBudget.Production, AiBudget.Rare)] + FreeRare() >= structure.CostRare)
-                    : CanPay(structure);
-                if (payable)
+                if (PayableNow(structure, AiBudget.Production))
                 {
                     TryBuild(structure, null, true, AiBudget.Production);
                 }
+            }
+
+            /// <summary>
+            /// True when <paramref name="definition"/> can be paid now, so nothing needs reserving (rule PC step 8, rule SA step 4): the stock minus reservations (<see cref="CanPay"/>), or with budget queues the queue's account plus the free money.
+            /// A resource the definition does not cost is not checked.
+            /// </summary>
+            /// <param name="definition">The structure.</param>
+            /// <param name="queue">Budget queue that would pay (used only with budget queues). Range: 0 to 5.</param>
+            private bool PayableNow(UnitDefinition definition, int queue)
+            {
+                if (!_bq)
+                {
+                    return CanPay(definition);
+                }
+                return (definition.CostCommon == 0 || _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Common)] + FreeCommon() >= definition.CostCommon)
+                    && (definition.CostRare == 0 || _memory.BudgetAccounts[AiBudget.Cell(queue, AiBudget.Rare)] + FreeRare() >= definition.CostRare);
+            }
+
+            /// <summary>
+            /// Rule SA (spec section 4), after rule 3a: orders one more supply structure when the supply the producers can use during one supply build would not fit under the cap. Reserves nothing.
+            /// </summary>
+            private void SupplyAhead()
+            {
+                // Supply of the supply structures under construction or ordered, and their number. Unit: supply and structures. Range: 0 upward.
+                int pendingSupply = 0;
+                int pending = 0;
+                foreach (AiUnitView unit in _planned)
+                {
+                    if (unit.IsStructure && unit.IsUnderConstruction && unit.Definition.Economy.ProvidesSupply > 0)
+                    {
+                        pendingSupply += unit.Definition.Economy.ProvidesSupply;
+                        pending++;
+                    }
+                }
+                if (pending >= _profile.SupplyAheadMaxPending || _view.SupplyCap + pendingSupply >= _view.SupplyCapLimit)
+                {
+                    return;
+                }
+                // The supply structure and the ticks one takes to build. Unit: definition and ticks (1 upward).
+                UnitDefinition supplyBuilding = _view.Content.Units[_plan.SupplyBuildingId];
+                int buildTicks = BuildTicks(supplyBuilding);
+                // Supply the producers can add during one supply build (N). Unit: supply. Range: 0 upward.
+                int need = 0;
+                foreach (AiUnitView producer in _view.OwnUnits)
+                {
+                    if (!producer.IsStructure || producer.IsUnderConstruction)
+                    {
+                        continue;
+                    }
+                    // Largest supply this producer can add during one supply build, over its producible units. Unit: supply. Range: 0 upward.
+                    int best = 0;
+                    foreach (string trained in producer.Definition.Economy.Trains)
+                    {
+                        if (Producible(trained))
+                        {
+                            UnitDefinition unit = _view.Content.Units[trained];
+                            best = Math.Max(best, (_view.SupplyOf(unit) * buildTicks + BuildTicks(unit) - 1) / BuildTicks(unit));
+                        }
+                    }
+                    need += best;
+                }
+                if (WorkerRate() > 0)
+                {
+                    UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
+                    need += (buildTicks + BuildTicks(worker) - 1) / BuildTicks(worker) * _view.SupplyOf(worker);
+                }
+                if (_view.SupplyCap + pendingSupply - _view.SupplyUsed >= need + _profile.SupplyBuffer || !PayableNow(supplyBuilding, AiBudget.Economy))
+                {
+                    return;
+                }
+                TryBuild(supplyBuilding, null, false, AiBudget.Economy);
             }
         }
     }

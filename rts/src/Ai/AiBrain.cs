@@ -38,6 +38,8 @@
 //      skipped). Own pending build orders (a worker walking to a site or placing) count as structures under construction at their site
 //      tile, for the supply, build order, tech, static defence and depot rules; their tiles are never offered again. A site the team has
 //      never seen (site_unexplored) is first scouted: the builder is sent to the site centre and the build waits for the next attempt.
+//   3a'. Supply ahead (ai_production_defence.md PD-2, AiBrainProduction.cs, only with use_supply_ahead): after rule 3a, one more supply structure when the cap plus the supply structures under construction or ordered, less
+//      the supply used, is below what the producers can train during one supply build plus supply_buffer, the cap limit is not reached, fewer than supply_ahead_max_pending are pending and it can be paid now (no reservation).
 //   3b. Tech on demand (rule T, skirmish_ai_v3.md C.5, only when use_tech_on_demand): the counter-mix unit with the largest weight that no
 //      own structure trains gets its producer built (rule X's choice of structure) when its weight is at least tech_min_weight_share x
 //      mix_resolution and no producer of a mix unit is under construction.
@@ -1561,6 +1563,10 @@ namespace Rts.Ai
                 if (!supplyPending && _view.SupplyCap - _view.SupplyUsed <= _profile.SupplyBuffer && _view.SupplyCap < _view.SupplyCapLimit)
                 {
                     TryBuild(_view.Content.Units[_plan.SupplyBuildingId], null, false, AiBudget.Economy);
+                }
+                if (_profile.UseSupplyAhead)
+                {
+                    SupplyAhead();
                 }
                 foreach (AiBuildStep step in _plan.BuildOrder)
                 {
