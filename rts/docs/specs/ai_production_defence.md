@@ -1,8 +1,8 @@
 <!-- rts/docs/specs/ai_production_defence.md -->
-<!-- Build spec, revision 1 (22 Nov 2026): the skirmish AI's production capacity and its defence of workers and bases under raid. Written after the developer's decision of 22 Nov that the next AI job is the Water AI's production and worker defence (Skai beat Water 72 of 72 on prototype_1v1 in reports/ai_m, ai_r and balance_first). Verifies the reported causes against the code and data, then specifies four faction-neutral packages behind four profile switches (use_production_capacity, use_supply_ahead, use_raid_workers, use_raid_response), off in every existing profile and on in one new candidate aggressive_s5_pd, plus a harness metrics package. No rts/src/Sim change, no unit, combat, economy, map or tuning number change, no pin moves. Behaviour bars on prototype_1v1 are fixed in section 9 before any run. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by the sim-reviewer after each package. Continues proposals/P-006 (takes slices of packages E and S, section 10). -->
+<!-- Build spec, revision 1 (22 Nov 2026): the skirmish AI's production capacity and its defence of workers and bases under raid. Written after the developer's decision of 22 Nov that the next AI job is the Water AI's production and worker defence (Skai beat Water 72 of 72 on prototype_1v1 in reports/ai_m, ai_r and balance_first). Verifies the reported causes against the code and data, then specifies four faction-neutral packages behind four profile switches (use_production_capacity, use_supply_ahead, use_raid_workers, use_raid_response), off in every existing profile and on in one new candidate aggressive_s5_pd, plus a harness metrics package. No rts/src/Sim change, no unit, combat, economy, map or tuning number change, no pin moves. Behaviour bars on prototype_1v1 are fixed in section 9 before any run. Part of rts/docs/specs (index: README.md); built by a Sonnet builder, reviewed by the sim-reviewer after each package. Continues proposals/P-006 (takes slices of packages E and S, section 10). Revision 2 (23 Nov 2026, section R2 at the end): diagnosis of run C1's failed bars and a delta to rules RS, RW and RA (raid memory per field, raids kept alive by visible raiders, hits on units that died between thinks, a sticky per-raid answer, a fresh common-full test), plus a reported-only harness metric; sections 0 to 11 stay as built. -->
 # Spec: production capacity and raid defence for the skirmish AI
 
-**Revision 1, 22 Nov 2026**, written against `main` at `20858f2`. No run has been made under it.
+**Revision 1, 22 Nov 2026**, written against `main` at `20858f2`; built and measured (`reports/ai_pd/`). **Revision 2, 23 Nov 2026**, written against `main` at `4d4e506`: section R2 at the end of this file, a delta on the built code; it changes nothing in sections 0 to 11 except where R2 says so.
 
 Sources: developer decision of 22 Nov (next AI job: Water's production and worker defence; roster numbers frozen); `proposals/P-006-ai-built-for-balancing.md` (packages E and S, both paused); `proposals/P-005` (unit and combat numbers frozen; AI-versus-AI win rates are not read as balance); `specs/ai_mechanic_use.md` (form, switches, pins); `specs/skirmish_ai_v4.md` package F (raid response; built on branch `review/ai-v4-f`, failed its gate) and its report `reports/ai_v4_f/README.md` on that branch (the water-mirror diagnosis of rule WS); `reports/ai_m/README.md`, `reports/ai_m/balance/balance.jsonl`, `reports/ai_m/trace_*.txt`; `reports/ai_r/balance/balance.jsonl`; `reports/balance_first/`. Code read: `rts/src/Ai/AiBrain.cs` (header, `Decide`, `Turn` constructor, `Gather`, `Structures`, `TryBuild`, `BuyResearch`, `UpdateRaids`, `StaticDefence`, `WantedWorkers`, `TrainWorkers`, `Produce`, `TrainSupport`, `FindFreeProducer`, `ExtraProducer`, `ProducerStructureFor`, `Army`, `ScanThreat`, `DefendIfThreatened`, `IsInsideBase`, `Mass`), `AiBrainFight.cs` (`PredictedAttack`, `MeasuredDefence`), `AiCounter.cs` (header, `Pool`), `AiWorldView.cs`, `AiMemory.cs`, `SkirmishAiController.cs` (`Think`, `ReadEvents`); Sim (public reads only): `Economy/EconomyRules.cs` (`BuildTicks`, `FirstMissingRequirement`), `Units/UnitEconomyDefinition.cs`, the event classes `ResourceDepositedEvent`, `UnitDamagedEvent`, `UnitKilledEvent`, `UnitTrainedEvent`; harness `SummaryObserver.cs`; data `ai/aggressive_s5_m.json`, every `units/*/*.json`, `tuning/supply.json`, `tuning/match.json`, `scripts/ai_eval/ai_eval.json`.
 
@@ -303,3 +303,204 @@ Each package: Sonnet `builder`; `dotnet build` with no warnings and `dotnet test
 - **Q-5. Supply ahead (SA) is in this job.** It mostly changes Skai (supply-capped from about 240 s with 1000 to 4000 common idle), so Skai's army grows too. *Default applied: yes, behind its own switch, so it can be measured or left off separately.* Alternative: drop SA and judge PD-B4 for Water cells only.
 - **Q-6. Bars are judged per (faction, matchup) cell, with the same formula for every cell.** The mirror cells mostly act as non-regression checks because their baselines are lower. *Default applied: yes.* Alternative: judge only the cross-faction cells.
 - **Q-7. The "unanswered raid" bar counts only seconds in which the defender had at least the raiders' army supply.** A defender with less army is not blamed for holding (Q-3). *Default applied: yes.* Alternative: count every unanswered raid second.
+
+---
+
+# R2. Revision 2 (23 Nov 2026): raid rules RS, RW and RA
+
+A delta on the built code of packages PD-3 and PD-4 (`rts/src/Ai/AiBrainRaids.cs`, `AiBrainFight.cs` `MeasuredDefence`, `AiBrain.cs` `UpdateIntel` and the `Turn` constructor, `AiMemory.cs`, `SkirmishAiController.cs` `ReadEvents`) plus one reported-only harness metric. Rules RR, PC and SA, every key value, every bar and every unit, combat, economy or map number are unchanged. No new switch and no new profile key: every change runs only when `use_raid_workers` or `use_raid_response` is true (as section 5 and 6 code does today), so with both false every profile plays bit for bit as on `4d4e506` and no pin moves.
+
+Sources added for this revision: `reports/ai_pd/README.md` (run C1), `reports/ai_pd/baseline/README.md` (run B0), `reports/ai_pd/balance/balance.jsonl` and `baseline/balance.jsonl` (per-slot records), the three C1 traces in `reports/ai_pd/`, the B0-candidate traces in `reports/ai_m2/`, and 24 extra traces made for this diagnosis (not committed; reproduce with the command in R2.0.4): games 0 to 11 of `skai_vs_water` at the run's base seed 20261121, once with `aggressive_s5_m` (B0) and once with `aggressive_s5_pd` (C1) in both seats. Each extra trace's seed equals the seed of the same game in `balance.jsonl` (checked for game 0: 13859732737029828365). Water is P1 in even games and P0 in odd games.
+
+## R2.0 Diagnosis: why PD-B1, PD-B2, PD-B3 and PD-B6 failed
+
+Values marked **(sample)** come from the 12 + 12 extra traces (30 s lines), not from the 72-game cells; values marked **(cell)** come from `balance.jsonl`; **inference** marks a cause that fits the data but is not printed by any trace or metric (the traces do not print raid state).
+
+### R2.0.1 (a) Rule flaws: all five confirmed in the code, plus the mechanism of H3
+
+| # | Flaw | Where (on `4d4e506`) | Effect |
+| --- | --- | --- | --- |
+| H1 | One raid position per drop-off, overwritten by each newer hit or loss | `AiBrainRaids.cs` lines 94 to 97; `NearRaid` lines 175 to 191 tests fields against that one position | A field raiders still stand on reopens when the newest hit is more than `raid_field_radius_tiles` (8) from it, typically when raiders chase a fleeing worker to the next field. |
+| H2 | Expiry `raid_active_seconds` (10 s) after the last hit or loss, with no look at the raiders | lines 99 to 114 | Evacuation works against the raid: once no worker is left to hit, the raid ends 10 s later and the idle-worker loop of `Gather` sends workers back to raiders that never left. |
+| H3 | A worker trained and killed between two thinks is never counted | `UpdateIntel` (`AiBrain.cs` lines 640 to 660) runs before `Raids` and removes every `RecentDamage` report whose unit is no longer alive; `OwnWorkerPositions` holds only workers seen at the last think | Revision 1's step 2 clause "or a unit no longer in the view" can never fire (its reports are already gone). A worker that is new since the last think and dies before the next leaves no hit and no loss. With `think_interval_seconds` 0.5 this is rare (a worker killed within 10 ticks of spawning, at the HQ), so its share of the losses is small; it is still a hole in a rule that exists to stop feeding the raid. |
+| H4 | Rule RA answers only the newest raid | `MeasuredDefence` (`AiBrainFight.cs` lines 631 to 645) with `NewestRaid` (`AiBrainRaids.cs` lines 120 to 138) | (i) Two raids hit in turn swing the newest choice, and with it every defender's goal, between drop-offs from think to think. (ii) When the newest raid is predicted short the whole defence holds at home even if an older raid elsewhere could be won; that raid is unanswered (PD-B3). |
+| H5 | `_commonFull` is computed in the `Turn` constructor (`AiBrain.cs` lines 1007 to 1017) through `CapOf`, which reads `IsClosed`, before `Raids` updates the raid memory | `Decide` order, `AiBrain.cs` lines 243 to 247 | With `rare_cap_yields_to_saturation` (true in the candidate) `RareCapped`, and so the rare fields' caps, use the raid state of the previous think for the whole think. |
+
+Evidence that the raid rules did not work even before the overrun (sample): raid-phase Water worker losses per game (definition in R2.0.2) have median **14 in B0 and 14.5 in C1**. The rules moved losses later in the published C1 trace but did not reduce the raid-phase total. Fitting H1 and H2 (inference): C1 traces show idle spikes followed by losses on the next lines (game 2: idle 10 at 330 s, then 4 and 6 tenders lost at 360 and 390 s; game 7: idle 13 and 9 at 300 and 330 s, then 3 and 6 lost at 360 and 390 s), the pattern of workers evacuated, the raid expiring and the workers returning.
+
+Fed losses (PD-B1, Water cross 6 and 6): rule RW stops training only for closed fields, and H1 and H2 reopen them while raiders remain, so replacements are trained and walk back (inference). Fed losses during the overrun (R2.0.2) also count.
+
+### R2.0.2 (b) Losses the raid rules cannot fix: the base overrun by Skai's main army
+
+Definition used here (trace lines, a heuristic): a Water loss is **overrun** when it falls in a 30 s line in which Skai's stance is `Attack` with at least 8 attack-moving units whose centre is within 30 tiles of Water's HQ, or in the line in which Water's HQ is gone; every other loss is **raid-phase**.
+
+| Sample (12 games each) | Water worker losses | of which overrun | share |
+| --- | --- | --- | --- |
+| B0 (`aggressive_s5_m`) | 344 | 178 | 52% |
+| C1 (`aggressive_s5_pd`) | 323 | 164 | 51% |
+| Published C1 trace (`reports/ai_pd/trace_skai_vs_water.txt`) | 40 | 27 (480 to 539 s, Skai's third attack, 48 of 51 units attack-moving at 510 s) | 68% |
+
+So **about half of Water's worker losses against Skai fall in the overrun (inference from the sample, heuristic cut)**. The trace counts run to the game end; the cell metric stops at 600 s, which cuts only the two B0 sample games longer than 600 s.
+
+The overrun also came sooner in C1, which moves the PD-B6 window: Water-cross games end at a median of **556 s in B0 and 485 s in C1 (cell, 72 games)**; the HQ siege (first HQ damage to death) has a median of 40 s in B0 and 20 s in C1 (cell); Skai's first `Attack` stance comes at a median of **302 s in B0 and 230 s in C1 (sample)**. Both seats play the candidate, so Skai also gains rules PC, SA and RA. Skai's army at 300 s is the same (median 20.5 units in both, sample), so the earlier attack is not a larger Skai army. Inference: Water's rule RA hold keeps its army home, so Skai's raiders survive (B0 traces show Skai's army shrinking between 240 and 300 s in 2 of 12 games; in C1 traces it grows in all 12) and Skai's attack predictor sees a weaker defence sooner.
+
+### R2.0.3 (c) The income drop PD-B6 (Water cross, 1645 to 1317.5)
+
+Sample medians over the 240, 270 and 300 s lines (income summed over 240 to 300 s):
+
+| | B0 | C1 | Reading |
+| --- | --- | --- | --- |
+| common income 240 to 300 s | 1545 | 1282.5 | -17%, the cell's drop (-20%) reproduced |
+| workers alive | 19.0 | 19.3 | **not fewer workers** |
+| tenders lost 180 to 300 s | 5 | 4 | **not lost workers** |
+| tenders trained 180 to 300 s | 10 | 8 | fewer trained (closed fields lower `WantedWorkers`) but offset by fewer losses |
+| idle workers per line | 0.7 | 2.0 | about 7% of the workforce idle: **evacuation idling** |
+| common per gathering worker (per minute) | 86.5 | 80.8 | about 7% lower yield per worker; inference: evacuees walking to farther open fields and crowding them above their caps (the trace counts a walking worker as gathering) |
+| rare income 240 to 300 s | 132.5 | 202.5 | about one worker more on rare; a rule RR and PC effect, not a raid effect |
+
+So PD-B6 fell from **evacuation (idle workers and longer trips) and a small shift to rare, not from fewer or lost workers** (inference for the split; the totals are measured). Revision 2 keeps closed fields closed longer (H1, H2), which can idle more workers; PD-B6 stays the guard for that.
+
+### R2.0.4 Reproducing the sample
+
+```
+dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --trace --map prototype_1v1 --matchup skai_vs_water --seed 20261121 --game <0..11> --profile-a <aggressive_s5_m|aggressive_s5_pd> --profile-b <same> --out <file>
+```
+
+## R2.1 Rule changes (delta)
+
+Ground rules of section 0 apply unchanged (fog, commands, determinism, no new random draw, AI memory not hashed). Every new memory member below is written only when `use_raid_workers` or `use_raid_response` is true, except `DamageReport.IsArmy` (R2.1.3), which is written always and read only by rule RS.
+
+### R2.1.1 Rule RS: fields stay closed for the whole raid (fixes H1)
+
+New memory: `RaidClosedFields` (`SortedDictionary<EntityId, SortedSet<int>>`; key an own drop-off with an active raid, value the indices of the fields that raid has closed; field indices 0 to field count - 1).
+1. In `Raids`, after the hits and losses are applied (section 5.1 step 3) and before expiry: for each `RaidHits` entry (ascending drop-off ID), add to its set every field index (ascending) whose centre is within `raid_field_radius_tiles` of the entry's position (squared `Fix64`, as `NearRaid`). Sets only grow while the raid is active.
+2. When an entry leaves `RaidHits` (expiry or drop-off gone), its set is removed in the same loop.
+3. `IsClosed(field)` becomes: `use_raid_workers` and some set in `RaidClosedFields` contains `field.Index`. `NearRaid(Home())` (evacuation's "home is safe" test, section 5.2 step 3) keeps its position test unchanged.
+
+`RaidHits` keeps its type and meaning (newest hit tick and position per drop-off), so rule RA's ordering and tests RS-1 and RS-3 are unchanged.
+
+### R2.1.2 Rule RS: visible raiders keep an existing raid alive (fixes H2)
+
+New memory: `RaidSeenTick` (`SortedDictionary<EntityId, int>`; key an own drop-off with an active raid, value the last think tick at which a raider was seen in its area; ticks, 0 to now).
+1. In `Raids`, after R2.1.1 step 1 and before expiry: for each `RaidHits` entry (ascending ID), when any `VisibleEnemies` unit with `IsArmy` is within `raid_field_radius_tiles` of the entry's position or of the centre of any field in its `RaidClosedFields` set (squared `Fix64`), set `RaidSeenTick[d] = now`.
+2. Expiry (section 5.1 step 4) becomes: remove the entry when the drop-off is no longer an own unit, or when both its hit tick and its `RaidSeenTick` (when present) are below `now - SecondsToTicks(raid_active_seconds)`. Remove its `RaidSeenTick` and `RaidClosedFields` entries with it.
+3. **A sighting never creates a raid** and never changes a `RaidHits` tick or position; only an entry made by a hit or a loss can be kept alive. Package F's failure (raids from sightings) stays excluded, and an expired raid is not revived by a later sighting.
+
+### R2.1.3 Rule RS: hits on units that died between thinks (fixes H3)
+
+1. `DamageReport` gains `IsArmy` (boolean): `SkirmishAiController.ReadEvents` sets it each time it writes a report, with the predicate of `AiUnitView.IsArmy` applied to the target's definition (footprint 0, no `Hq`, cannot gather). Nothing reads it when both raid switches are off.
+2. New memory: `RaidCarriedHits` (`List<(int Tick, FixVec2 Position)>`, ticks and tiles). In `UpdateIntel`'s `RecentDamage` prune, when a raid switch is on, each report removed because its unit is not alive (not for age), with `Tick > RaidScanTick` and `IsArmy` false, is appended in the prune loop's order (ascending unit ID).
+3. `Raids` step 2: after the `RecentDamage` hits, append the carried hits in list order; then clear the list. Section 5.1 step 3 applies to them unchanged (nearest drop-off within `defend_radius_tiles`, a later-or-equal tick replaces). Workers seen at the last think and now gone are still losses as before; a hit carried for the same worker is harmless (same drop-off, the loss's tick is later and wins).
+4. Known limit (stated in the code as a shortcut comment): a unit killed by its first hit leaves no report (`ReadEvents` drops hits on units already removed), so a worker new since the last think and killed by a single hit is still uncounted.
+
+### R2.1.4 Rule RA: one answer per raid, sticky, and the first raid that can be won (fixes H4)
+
+New memory: `RaidAnswered` (`EntityId`, the drop-off of the raid the defence answered at the last think; `EntityId.None` at start). Cleared to `None` in `Raids` when its entry is removed.
+
+Replaces section 6 step 1 when an active raid exists (no active raid: unchanged):
+1. **Order.** The raid `RaidAnswered` names, if still active, comes first; then the other active raids by hit tick descending, ties to the lower drop-off ID.
+2. **First winnable raid.** For each raid in that order whose `ThreatsNear(position)` is not empty: centre = mean of those threats; candidates sorted and truncated as today against this centre; fixed side = static defences within `engagement_radius_tiles` of this centre plus the HQ when `HqCovers(centre)`; then the existing candidate loop. The first raid that reaches `enough` is answered: its threats, centre and chosen units go on through the existing recall and order code; `RaidAnswered` = its drop-off.
+3. **None winnable.** When some raid has threats and none reaches `enough`: hold (section 6 step 3) with every candidate of the first such raid in the order; `RaidAnswered` = that raid.
+4. **No raid has visible threats.** The existing blind branch (`defend_blind_supply`) toward the position of the first raid in the order; `RaidAnswered` = that raid.
+5. Predictor calls per think: at most (active raids) x (`defend_max_candidates` + 1). No random draw; every tie is stated above.
+
+Threats in the base that are near no active raid stay for later thinks, as in revision 1.
+
+### R2.1.5 A fresh common-full test after the raid scan (fixes H5)
+
+Move the loop that sets `_commonFull` (`AiBrain.cs` lines 1009 to 1016) into a private method; the constructor calls it as today, and `Raids` calls it again at its end when `use_raid_workers` and `rare_cap_yields_to_saturation` are both true. `_assignedAtStart` is unchanged (it reads only the view). Rules before `Raids` (`Hq`, `Cycle`) do not read `CapOf`, `RareCapped` or `IsClosed` on `4d4e506`; the builder confirms this and reports any read found.
+
+### R2.1.6 Unchanged
+
+Rule RW's evacuation, training and field-choice parts (section 5.2) apply as written, now through the new `IsClosed`. Rule RA steps 2 to 4 (HQ joins, hold, recall) are unchanged. Keys, validation and profiles: unchanged.
+
+## R2.2 Harness: the alternative reading, reported only (package PD-M2, `rts/tools` only)
+
+Needed only so the measurement can print both readings of the question R2-Q1; no bar reads it.
+
+New per-slot keys in `balance.jsonl` (appended):
+
+| JSON key | Meaning | Unit |
+| --- | --- | --- |
+| `overrun_second` | first whole second up to T at which the supply of enemy army units (mobile, not worker, not HQ) within `raid_radius_tiles` of the slot's HQ or of any own drop-off is at least `overrun_supply`; null when never. Once reached, every later second counts as overrun (no reset). The harness sees everything; measurement only. | seconds |
+| `worker_losses_pre_overrun` | `worker_losses` with kill tick before `overrun_second` (all of them when null) | workers |
+| `worker_fed_losses_pre_overrun` | the same cut applied to `worker_fed_losses` | workers |
+
+New setting in `rts/data/scripts/ai_eval/ai_eval.json` with the house comment line (`// Overrun cut of the reported-only alternative reading: enemy army supply near the slot's base that marks the main attack, not a raid. Unit: supply. Range: 1 to 200. Source: rts/docs/specs/ai_production_defence.md R2.2; placeholder.`): `overrun_supply` **20** (placeholder: the traced Skai raids are 4 to 8 one-supply Windrunners, the main attacks 30 units and more). `BalanceReport` prints the cell medians of the three keys beside the existing table.
+
+## R2.3 Tests
+
+In `rts/tests/Sim.Tests/Ai/AiRaidDefenceTests.cs`, raid common setup of section 8 (greybox fields 0 at (4, 10), 1 at (10, 4), 6 at (21, 10), 7 at (21, 4); depot at (18.5, 7.5)), `Hand()` profiles, hits fed as `ReadEvents` does unless the test says otherwise. Each test names the revision-1 result, so the reviewer can confirm it fails on `4d4e506` and passes after PD-R2.
+
+**H1**
+- **R2-H1-1 Closed field stays closed while the raid moves.** After RS-1 (raid at the depot from a hit on field 6; fields 6 and 7 closed), write a `RecentDamage` report (tick now, `IsArmy` false) for a live P0 fledgling with position (14.5, 15.5) (nearer the depot than the HQ, within 12 tiles of the depot, more than 8 from the centres of fields 6 and 7; the builder confirms this against `greybox_1v1.json` and lists any field within 8 tiles of it, which joins the set). Decide. Expected: `RaidHits[depot]` position is (14.5, 15.5); `RaidClosedFields[depot]` holds 6 and 7; `AiBrain.Probe(...).ServedCaps` shows cap 0 for fields 6 and 7; no `Gather` intent names 6 or 7. Revision 1: fields 6 and 7 reopen (cap above 0).
+- **R2-H1-2 Sets go with the raid.** After R2-H1-1, raiders gone, step past `raid_active_seconds` and Decide: `RaidClosedFields` empty; field 6's cap above 0.
+
+**H2**
+- **R2-H2-1 A visible raider keeps the raid.** After RS-1 and RW-1, step until the three workers have left field 6 (assert no new damage report after the RS-1 hit; the Windrunner at (21.5, 12.5) is 5.8 tiles from the depot, out of its range 4) and until 11 s after the hit tick. Decide: the raid is still active, its `RaidHits` tick is the RS-1 hit tick, `RaidSeenTick[depot]` is this think's tick, field 6 is closed. Revision 1: raid gone (RS-4). Then move the raider to (60, 60) and step: at the first think 11 s after the last think that saw it, the raid is gone and field 6 reopens.
+- **R2-H2-2 No revival by sighting.** After RS-4's expiry, spawn a P1 Windrunner at (21.5, 12.5) and Decide before it fires: `RaidHits`, `RaidSeenTick` and `RaidClosedFields` empty; no worker re-ordered. RS-2 must also still pass unchanged.
+
+**H3**
+- **R2-H3-1 Hit on a worker that died between thinks.** `RecentDamage` holds a report for an ID not alive (9998), `IsArmy` false, tick now - 2, position (20.5, 9.5); `OwnWorkerPositions` does not hold 9998. Decide: `RaidHits[depot]` = (now - 2, (20.5, 9.5)); `RaidCarriedHits` empty after the think. Same with `IsArmy` true: `RaidHits` empty. Revision 1: `RaidHits` empty in both.
+- **R2-H3-2 ReadEvents marks army hits.** A real simulation with a P1 Windrunner hitting a P0 `skai.talon_archer` and, later, a P0 fledgling, read by a `SkirmishAiController` for P0: the archer's report has `IsArmy` true, the fledgling's false.
+- **R2-H3-3 Switches off.** R2-H3-1 with both raid switches false: `RaidCarriedHits` stays empty and the report is pruned as today.
+
+**H4** (Talon Archers of P0 and Windrunners of P1; the test computes each predictor advantage and asserts which side of `defend_min_advantage` it is on before asserting the orders)
+- **R2-H4-1 Sticky answer.** Raid A at the depot (hit on a field-6 worker, one Windrunner near it) and raid B at the HQ (hit on a field-0 worker 1 s later, one Windrunner near it); two P0 Talon Archers between them, enough for either. Think 1: answered B (newest), defenders' `AttackMove` goal is `Standable` of B's raider. Then a new hit at A (A becomes newest). Think 2: `RaidAnswered` is still B and the goal is unchanged (no new `AttackMove`). Revision 1: think 2 sends the defenders to A.
+- **R2-H4-2 A winnable older raid is answered.** Newest raid at the HQ with three Windrunners (two archers predicted short), older raid at the depot with one Windrunner (predicted enough). Expected: `AttackMove` toward the depot raider; no `Move` home; `RaidAnswered` = depot. Revision 1: hold (`Move` to `Standable(Home())`).
+- **R2-H4-3 All short holds.** Both raids with three Windrunners: hold as RA-2, every candidate in `DefendGroup`; `RaidAnswered` = the newest raid.
+- **R2-H4-4 Cleared on expiry.** After R2-H4-2, remove the depot raider and step past expiry: `RaidAnswered` is `EntityId.None` or names a still-active raid.
+- RA-1 to RA-4 must pass unchanged (each has one raid).
+
+**H5**
+- **R2-H5-1 Common-full read after the scan.** `rare_cap_yields_to_saturation` true, `RareCapActive` true, fields 0 and 1 filled to their caps, field 6 below its cap (so the constructor finds common not full), a hit this think that closes fields 6 and 7. After `Decide`, the common-full value (exposed as an `internal` read for tests, as PD-1's reservation probe) is true and a served rare field's cap is above 0 if the map has one in reach (the builder checks `greybox_1v1.json`; with no rare field in reach assert the common-full value only). Revision 1: false for this think.
+
+**Harness (PD-M2)**
+- **R2-M-1** Hand-built event stream: enemy army supply near the slot's HQ reaches 20 at 300 s; worker kills at 200 s and 350 s, the second worker trained at 320 s: `overrun_second` 300, `worker_losses` 2, `worker_losses_pre_overrun` 1, `worker_fed_losses` 1, `worker_fed_losses_pre_overrun` 0.
+- **R2-M-2** Observation only: same `state_hash` and `result` per game with and without the new keys (as H-4).
+
+**Determinism and off path**
+- **R2-D-1** R2-H1-1, R2-H2-1 and R2-H4-2 run twice from identical inputs: identical intents and memory (including the new members).
+- **OFF-1 and OFF-2** of section 8 hold unchanged; with both raid switches false the new memory members stay empty and `RaidAnswered` stays `None` over the traced game of OFF-2.
+- Every existing test in `AiRaidDefenceTests.cs` passes unchanged; if one cannot, stop and report rather than edit it.
+
+## R2.4 Measurement (fixed before any run)
+
+1. **Run B0b** (after PD-M2 merges, before any rule change): B0's command with `--profile aggressive_s5_m`, output `reports/ai_pd/baseline_r2/`. Check: every game's `state_hash` and `result` equal `reports/ai_pd/baseline/balance.jsonl`; if not, stop and report. It adds only the alternative-reading baselines; every bar's B0 stays the value recorded in `reports/ai_pd/baseline/README.md`.
+2. **Run C2** (after package PD-R2 merges): C1's command and seeds, `--profile aggressive_s5_pd`, output `reports/ai_pd/r2/`, plus the three traces.
+3. **Bars:** PD-B1 to PD-B7 exactly as section 9, C2 against B0, per cell. Not restated, not changed.
+4. **Reported, not judged:** everything section 9 reports; the R2-Q1 alternative reading, that is PD-B1's and PD-B2's formulas applied to `worker_fed_losses_pre_overrun` and `worker_losses_pre_overrun` (C2 against B0b), printed as "alternative reading, not a bar"; Water-cross median game end and HQ siege length; and from the three traces, idle workers per line at 210 to 330 s and the first Skai `Attack` stance.
+
+What the report will print under the two readings of PD-B2 (Water cross), so the developer can compare: as written, C2 against B0 31 (pass at 18 or below); alternative, C2's pre-overrun losses against B0b's pre-overrun value (not yet measured; the sample's raid-phase median of 14 suggests a limit near 8). Both readings are printed for every cell of PD-B1 and PD-B2; only the as-written one is judged unless the developer answers R2-Q1 otherwise before run C2.
+
+## R2.5 Build packages
+
+| Package | Contents | Tests | Depends on |
+| --- | --- | --- | --- |
+| **PD-M2 Overrun cut** | R2.2 in `SummaryObserver`, `GameSummary`, `BalanceReport`, `ai_eval.json`; then run B0b | R2-M-1, R2-M-2 | nothing |
+| **PD-R2 Raid rules** | R2.1.1 to R2.1.5 in `AiBrainRaids.cs`, `AiBrainFight.cs`, `AiBrain.cs`, `AiMemory.cs`, `SkirmishAiController.cs`; headers of every touched file, the `AiBrain.cs` header rule text for RS, RW and RA, `rts/src/Ai/README.md` | R2-H1-1 to R2-H5-1, R2-D-1, OFF-1, OFF-2 | nothing (PD-M2 before the run only) |
+| **PD-R2M Measurement** | R2.4 steps 2 to 4; `reports/ai_pd/r2/README.md` in the format of `reports/ai_pd/README.md` | none | PD-M2, B0b, PD-R2 |
+
+Sonnet `builder` for each; `sim-reviewer` after PD-R2 (determinism notes below).
+
+### Determinism notes for the sim-reviewer (revision 2)
+
+- New AI memory: `RaidClosedFields` and `RaidSeenTick` (sorted dictionaries keyed by drop-off ID; sets of field indices), `RaidCarriedHits` (a list filled in the ascending-ID order of the `UpdateIntel` prune and emptied each think), `RaidAnswered` (one ID), `DamageReport.IsArmy` (a bool). None is hashed; all but `IsArmy` are written only with a raid switch on, and `IsArmy` is never read with both off.
+- Every loop walks drop-offs, units or fields in ascending ID or index; distances are squared `Fix64`; the raid order has a total tie-break (answered first, then hit tick descending, then drop-off ID ascending).
+- No new random draw; no new command, intent kind or event type. Fog: sightings read `VisibleEnemies` only; the carried hits are own-unit damage events already read by `ReadEvents`.
+
+## R2.6 Rejected extras (one line each)
+
+- Starting a raid from sightings: package F's measured failure; sightings only keep a raid that hits or losses started.
+- A cap on how long sightings can keep a raid (a new key): no evidence yet that raiders park for long; see R2-Q2.
+- Reading `UnitKilledEvent` for worker losses: the event carries no position or definition, and the unit is gone by the time `ReadEvents` runs.
+- Changing the hold rule's threshold or the evacuation targets: not shown to be a flaw; the evacuation's long walks (R2.0.3) are left for package E.
+- Any rule for the overrun itself (army size, attack timing): a lost fight, not a raid; outside this spec.
+
+## R2.7 Questions for the developer (revision 2)
+
+- **R2-Q1. Do PD-B1 and PD-B2 count worker losses after the main army has reached the base?** About half of Water's losses against Skai come in the overrun (R2.0.2), which raid rules cannot prevent; and C1's earlier overrun moved the counts for reasons outside the raid rules. Even read the other way, revision 1 failed: its raid-phase losses did not fall (median 14 against 14.5, sample). *Default applied: the bars are judged as written (all losses up to 600 s); the pre-overrun reading is printed beside them, not judged.* Alternative: judge PD-B1 and PD-B2 on the pre-overrun keys (with B0b as baseline), decided before run C2.
+- **R2-Q2. May visible raiders keep a raid alive with no time limit?** A raid started by a real hit stays active while any enemy army unit is seen within `raid_field_radius_tiles` of its area, so an army parked beside a natural keeps it closed. *Default applied: no limit (no new key).* Alternative: a new key capping the sighting extension at N seconds after the last hit.
+- **R2-Q3. Should the defence stay on the raid it answered last think while it can still win there?** *Default applied: yes (stops the swing of H4).* Alternative: always the newest winnable raid.
+- **R2-Q4. Should hits on own army units that died between thinks open raids?** Revision 1's text said any unit no longer in the view counts; the built code never did (H3). *Default applied: no, only non-army units (workers, structures, HQ), so an army fight near a drop-off does not close its fields.* Alternative: all units, as revision 1 was written.
+- **R2-Q5. PD-B6 and the cross bars are measured with the candidate in both seats**, so Skai's gains from rules PC, SA and RA act on Water's numbers (C1's earlier Skai attack, R2.0.2). *Default applied: judged as written.* Alternative: a reported-only extra run with Skai on `aggressive_s5_m` and Water on `aggressive_s5_pd` to separate the effect.
