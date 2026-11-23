@@ -185,7 +185,9 @@ namespace Rts.Tools.BalanceHarness
                 }
             }
             // Package E0 fields; a record without them reads as empty.
+            // Own workers after the last step of each ended income bucket. Unit: workers. Range: 0 upward; one entry per ended bucket.
             List<int> workersByBucket = new List<int>();
+            // Per bucket [common, rare] net spending outside worker and drop_off classes. Unit: resource units. Range: any; one entry per started bucket.
             List<int[]> spentOther = new List<int[]>();
             if (node.TryGetMember("workers_by_bucket", out JsonValue? byBucketNode))
             {

@@ -239,6 +239,7 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="profile">Profile ID.</param>
         public static List<string> ByOpeningLines(IBehaviourCheck check, IReadOnlyList<GameRecord> records, string profile)
         {
+            // The BEHAVIOUR_BY_OPENING lines, one per (faction, opening). Unit: lines. Range: 0 upward.
             List<string> result = new List<string>();
             if (!check.PrintByOpening)
             {
@@ -258,6 +259,7 @@ namespace Rts.Tools.BalanceHarness
                     // Faction and opening of the slot. Range: IDs, the opening possibly empty.
                     string faction = slot == 0 ? record.Slot0Faction : record.Slot1Faction;
                     string opening = slot == 0 ? record.Opening0 : record.Opening1;
+                    // Group key, "<faction> <opening>" (opening possibly empty). Range: IDs joined by one space.
                     string key = faction + " " + opening;
                     if (!groups.TryGetValue(key, out CheckTally? tally))
                     {

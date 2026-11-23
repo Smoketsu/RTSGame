@@ -397,6 +397,7 @@ namespace Rts.Ai
         /// <param name="known">Known remaining amount of the field. Unit: resource units. Range: 0 upward.</param>
         /// <param name="amount">Resource per load. Unit: resource units. Range: 1 to 100.</param>
         /// <param name="cost">Cost of one worker. Unit: resource units. Range: 0 upward.</param>
+        // Callers guarantee hold and cycle are at least 1 (build time only enters through span; DepotNetValue and HomeFull need build at least 1 too).
         internal static int CalcCap(long span, int slots, int hold, int cycle, int known, int amount, int cost)
         {
             // Most workers that can add anything: beyond ceil(s x cycle / hold) the gain is 0. Unit: workers. Range: 1 upward.
@@ -468,6 +469,7 @@ namespace Rts.Ai
         /// <param name="lead">Ticks until the depot serves. Unit: ticks. Range: 0 upward.</param>
         /// <param name="build">Build time of one worker. Unit: ticks. Range: 1 upward.</param>
         /// <param name="wanted">Workers wanted before max_workers. Unit: workers. Range: 0 upward.</param>
+        // Callers guarantee build is at least 1 (the division below).
         internal static bool HomeFull(bool starved, int workers, int lead, int build, int wanted)
         {
             return starved || workers + lead / build >= wanted;
@@ -943,7 +945,7 @@ namespace Rts.Ai
             /// <summary>AI-E E1.4: true when rare_cap_yields_to_saturation is on and every served common field holds at least its cap of workers, so rare fields stay open. Unit: boolean.</summary>
             private bool _commonFull;
 
-            /// <summary>Saturation cap per field index, filled on first use within a think (AI-E E1.1). Unit: workers. Range: 1 upward.</summary>
+            /// <summary>Saturation cap per field index, filled on first use within a think (AI-E E1.1; rule EW can give 0). Unit: workers. Range: 0 upward.</summary>
             private readonly SortedDictionary<int, int> _saturationCaps = new SortedDictionary<int, int>();
 
             /// <summary>True when a complete drop-off exists (a complete depot or the Rooted HQ).</summary>
@@ -1078,6 +1080,7 @@ namespace Rts.Ai
                 Fix64 distance = NearestDropOff(field, out Fix64 radius);
                 // Gather slots of this field's kind. Unit: workers. Range: 1 to 16.
                 int slots = field.Kind == ResourceKind.Rare ? _view.GatherSlotsRare : _view.GatherSlotsCommon;
+                // The plan's worker definition (cost, speed, build time).
                 UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
                 // Ticks a slot is held per load, at least 1. Unit: ticks. Range: 1 upward.
                 int hold = Math.Max(1, _view.GatherTicksPerTrip);
@@ -2970,7 +2973,9 @@ namespace Rts.Ai
                     _memory.UnbuildableFields.Add(target.Index);
                     return;
                 }
+                // The plan's drop-off building definition (cost, build time, radius).
                 UnitDefinition depot = _view.Content.Units[_plan.DropOffBuildingId];
+                // The plan's worker definition (cost, speed, build time).
                 UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
                 // Centre of the site tile. Unit: tiles.
                 FixVec2 siteCentre = _view.CentreOf(x, y);
@@ -3026,6 +3031,7 @@ namespace Rts.Ai
                         hold + AiBrain.WalkTicks(distance, depot.Radius, _view.InteractRangeTiles, worker.SpeedTilesPerSecond, _view.TicksPerSecond), Known(field)));
                 }
                 found.Sort((a, b) => a.Cycle != b.Cycle ? a.Cycle.CompareTo(b.Cycle) : a.Index.CompareTo(b.Index));
+                // The new fields in walk order, without their index: slots (workers), trip cycle (ticks), known amount (resource units).
                 List<(int Slots, int Cycle, int Known)> ordered = new List<(int Slots, int Cycle, int Known)>();
                 foreach ((_, int slots, int cycle, int known) in found)
                 {

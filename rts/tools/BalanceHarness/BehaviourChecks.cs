@@ -509,6 +509,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 entry.RejectUnknownKeys("enabled", "at_seconds", "min_income", "max_violation_fraction", "print_by_opening");
                 Enabled = entry.RequireBool("enabled");
+                // The at_seconds entry (kept to name the key in a settings error). Unit: seconds. Range: 1 to 7200.
                 JsonValue at = entry.Require("at_seconds");
                 _atSeconds = at.AsInt(1, 7200);
                 // A bucket length of 1 tick means the context does not know it (settings validation without a run).

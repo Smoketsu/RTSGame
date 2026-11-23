@@ -4,7 +4,8 @@
 // map (spawns, resource fields and how much each still holds, terrain heights, ramps and blockers), the tide level and the
 // clock. Part of Rts.Ai. The brain (AiBrain) reads only this view, never the Simulation, so it cannot see through the fog.
 // Everything is in ascending entity ID or tile/field index order; numbers are integers and Fix64. Building the view reads the
-// simulation and changes nothing (no RNG draw, no mutation), so the state hash is unaffected.
+// simulation and changes nothing (no RNG draw, no mutation), so the state hash is unaffected. GatherAmountPerTrip (resource per load)
+// and WorkerPlacementTicks (ticks a worker needs to place a building) are the two public tuning reads rules EW and ED added.
 // Differences from the spec's proposed read API: economy is read from Player (Common, Rare, SupplyUsed, SupplyCap), fields from
 // sim.Resources, the HQ state from Unit.HqState, orders from Unit.HasMoveTarget / IsAttackMoving / GatherState, and the tide
 // level is the 0-to-1 triangle of TideClock over tide_cycle_seconds. Phase 2 adds the public Planetary Cycle and Core state
