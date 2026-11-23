@@ -214,11 +214,17 @@ namespace Rts.Ai
                 memory.ThreatSightings.Remove(id);
             }
             // Step 3, build: grid shape from the map size, then both layers from zero.
+            // Side of one cell. Unit: tiles. Range: 1 to 16 (profile key threat_cell_tiles).
             int cellTiles = profile.ThreatCellTiles;
+            // How far a source's strength reaches. Unit: cells (ring distance). Range: 0 to 8 (profile key threat_spread_cells).
             int spread = profile.ThreatSpreadCells;
+            // Grid width. Unit: cells. Range: 1 to the map width (ceil of width over cellTiles).
             int columns = CellCount(view.Width, cellTiles);
+            // Grid height. Unit: cells. Range: 1 to the map height (ceil of height over cellTiles).
             int rows = CellCount(view.Height, cellTiles);
+            // Remembered enemy strength per cell, index row x columns + column. Unit: resource units. Range: 0 upward; columns x rows entries.
             int[] enemyLayer = new int[columns * rows];
+            // Own strength per cell, same indexing as enemyLayer. Unit: resource units. Range: 0 upward; columns x rows entries.
             int[] ownLayer = new int[columns * rows];
             foreach (KeyValuePair<EntityId, (FixVec2 Position, int Strength, int Tick)> pair in memory.ThreatSightings)
             {

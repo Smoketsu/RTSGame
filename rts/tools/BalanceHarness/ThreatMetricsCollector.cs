@@ -149,14 +149,17 @@ namespace Rts.Tools.BalanceHarness
             Learn(sim, steppedTick);
             foreach (SimEvent simEvent in events)
             {
+                // The killed unit's record (definition and owner) from this observer's own sightings; the event is skipped when the unit was never seen.
                 if (!(simEvent is UnitKilledEvent killed) || !_seen.TryGetValue(killed.Victim, out Seen? victim))
                 {
                     continue;
                 }
                 // The victim's cost in the weighted unit (rare weight 1, as rare_weight in behaviour_checks.json). Unit: resource units.
                 int cost = victim.Definition.CostCommon + victim.Definition.CostRare;
+                // State of the slot that lost the unit (the victim's owner); absent when that owner is not a measured slot.
                 if (_slots.TryGetValue(victim.Owner.Value, out SlotState? loser))
                 {
+                    // Position of the victim in the loser's drop-off life list. Unit: list index. Range: 0 to the number of drop-offs placed - 1.
                     if (loser.LifeIndex.TryGetValue(killed.Victim, out int index) && sim.Players.AreEnemies(victim.Owner, killed.KillerOwner))
                     {
                         loser.Life[index][1] = killed.Tick;
@@ -166,6 +169,7 @@ namespace Rts.Tools.BalanceHarness
                         loser.LossesValue += cost;
                     }
                 }
+                // State of the slot that made the kill (the killer's owner); absent when that owner is not a measured slot.
                 if (killed.Tick <= _windowTicks && _slots.TryGetValue(killed.KillerOwner.Value, out SlotState? winner) && winner.Set.Contains(killed.Killer))
                 {
                     winner.KillsValue += cost;
