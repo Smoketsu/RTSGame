@@ -46,6 +46,18 @@
       "max_seconds": 7200,
       // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: specs/ai_budget_queues.md B.4.1.
       "max_violation_fraction": 0
+    },
+    "income_by": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.1; placeholder.
+      "enabled": true,
+      // Second up to which the income (common plus rare_weight x rare deposited) is summed; only whole buckets count. Unit: seconds. Range: 1 to 7200, a multiple of summary_bucket_seconds. Source: rts/docs/specs/ai_economy_calc.md 3.1 (bar EB-3); placeholder.
+      "at_seconds": 300,
+      // Least income that holds. Unit: resource units. Range: 0 to 1000000. Source: rts/docs/specs/ai_economy_calc.md 3.1 (0: always holds; the bar is on the printed medians); placeholder.
+      "min_income": 0,
+      // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_economy_calc.md 3.1; placeholder.
+      "max_violation_fraction": 0,
+      // Print one BEHAVIOUR_BY_OPENING line per faction and opening after the check's line. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.1 (bar EB-5); placeholder.
+      "print_by_opening": true
     }
   }
 }

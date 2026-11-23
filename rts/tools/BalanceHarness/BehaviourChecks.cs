@@ -107,6 +107,9 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Names of the extra counters of <see cref="BehaviourResult.Extras"/>, in order; empty for none.</summary>
         IReadOnlyList<string> ExtraNames { get; }
+
+        /// <summary>True when the runner also prints one BEHAVIOUR_BY_OPENING line per (faction, opening) after the check's BEHAVIOUR line (the print_by_opening key; ai_economy_calc.md 3.1). Default false for a check without the key.</summary>
+        bool PrintByOpening => false;
     }
 
     /// <summary>The registry of behaviour checks, the only place a check is declared.</summary>
@@ -119,6 +122,7 @@ namespace Rts.Tools.BalanceHarness
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(HqMoveNewIncome.CheckId, c => new HqMoveNewIncome(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(WorkersAt.CheckId, c => new WorkersAt(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(FirstDropOff.CheckId, c => new FirstDropOff(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(IncomeBy.CheckId, c => new IncomeBy(c)),
         };
 
         /// <summary>True when <paramref name="id"/> is a registered check.</summary>
@@ -455,6 +459,85 @@ namespace Rts.Tools.BalanceHarness
                 // Second of the first drop-off, integer division. Unit: seconds. Range: 0 upward.
                 int seconds = slot.DropOffTicks[0] / _context.TicksPerSecond;
                 return new BehaviourResult(seconds <= _maxSeconds ? CheckOutcome.Held : CheckOutcome.Violated, seconds, 1);
+            }
+        }
+
+        /// <summary>
+        /// Package E0 (ai_economy_calc.md 3.1): income by a time. Metric = common plus rare_weight x rare deposited in the buckets that end at or before at_seconds; Unjudged when the game ended before at_seconds;
+        /// Held when the metric is at least min_income. at_seconds must be a multiple of the bucket length (checked when the context knows it).
+        /// </summary>
+        private sealed class IncomeBy : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "income_by";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Second the income is summed up to. Unit: seconds. Range: 1 to 7200, a multiple of the bucket length.</summary>
+            private int _atSeconds;
+
+            /// <summary>Least income that holds. Unit: resource units. Range: 0 to 1000000.</summary>
+            private int _minIncome;
+
+            /// <summary>Bundles the context.</summary>
+            public IncomeBy(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public bool PrintByOpening { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => PredictEvaluator.Ratio3(_minIncome, 1);
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "at_seconds", "min_income", "max_violation_fraction", "print_by_opening");
+                Enabled = entry.RequireBool("enabled");
+                JsonValue at = entry.Require("at_seconds");
+                _atSeconds = at.AsInt(1, 7200);
+                // A bucket length of 1 tick means the context does not know it (settings validation without a run).
+                if (_context.BucketTicks > 1 && (_atSeconds * _context.TicksPerSecond) % _context.BucketTicks != 0)
+                {
+                    throw at.Fail("must be a multiple of summary_bucket_seconds (found " + _atSeconds.ToString(CultureInfo.InvariantCulture) + ")");
+                }
+                _minIncome = entry.RequireInt("min_income", 0, 1000000);
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+                PrintByOpening = entry.RequireBool("print_by_opening");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                // Tick at which at_seconds ends, and the buckets that end at or before it. Unit: ticks, buckets. Range: 1 upward.
+                int atTicks = _atSeconds * _context.TicksPerSecond;
+                int buckets = atTicks / _context.BucketTicks;
+                if (game.EndTick + 1 < atTicks || slot.Income.Count < buckets)
+                {
+                    return new BehaviourResult(CheckOutcome.Unjudged, 0, 1);
+                }
+                // Income of those buckets in the weighted unit (parts per 10 000 of a common unit).
+                long weighted = 0;
+                for (int b = 0; b < buckets; b++)
+                {
+                    weighted += _context.Weighted(slot.Income[b][0], slot.Income[b][1]);
+                }
+                return new BehaviourResult(weighted >= (long)_minIncome * 10000 ? CheckOutcome.Held : CheckOutcome.Violated, weighted, 10000);
             }
         }
     }

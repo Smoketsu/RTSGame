@@ -230,6 +230,53 @@ namespace Rts.Tools.BalanceHarness
             return sb.ToString();
         }
 
+        /// <summary>
+        /// The BEHAVIOUR_BY_OPENING lines of one check and profile (ai_economy_calc.md 3.1): one per (faction, opening) of the profile's slot-games, factions then openings in ordinal order, with the judged
+        /// count and the median metric as the BEHAVIOUR line computes it. Empty when the check does not print by opening.
+        /// </summary>
+        /// <param name="check">The check.</param>
+        /// <param name="records">Records with summaries.</param>
+        /// <param name="profile">Profile ID.</param>
+        public static List<string> ByOpeningLines(IBehaviourCheck check, IReadOnlyList<GameRecord> records, string profile)
+        {
+            List<string> result = new List<string>();
+            if (!check.PrintByOpening)
+            {
+                return result;
+            }
+            // Tallies by "faction opening" key; a space sorts before every letter, digit and underscore, so ordinal key order is faction then opening.
+            SortedDictionary<string, CheckTally> groups = new SortedDictionary<string, CheckTally>(StringComparer.Ordinal);
+            foreach (GameRecord record in records)
+            {
+                for (int slot = 0; slot < 2; slot++)
+                {
+                    GameSummary? summary = slot == 0 ? record.Summary0 : record.Summary1;
+                    if (summary == null || (slot == 0 ? record.Slot0Profile : record.Slot1Profile) != profile)
+                    {
+                        continue;
+                    }
+                    // Faction and opening of the slot. Range: IDs, the opening possibly empty.
+                    string faction = slot == 0 ? record.Slot0Faction : record.Slot1Faction;
+                    string opening = slot == 0 ? record.Opening0 : record.Opening1;
+                    string key = faction + " " + opening;
+                    if (!groups.TryGetValue(key, out CheckTally? tally))
+                    {
+                        tally = new CheckTally(profile, check.ExtraNames.Count);
+                        groups.Add(key, tally);
+                    }
+                    tally.Add(check.Evaluate(summary, record));
+                }
+            }
+            foreach (KeyValuePair<string, CheckTally> group in groups)
+            {
+                // Position of the separator between faction and opening. Range: 0 upward.
+                int split = group.Key.IndexOf(' ');
+                result.Add("BEHAVIOUR_BY_OPENING check=" + check.Id + " profile=" + profile + " faction=" + group.Key.Substring(0, split) + " opening=" + group.Key.Substring(split + 1)
+                    + " games=" + group.Value.Judged.ToString(CultureInfo.InvariantCulture) + " metric_median=" + group.Value.MedianText());
+            }
+            return result;
+        }
+
         /// <summary>Runs the command for parsed options.</summary>
         /// <param name="options">Parsed options (--behaviour, --profile-a, --profile-b, --checks and the overrides).</param>
         /// <param name="data">The loaded data set.</param>
@@ -286,7 +333,9 @@ namespace Rts.Tools.BalanceHarness
                 CheckTally candidate = Tally(check, records, options.ProfileB);
                 CheckTally baseline = Tally(check, records, options.ProfileA);
                 lines.Add(Line(check, candidate));
+                lines.AddRange(ByOpeningLines(check, records, options.ProfileB));
                 lines.Add(Line(check, baseline));
+                lines.AddRange(ByOpeningLines(check, records, options.ProfileA));
                 passed += candidate.Passes(check.MaxViolationPt) ? 1 : 0;
             }
             string summaryLine = "BEHAVIOUR_SUMMARY candidate=" + options.ProfileB + " passed=" + passed.ToString(CultureInfo.InvariantCulture) + " of=" + checks.Count.ToString(CultureInfo.InvariantCulture);
