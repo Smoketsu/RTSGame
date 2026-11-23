@@ -45,7 +45,9 @@
       // Latest second at which the first own non-HQ drop-off may complete. Unit: seconds. Range: 0 to 7200. Source: specs/ai_budget_queues.md B.4.1 (7200: always holds; bar BB-4 compares the printed medians).
       "max_seconds": 7200,
       // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: specs/ai_budget_queues.md B.4.1.
-      "max_violation_fraction": 0
+      "max_violation_fraction": 0,
+      // Which way is better in the paired behaviour test (BEHAVIOUR_PAIRED line and the Paired table): a smaller or a larger pair sum. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_threat_map.md 7.2 (guard TS-B2); placeholder.
+      "paired_direction": "lower"
     },
     "income_by": {
       // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.1; placeholder.
@@ -57,7 +59,9 @@
       // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_economy_calc.md 3.1; placeholder.
       "max_violation_fraction": 0,
       // Print one BEHAVIOUR_BY_OPENING line per faction and opening after the check's line. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.1 (bar EB-5); placeholder.
-      "print_by_opening": true
+      "print_by_opening": true,
+      // Which way is better in the paired behaviour test (BEHAVIOUR_PAIRED line and the Paired table): a smaller or a larger pair sum. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_threat_map.md 7.2 (guards TS-B3 and TH-B3); placeholder.
+      "paired_direction": "higher"
     },
     "econ_gap": {
       // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
@@ -84,6 +88,32 @@
       "max_violation_fraction": 0,
       // Print one BEHAVIOUR_BY_OPENING line per faction and opening after the check's line. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.2 (the per-opening decision gaps); placeholder.
       "print_by_opening": true
+    },
+    "depot_losses_young": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md 7.2; placeholder.
+      "enabled": true,
+      // A drop-off killed by an enemy at most this long after it first existed counts as lost young (before the slot's overrun_second when it has one). Unit: seconds. Range: 1 to 1800. Source: rts/docs/specs/ai_threat_map.md 7.2 (two minutes covers the build and the first trips); placeholder.
+      "young_seconds": 120,
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_threat_map.md 7.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: fewer young depots lost is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_threat_map.md 7.2 (bar TS-B1); placeholder.
+      "paired_direction": "lower"
+    },
+    "harass_trade": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md 7.2; placeholder.
+      "enabled": true,
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_threat_map.md 7.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: a larger value killed less value lost is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_threat_map.md 7.2 (bar TH-B1); placeholder.
+      "paired_direction": "higher"
+    },
+    "harass_squads": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md 7.2; placeholder.
+      "enabled": true,
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_threat_map.md 7.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: more harass squads started is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_threat_map.md 7.2 (guard TH-B2); placeholder.
+      "paired_direction": "higher"
     }
   }
 }

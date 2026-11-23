@@ -127,7 +127,7 @@ namespace Rts.Sim.Tests.Harness
                 "--max-game-seconds", "120", "--jobs", "4", "--out", folder }, out string stdout, out string stderr);
             Assert.That(exit, Is.AnyOf(0, 2), stderr);
             string[] lines = stdout.TrimEnd('\n').Split('\n');
-            Assert.That(lines[lines.Length - 1], Does.EndWith(" of=6"), "five checks of E0 and earlier plus econ_gap (package E-OPT)");
+            Assert.That(lines[lines.Length - 1], Does.EndWith(" of=9"), "five checks of E0 and earlier, econ_gap (package E-OPT) and the three package S-M checks");
             // Every check has two BEHAVIOUR lines (candidate, baseline); only income_by has opening lines.
             int behaviourLines = 0;
             foreach (string line in lines)
@@ -137,7 +137,7 @@ namespace Rts.Sim.Tests.Harness
                     behaviourLines++;
                 }
             }
-            Assert.That(behaviourLines, Is.EqualTo(12));
+            Assert.That(behaviourLines, Is.EqualTo(18));
             int incomeIndex = Array.FindIndex(lines, l => l.StartsWith("BEHAVIOUR income_by ", StringComparison.Ordinal));
             Assert.That(incomeIndex, Is.GreaterThanOrEqualTo(0));
             Regex format = new Regex(@"^BEHAVIOUR_BY_OPENING check=income_by profile=aggressive_s5 faction=(skai|water) opening=(\S*) games=\d+ metric_median=\S+$");

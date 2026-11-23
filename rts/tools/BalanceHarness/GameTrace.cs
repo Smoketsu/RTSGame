@@ -5,6 +5,7 @@
 // Finish) between the same calls it always makes; the trace only reads simulation state, events and the controllers' LastCommands and never submits or
 // steps, so the game (and its final state hash) is the same with or without it. Output is for people, so it may use floating point (it is a tool, not
 // the simulation). Part of Rts.Tools.BalanceHarness.
+// Package S-MAP (ai_threat_map.md 3.5) adds the thr= column for a profile with use_threat_map and the ThreatGrid dump (--threat-grid); both are absent for every other profile, so older traces are unchanged.
 using System;
 using System.Collections.Generic;
 using System.Globalization;

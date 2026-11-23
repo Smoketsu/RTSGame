@@ -2,6 +2,7 @@
 // Reads rts/data/scripts/ai_eval/behaviour_checks.json (spec: rts/docs/specs/balance_measurement.md M.4 and M.6): games per cell, the rare weight and one entry per declared check. Each entry is handed to its
 // check's ReadSettings (BehaviourChecks). An entry whose ID is not in the registry is an error naming the entry; a registered check without an entry is "not declared" and is not run. The file lives under scripts/
 // so DataLoader skips it (outside the content digest). Unknown keys are errors and every error names the file and the field. Tool-side only. Part of Rts.Tools.BalanceHarness.
+// Package S-M (ai_threat_map.md 7.3) reads the optional paired_direction ("lower" or "higher") of each entry into PairedDirections; any other value is an error naming the key.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -27,6 +28,9 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>The declared check entries by check ID, ordinal order (each already validated by its check).</summary>
         public IReadOnlyDictionary<string, JsonValue> Entries { get; private set; } = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
+
+        /// <summary>The paired test direction of each check that has "paired_direction" ("lower" or "higher"), by check ID, ordinal order (ai_threat_map.md 7.3).</summary>
+        public IReadOnlyDictionary<string, string> PairedDirections { get; private set; } = new SortedDictionary<string, string>(StringComparer.Ordinal);
 
         /// <summary>Reads and parses the file from <paramref name="dataDirectory"/>; throws <see cref="HarnessException"/> when it is missing.</summary>
         /// <param name="dataDirectory">The data folder (rts/data).</param>
@@ -56,6 +60,8 @@ namespace Rts.Tools.BalanceHarness
             }
             s.RareWeightPt = PredictSettings.ReadPt(root, "rare_weight", "0", "20");
             SortedDictionary<string, JsonValue> entries = new SortedDictionary<string, JsonValue>(StringComparer.Ordinal);
+            // The paired directions found. Unit: check ID to "lower" or "higher".
+            SortedDictionary<string, string> directions = new SortedDictionary<string, string>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonValue> pair in root.Require("checks").Members)
             {
                 if (!BehaviourChecks.IsRegistered(pair.Key))
@@ -64,8 +70,19 @@ namespace Rts.Tools.BalanceHarness
                 }
                 BehaviourChecks.Create(pair.Key, new BehaviourContext(s.RareWeightPt, 1)).ReadSettings(pair.Value);
                 entries.Add(pair.Key, pair.Value);
+                if (pair.Value.TryGetMember("paired_direction", out JsonValue? direction))
+                {
+                    // The direction text. Range: "lower" or "higher".
+                    string word = direction.AsString();
+                    if (word != "lower" && word != "higher")
+                    {
+                        throw direction.Fail("must be \"lower\" or \"higher\" (found \"" + word + "\")");
+                    }
+                    directions.Add(pair.Key, word);
+                }
             }
             s.Entries = entries;
+            s.PairedDirections = directions;
             return s;
         }
 
@@ -76,7 +93,9 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="bankSeconds">Seconds of the summary's bank snapshots, or null when unknown (a check that names a snapshot then skips its range check). Unit: seconds.</param>
         /// <param name="ticksPerSecond">Simulation ticks per second. Unit: ticks per second. Range: 1 upward.</param>
         /// <param name="data">The loaded data set for a check that models the game (econ_gap), or null when only validating.</param>
-        public List<IBehaviourCheck> Checks(IReadOnlyList<string>? only, int bucketTicks, List<string> notDeclared, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null)
+        /// <param name="windowSeconds">The summary window of ai_eval.json (summary_window_seconds), or int.MaxValue when unknown. Unit: seconds. Range: 60 to 2400, or int.MaxValue.</param>
+        public List<IBehaviourCheck> Checks(IReadOnlyList<string>? only, int bucketTicks, List<string> notDeclared, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null,
+            int windowSeconds = int.MaxValue)
         {
             if (only != null)
             {
@@ -88,7 +107,7 @@ namespace Rts.Tools.BalanceHarness
                     }
                 }
             }
-            BehaviourContext context = new BehaviourContext(RareWeightPt, bucketTicks, bankSeconds, ticksPerSecond, data);
+            BehaviourContext context = new BehaviourContext(RareWeightPt, bucketTicks, bankSeconds, ticksPerSecond, data, windowSeconds);
             List<IBehaviourCheck> checks = new List<IBehaviourCheck>();
             foreach (KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>> pair in BehaviourChecks.Registry)
             {

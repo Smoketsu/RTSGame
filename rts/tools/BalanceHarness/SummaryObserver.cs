@@ -1,7 +1,7 @@
 // rts/tools/BalanceHarness/SummaryObserver.cs
 // The read-only game summary observer (spec: rts/docs/specs/balance_measurement.md M.4.2): GameRunner.Play calls Begin, AfterThink (before the step) and AfterStep (after it) and Finish, exactly as it calls GameTrace.
 // It reads the commands the AIs submitted, the events of each step and the state after it, and builds one GameSummary per player slot; it never submits a command or steps the simulation, so the final state hash and
-// the play signature of a game are the same with and without it. Spending comes from the shared PlayerLedger (the accounting of GameTrace); mechanic uses from MechanicDetectors. Tool-side only. Part of Rts.Tools.BalanceHarness.
+// the play signature of a game are the same with and without it. Package S-M (ai_threat_map.md 7.1) adds the drop-off lives and harass counters through ThreatMetricsCollector. Spending comes from the shared PlayerLedger (the accounting of GameTrace); mechanic uses from MechanicDetectors. Tool-side only. Part of Rts.Tools.BalanceHarness.
 using System;
 using System.Collections.Generic;
 using Rts.Ai;
@@ -139,6 +139,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>The production and defence metric collector, or null when the observer was built without settings (no metrics, no extra keys).</summary>
         private readonly ProductionMetricsCollector? _metrics;
 
+        /// <summary>The package S-M collector of drop-off lives and harass counters (ai_threat_map.md 7.1); replaced in <see cref="Begin"/> once the tick rate is known.</summary>
+        private ThreatMetricsCollector _threat = new ThreatMetricsCollector(int.MaxValue);
+
+        /// <summary>Seconds the harass counters count, the summary window of ai_eval.json, or int.MaxValue for no limit (an observer built without settings). Unit: seconds. Range: 60 to 2400, or int.MaxValue.</summary>
+        private readonly int _windowSeconds;
+
         /// <summary>Creates an observer.</summary>
         /// <param name="bucketSeconds">Seconds per income bucket. Unit: seconds. Range: 5 to 600.</param>
         /// <param name="bankSeconds">Seconds of the bank snapshots, ascending. Unit: seconds. Range: 1 to 8 entries of 1 to 7200.</param>
@@ -146,6 +152,7 @@ namespace Rts.Tools.BalanceHarness
         public SummaryObserver(int bucketSeconds, IReadOnlyList<int> bankSeconds, AiEvalSettings? metrics = null)
         {
             _metrics = metrics == null ? null : new ProductionMetricsCollector(metrics);
+            _windowSeconds = metrics?.SummaryWindowSeconds ?? int.MaxValue;
             _bucketSeconds = bucketSeconds;
             _bankSeconds = bankSeconds;
         }
@@ -167,12 +174,15 @@ namespace Rts.Tools.BalanceHarness
             }
             Learn(sim);
             _metrics?.Begin(sim);
+            _threat = new ThreatMetricsCollector(_windowSeconds == int.MaxValue ? int.MaxValue : _windowSeconds * sim.Clock.TicksPerSecond);
+            _threat.Begin(sim);
         }
 
         /// <summary>Called after the controllers thought and before the step: notes the train and build commands each submitted.</summary>
         /// <param name="controllers">The game's controllers.</param>
         public void AfterThink(IReadOnlyList<IPlayerController> controllers)
         {
+            _threat.AfterThink(_sim == null ? 0 : _sim.Clock.Tick, controllers);
             foreach (IPlayerController controller in controllers)
             {
                 if (!(controller is SkirmishAiController ai) || !_slots.ContainsKey(ai.Player.Value))
@@ -195,6 +205,7 @@ namespace Rts.Tools.BalanceHarness
         {
             Learn(sim);
             _metrics?.Observe(sim, sim.Clock.Tick - 1, sim.Events.Current);
+            _threat.Observe(sim, sim.Clock.Tick - 1, sim.Events.Current);
             // Commands the simulation refused this step.
             HashSet<Command> rejected = new HashSet<Command>();
             foreach (SimEvent simEvent in sim.Events.Current)
@@ -316,6 +327,9 @@ namespace Rts.Tools.BalanceHarness
             List<GameSummary> summaries = new List<GameSummary>();
             // Metrics per slot in ascending player order, or null. Unit: one per slot.
             ProductionMetrics[]? production = _metrics?.Results();
+            // Package S-M: the drop-off lives and harass counters per slot in ascending player order.
+            IReadOnlyList<IReadOnlyList<int[]>> lives = _threat.Lives();
+            HarassMetrics[] harass = _threat.Harass();
             // Index of the slot being summarised. Range: 0 to slots - 1.
             int slotIndex = 0;
             foreach (Slot slot in _slots.Values)
@@ -329,7 +343,7 @@ namespace Rts.Tools.BalanceHarness
                     slot.OtherByBucket.Add(new int[2]);
                 }
                 summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs, slot.FirstTick, production?[slotIndex],
-                    slot.WorkersByBucket, slot.OtherByBucket));
+                    slot.WorkersByBucket, slot.OtherByBucket, lives[slotIndex], harass[slotIndex]));
                 slotIndex++;
             }
             return summaries.ToArray();

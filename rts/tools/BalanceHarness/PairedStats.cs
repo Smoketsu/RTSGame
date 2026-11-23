@@ -3,6 +3,7 @@
 // of the candidate's share of discordant pairs on a grid of 1/1000, the candidate's advantage in tenths of a point of game win rate, the minimum detectable effect (MDE) and the verdict.
 // Every number a verdict depends on is an integer or a System.Numerics.BigInteger: no floating point, so results are exact and the same on every platform. Fractions come in as parts per
 // 10 000 ("pt", exact for any value written with at most 4 decimals). "Tenths" are tenths of a point (0.1 percentage point of game win rate). Pure functions, no state. Part of Rts.Tools.BalanceHarness.
+// Package S-M (ai_threat_map.md 7.3) adds MdeSharePermille, the stated power of the paired behaviour test (a share of decisive pairs, in permille).
 using System;
 using System.Globalization;
 using System.Numerics;
@@ -269,6 +270,18 @@ namespace Rts.Tools.BalanceHarness
                 return -1;
             }
             return SmallestM(400 * (BigInteger)n * n, (BigInteger)z * z * Math.Max(d, MinDiscordant(alphaPt)));
+        }
+
+        /// <summary>
+        /// Share MDE of the paired behaviour test (ai_threat_map.md 7.3): with D' = max(D, D_min), the smallest integer m with 400 x D' x (m - 500)^2 at least Z^2, in permille of decisive pairs
+        /// (500 plus the smallest k with 400 x D' x k^2 at least Z^2). A value above 1000 means no result could pass.
+        /// </summary>
+        /// <param name="d">Decisive pairs (better plus worse). Unit: pairs. Range: 0 upward.</param>
+        /// <param name="z">The integer Z. Range: 1 upward.</param>
+        /// <param name="alphaPt">Two-sided level in parts per 10 000, for D_min. Unit: parts per 10 000. Range: 1 to 5000.</param>
+        public static int MdeSharePermille(int d, int z, int alphaPt)
+        {
+            return 500 + SmallestM(400 * (BigInteger)Math.Max(d, MinDiscordant(alphaPt)), (BigInteger)z * z);
         }
 
         /// <summary>The smallest m of 0 upward with coefficient x m^2 at least target (binary search; coefficient above 0).</summary>

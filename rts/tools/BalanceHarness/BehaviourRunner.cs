@@ -3,11 +3,13 @@
 // (or those of --checks) for both profiles over their slot-games, writes behaviour.jsonl and behaviour.md and prints one BEHAVIOUR line per check and profile (candidate first) and BEHAVIOUR_SUMMARY. A profile passes a
 // check when violated x 10 000 is at most max_violation_fraction x judged (integers). Exit codes: 0 every candidate check passes, 2 any fails, 3 the determinism spot check failed, 1 error. Baseline lines are information.
 // Also holds PlayCells, the cell and chunk loop shared with --balance. Output depends only on data, options and records, never on --jobs or the clock. Part of Rts.Tools.BalanceHarness.
+// Package S-M (ai_threat_map.md 7.3) adds PairedTest and the BEHAVIOUR_PAIRED line and "## Paired" table for each check whose entry has paired_direction.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using Rts.Sim.Data;
 
@@ -111,9 +113,172 @@ namespace Rts.Tools.BalanceHarness
         }
     }
 
+    /// <summary>The paired test of one check (ai_threat_map.md 7.3): pair counts, the sign test and the stated power. Immutable.</summary>
+    public sealed class PairedCheckRow
+    {
+        /// <summary>Check ID.</summary>
+        public string Check { get; }
+
+        /// <summary>Candidate profile ID.</summary>
+        public string Candidate { get; }
+
+        /// <summary>Baseline profile ID.</summary>
+        public string Baseline { get; }
+
+        /// <summary>Pairs judged (better plus worse plus ties). Unit: pairs. Range: 0 upward.</summary>
+        public int Pairs { get; }
+
+        /// <summary>Pairs left out because one of their four slot-games was Unjudged (or the pair was incomplete). Unit: pairs. Range: 0 upward.</summary>
+        public int UnjudgedPairs { get; }
+
+        /// <summary>Pairs in which the candidate's value was better. Unit: pairs. Range: 0 to Pairs.</summary>
+        public int Better { get; }
+
+        /// <summary>Pairs in which the candidate's value was worse. Unit: pairs. Range: 0 to Pairs.</summary>
+        public int Worse { get; }
+
+        /// <summary>Pairs with equal values. Unit: pairs. Range: 0 to Pairs.</summary>
+        public int Ties { get; }
+
+        /// <summary>Two-sided exact sign test p-value. Unit: parts per 10 000. Range: 0 to 10000.</summary>
+        public int PPt { get; }
+
+        /// <summary>Share of decisive pairs in which the candidate must be better for the test to see it with power 0.80. Unit: permille. Range: 500 upward; above 1000 means no result could pass.</summary>
+        public int MdePermille { get; }
+
+        /// <summary>BETTER, WORSE or NO_MEASURABLE_EFFECT.</summary>
+        public string Verdict { get; }
+
+        /// <summary>Bundles the values.</summary>
+        public PairedCheckRow(string check, string candidate, string baseline, int pairs, int unjudgedPairs, int better, int worse, int ties, int pPt, int mdePermille, string verdict)
+        {
+            Check = check;
+            Candidate = candidate;
+            Baseline = baseline;
+            Pairs = pairs;
+            UnjudgedPairs = unjudgedPairs;
+            Better = better;
+            Worse = worse;
+            Ties = ties;
+            PPt = pPt;
+            MdePermille = mdePermille;
+            Verdict = verdict;
+        }
+
+        /// <summary>The BEHAVIOUR_PAIRED line.</summary>
+        public string Line()
+        {
+            return "BEHAVIOUR_PAIRED check=" + Check + " candidate=" + Candidate + " baseline=" + Baseline + " pairs=" + Pairs.ToString(CultureInfo.InvariantCulture)
+                + " unjudged_pairs=" + UnjudgedPairs.ToString(CultureInfo.InvariantCulture) + " better=" + Better.ToString(CultureInfo.InvariantCulture)
+                + " worse=" + Worse.ToString(CultureInfo.InvariantCulture) + " ties=" + Ties.ToString(CultureInfo.InvariantCulture) + " p=" + PairedStats.P4(PPt)
+                + " mde_permille=" + MdePermille.ToString(CultureInfo.InvariantCulture) + " verdict=" + Verdict;
+        }
+
+        /// <summary>The row of the "## Paired" table of behaviour.md.</summary>
+        public string TableRow()
+        {
+            return "| " + Check + " | " + Candidate + " | " + Baseline + " | " + Pairs.ToString(CultureInfo.InvariantCulture) + " | " + UnjudgedPairs.ToString(CultureInfo.InvariantCulture) + " | "
+                + Better.ToString(CultureInfo.InvariantCulture) + " | " + Worse.ToString(CultureInfo.InvariantCulture) + " | " + Ties.ToString(CultureInfo.InvariantCulture) + " | " + PairedStats.P4(PPt)
+                + " | " + MdePermille.ToString(CultureInfo.InvariantCulture) + " | " + Verdict + " |\n";
+        }
+    }
+
     /// <summary>Coordinator of --behaviour.</summary>
     public static class BehaviourRunner
     {
+        /// <summary>BETTER: the sign test is significant and the candidate is better in more pairs.</summary>
+        public const string Better = "BETTER";
+
+        /// <summary>WORSE: the sign test is significant and the candidate is worse in more pairs.</summary>
+        public const string Worse = "WORSE";
+
+        /// <summary>
+        /// The paired behaviour test of one check (ai_threat_map.md 7.3). A pair is the two games of the paired layout with the same map, matchup and pair index; the candidate's value X is its metric in its slot
+        /// of both games summed, the baseline's Y likewise (the metric is Num / Den of the check's result, summed exactly). A pair with an Unjudged slot-game or fewer than two games is left out and counted as unjudged.
+        /// </summary>
+        /// <param name="check">The configured check.</param>
+        /// <param name="direction">"lower" (better is smaller) or "higher".</param>
+        /// <param name="records">Paired records with summaries.</param>
+        /// <param name="baseline">Baseline profile ID.</param>
+        /// <param name="candidate">Candidate profile ID.</param>
+        /// <param name="alphaPt">The sign test level (effect_alpha). Unit: parts per 10 000. Range: 1 to 5000.</param>
+        /// <param name="z">The integer Z of the stated power. Range: 1 upward.</param>
+        public static PairedCheckRow PairedTest(IBehaviourCheck check, string direction, IReadOnlyList<GameRecord> records, string baseline, string candidate, int alphaPt, int z)
+        {
+            // The games of each pair by "map|matchup|pair", ordinal order.
+            SortedDictionary<string, List<GameRecord>> pairs = new SortedDictionary<string, List<GameRecord>>(StringComparer.Ordinal);
+            foreach (GameRecord record in records)
+            {
+                if (record.Pair < 0)
+                {
+                    continue;
+                }
+                // Pair key. Range: map, matchup and a zero-padded pair index.
+                string key = record.Map + "|" + record.Matchup + "|" + record.Pair.ToString("D8", CultureInfo.InvariantCulture);
+                if (!pairs.TryGetValue(key, out List<GameRecord>? games))
+                {
+                    games = new List<GameRecord>();
+                    pairs.Add(key, games);
+                }
+                games.Add(record);
+            }
+            // Counts: better, worse, tied and unjudged pairs. Unit: pairs.
+            int better = 0, worse = 0, ties = 0, unjudged = 0;
+            foreach (List<GameRecord> games in pairs.Values)
+            {
+                // Candidate's and baseline's summed metric as the exact fraction num / den.
+                BigInteger xNum = BigInteger.Zero, xDen = BigInteger.One, yNum = BigInteger.Zero, yDen = BigInteger.One;
+                bool left = games.Count != 2;
+                foreach (GameRecord game in games)
+                {
+                    if (left)
+                    {
+                        break;
+                    }
+                    GameSummary? own = game.CandidateSlot == 0 ? game.Summary0 : game.CandidateSlot == 1 ? game.Summary1 : null;
+                    GameSummary? other = game.CandidateSlot == 0 ? game.Summary1 : game.CandidateSlot == 1 ? game.Summary0 : null;
+                    if (own == null || other == null)
+                    {
+                        left = true;
+                        break;
+                    }
+                    BehaviourResult x = check.Evaluate(own, game);
+                    BehaviourResult y = check.Evaluate(other, game);
+                    if (x.Outcome == CheckOutcome.Unjudged || y.Outcome == CheckOutcome.Unjudged)
+                    {
+                        left = true;
+                        break;
+                    }
+                    xNum = xNum * x.Den + x.Num * xDen;
+                    xDen *= x.Den;
+                    yNum = yNum * y.Den + y.Num * yDen;
+                    yDen *= y.Den;
+                }
+                if (left)
+                {
+                    unjudged++;
+                    continue;
+                }
+                // Sign of X - Y: negative when the candidate's value is smaller.
+                int sign = (xNum * yDen).CompareTo(yNum * xDen);
+                if (sign == 0)
+                {
+                    ties++;
+                }
+                else if ((sign < 0) == (direction == "lower"))
+                {
+                    better++;
+                }
+                else
+                {
+                    worse++;
+                }
+            }
+            SignTestResult test = PairedStats.SignTest(better, worse, alphaPt);
+            return new PairedCheckRow(check.Id, candidate, baseline, better + worse + ties, unjudged, better, worse, ties, test.PPt, PairedStats.MdeSharePermille(better + worse, z, alphaPt),
+                test.Significant ? (better > worse ? Better : Worse) : PairedStats.NoMeasurableEffect);
+        }
+
         /// <summary>
         /// Plays every game of the cells in worker processes and returns the records sorted by (map, matchup, game). The workers get <paramref name="common"/> plus the cell and chunk; chunks are sized by
         /// harness_batch.json chunk_games. Progress goes to stderr (it depends on scheduling).
@@ -310,7 +475,7 @@ namespace Rts.Tools.BalanceHarness
             // Income bucket length in ticks, and the checks to run.
             int bucketTicks = settings.SummaryBucketSeconds * data.Tuning.Match.TicksPerSecond;
             List<string> notDeclared = new List<string>();
-            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond, data);
+            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond, data, settings.SummaryWindowSeconds);
 
             List<string> common = new List<string> { "--data", options.DataDirectory, "--seed", baseSeed.ToString(CultureInfo.InvariantCulture), "--max-game-seconds", maxSeconds.ToString(CultureInfo.InvariantCulture),
                 "--games", games.ToString(CultureInfo.InvariantCulture), "--profile-a", options.ProfileA, "--profile-b", options.ProfileB, "--paired", "--summary" };
@@ -330,6 +495,10 @@ namespace Rts.Tools.BalanceHarness
             List<string> lines = new List<string>();
             int passed = 0;
             StringBuilder table = new StringBuilder();
+            // The paired rows (ai_threat_map.md 7.3), one per enabled check that has a paired_direction. Unit: rows.
+            List<PairedCheckRow> pairedRows = new List<PairedCheckRow>();
+            // The integer Z of the stated power. Range: 1 upward.
+            int zPower = PairedStats.Z(settings.EffectZAlpha, settings.EffectZPower);
             foreach (IBehaviourCheck check in checks)
             {
                 CheckTally candidate = Tally(check, records, options.ProfileB);
@@ -338,6 +507,12 @@ namespace Rts.Tools.BalanceHarness
                 lines.AddRange(ByOpeningLines(check, records, options.ProfileB));
                 lines.Add(Line(check, baseline));
                 lines.AddRange(ByOpeningLines(check, records, options.ProfileA));
+                if (behaviour.PairedDirections.TryGetValue(check.Id, out string? direction))
+                {
+                    PairedCheckRow row = PairedTest(check, direction, records, options.ProfileA, options.ProfileB, settings.EffectAlphaPt, zPower);
+                    pairedRows.Add(row);
+                    lines.Add(row.Line());
+                }
                 passed += candidate.Passes(check.MaxViolationPt) ? 1 : 0;
             }
             string summaryLine = "BEHAVIOUR_SUMMARY candidate=" + options.ProfileB + " passed=" + passed.ToString(CultureInfo.InvariantCulture) + " of=" + checks.Count.ToString(CultureInfo.InvariantCulture);
@@ -361,6 +536,15 @@ namespace Rts.Tools.BalanceHarness
             foreach (string line in lines)
             {
                 table.Append("    ").Append(line).Append('\n');
+            }
+            if (pairedRows.Count > 0)
+            {
+                table.Append("\n## Paired\n\nSign test of the pair sums at alpha ").Append(PairedStats.P4(settings.EffectAlphaPt)).Append(" (ai_threat_map.md 7.3); mde_permille is the share of decisive pairs in which the candidate must be better to be seen with power 0.80.\n\n");
+                table.Append("| check | candidate | baseline | pairs | unjudged pairs | better | worse | ties | p | mde permille | verdict |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
+                foreach (PairedCheckRow row in pairedRows)
+                {
+                    table.Append(row.TableRow());
+                }
             }
             File.WriteAllText(Path.Combine(outDirectory, "behaviour.md"), table.ToString(), new UTF8Encoding(false));
             foreach (string line in lines)
