@@ -82,6 +82,8 @@
 //     Every profile file carries them; the old values false, 60, 1 play exactly as before; only aggressive_s5_pd has use_production_capacity true.
 //   * rts/docs/specs/ai_production_defence.md package PD-2 (supply ahead, rule SA): use_supply_ahead and supply_ahead_max_pending (1 to 8). Every profile file carries them; the old values false and 1
 //     play exactly as before; only aggressive_s5_pd has use_supply_ahead true (3).
+//   * rts/docs/specs/ai_production_defence.md package PD-3 (raid workers, rules RS and RW): use_raid_workers, raid_active_seconds (1 to 120), raid_field_radius_tiles (1 to 30) and
+//     raid_evacuate_max_commands_per_think (0 to 100). Every profile file carries them; the old values false, 10, 8 and 12 play exactly as before; only aggressive_s5_pd has use_raid_workers true.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -826,6 +828,18 @@ namespace Rts.Ai
         /// <summary>Rule SA: most supply structures under construction or ordered at once. Unit: structures. Range: 1 to 8.</summary>
         public int SupplyAheadMaxPending { get; }
 
+        /// <summary>Rules RS and RW (ai_production_defence.md section 5): fields near an active raid are closed (no workers sent or trained for them; workers on them move off). False: no raid is tracked for workers. Unit: boolean.</summary>
+        public bool UseRaidWorkers { get; }
+
+        /// <summary>Rule RS: a raid stays active this long after the last hit or worker loss near one of its drop-offs. Unit: seconds (Fix64). Range: 1 to 120.</summary>
+        public Fix64 RaidActiveSeconds { get; }
+
+        /// <summary>Rule RW: a field whose centre is within this distance of an active raid's last hit is closed. Unit: tiles (Fix64). Range: 1 to 30.</summary>
+        public Fix64 RaidFieldRadiusTiles { get; }
+
+        /// <summary>Rule RW: most orders per think that move workers off closed fields. Unit: commands. Range: 0 to 100.</summary>
+        public int RaidEvacuateMaxCommandsPerThink { get; }
+
         /// <summary>
         /// The authored wall lines by map ID (ordinal order), attached by <see cref="FromDataSet"/> from DataSet.AiWallLines; empty for a profile made by <see cref="Parse(string, string, ContentCatalog)"/> from text.
         /// Immutable after load. Unit: map ID to lines. Range: 0 or more maps.
@@ -1104,6 +1118,10 @@ namespace Rts.Ai
             ProductionCapacityTarget = root.RequireFix64("production_capacity_target", "0.1", "3");
             UseSupplyAhead = root.RequireBool("use_supply_ahead");
             SupplyAheadMaxPending = root.RequireInt("supply_ahead_max_pending", 1, 8);
+            UseRaidWorkers = root.RequireBool("use_raid_workers");
+            RaidActiveSeconds = root.RequireFix64("raid_active_seconds", "1", "120");
+            RaidFieldRadiusTiles = root.RequireFix64("raid_field_radius_tiles", "1", "30");
+            RaidEvacuateMaxCommandsPerThink = root.RequireInt("raid_evacuate_max_commands_per_think", 0, 100);
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1246,6 +1264,7 @@ namespace Rts.Ai
                 "expansion_wall_max_bases", "wall_max_spend_common",
                 "use_production_capacity", "income_window_seconds", "production_capacity_target",
                 "use_supply_ahead", "supply_ahead_max_pending",
+                "use_raid_workers", "raid_active_seconds", "raid_field_radius_tiles", "raid_evacuate_max_commands_per_think",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.

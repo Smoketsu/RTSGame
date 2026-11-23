@@ -592,6 +592,10 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(profile.ProductionCapacityTarget, Is.EqualTo(Fix64.One), id);
                 Assert.That(profile.UseSupplyAhead, Is.EqualTo(id == "aggressive_s5_pd"), id);
                 Assert.That(profile.SupplyAheadMaxPending, Is.EqualTo(id == "aggressive_s5_pd" ? 3 : 1), id);
+                Assert.That(profile.UseRaidWorkers, Is.EqualTo(id == "aggressive_s5_pd"), id);
+                Assert.That(profile.RaidActiveSeconds, Is.EqualTo(Fix64.FromInt(10)), id);
+                Assert.That(profile.RaidFieldRadiusTiles, Is.EqualTo(Fix64.FromInt(8)), id);
+                Assert.That(profile.RaidEvacuateMaxCommandsPerThink, Is.EqualTo(12), id);
             }
             DataValidationException range = Expect.Throws<DataValidationException>(() => Hand("aggressive_s5_pd", "\"income_window_seconds\": 60", "\"income_window_seconds\": 5"));
             Assert.That(range.Message, Does.Contain("income_window_seconds"));
@@ -642,12 +646,16 @@ namespace Rts.Sim.Tests.Ai
         public void Off2_OldBehaviourAndDraws()
         {
             AiProfile baseline = AiProfile.FromDataSet(Data, "aggressive_s5_m");
-            AiProfile twin = AiProfile.Parse(ProfileText("aggressive_s5_m").Replace("\"income_window_seconds\": 60", "\"income_window_seconds\": 120").Replace("\"production_capacity_target\": 1,", "\"production_capacity_target\": 2,").Replace("\"supply_ahead_max_pending\": 1", "\"supply_ahead_max_pending\": 6"),
+            AiProfile twin = AiProfile.Parse(ProfileText("aggressive_s5_m").Replace("\"income_window_seconds\": 60", "\"income_window_seconds\": 120").Replace("\"production_capacity_target\": 1,", "\"production_capacity_target\": 2,").Replace("\"supply_ahead_max_pending\": 1", "\"supply_ahead_max_pending\": 6")
+                .Replace("\"raid_active_seconds\": 10", "\"raid_active_seconds\": 30").Replace("\"raid_field_radius_tiles\": 8", "\"raid_field_radius_tiles\": 20").Replace("\"raid_evacuate_max_commands_per_think\": 12", "\"raid_evacuate_max_commands_per_think\": 1"),
                 "ai/aggressive_s5_m.json", Data.Content);
             Assert.That(twin.UseProductionCapacity, Is.False);
             Assert.That(twin.IncomeWindowSeconds, Is.EqualTo(120));
             Assert.That(twin.UseSupplyAhead, Is.False);
             Assert.That(twin.SupplyAheadMaxPending, Is.EqualTo(6));
+            Assert.That(twin.UseRaidWorkers, Is.False);
+            Assert.That(twin.RaidActiveSeconds, Is.EqualTo(Fix64.FromInt(30)));
+            Assert.That(twin.RaidEvacuateMaxCommandsPerThink, Is.EqualTo(1));
             Assert.That(Trace(twin, twin), Is.EqualTo(Trace(baseline, baseline)));
         }
     }

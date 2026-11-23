@@ -8,7 +8,7 @@
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
 // ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
-// ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity).
+// ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity); PD-3 adds RaidHits, OwnWorkerPositions and RaidScanTick (rules RS and RW, only with use_raid_workers).
 using System.Collections.Generic;
 using Rts.Sim.Core;
 
@@ -149,6 +149,18 @@ namespace Rts.Ai
         /// to ticks above now minus income_window_seconds. Unit: Tick in ticks (0 upward), Common in resource units (1 upward). Empty at the start and while the switch is off. Not hashed.
         /// </summary>
         public List<(int Tick, int Common)> DepositLog { get; } = new List<(int Tick, int Common)>();
+
+        /// <summary>
+        /// Rule RS (ai_production_defence.md section 2, only with use_raid_workers): the newest hit or worker loss near each own drop-off (key), as its tick and position; entries expire raid_active_seconds after their tick.
+        /// Unit: Tick in ticks (0 upward), Position in tiles. Empty at the start and while the switch is off. Not hashed.
+        /// </summary>
+        public SortedDictionary<EntityId, (int Tick, FixVec2 Position)> RaidHits { get; } = new SortedDictionary<EntityId, (int Tick, FixVec2 Position)>();
+
+        /// <summary>Rule RS (only with use_raid_workers): the own workers of the last think and where they stood, by ID (ascending); an ID that disappears is a worker loss at that position. Unit: tiles. Empty while the switch is off. Not hashed.</summary>
+        public SortedDictionary<EntityId, FixVec2> OwnWorkerPositions { get; } = new SortedDictionary<EntityId, FixVec2>();
+
+        /// <summary>Rule RS (only with use_raid_workers): tick of the last raid scan, or -1 before the first; only damage reports newer than this are new hits. Unit: ticks. Range: -1, or 0 upward.</summary>
+        public int RaidScanTick { get; set; } = -1;
 
         /// <summary>Highest tick whose events were read, or -1. Unit: ticks.</summary>
         public int LastEventTickRead { get; set; } = -1;

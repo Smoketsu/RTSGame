@@ -19,7 +19,7 @@ namespace Rts.Ai
         /// <param name="memory">The controller's memory; its deposit log is pruned.</param>
         private static void PruneDepositLog(AiWorldView view, AiProfile profile, AiMemory memory)
         {
-            // Oldest tick that still counts (exclusive). Unit: ticks. Range: any int (negative early in the match).
+            // Oldest tick that still counts (exclusive). Unit: ticks. Range: view.Tick minus the window (10 to 300 s in ticks), so negative early in the match and at most view.Tick - 1.
             int oldest = view.Tick - view.SecondsToTicks(Fix64.FromInt(profile.IncomeWindowSeconds));
             memory.DepositLog.RemoveAll(entry => entry.Tick <= oldest);
         }
@@ -49,12 +49,15 @@ namespace Rts.Ai
             if (structures)
             {
                 turn.Structures();
+                // Common and rare held back by rule 3 this think. Unit: resource units. Range: 0 upward.
                 (int common, int rare) = turn.Reserves();
                 return (0, 0, common, rare, intents);
             }
             turn.Produce();
+            // Common and rare held back after rule P, before rule PC's slot. Unit: resource units. Range: 0 upward.
             (int commonBefore, int rareBefore) = turn.Reserves();
             turn.ExtraProducer();
+            // Common and rare held back after the rule PC slot (or rule X). Unit: resource units. Range: 0 upward.
             (int commonAfter, int rareAfter) = turn.Reserves();
             return (commonBefore, rareBefore, commonAfter, rareAfter, intents);
         }
@@ -232,8 +235,9 @@ namespace Rts.Ai
             /// </summary>
             private void SupplyAhead()
             {
-                // Supply of the supply structures under construction or ordered, and their number. Unit: supply and structures. Range: 0 upward.
+                // Supply the supply structures under construction or ordered will add. Unit: supply. Range: 0 upward.
                 int pendingSupply = 0;
+                // Number of supply structures under construction or ordered. Unit: structures. Range: 0 upward.
                 int pending = 0;
                 foreach (AiUnitView unit in _planned)
                 {
@@ -247,8 +251,9 @@ namespace Rts.Ai
                 {
                     return;
                 }
-                // The supply structure and the ticks one takes to build. Unit: definition and ticks (1 upward).
+                // The plan's supply structure. Range: a catalogue structure that provides supply.
                 UnitDefinition supplyBuilding = _view.Content.Units[_plan.SupplyBuildingId];
+                // Ticks the supply structure takes to build. Unit: ticks. Range: 1 upward.
                 int buildTicks = BuildTicks(supplyBuilding);
                 // Supply the producers can add during one supply build (N). Unit: supply. Range: 0 upward.
                 int need = 0;
@@ -264,6 +269,7 @@ namespace Rts.Ai
                     {
                         if (Producible(trained))
                         {
+                            // Definition of the trainable unit. Range: a catalogue unit that is producible now.
                             UnitDefinition unit = _view.Content.Units[trained];
                             best = Math.Max(best, (_view.SupplyOf(unit) * buildTicks + BuildTicks(unit) - 1) / BuildTicks(unit));
                         }
@@ -272,6 +278,7 @@ namespace Rts.Ai
                 }
                 if (WorkerRate() > 0)
                 {
+                    // Definition of the plan's worker unit. Range: a catalogue unit that can gather.
                     UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
                     need += (buildTicks + BuildTicks(worker) - 1) / BuildTicks(worker) * _view.SupplyOf(worker);
                 }
