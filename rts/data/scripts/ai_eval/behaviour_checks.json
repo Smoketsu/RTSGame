@@ -58,6 +58,32 @@
       "max_violation_fraction": 0,
       // Print one BEHAVIOUR_BY_OPENING line per faction and opening after the check's line. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.1 (bar EB-5); placeholder.
       "print_by_opening": true
+    },
+    "econ_gap": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "enabled": true,
+      // Second up to which the model's incomes are compared; only whole buckets count. Unit: seconds. Range: 1 to 7200, a multiple of summary_bucket_seconds. Source: rts/docs/specs/ai_economy_calc.md 3.2 (bar EB-4); placeholder.
+      "at_seconds": 300,
+      // Smallest worker cap N the search tries (workers the HQ trains up to, training included). Unit: workers. Range: 1 to 200, at most worker_cap_max. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "worker_cap_min": 8,
+      // Largest worker cap N the search tries. Unit: workers. Range: 1 to 200. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "worker_cap_max": 40,
+      // Step between worker caps. Unit: workers. Range: 1 to 200. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "worker_cap_step": 2,
+      // Smallest worker count at which a depot may be ordered. Unit: workers. Range: 1 to 200, at most depot_trigger_max. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "depot_trigger_min": 4,
+      // Largest worker count at which a depot may be ordered. Unit: workers. Range: 1 to 200. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "depot_trigger_max": 40,
+      // Step between depot triggers. Unit: workers. Range: 1 to 200. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "depot_trigger_step": 2,
+      // Most depots in a searched schedule (0 searches workers only). Unit: depots. Range: 0 to 4. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "max_depots": 3,
+      // Largest decision gap, 1000 x (OPT - MOD) / OPT, that holds (1000: always holds; the bar is on the printed medians). Unit: permille. Range: 0 to 1000. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "max_gap_permille": 1000,
+      // Share of judged slot-games that may violate before the check fails for the profile. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_economy_calc.md 3.2; placeholder.
+      "max_violation_fraction": 0,
+      // Print one BEHAVIOUR_BY_OPENING line per faction and opening after the check's line. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_economy_calc.md 3.2 (the per-opening decision gaps); placeholder.
+      "print_by_opening": true
     }
   }
 }

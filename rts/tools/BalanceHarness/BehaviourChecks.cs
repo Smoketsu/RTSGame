@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Rts.Sim.Core;
 using Rts.Sim.Data;
+using Rts.Sim.Units;
 
 namespace Rts.Tools.BalanceHarness
 {
@@ -63,9 +64,13 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Simulation ticks per second (the match tuning), or 1 when not known. Unit: ticks per second. Range: 1 upward.</summary>
         public int TicksPerSecond { get; }
 
-        /// <summary>Bundles the values; the last two are optional (unknown while only validating settings).</summary>
-        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1)
+        /// <summary>The loaded data set (maps, units, tuning, AI profiles) for a check that models the game (econ_gap), or null when not known (settings validation without a run).</summary>
+        public DataSet? Data { get; }
+
+        /// <summary>Bundles the values; the last three are optional (unknown while only validating settings).</summary>
+        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null)
         {
+            Data = data;
             RareWeightPt = rareWeightPt;
             BucketTicks = bucketTicks;
             BankSeconds = bankSeconds ?? Array.Empty<int>();
@@ -123,6 +128,7 @@ namespace Rts.Tools.BalanceHarness
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(WorkersAt.CheckId, c => new WorkersAt(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(FirstDropOff.CheckId, c => new FirstDropOff(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(IncomeBy.CheckId, c => new IncomeBy(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(EconGap.CheckId, c => new EconGap(c)),
         };
 
         /// <summary>True when <paramref name="id"/> is a registered check.</summary>
@@ -539,6 +545,233 @@ namespace Rts.Tools.BalanceHarness
                     weighted += _context.Weighted(slot.Income[b][0], slot.Income[b][1]);
                 }
                 return new BehaviourResult(weighted >= (long)_minIncome * 10000 ? CheckOutcome.Held : CheckOutcome.Violated, weighted, 10000);
+            }
+        }
+
+        /// <summary>
+        /// Package E-OPT (ai_economy_calc.md 3.2): how far the AI's economic choices are from the best schedule in an integer economy model. Per slot-game it builds the model of that player on that map from the data
+        /// set and the profile's faction plan, searches the best worker and depot schedule up to at_seconds (OPT), replays the AI's own workers per bucket and drop-off times (MOD) and reads the AI's deposits (REAL).
+        /// Metric = decision gap, 1000 x (OPT - MOD) / OPT floored (permille, may be negative: the AI is not held to the grid); extras are the sums of the total gap 1000 x (OPT - REAL) / OPT and the model error
+        /// 1000 x (MOD - REAL) / MOD over the judged slot-games and their count. Unjudged when the game ended before at_seconds, a summary field is missing, or OPT or MOD is 0. Results are cached per slot-game.
+        /// </summary>
+        private sealed class EconGap : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "econ_gap";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Second the income is compared up to. Unit: seconds. Range: 1 to 7200, a multiple of the bucket length.</summary>
+            private int _atSeconds;
+
+            /// <summary>Smallest worker cap N searched. Unit: workers. Range: 1 to 200, at most the largest.</summary>
+            private int _capMin;
+
+            /// <summary>Largest worker cap N searched. Unit: workers. Range: 1 to 200.</summary>
+            private int _capMax;
+
+            /// <summary>Step of the worker cap. Unit: workers. Range: 1 to 200.</summary>
+            private int _capStep;
+
+            /// <summary>Smallest depot trigger searched. Unit: workers. Range: 1 to 200, at most the largest.</summary>
+            private int _triggerMin;
+
+            /// <summary>Largest depot trigger searched. Unit: workers. Range: 1 to 200.</summary>
+            private int _triggerMax;
+
+            /// <summary>Step of the depot trigger. Unit: workers. Range: 1 to 200.</summary>
+            private int _triggerStep;
+
+            /// <summary>Most depots in a searched schedule. Unit: depots. Range: 0 to 4.</summary>
+            private int _maxDepots;
+
+            /// <summary>Largest decision gap that holds. Unit: permille. Range: 0 to 1000.</summary>
+            private int _maxGapPermille;
+
+            /// <summary>Results already computed, by slot-game (map, matchup, game, seed, slot, profile). Not shared between check instances.</summary>
+            private readonly Dictionary<string, BehaviourResult> _cache = new Dictionary<string, BehaviourResult>(StringComparer.Ordinal);
+
+            /// <summary>AI profiles already loaded, by profile ID.</summary>
+            private readonly Dictionary<string, Rts.Ai.AiProfile> _profiles = new Dictionary<string, Rts.Ai.AiProfile>(StringComparer.Ordinal);
+
+            /// <summary>Bundles the context.</summary>
+            public EconGap(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public bool PrintByOpening { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => PredictEvaluator.Ratio3(_maxGapPermille, 1);
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames { get; } = new[] { "total_gap_sum", "model_error_sum", "gap_judged" };
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "at_seconds", "worker_cap_min", "worker_cap_max", "worker_cap_step", "depot_trigger_min", "depot_trigger_max", "depot_trigger_step", "max_depots",
+                    "max_gap_permille", "max_violation_fraction", "print_by_opening");
+                Enabled = entry.RequireBool("enabled");
+                // The at_seconds entry (kept to name the key in a settings error). Unit: seconds. Range: 1 to 7200.
+                JsonValue at = entry.Require("at_seconds");
+                _atSeconds = at.AsInt(1, 7200);
+                if (_context.BucketTicks > 1 && (_atSeconds * _context.TicksPerSecond) % _context.BucketTicks != 0)
+                {
+                    throw at.Fail("must be a multiple of summary_bucket_seconds (found " + _atSeconds.ToString(CultureInfo.InvariantCulture) + ")");
+                }
+                // The worker_cap_min entry (kept to name the key in a settings error). Unit: workers. Range: 1 to 200.
+                JsonValue capMin = entry.Require("worker_cap_min");
+                _capMin = capMin.AsInt(1, 200);
+                _capMax = entry.RequireInt("worker_cap_max", 1, 200);
+                _capStep = entry.RequireInt("worker_cap_step", 1, 200);
+                if (_capMin > _capMax)
+                {
+                    throw capMin.Fail("must be at most worker_cap_max (found " + _capMin.ToString(CultureInfo.InvariantCulture) + " above " + _capMax.ToString(CultureInfo.InvariantCulture) + ")");
+                }
+                // The depot_trigger_min entry (kept to name the key in a settings error). Unit: workers. Range: 1 to 200.
+                JsonValue triggerMin = entry.Require("depot_trigger_min");
+                _triggerMin = triggerMin.AsInt(1, 200);
+                _triggerMax = entry.RequireInt("depot_trigger_max", 1, 200);
+                _triggerStep = entry.RequireInt("depot_trigger_step", 1, 200);
+                if (_triggerMin > _triggerMax)
+                {
+                    throw triggerMin.Fail("must be at most depot_trigger_max (found " + _triggerMin.ToString(CultureInfo.InvariantCulture) + " above " + _triggerMax.ToString(CultureInfo.InvariantCulture) + ")");
+                }
+                _maxDepots = entry.RequireInt("max_depots", 0, 4);
+                _maxGapPermille = entry.RequireInt("max_gap_permille", 0, 1000);
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+                PrintByOpening = entry.RequireBool("print_by_opening");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                // Slot of this summary (0 unless it is the record's second summary). Range: 0 or 1.
+                int slotIndex = ReferenceEquals(slot, game.Summary1) ? 1 : 0;
+                // Cache key of this slot-game.
+                string key = game.Map + "|" + game.Matchup + "|" + game.Game.ToString(CultureInfo.InvariantCulture) + "|" + game.Seed.ToString(CultureInfo.InvariantCulture) + "|" + slotIndex.ToString(CultureInfo.InvariantCulture)
+                    + "|" + (slotIndex == 0 ? game.Slot0Profile : game.Slot1Profile);
+                if (_cache.TryGetValue(key, out BehaviourResult cached))
+                {
+                    return cached;
+                }
+                BehaviourResult result = Compute(slot, game, slotIndex);
+                _cache[key] = result;
+                return result;
+            }
+
+            /// <summary>Builds the model, searches, replays and compares (the uncached part of <see cref="Evaluate"/>).</summary>
+            /// <param name="slot">The slot's summary.</param>
+            /// <param name="game">The game record.</param>
+            /// <param name="slotIndex">Slot of the summary. Range: 0 or 1.</param>
+            private BehaviourResult Compute(GameSummary slot, GameRecord game, int slotIndex)
+            {
+                // Result for a slot-game with nothing to judge.
+                BehaviourResult unjudged = new BehaviourResult(CheckOutcome.Unjudged, 0, 1);
+                // Tick at which at_seconds ends, and the buckets that end at or before it. Unit: ticks, buckets. Range: 1 upward.
+                int atTicks = _atSeconds * _context.TicksPerSecond;
+                int buckets = atTicks / _context.BucketTicks;
+                if (game.EndTick + 1 < atTicks || slot.Income.Count < buckets || slot.WorkersByBucket.Count < buckets - 1 || slot.SpentOtherByBucket.Count < buckets)
+                {
+                    return unjudged;
+                }
+                DataSet data = _context.Data ?? throw new HarnessException("the econ_gap check needs the data set (BehaviourContext.Data)");
+                // Faction and profile of the slot.
+                string factionId = slotIndex == 0 ? game.Slot0Faction : game.Slot1Faction;
+                string profileId = slotIndex == 0 ? game.Slot0Profile : game.Slot1Profile;
+                if (!_profiles.TryGetValue(profileId, out Rts.Ai.AiProfile? profile))
+                {
+                    profile = Rts.Ai.AiProfile.FromDataSet(data, profileId);
+                    _profiles[profileId] = profile;
+                }
+                // The profile's plan for the slot's faction, the map, and the definitions the model reads.
+                Rts.Ai.AiFactionPlan plan = profile.RequireFaction(factionId);
+                MapDefinition map = data.RequireMap(game.Map);
+                UnitDefinition worker = data.Content.Units[plan.WorkerUnitId];
+                UnitDefinition hq = data.Content.Units[data.Content.Factions[factionId].HqUnitId!];
+                // The plan's depot, or null when it builds none.
+                UnitDefinition? depot = plan.DropOffBuildingId.Length > 0 ? data.Content.Units[plan.DropOffBuildingId] : null;
+                // Clock that converts seconds to ticks as the match does.
+                MatchClock clock = new MatchClock(_context.TicksPerSecond);
+                // The map's fields as the model reads them: the tile centre, the kind and the start amount. Unit: tiles, kind, resource units.
+                List<ModelField> fields = new List<ModelField>();
+                foreach (ResourceField field in map.ResourceFields)
+                {
+                    fields.Add(new ModelField(new FixVec2(Fix64.FromInt(field.X) + Fix64.Half, Fix64.FromInt(field.Y) + Fix64.Half), field.Kind == ResourceKind.Rare, field.Amount));
+                }
+                // What the game spent in each bucket outside workers and drop-offs, common plus rare. Unit: resource units.
+                List<long> other = new List<long>();
+                foreach (int[] pair in slot.SpentOtherByBucket)
+                {
+                    other.Add((long)pair[0] + pair[1]);
+                }
+                ModelInputs inputs = new ModelInputs
+                {
+                    TicksPerSecond = _context.TicksPerSecond,
+                    BucketSeconds = _context.BucketTicks / _context.TicksPerSecond,
+                    Fields = fields,
+                    Spawn = map.Spawns[slotIndex],
+                    WorkerSpeed = worker.SpeedTilesPerSecond,
+                    WorkerCost = worker.CostCommon + worker.CostRare,
+                    WorkerBuildTicks = Math.Max(1, clock.SecondsToTicks(worker.Economy.BuildSeconds)),
+                    HasDepot = depot != null,
+                    DepotCost = depot == null ? 0 : depot.CostCommon + depot.CostRare,
+                    DepotBuildTicks = depot == null ? 1 : Math.Max(1, clock.SecondsToTicks(depot.Economy.BuildSeconds)),
+                    DepotRadius = depot == null ? Fix64.Zero : depot.Radius,
+                    HqRadius = hq.Radius,
+                    AmountPerTrip = data.Tuning.Economy.GatherAmountPerTrip,
+                    HoldTicks = data.Tuning.Economy.GatherTicksPerTrip(clock),
+                    SlotsCommon = data.Tuning.Economy.GatherSlotsCommon,
+                    SlotsRare = data.Tuning.Economy.GatherSlotsRare,
+                    Interact = data.Tuning.Economy.InteractRangeTiles,
+                    PlacementTicks = data.Tuning.Economy.WorkerPlacementTicks(clock),
+                    StartingBank = data.Tuning.Economy.StartingCommon,
+                    StartingWorkers = data.Tuning.Economy.StartingWorkerCount,
+                    Reach = profile.FieldMaxDistanceTiles,
+                    RingMin = profile.DepotRingMinTiles,
+                    OtherSpending = other,
+                };
+                EconomyModel model = new EconomyModel(inputs);
+                // The best schedule's income, the AI schedule's income in the model, and the AI's real deposits. Unit: resource units. Range: 0 upward.
+                long opt = model.Search(_atSeconds, _capMin, _capMax, _capStep, _triggerMin, _triggerMax, _triggerStep, _maxDepots).Income;
+                long mod = model.Replay(_atSeconds, slot.WorkersByBucket, slot.DropOffTicks);
+                long real = 0;
+                for (int b = 0; b < buckets; b++)
+                {
+                    real += (long)slot.Income[b][0] + slot.Income[b][1];
+                }
+                if (opt <= 0 || mod <= 0)
+                {
+                    return unjudged;
+                }
+                // The three gaps. Unit: permille. Range: any (negative when the AI beats the grid or the model).
+                long decision = FloorDiv(1000 * (opt - mod), opt);
+                long total = FloorDiv(1000 * (opt - real), opt);
+                long error = FloorDiv(1000 * (mod - real), mod);
+                return new BehaviourResult(decision <= _maxGapPermille ? CheckOutcome.Held : CheckOutcome.Violated, decision, 1, new[] { total, error, 1L });
+            }
+
+            /// <summary>Integer division rounded toward negative infinity. Range: any.</summary>
+            /// <param name="num">Numerator. Range: any.</param>
+            /// <param name="den">Denominator. Range: above 0.</param>
+            private static long FloorDiv(long num, long den)
+            {
+                // Truncated quotient. Range: any.
+                long quotient = num / den;
+                return num % den < 0 ? quotient - 1 : quotient;
             }
         }
     }

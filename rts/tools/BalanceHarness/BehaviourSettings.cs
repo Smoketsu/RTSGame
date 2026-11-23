@@ -75,7 +75,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="notDeclared">Receives the registered checks that have no entry, in registry order.</param>
         /// <param name="bankSeconds">Seconds of the summary's bank snapshots, or null when unknown (a check that names a snapshot then skips its range check). Unit: seconds.</param>
         /// <param name="ticksPerSecond">Simulation ticks per second. Unit: ticks per second. Range: 1 upward.</param>
-        public List<IBehaviourCheck> Checks(IReadOnlyList<string>? only, int bucketTicks, List<string> notDeclared, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1)
+        /// <param name="data">The loaded data set for a check that models the game (econ_gap), or null when only validating.</param>
+        public List<IBehaviourCheck> Checks(IReadOnlyList<string>? only, int bucketTicks, List<string> notDeclared, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null)
         {
             if (only != null)
             {
@@ -87,7 +88,7 @@ namespace Rts.Tools.BalanceHarness
                     }
                 }
             }
-            BehaviourContext context = new BehaviourContext(RareWeightPt, bucketTicks, bankSeconds, ticksPerSecond);
+            BehaviourContext context = new BehaviourContext(RareWeightPt, bucketTicks, bankSeconds, ticksPerSecond, data);
             List<IBehaviourCheck> checks = new List<IBehaviourCheck>();
             foreach (KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>> pair in BehaviourChecks.Registry)
             {
