@@ -8,6 +8,7 @@
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
 // ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
+// ai_economy_calc.md adds EconomyNote (rule ED's explanation record, written once per think only with use_economy_calc; not hashed).
 // ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity); PD-3 adds RaidHits, OwnWorkerPositions and RaidScanTick (rules RS and RW, only with use_raid_workers); revision 2 adds RaidClosedFields, RaidSeenTick, RaidCarriedHits, RaidAnswered and DamageReport.IsArmy (all written only with a raid switch on, except IsArmy; none hashed).
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -152,6 +153,13 @@ namespace Rts.Ai
         /// to ticks above now minus income_window_seconds. Unit: Tick in ticks (0 upward), Common in resource units (1 upward). Empty at the start and while the switch is off. Not hashed.
         /// </summary>
         public List<(int Tick, int Common)> DepositLog { get; } = new List<(int Tick, int Common)>();
+
+        /// <summary>
+        /// Rule ED's explanation record (ai_economy_calc.md 2.4, only with use_economy_calc): written once per think by Expand: Tick the think's tick (ticks, 0 upward; -1 before the first write),
+        /// Wanted the uncapped worker target (workers, 0 upward), DepotNet the net value of the depot at this think's target (resource units, may be negative; 0 when no target was evaluated),
+        /// Lead the ticks until that depot would serve (ticks, 0 upward; 0 when none) and Fired true when the depot was ordered by the economy calculation alone (clock gate and low both false). Not hashed.
+        /// </summary>
+        public (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) EconomyNote { get; set; } = (-1, 0, 0L, 0, false);
 
         /// <summary>
         /// Rule RS (ai_production_defence.md section 2, only with use_raid_workers): the newest hit or worker loss near each own drop-off (key), as its tick and position; entries expire raid_active_seconds after their tick.

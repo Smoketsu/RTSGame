@@ -65,6 +65,9 @@
 //      the rare soft cap closes rare fields only while a served common field has fewer workers than its cap. use_saturation_expansion:
 //      rule E also fires when the workers (queued included) reach expand_saturation_fraction x the uncapped target. A seen threat blocks
 //      a depot only from expand_block_threat_supply (0 = any threat blocks).
+//   4a'''. Economy by calculation (ai_economy_calc.md, only with use_economy_calc, which needs both AI-E switches). Rule EW (CalcCapOf): a field's
+//      cap is the count of workers whose added income over economy_horizon_seconds (after the worker's build time) exceeds the worker's cost,
+//      from the gather slots, the trip time, the walk and the field's known remainder, replacing the AI-E walk cover.
 //   4a'. Placement and defence (field_saturation.md package AI-P, AiBrainPlacement.cs, only with the keys on). use_forward_producers: rule X
 //      and rule T build the producer on the ring around the own base (Rooted HQ, or a complete depot with a live field in reach) with the
 //      fewest producers within base_radius_tiles (ties to the HQ, then the lower ID); no good site there: the HQ ring. use_threat_defence:
@@ -323,13 +326,85 @@ namespace Rts.Ai
         /// <param name="extra">saturation_extra_workers_per_field. Unit: workers. Range: 0 to 4.</param>
         internal static int SaturationCap(int slots, Fix64 distance, Fix64 radius, Fix64 interact, Fix64 speed, int ticksPerSecond, int gatherTicks, int extra)
         {
-            // One-way walk beyond the interact ranges. Unit: tiles. Range: 0 upward.
-            Fix64 walk = Fix64.Max(Fix64.Zero, distance - interact * 2 - radius);
             // Round-trip walk time. Unit: ticks. Range: 0 upward.
-            int walkTicks = speed > Fix64.Zero ? (walk * (2 * ticksPerSecond) / speed).CeilingToInt() : 0;
+            int walkTicks = WalkTicks(distance, radius, interact, speed, ticksPerSecond);
             // Ticks one slot is held per load, at least 1. Unit: ticks. Range: 1 upward.
             int hold = Math.Max(1, gatherTicks);
             return slots + (slots * walkTicks + hold - 1) / hold + extra;
+        }
+
+        /// <summary>
+        /// The round-trip walk between a field and a drop-off (the walk-ticks part of <see cref="SaturationCap"/>, extracted unchanged; ai_economy_calc.md 2.1 "W"):
+        /// one way = max(0, distance - 2 x interact - radius) tiles, W = ceil(2 x one way x ticksPerSecond / speed) ticks, 0 when the speed is 0.
+        /// </summary>
+        /// <param name="distance">Field centre to drop-off position. Unit: tiles. Range: 0 upward.</param>
+        /// <param name="radius">Drop-off footprint radius. Unit: tiles. Range: 0 upward.</param>
+        /// <param name="interact">Interact range. Unit: tiles. Range: above 0.</param>
+        /// <param name="speed">Worker speed. Unit: tiles per second. Range: 0 upward (0 counts as no walk time).</param>
+        /// <param name="ticksPerSecond">Simulation rate. Unit: ticks per second. Range: 1 upward.</param>
+        internal static int WalkTicks(Fix64 distance, Fix64 radius, Fix64 interact, Fix64 speed, int ticksPerSecond)
+        {
+            // One-way walk beyond the interact ranges. Unit: tiles. Range: 0 upward.
+            Fix64 walk = Fix64.Max(Fix64.Zero, distance - interact * 2 - radius);
+            return speed > Fix64.Zero ? (walk * (2 * ticksPerSecond) / speed).CeilingToInt() : 0;
+        }
+
+        /// <summary>
+        /// Loads that n workers deliver from one field in a span (ai_economy_calc.md 2.1): span x min(n x g, s x t) / (g x t), floor division, 0 when the span is not above 0.
+        /// Each worker cycles in t ticks and the field yields at most s loads per g ticks. All products in long. Unit: loads. Range: 0 upward.
+        /// </summary>
+        /// <param name="span">Ticks the workers deliver over. Unit: ticks. Range: any (0 or less gives 0).</param>
+        /// <param name="n">Workers on the field. Unit: workers. Range: 0 upward.</param>
+        /// <param name="s">Gather slots of the field. Unit: workers. Range: 1 to 16.</param>
+        /// <param name="g">Ticks a slot is held per load. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="t">One trip cycle of a worker that never waits, g + walk. Unit: ticks. Range: g upward.</param>
+        internal static long Loads(long span, int n, int s, int g, int t)
+        {
+            if (span <= 0 || g <= 0 || t <= 0)
+            {
+                return 0;
+            }
+            // Ticks of slot time the workers can use per t ticks: bounded by their own cycles and by the slots. Unit: ticks. Range: 0 upward.
+            long usable = Math.Min((long)n * g, (long)s * t);
+            return span * usable / ((long)g * t);
+        }
+
+        /// <summary>
+        /// Value of the j-th worker on a field over a span (ai_economy_calc.md 2.1): min(K, A x Loads(j)) - min(K, A x Loads(j - 1)). Unit: resource units. Range: 0 upward.
+        /// </summary>
+        /// <param name="span">Ticks the workers deliver over. Unit: ticks. Range: any.</param>
+        /// <param name="j">Which worker, counted from 1. Unit: workers. Range: 1 upward.</param>
+        /// <param name="s">Gather slots of the field. Unit: workers. Range: 1 to 16.</param>
+        /// <param name="g">Ticks a slot is held per load. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="t">One trip cycle of a worker that never waits. Unit: ticks. Range: g upward.</param>
+        /// <param name="known">Known remaining amount of the field. Unit: resource units. Range: 0 upward.</param>
+        /// <param name="amount">Resource per load. Unit: resource units. Range: 1 to 100.</param>
+        internal static long Gain(long span, int j, int s, int g, int t, int known, int amount)
+        {
+            return Math.Min(known, amount * Loads(span, j, s, g, t)) - Math.Min(known, amount * Loads(span, j - 1, s, g, t));
+        }
+
+        /// <summary>
+        /// Rule EW's count (ai_economy_calc.md 2.2 step 3): the smallest j - 1 (j = 1, 2, ...) with Gain(span, j) at most the worker cost, stopping at ceil(s x t / g) at the latest. Unit: workers. Range: 0 to ceil(s x t / g).
+        /// </summary>
+        /// <param name="span">Ticks the next worker earns over: horizon minus the worker's build time. Unit: ticks. Range: any (0 or less gives 0).</param>
+        /// <param name="slots">Gather slots of the field. Unit: workers. Range: 1 to 16.</param>
+        /// <param name="hold">Ticks a slot is held per load. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="cycle">One trip cycle of a worker that never waits, hold + walk. Unit: ticks. Range: hold upward.</param>
+        /// <param name="known">Known remaining amount of the field. Unit: resource units. Range: 0 upward.</param>
+        /// <param name="amount">Resource per load. Unit: resource units. Range: 1 to 100.</param>
+        /// <param name="cost">Cost of one worker. Unit: resource units. Range: 0 upward.</param>
+        internal static int CalcCap(long span, int slots, int hold, int cycle, int known, int amount, int cost)
+        {
+            // Most workers that can add anything: beyond ceil(s x cycle / hold) the gain is 0. Unit: workers. Range: 1 upward.
+            int limit = (slots * cycle + hold - 1) / hold;
+            // Workers counted so far. Unit: workers. Range: 0 to limit.
+            int cap = 0;
+            while (cap < limit && Gain(span, cap + 1, slots, hold, cycle, known, amount) > cost)
+            {
+                cap++;
+            }
+            return cap;
         }
 
         /// <summary>The economy facts one think derives from a view (test hook, see <see cref="Probe"/>).</summary>
@@ -857,13 +932,13 @@ namespace Rts.Ai
                 }
                 if (field.Kind == ResourceKind.Common)
                 {
-                    return _profile.UseSaturationWorkers ? SaturationCapOf(field) : _profile.WorkersPerField;
+                    return _profile.UseSaturationWorkers ? (_profile.UseEconomyCalc ? CalcCapOf(field) : SaturationCapOf(field)) : _profile.WorkersPerField;
                 }
                 if (RareCapped)
                 {
                     return 0;
                 }
-                return _profile.UseSaturationWorkers ? SaturationCapOf(field) : _profile.RareWorkersPerField;
+                return _profile.UseSaturationWorkers ? (_profile.UseEconomyCalc ? CalcCapOf(field) : SaturationCapOf(field)) : _profile.RareWorkersPerField;
             }
 
             /// <summary>
@@ -879,10 +954,29 @@ namespace Rts.Ai
                 {
                     return known;
                 }
-                // Distance from the field to its nearest planned drop-off, capped at field_max_distance_tiles. Unit: tiles. Range: 0 to field_max_distance_tiles.
+                // Distance to the nearest planned drop-off and its footprint radius (tiles; see NearestDropOff).
+                Fix64 distance = NearestDropOff(field, out Fix64 radius);
+                // Gather slots of this field's kind. Unit: workers. Range: 1 to 16.
+                int slots = field.Kind == ResourceKind.Rare ? _view.GatherSlotsRare : _view.GatherSlotsCommon;
+                // Worker speed of the plan's worker. Unit: tiles per second. Range: 0 upward.
+                Fix64 speed = _view.Content.Units[_plan.WorkerUnitId].SpeedTilesPerSecond;
+                // Cap computed from the formula. Unit: workers. Range: 1 upward.
+                int cap = AiBrain.SaturationCap(slots, distance, radius, _view.InteractRangeTiles, speed, _view.TicksPerSecond, _view.GatherTicksPerTrip, _profile.SaturationExtraWorkersPerField);
+                _saturationCaps[field.Index] = cap;
+                return cap;
+            }
+
+            /// <summary>
+            /// Distance from a field to its nearest planned drop-off, capped at field_max_distance_tiles (nearest by squared distance, a tie to the earlier list entry; with none, field_max_distance_tiles away and radius 0).
+            /// Shared by SaturationCapOf (AI-E) and CalcCapOf (ai_economy_calc.md 2.2). Unit: tiles. Range: 0 to field_max_distance_tiles.
+            /// </summary>
+            /// <param name="field">The field.</param>
+            /// <param name="radius">Receives the footprint radius of that drop-off. Unit: tiles. Range: 0 to 4.</param>
+            private Fix64 NearestDropOff(AiFieldView field, out Fix64 radius)
+            {
+                // Distance to the best drop-off so far, capped. Unit: tiles. Range: 0 to field_max_distance_tiles.
                 Fix64 distance = _profile.FieldMaxDistanceTiles;
-                // Footprint radius of that drop-off. Unit: tiles. Range: 0 to 4.
-                Fix64 radius = Fix64.Zero;
+                radius = Fix64.Zero;
                 // Squared distance of the best drop-off so far. Unit: squared tiles. Range: 0 upward.
                 Fix64 bestSquared = Fix64.Zero;
                 // True once a drop-off has been seen. Unit: boolean. Range: true or false.
@@ -900,14 +994,41 @@ namespace Rts.Ai
                         radius = _plannedDropOffRadii[i];
                     }
                 }
+                return distance;
+            }
+
+            /// <summary>
+            /// Rule EW (ai_economy_calc.md 2.2), only with use_economy_calc: the number of workers a field takes, the count whose added income over the horizon, from the moment the next worker is trained,
+            /// exceeds the worker's cost. T = G + W(d, r); span = horizon - build time; cap = the smallest j - 1 with Gain(span, j) at most the worker cost, at most ceil(s x T / G). Memoised per think. Unit: workers. Range: 0 to ceil(s x T / G).
+            /// </summary>
+            private int CalcCapOf(AiFieldView field)
+            {
+                // Cap already computed this think for this field. Unit: workers. Range: 0 upward.
+                if (_saturationCaps.TryGetValue(field.Index, out int known))
+                {
+                    return known;
+                }
+                // Distance to the nearest planned drop-off and its footprint radius (tiles).
+                Fix64 distance = NearestDropOff(field, out Fix64 radius);
                 // Gather slots of this field's kind. Unit: workers. Range: 1 to 16.
                 int slots = field.Kind == ResourceKind.Rare ? _view.GatherSlotsRare : _view.GatherSlotsCommon;
-                // Worker speed of the plan's worker. Unit: tiles per second. Range: 0 upward.
-                Fix64 speed = _view.Content.Units[_plan.WorkerUnitId].SpeedTilesPerSecond;
-                // Cap computed from the formula. Unit: workers. Range: 1 upward.
-                int cap = AiBrain.SaturationCap(slots, distance, radius, _view.InteractRangeTiles, speed, _view.TicksPerSecond, _view.GatherTicksPerTrip, _profile.SaturationExtraWorkersPerField);
+                UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
+                // Ticks a slot is held per load, at least 1. Unit: ticks. Range: 1 upward.
+                int hold = Math.Max(1, _view.GatherTicksPerTrip);
+                // One trip cycle of a worker that never waits. Unit: ticks. Range: 1 upward.
+                int cycle = hold + AiBrain.WalkTicks(distance, radius, _view.InteractRangeTiles, worker.SpeedTilesPerSecond, _view.TicksPerSecond);
+                // Ticks the next worker earns over: the horizon after it has been trained. Unit: ticks. Range: any (0 or less gives cap 0).
+                long span = HorizonTicks() - BuildTicks(worker);
+                // Cap from the worth rule; the cost of one worker is common plus rare, rare valued 1 to 1 (Q-2).
+                int cap = AiBrain.CalcCap(span, slots, hold, cycle, Known(field), _view.GatherAmountPerTrip, worker.CostCommon + worker.CostRare);
                 _saturationCaps[field.Index] = cap;
                 return cap;
+            }
+
+            /// <summary>The planning horizon economy_horizon_seconds in ticks (ai_economy_calc.md 2.1 "Hk"). Unit: ticks. Range: 1 upward.</summary>
+            private int HorizonTicks()
+            {
+                return _view.SecondsToTicks(Fix64.FromInt(_profile.EconomyHorizonSeconds));
             }
 
             /// <summary>True while rare_bank_soft_cap is on (above 0) and the rare bank is at or above it (C2.3): rare fields take no workers. Unit: boolean.</summary>

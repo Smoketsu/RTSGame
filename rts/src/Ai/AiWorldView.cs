@@ -287,6 +287,12 @@ namespace Rts.Ai
         /// <summary>Ticks one gathering trip holds a slot (gather_seconds_per_trip at the match rate). Unit: ticks. Range: 1 upward.</summary>
         public int GatherTicksPerTrip { get; private set; }
 
+        /// <summary>Resource carried and deposited per gathering trip (tuning/economy.json gather_amount_per_trip; ai_economy_calc.md 2.1 "A"). Unit: resource units. Range: 1 to 100.</summary>
+        public int GatherAmountPerTrip { get; private set; }
+
+        /// <summary>Ticks a worker takes to be placed at a build site (tuning/economy.json worker placement time at the match rate; ai_economy_calc.md 2.1 "P"). Unit: ticks. Range: 0 upward.</summary>
+        public int WorkerPlacementTicks { get; private set; }
+
         /// <summary>Distance within which a worker gathers or deposits: interact_range_tiles, never less than the arrival radius (as EconomySystem.InteractRange). Unit: tiles. Range: 0.5 to 4.</summary>
         public Fix64 InteractRangeTiles { get; private set; }
 
@@ -470,6 +476,8 @@ namespace Rts.Ai
             view.GatherSlotsCommon = sim.Tuning.Economy.GatherSlotsCommon;
             view.GatherSlotsRare = sim.Tuning.Economy.GatherSlotsRare;
             view.GatherTicksPerTrip = sim.Tuning.Economy.GatherTicksPerTrip(sim.Clock);
+            view.GatherAmountPerTrip = sim.Tuning.Economy.GatherAmountPerTrip;
+            view.WorkerPlacementTicks = sim.Tuning.Economy.WorkerPlacementTicks(sim.Clock);
             view.InteractRangeTiles = Fix64.Max(sim.Tuning.Economy.InteractRangeTiles, sim.Tuning.Terrain.ArrivalRadiusTiles);
             view.MapId = sim.Map.Id;
             view.WaveLengthTiles = sim.Tuning.Flood.WaveLengthTiles;
