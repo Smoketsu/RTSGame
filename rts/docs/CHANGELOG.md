@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Decision recorded (developer, 24 Nov): `use_economy_calc` stays off in the main AI (package E showed no measurable effect); the package S bars stand as written.
 - P-006 package S-MAP: a passive threat map of own and remembered enemy strength per cell, built only from the fogged view and memory (`AiThreatMap.cs`), with keys `use_threat_map`, `threat_cell_tiles` and `threat_spread_cells` in every profile; candidate `aggressive_s5_s` turns the map on; trace column `thr=` and a `--threat-grid` dump. Determinism review: no blockers; no pinned value moved.
 - P-006 package S-M (harness): summary fields `drop_off_life` and `harass`, checks `depot_losses_young`, `harass_trade` and `harass_squads`, and the optional `paired_direction` (a `BEHAVIOUR_PAIRED` line with an exact sign test and its stated power). Base rates of these metrics for `aggressive_s5` alone under `reports/ai_threat/base_rates/`.
 - Added `rts/docs/specs/ai_threat_map.md`, the build spec for P-006 package S (one threat map): a grid of own and remembered enemy strength behind `use_threat_map`, rule TS (replaces `IsUnsafe` at every call site, `use_threat_safety`) and rule TH (harass target and route by strength, `use_threat_harass`), all off in every profile, candidate `aggressive_s5_s`. Harness package S-M (depot-life record, harass metrics, paired sign test with a stated power). Bars against `aggressive_s5` on `prototype_1v1` fixed before any run, none a win rate. No Sim change, no pin moves.
