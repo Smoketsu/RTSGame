@@ -641,6 +641,7 @@ namespace Rts.Sim.Tests.Ai
             {
                 parts.Add(closed.Key.Value + ":" + string.Join("+", closed.Value));
             }
+            // Text parts "drop-off ID@last seen think tick", one per RaidSeenTick entry in ascending ID order. Unit: text. Range: one part per active raid.
             List<string> seen = new List<string>();
             foreach (KeyValuePair<EntityId, int> pair in memory.RaidSeenTick)
             {
@@ -725,6 +726,7 @@ namespace Rts.Sim.Tests.Ai
             AiProfile profile = Hand();
             List<AiIntent> first = Decide(sim, profile, memory);
             EntityId depot = Own(sim, "skai.perch_depot")[0];
+            // Tick of the newest hit on the depot's raid, before the second think. Unit: ticks. Range: 0 to now.
             int hitTick = memory.RaidHits[depot].Tick;
             foreach (AiIntent intent in first)
             {
@@ -744,8 +746,9 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(memory.RaidHits[depot].Tick, Is.EqualTo(hitTick));
             Assert.That(memory.RaidSeenTick[depot], Is.EqualTo(sim.Clock.Tick));
             Assert.That(Caps(sim, profile, memory)[2], Is.EqualTo(0), "field 6 stays closed");
+            // Text of the second think's intents and the revision 2 raid memory, returned for the determinism check. Unit: text. Range: any length.
             string key = Key(second) + "|" + RaidKey2(memory);
-            // The raider leaves; 11 s after the last think that saw it the raid is gone.
+            // Clock tick when the raider was last in sight (before it leaves); the raid is gone 11 s after it. Unit: ticks. Range: 0 to now.
             int seenTick = sim.Clock.Tick;
             SendRaidersAway(sim);
             while (sim.Clock.Tick < seenTick + 220)
@@ -904,6 +907,7 @@ namespace Rts.Sim.Tests.Ai
             // A new hit makes A the newest raid.
             sim.Step();
             memory.RecentDamage[Own(sim, "skai.fledgling")[0]] = new DamageReport { Tick = sim.Clock.Tick, Position = new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("9.5")) };
+            // Text "x,y" of raider group B's mean position in tiles (Fix64 text), taken before the second think. Unit: tiles. Range: inside the map.
             string goalB = GoalOf(sim, raidersB);
             List<AiIntent> second = Decide(sim, profile, memory);
             Assert.That(memory.RaidHits[depot].Tick, Is.GreaterThan(memory.RaidHits[hq].Tick), "A is now the newest");
@@ -997,8 +1001,11 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void R2D1_Twice()
         {
+            // Text result of each run of R2-H1-1 (the closed-field scenario), indexed by run (0 or 1). Unit: text. Range: two entries.
             string[] h1 = new string[2];
+            // Text result of each run of R2-H2-1 (the visible-raider scenario), indexed by run (0 or 1). Unit: text. Range: two entries.
             string[] h2 = new string[2];
+            // Text result of each run of R2-H4-2 (the winnable-raid scenario), indexed by run (0 or 1). Unit: text. Range: two entries.
             string[] h4 = new string[2];
             for (int run = 0; run < 2; run++)
             {

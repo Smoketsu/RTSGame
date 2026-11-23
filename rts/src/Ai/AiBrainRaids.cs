@@ -106,6 +106,7 @@ namespace Rts.Ai
                 // Rule RS (R2.1.1): every field within the radius of an active raid's newest position stays closed for the raid's life.
                 foreach (KeyValuePair<EntityId, (int Tick, FixVec2 Position)> raid in _memory.RaidHits)
                 {
+                    // Field indices this raid has closed so far, as a sorted set, created empty when the raid has none yet. Unit: field index. Range: 0 to the field count minus 1.
                     if (!_memory.RaidClosedFields.TryGetValue(raid.Key, out SortedSet<int>? closed))
                     {
                         closed = new SortedSet<int>();

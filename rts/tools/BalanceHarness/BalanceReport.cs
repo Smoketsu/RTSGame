@@ -494,14 +494,17 @@ namespace Rts.Tools.BalanceHarness
                 .Append(eval.SummaryWindowSeconds.ToString(CultureInfo.InvariantCulture)).Append(" s; raid radius ").Append(eval.RaidRadiusTiles.ToString(CultureInfo.InvariantCulture))
                 .Append(" tiles; income 240-300 is the sum of the income buckets covering 240 to 300 s (slot-games whose last bucket had not started are left out).\n\n");
             sb.Append("| cell | slot-games | worker_losses | worker_fed_losses | raid_seconds | raid_unanswered_edge_seconds | bank_mean | bank at 300 s | income 240-300 |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
-            // Revision 2 (R2.2): the overrun-cut table, filled beside the main one. Reported only; no bar reads it.
+            // Revision 2 (R2.2): the overrun-cut table text, filled beside the main one; one row per cell (at least one here). Reported only; no bar reads it. Unit: text. Range: one row per cell.
             StringBuilder overrunTable = new StringBuilder();
             overrunTable.Append("\nOverrun cut (reported only, not a bar): overrun_second is the first second at which enemy army supply near the slot's base reached ").Append(eval.OverrunSupply.ToString(CultureInfo.InvariantCulture))
                 .Append(" (median over the slot-games that reached it); the pre-overrun counts are the losses before it (all losses when never).\n\n| cell | slot-games | reached overrun | overrun_second | worker_losses_pre_overrun | worker_fed_losses_pre_overrun |\n| --- | ---: | ---: | ---: | ---: | ---: |\n");
             foreach (KeyValuePair<string, List<GameSummary>> cell in cells)
             {
+                // Overrun second of each slot-game in this cell that reached the overrun; empty when none did. Unit: seconds. Range: 0 to the summary window.
                 List<int> overrunSeconds = new List<int>();
+                // Worker losses before the overrun, one per slot-game in this cell. Unit: workers. Range: 0 to that slot-game's worker losses.
                 List<int> lossesPre = new List<int>();
+                // Fed worker losses before the overrun, one per slot-game in this cell. Unit: workers. Range: 0 to that slot-game's fed worker losses.
                 List<int> fedPre = new List<int>();
                 List<int> losses = new List<int>();
                 List<int> fed = new List<int>();

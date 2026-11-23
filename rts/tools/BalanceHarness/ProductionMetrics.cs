@@ -90,8 +90,11 @@ namespace Rts.Tools.BalanceHarness
             return new ProductionMetrics(node.RequireInt("worker_losses", 0, int.MaxValue), node.RequireInt("worker_fed_losses", 0, int.MaxValue), node.RequireInt("raid_seconds", 0, int.MaxValue),
                 node.RequireInt("raid_unanswered_edge_seconds", 0, int.MaxValue), Read(node, "producers"), Read(node, "capacity"), Read(node, "income_60"), Read(node, "army_supply"),
                 bank.Kind == JsonKind.Null ? (int?)null : bank.AsInt(),
+                // The overrun_second member when present and not null (the first second of the overrun). Unit: seconds. Range: 0 to the summary window; null when never reached.
                 node.TryGetMember("overrun_second", out JsonValue? overrun) && overrun.Kind != JsonKind.Null ? overrun.AsInt() : (int?)null,
+                // The worker_losses_pre_overrun member when present. Unit: workers. Range: 0 upward; null when the key is absent.
                 node.TryGetMember("worker_losses_pre_overrun", out JsonValue? pre) ? pre.AsInt() : (int?)null,
+                // The worker_fed_losses_pre_overrun member when present. Unit: workers. Range: 0 upward; null when the key is absent.
                 node.TryGetMember("worker_fed_losses_pre_overrun", out JsonValue? fedPre) ? fedPre.AsInt() : (int?)null);
         }
 

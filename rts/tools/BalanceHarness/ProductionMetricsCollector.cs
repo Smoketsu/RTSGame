@@ -206,8 +206,9 @@ namespace Rts.Tools.BalanceHarness
             List<ProductionMetrics> list = new List<ProductionMetrics>();
             foreach (SlotState slot in _slots.Values)
             {
-                // Kills before the overrun second, and the fed ones among them (all when the overrun was never reached). Unit: workers.
+                // Kills before the overrun second (all kills when the overrun was never reached). Unit: workers. Range: 0 to the kill count.
                 int pre = 0;
+                // Fed kills among those counted in pre. Unit: workers. Range: 0 to pre.
                 int fedPre = 0;
                 foreach (KeyValuePair<int, bool> kill in slot.Kills)
                 {
