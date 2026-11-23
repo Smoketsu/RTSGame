@@ -38,6 +38,8 @@
 //      skipped). Own pending build orders (a worker walking to a site or placing) count as structures under construction at their site
 //      tile, for the supply, build order, tech, static defence and depot rules; their tiles are never offered again. A site the team has
 //      never seen (site_unexplored) is first scouted: the builder is sent to the site centre and the build waits for the next attempt.
+//   3a'. Supply ahead (ai_production_defence.md PD-2, AiBrainProduction.cs, only with use_supply_ahead): after rule 3a, one more supply structure when the cap plus the supply structures under construction or ordered, less
+//      the supply used, is below what the producers can train during one supply build plus supply_buffer, the cap limit is not reached, fewer than supply_ahead_max_pending are pending and it can be paid now (no reservation).
 //   3b. Tech on demand (rule T, skirmish_ai_v3.md C.5, only when use_tech_on_demand): the counter-mix unit with the largest weight that no
 //      own structure trains gets its producer built (rule X's choice of structure) when its weight is at least tech_min_weight_share x
 //      mix_resolution and no producer of a mix unit is under construction.
@@ -89,6 +91,10 @@
 //   5b. Extra producer (rule X): no threat, bank minus reservations >= extra_producer_bank_common, every producer busy or used this
 //      think, none under construction and fewer than max_producers: build the structure that trains the composition unit with the
 //      largest deficit (first in the build order, else the lowest ID of the faction), at the HQ ring sites.
+//   5b'. Producers scaled to income (ai_production_defence.md PD-1, AiBrainProduction.cs, only with use_production_capacity; replaces rule X): when the producers' capacity (common per minute they can turn into
+//      the units they can train and pay for now) is below the measured army income x production_capacity_target, no enemy army unit stands near the HQ and the producer ceiling is not reached, build the structure of the
+//      most needed unit that no free producer can train, if it can be paid now (no reservation). Rule RR (same switch): TrainSupport skips a support unit that waits only for rare, and rule R in TryBuild and
+//      BuyResearch reserves only the rare part of an item whose common part can be paid.
 //   6. Army (army = own mobile units that are not workers or HQs): Defend (attack-move to a threat inside the base: a visible
 //      enemy army unit within defend_radius_tiles of the HQ or an own structure, or a recent hit on an own unit there; an attacking
 //      army is recalled only when the visible threat supply reaches defend_recall_supply; after the last threat the stance stays
@@ -211,6 +217,10 @@ namespace Rts.Ai
             // The own HQ (lowest ID), or null when the player has none.
             AiUnitView? hq = FindHq(view);
             UpdateIntel(view, profile, memory, hq);
+            if (profile.UseProductionCapacity)
+            {
+                PruneDepositLog(view, profile, memory);
+            }
             if (!view.IsActive || hq == null)
             {
                 return intents;
@@ -1554,6 +1564,10 @@ namespace Rts.Ai
                 {
                     TryBuild(_view.Content.Units[_plan.SupplyBuildingId], null, false, AiBudget.Economy);
                 }
+                if (_profile.UseSupplyAhead)
+                {
+                    SupplyAhead();
+                }
                 foreach (AiBuildStep step in _plan.BuildOrder)
                 {
                     if (CountOwn(step.StructureId) >= step.Count)
@@ -1631,7 +1645,11 @@ namespace Rts.Ai
                     // Rule R: hold the cost only while workers are earning; without income the bank is spent on whatever it can buy.
                     if (_income)
                     {
-                        _reserveCommon += definition.CostCommon;
+                        // Rule RR: an item that waits only for rare holds no common.
+                        if (!CommonPaidUnderRr(definition.CostCommon))
+                        {
+                            _reserveCommon += definition.CostCommon;
+                        }
                         _reserveRare += definition.CostRare;
                     }
                     return false;
@@ -2194,7 +2212,11 @@ namespace Rts.Ai
                 {
                     if (_income)
                     {
-                        _reserveCommon += research.CostCommon;
+                        // Rule RR: an item that waits only for rare holds no common.
+                        if (!CommonPaidUnderRr(research.CostCommon))
+                        {
+                            _reserveCommon += research.CostCommon;
+                        }
                         _reserveRare += research.CostRare;
                     }
                     return false;
@@ -3238,6 +3260,12 @@ namespace Rts.Ai
                     {
                         continue;
                     }
+                    if (_profile.UseProductionCapacity && definition.CostRare != 0
+                        && definition.CostRare > (_bq ? _memory.BudgetAccounts[AiBudget.Cell(AiBudget.Army, AiBudget.Rare)] + FreeRare() : _rare - _reserveRare))
+                    {
+                        // Rule RR: a support unit that waits for rare reserves nothing and does not end Produce.
+                        continue;
+                    }
                     if (_bq)
                     {
                         if (!BqCanPay(AiBudget.Army, definition))
@@ -3338,6 +3366,12 @@ namespace Rts.Ai
             /// <summary>Rule X of skirmish_ai_v2.md: when money piles up and every producer is busy, builds the producer of the most needed unit.</summary>
             public void ExtraProducer()
             {
+                if (_profile.UseProductionCapacity)
+                {
+                    // Rule PC replaces rule X.
+                    ProductionCapacity();
+                    return;
+                }
                 if (_threatCount > 0 || _latestHit != null || (_bq ? FreeCommon() : _common - _reserveCommon) < _profile.ExtraProducerBankCommon)
                 {
                     return;

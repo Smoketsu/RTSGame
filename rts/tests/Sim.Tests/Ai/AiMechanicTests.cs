@@ -387,11 +387,11 @@ namespace Rts.Sim.Tests.Ai
             foreach (string id in Data.AiProfiles.Keys)
             {
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
-                Assert.That(profile.UseCasts, Is.EqualTo(id == "aggressive_s5_m"), id);
+                Assert.That(profile.UseCasts, Is.EqualTo(id == "aggressive_s5_m" || id == "aggressive_s5_pd"), id);
                 Assert.That(profile.WaveMinEnemySupply, Is.EqualTo(Fix64.FromInt(4)), id);
                 Assert.That(profile.WaveMeleeRangeTiles, Is.EqualTo(Fix64.One), id);
-                Assert.That(profile.WaveAimMeleeWeight, Is.EqualTo(id == "aggressive_s5_m" ? 50 : 100), id);
-                Assert.That(profile.WaveAimAllWeight, Is.EqualTo(id == "aggressive_s5_m" ? 50 : 0), id);
+                Assert.That(profile.WaveAimMeleeWeight, Is.EqualTo(id == "aggressive_s5_m" || id == "aggressive_s5_pd" ? 50 : 100), id);
+                Assert.That(profile.WaveAimAllWeight, Is.EqualTo(id == "aggressive_s5_m" || id == "aggressive_s5_pd" ? 50 : 0), id);
                 Assert.That(profile.WaveMaxCommandsPerThink, Is.EqualTo(4), id);
                 Assert.That(profile.GroundingMinAirSupply, Is.EqualTo(3), id);
                 Assert.That(profile.GroundingMaxCommandsPerThink, Is.EqualTo(4), id);
@@ -691,13 +691,13 @@ namespace Rts.Sim.Tests.Ai
             foreach (string id in Data.AiProfiles.Keys)
             {
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
-                Assert.That(profile.UseSupportUnits, Is.EqualTo(id == "aggressive_s5_m"), id);
+                Assert.That(profile.UseSupportUnits, Is.EqualTo(id == "aggressive_s5_m" || id == "aggressive_s5_pd"), id);
                 Assert.That(profile.SupportMaxPerType, Is.EqualTo(3), id);
                 Assert.That(profile.SupportTrailTiles, Is.EqualTo(Fix64.FromInt(3)), id);
                 Assert.That(profile.SupportRegroupTiles, Is.EqualTo(Fix64.FromInt(3)), id);
                 foreach (AiFactionPlan plan in profile.Factions.Values)
                 {
-                    Assert.That(plan.SupportUnits.Count, Is.EqualTo(id == "aggressive_s5_m" ? 1 : 0), id);
+                    Assert.That(plan.SupportUnits.Count, Is.EqualTo(id == "aggressive_s5_m" || id == "aggressive_s5_pd" ? 1 : 0), id);
                 }
             }
             AiProfile candidate = Candidate;
@@ -810,7 +810,7 @@ namespace Rts.Sim.Tests.Ai
             {
                 foreach (AiFactionPlan plan in AiProfile.FromDataSet(Data, id).Factions.Values)
                 {
-                    Assert.That(plan.SupportNeeds.Count, Is.EqualTo(id == "aggressive_s5_m" && plan.FactionId == "skai" ? 1 : 0), id);
+                    Assert.That(plan.SupportNeeds.Count, Is.EqualTo((id == "aggressive_s5_m" || id == "aggressive_s5_pd") && plan.FactionId == "skai" ? 1 : 0), id);
                 }
             }
         }
@@ -967,7 +967,7 @@ namespace Rts.Sim.Tests.Ai
             foreach (string id in Data.AiProfiles.Keys)
             {
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
-                Assert.That(profile.UseWallBreach, Is.EqualTo(id == "aggressive_s5_m"), id);
+                Assert.That(profile.UseWallBreach, Is.EqualTo(id == "aggressive_s5_m" || id == "aggressive_s5_pd"), id);
                 Assert.That(profile.WallBreachMemorySeconds, Is.EqualTo(10), id);
                 Assert.That(profile.WallBreachStandoffTiles, Is.EqualTo(Fix64.FromInt(2)), id);
                 Assert.That(profile.WallProbeStepTiles, Is.EqualTo(Fix64.FromInt(6)), id);
@@ -1655,7 +1655,7 @@ namespace Rts.Sim.Tests.Ai
             foreach (string id in Data.AiProfiles.Keys)
             {
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
-                bool candidate = id == "aggressive_s5_m";
+                bool candidate = id == "aggressive_s5_m" || id == "aggressive_s5_pd";
                 Assert.That(profile.UseWalls, Is.EqualTo(candidate), id);
                 Assert.That(profile.WallStyleNoneWeight, Is.EqualTo(candidate ? 20 : 100), id);
                 Assert.That(profile.WallStyleFunnelWeight, Is.EqualTo(candidate ? 30 : 0), id);

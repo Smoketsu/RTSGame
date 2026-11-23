@@ -78,6 +78,10 @@
 //     wall_min_enemy_ground_share (0 to 1), wall_threat_tiles (0 to 30), wall_funnel_gap_tiles (0 to 3), wall_max_lines_per_think (1 to 8), expansion_wall_max_bases (0 to 4) and wall_max_spend_common
 //     (0 to 20000). Every profile file carries them; the old values false, { none 100 }, 180, 0.5, 10, 1, 2, 0, 0 play exactly as before; only aggressive_s5_m has use_walls true. The authored lines
 //     themselves are not profile keys: AiProfile.FromDataSet attaches the parsed ai/walls/<map id>.json files as WallLines (profiles made by Parse from text have none).
+//   * rts/docs/specs/ai_production_defence.md package PD-1 (production capacity, rules RR and PC): use_production_capacity, income_window_seconds (10 to 300) and production_capacity_target (0.1 to 3).
+//     Every profile file carries them; the old values false, 60, 1 play exactly as before; only aggressive_s5_pd has use_production_capacity true.
+//   * rts/docs/specs/ai_production_defence.md package PD-2 (supply ahead, rule SA): use_supply_ahead and supply_ahead_max_pending (1 to 8). Every profile file carries them; the old values false and 1
+//     play exactly as before; only aggressive_s5_pd has use_supply_ahead true (3).
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -807,6 +811,21 @@ namespace Rts.Ai
         /// <summary>Rule WL: common committed to wall lines and gates over the whole match. Unit: common resource units. Range: 0 to 20000.</summary>
         public int WallMaxSpendCommon { get; }
 
+        /// <summary>Rules RR and PC (ai_production_defence.md section 3): no common held for rare-short items, and a producer added while producer capacity is below army income (replaces rule X). False: neither. Unit: boolean.</summary>
+        public bool UseProductionCapacity { get; }
+
+        /// <summary>Rule PC: the common deposited over this many seconds is the measured income. Unit: seconds. Range: 10 to 300.</summary>
+        public int IncomeWindowSeconds { get; }
+
+        /// <summary>Rule PC: producer capacity wanted per unit of army income. Unit: fraction (Fix64). Range: 0.1 to 3.</summary>
+        public Fix64 ProductionCapacityTarget { get; }
+
+        /// <summary>Rule SA (ai_production_defence.md section 4): another supply structure may be ordered while one is under construction when the producers would fill the cap during one supply build. False: it may not. Unit: boolean.</summary>
+        public bool UseSupplyAhead { get; }
+
+        /// <summary>Rule SA: most supply structures under construction or ordered at once. Unit: structures. Range: 1 to 8.</summary>
+        public int SupplyAheadMaxPending { get; }
+
         /// <summary>
         /// The authored wall lines by map ID (ordinal order), attached by <see cref="FromDataSet"/> from DataSet.AiWallLines; empty for a profile made by <see cref="Parse(string, string, ContentCatalog)"/> from text.
         /// Immutable after load. Unit: map ID to lines. Range: 0 or more maps.
@@ -1080,6 +1099,11 @@ namespace Rts.Ai
             WallMaxLinesPerThink = root.RequireInt("wall_max_lines_per_think", 1, 8);
             ExpansionWallMaxBases = root.RequireInt("expansion_wall_max_bases", 0, 4);
             WallMaxSpendCommon = root.RequireInt("wall_max_spend_common", 0, 20000);
+            UseProductionCapacity = root.RequireBool("use_production_capacity");
+            IncomeWindowSeconds = root.RequireInt("income_window_seconds", 10, 300);
+            ProductionCapacityTarget = root.RequireFix64("production_capacity_target", "0.1", "3");
+            UseSupplyAhead = root.RequireBool("use_supply_ahead");
+            SupplyAheadMaxPending = root.RequireInt("supply_ahead_max_pending", 1, 8);
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1220,6 +1244,8 @@ namespace Rts.Ai
                 "use_wall_breach", "wall_breach_memory_seconds", "wall_breach_standoff_tiles", "wall_probe_step_tiles", "wall_breach_max_commands_per_think",
                 "use_walls", "wall_style_weights", "wall_earliest_seconds", "wall_min_enemy_ground_share", "wall_threat_tiles", "wall_funnel_gap_tiles", "wall_max_lines_per_think",
                 "expansion_wall_max_bases", "wall_max_spend_common",
+                "use_production_capacity", "income_window_seconds", "production_capacity_target",
+                "use_supply_ahead", "supply_ahead_max_pending",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
