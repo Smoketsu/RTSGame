@@ -45,6 +45,7 @@ namespace Rts.Ai
                     }
                 }
                 // Hits (tick and position of the own unit), then losses (this tick and the last known position): the spec's order, each group by ascending unit ID.
+                // Raid events of this think: Tick is the tick of the hit or loss (ticks, 0 to now), Position the own unit's position (tiles, inside the map).
                 List<(int Tick, FixVec2 Position)> events = new List<(int Tick, FixVec2 Position)>();
                 foreach (KeyValuePair<EntityId, DamageReport> pair in _memory.RecentDamage)
                 {
@@ -72,6 +73,7 @@ namespace Rts.Ai
                 List<AiUnitView> dropOffs = DropOffs();
                 // Squared defend radius a raid event must be within of a drop-off. Unit: squared tiles. Range: 1 to 900.
                 Fix64 radiusSquared = _profile.DefendRadiusTiles * _profile.DefendRadiusTiles;
+                // Deconstructed per event: tick of the hit or loss (ticks, 0 to now) and its position (tiles, inside the map).
                 foreach ((int tick, FixVec2 position) in events)
                 {
                     // Nearest drop-off within the radius (ties to the lower ID, which comes first), or null.
@@ -88,6 +90,7 @@ namespace Rts.Ai
                             nearestSquared = squared;
                         }
                     }
+                    // Out variable: the drop-off's stored newest raid hit (Tick in ticks, 0 to now; Position in tiles), set only when one exists.
                     if (nearest != null && (!_memory.RaidHits.TryGetValue(nearest.Id, out (int Tick, FixVec2 Position) stored) || tick >= stored.Tick))
                     {
                         _memory.RaidHits[nearest.Id] = (tick, position);
@@ -96,6 +99,7 @@ namespace Rts.Ai
                 // Oldest tick an active raid may have; a raid with a lower tick has expired. Unit: ticks. Range: any int.
                 int oldest = now - _view.SecondsToTicks(_profile.RaidActiveSeconds);
                 // Entries to remove: the drop-off is gone, or the raid expired.
+                // Drop-off IDs whose raid entry is removed this think. Unit: entity IDs. Range: 0 to the number of RaidHits entries.
                 List<EntityId> expired = new List<EntityId>();
                 foreach (KeyValuePair<EntityId, (int Tick, FixVec2 Position)> pair in _memory.RaidHits)
                 {
