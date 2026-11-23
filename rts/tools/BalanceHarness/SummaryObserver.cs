@@ -51,6 +51,15 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Completion ticks of own non-HQ drop-offs, in event order (ascending). Unit: ticks. Range: 0 upward.</summary>
             public List<int> DropOffs { get; } = new List<int>();
 
+            /// <summary>Own workers after the last step of each completed income bucket. Unit: workers. Range: 0 upward.</summary>
+            public List<int> WorkersByBucket { get; } = new List<int>();
+
+            /// <summary>[common, rare] net spending per bucket on every class except worker and drop_off, one entry per bucket that started. Unit: resource units. Range: any (a refund can make an entry negative).</summary>
+            public List<int[]> OtherByBucket { get; } = new List<int[]>();
+
+            /// <summary>Running [common, rare] total of the "other" classes after the previous step. Unit: resource units. Range: any.</summary>
+            public int[] OtherTotal { get; } = new int[2];
+
             /// <summary>Bundles the bank and worker arrays.</summary>
             public Slot(int bankTimes)
             {
@@ -244,6 +253,30 @@ namespace Rts.Tools.BalanceHarness
                     }
                 }
             }
+            // Income bucket of the step just run. Unit: buckets. Range: 0 upward.
+            int stepBucket = (sim.Clock.Tick - 1) / _bucketTicks;
+            foreach (Slot slot in _slots.Values)
+            {
+                // Net spending on every class but worker and drop_off so far, [common, rare]. Unit: resource units. Range: any.
+                int otherCommon = slot.Ledger.SpentCommon - slot.Ledger.ByClass[PlayerLedger.ClassWorker][0] - slot.Ledger.ByClass[PlayerLedger.ClassDropOff][0];
+                int otherRare = slot.Ledger.SpentRare - slot.Ledger.ByClass[PlayerLedger.ClassWorker][1] - slot.Ledger.ByClass[PlayerLedger.ClassDropOff][1];
+                while (slot.OtherByBucket.Count <= stepBucket)
+                {
+                    slot.OtherByBucket.Add(new int[2]);
+                }
+                slot.OtherByBucket[stepBucket][0] += otherCommon - slot.OtherTotal[0];
+                slot.OtherByBucket[stepBucket][1] += otherRare - slot.OtherTotal[1];
+                slot.OtherTotal[0] = otherCommon;
+                slot.OtherTotal[1] = otherRare;
+            }
+            if (sim.Clock.Tick % _bucketTicks == 0)
+            {
+                // The bucket that just ended is complete: each player's workers after its last step.
+                foreach (Player player in sim.Players.All)
+                {
+                    _slots[player.Id.Value].WorkersByBucket.Add(CountWorkers(sim, player.Id));
+                }
+            }
             for (int i = 0; i < _bankTicks.Length; i++)
             {
                 if (sim.Clock.Tick == _bankTicks[i])
@@ -251,19 +284,27 @@ namespace Rts.Tools.BalanceHarness
                     foreach (Player player in sim.Players.All)
                     {
                         _slots[player.Id.Value].Bank[i] = new[] { player.Common, player.Rare };
-                        // Own workers now alive: can gather, no footprint. Unit: workers. Range: 0 upward.
-                        int workers = 0;
-                        foreach (Unit unit in sim.Units.All)
-                        {
-                            if (unit.Owner == player.Id && unit.Definition.Economy.CanGather && unit.Definition.Economy.FootprintTiles == 0)
-                            {
-                                workers++;
-                            }
-                        }
-                        _slots[player.Id.Value].Workers[i] = workers;
+                        _slots[player.Id.Value].Workers[i] = CountWorkers(sim, player.Id);
                     }
                 }
             }
+        }
+
+        /// <summary>Own workers now alive: units that can gather and have no footprint. Unit: workers. Range: 0 upward.</summary>
+        /// <param name="sim">The simulation after a step.</param>
+        /// <param name="owner">The player counted.</param>
+        private static int CountWorkers(Simulation sim, PlayerId owner)
+        {
+            // Workers found so far. Unit: workers. Range: 0 upward.
+            int workers = 0;
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == owner && unit.Definition.Economy.CanGather && unit.Definition.Economy.FootprintTiles == 0)
+                {
+                    workers++;
+                }
+            }
+            return workers;
         }
 
         /// <summary>Called once after the last step: closes the open HQ moves and returns the summaries, one per slot in ascending order.</summary>
@@ -283,7 +324,12 @@ namespace Rts.Tools.BalanceHarness
                 {
                     slot.Income.Add(new int[2]);
                 }
-                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs, slot.FirstTick, production?[slotIndex]));
+                while (slot.OtherByBucket.Count < buckets)
+                {
+                    slot.OtherByBucket.Add(new int[2]);
+                }
+                summaries.Add(new GameSummary(slot.Ledger.SpentCommon, slot.Ledger.SpentRare, slot.Ledger.ByClass, slot.Bank, slot.Income, slot.Moves, slot.Trained, slot.Completed, slot.Mechanics, slot.Workers, slot.DropOffs, slot.FirstTick, production?[slotIndex],
+                    slot.WorkersByBucket, slot.OtherByBucket));
                 slotIndex++;
             }
             return summaries.ToArray();

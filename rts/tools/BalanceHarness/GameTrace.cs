@@ -98,6 +98,7 @@ namespace Rts.Tools.BalanceHarness
                     continue;
                 }
                 trace.Memory = ai.Memory;
+                trace.EconomyCalc = ai.Profile.UseEconomyCalc;
                 if (ai.Memory.Stance != trace.LastStance)
                 {
                     trace.StanceChanges.Add("tick " + sim.Clock.Tick.ToString(CultureInfo.InvariantCulture) + " (" + Seconds(sim.Clock.Tick) + "s) " + trace.LastStance + " -> "
@@ -430,9 +431,26 @@ namespace Rts.Tools.BalanceHarness
                     + " armyAt=" + armyAt + " nearFields=" + (near.Length > 0 ? near.ToString() : "-")
                     + " stance=" + trace.LastStance + " attacks=" + (trace.Memory?.AttacksStarted ?? 0).ToString(CultureInfo.InvariantCulture)
                     + " retreats=" + (trace.Memory?.Retreats ?? 0).ToString(CultureInfo.InvariantCulture)
+                    + EconomyColumn(trace)
                     + (isFinal ? " (final)" : string.Empty) + "\n");
                 trace.ResetInterval();
             }
+        }
+
+        /// <summary>
+        /// The economy explanation column of one sample line (ai_economy_calc.md 2.4): " econ=w&lt;wanted&gt;/n&lt;depot net&gt;/l&lt;lead ticks&gt;" from the player's latest EconomyNote, and the empty text when the player's
+        /// profile has use_economy_calc false, so the trace of every older profile is unchanged. Unit: text.
+        /// </summary>
+        /// <param name="trace">The player's trace state.</param>
+        private static string EconomyColumn(PlayerTrace trace)
+        {
+            if (!trace.EconomyCalc || trace.Memory == null)
+            {
+                return string.Empty;
+            }
+            // The latest explanation record of the player's controller.
+            (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) note = trace.Memory.EconomyNote;
+            return " econ=w" + note.Wanted.ToString(CultureInfo.InvariantCulture) + "/n" + note.DepotNet.ToString(CultureInfo.InvariantCulture) + "/l" + note.Lead.ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>Distance between a point given in tiles as doubles and a fixed-point position. Unit: tiles.</summary>
@@ -685,6 +703,9 @@ namespace Rts.Tools.BalanceHarness
 
             /// <summary>The controller's memory (stance, counters); null until its first think is seen.</summary>
             public AiMemory? Memory { get; set; }
+
+            /// <summary>True when the player's profile has use_economy_calc on, so its sample lines carry the econ= column. Unit: boolean.</summary>
+            public bool EconomyCalc { get; set; }
 
             /// <summary>Stance after the previous think. Starts as Massing, the memory's start value.</summary>
             public AiStance LastStance { get; set; } = AiStance.Massing;

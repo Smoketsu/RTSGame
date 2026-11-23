@@ -1,5 +1,5 @@
 // rts/tools/BalanceHarness/GameSummary.cs
-// The per-slot summary of one game (spec: rts/docs/specs/balance_measurement.md M.4.2): spending in total and by class, the bank at fixed times, income per time bucket, every HQ move, the units trained, the structures
+// The per-slot summary of one game (spec: rts/docs/specs/balance_measurement.md M.4.2): spending in total and by class, the bank at fixed times, income per time bucket, every HQ move, the units trained (package E0 adds workers_by_bucket and spent_other_by_bucket: workers per completed income bucket and non-worker, non-drop-off spending per bucket), the structures
 // completed and the mechanic uses counted. SummaryObserver fills it; it is written to a game record as "summary0" and "summary1" (keys in the order of the spec, maps in ordinal key order) and parsed back by the
 // coordinator, so behaviour checks and the balance report read records only. With ai_eval.json metric settings it also carries the ProductionMetrics keys (spec ai_production_defence.md section 7). Immutable. Tool-side only. Part of Rts.Tools.BalanceHarness.
 using System;
@@ -49,6 +49,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Tick of the first unit trained or research completed, by definition ID, ordinal order (research_and_unlocks.md R2.5: the time of the first Thunderhead and each research item); empty for a record from before this field. Unit: ticks. Range: 0 upward.</summary>
         public IReadOnlyDictionary<string, int> FirstTick { get; }
 
+        /// <summary>Own workers (units with CanGather and no footprint) after the last step of each income bucket that ended (ai_economy_calc.md 3.1); empty for a record from before package E0. Unit: workers. Range: 0 upward each; one entry per completed bucket.</summary>
+        public IReadOnlyList<int> WorkersByBucket { get; }
+
+        /// <summary>[common, rare] net spending per bucket on every class except worker and drop_off (ai_economy_calc.md 3.1); empty for a record from before package E0. Unit: resource units per bucket. Range: 0 upward each (a refund can make one negative); one entry per bucket that started.</summary>
+        public IReadOnlyList<int[]> SpentOtherByBucket { get; }
+
         /// <summary>The production and defence metrics (spec ai_production_defence.md section 7), or null for a summary collected without them (every older record and every observer built without settings). Their keys come after the older ones.</summary>
         public ProductionMetrics? Production { get; }
 
@@ -56,8 +62,11 @@ namespace Rts.Tools.BalanceHarness
         public GameSummary(int spentCommon, int spentRare, IReadOnlyDictionary<string, int[]> spent, IReadOnlyList<int[]?> bank, IReadOnlyList<int[]> income, IReadOnlyList<int[]> hqMoves,
             IReadOnlyDictionary<string, int> trained, IReadOnlyDictionary<string, int> completed, IReadOnlyDictionary<string, int> mechanics,
             IReadOnlyList<int?>? workers = null, IReadOnlyList<int>? dropOffTicks = null,
-            IReadOnlyDictionary<string, int>? firstTick = null, ProductionMetrics? production = null)
+            IReadOnlyDictionary<string, int>? firstTick = null, ProductionMetrics? production = null,
+            IReadOnlyList<int>? workersByBucket = null, IReadOnlyList<int[]>? spentOtherByBucket = null)
         {
+            WorkersByBucket = workersByBucket ?? Array.Empty<int>();
+            SpentOtherByBucket = spentOtherByBucket ?? Array.Empty<int[]>();
             Production = production;
             FirstTick = firstTick ?? new SortedDictionary<string, int>(StringComparer.Ordinal);
             Workers = workers ?? Array.Empty<int?>();
@@ -109,6 +118,16 @@ namespace Rts.Tools.BalanceHarness
             for (int i = 0; i < DropOffTicks.Count; i++)
             {
                 sb.Append(i > 0 ? "," : "").Append(Int(DropOffTicks[i]));
+            }
+            sb.Append("],\"workers_by_bucket\":[");
+            for (int i = 0; i < WorkersByBucket.Count; i++)
+            {
+                sb.Append(i > 0 ? "," : "").Append(Int(WorkersByBucket[i]));
+            }
+            sb.Append("],\"spent_other_by_bucket\":[");
+            for (int i = 0; i < SpentOtherByBucket.Count; i++)
+            {
+                sb.Append(i > 0 ? "," : "").Append('[').Append(Int(SpentOtherByBucket[i][0])).Append(',').Append(Int(SpentOtherByBucket[i][1])).Append(']');
             }
             sb.Append(']');
             if (FirstTick.Count > 0)
@@ -165,11 +184,28 @@ namespace Rts.Tools.BalanceHarness
                     dropOffs.Add(item.AsInt());
                 }
             }
+            // Package E0 fields; a record without them reads as empty.
+            List<int> workersByBucket = new List<int>();
+            List<int[]> spentOther = new List<int[]>();
+            if (node.TryGetMember("workers_by_bucket", out JsonValue? byBucketNode))
+            {
+                foreach (JsonValue item in byBucketNode.Items)
+                {
+                    workersByBucket.Add(item.AsInt());
+                }
+            }
+            if (node.TryGetMember("spent_other_by_bucket", out JsonValue? otherNode))
+            {
+                foreach (JsonValue item in otherNode.Items)
+                {
+                    spentOther.Add(Pair(item));
+                }
+            }
             // First-tick map; a record without it reads as empty.
             IReadOnlyDictionary<string, int>? firstTick = node.TryGetMember("first_tick", out JsonValue? firstNode) ? ReadCounts(firstNode) : null;
             return new GameSummary(node.RequireInt("spent_common", int.MinValue, int.MaxValue), node.RequireInt("spent_rare", int.MinValue, int.MaxValue), spent, bank, income, moves,
                 ReadCounts(node.Require("trained")), ReadCounts(node.Require("completed")), ReadCounts(node.Require("mechanics")), workers, dropOffs, firstTick,
-                node.TryGetMember(ProductionMetrics.FirstKey, out _) ? ProductionMetrics.Parse(node) : null);
+                node.TryGetMember(ProductionMetrics.FirstKey, out _) ? ProductionMetrics.Parse(node) : null, workersByBucket, spentOther);
         }
 
         /// <summary>An integer as invariant text.</summary>

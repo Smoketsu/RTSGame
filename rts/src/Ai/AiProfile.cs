@@ -51,6 +51,9 @@
 //   * field_saturation.md package AI-E (the economy follows gather slots): use_saturation_workers, saturation_extra_workers_per_field,
 //     rare_cap_yields_to_saturation, use_saturation_expansion, expand_saturation_fraction and expand_block_threat_supply (every profile
 //     file carries them; the old values false, 0, false, false, 1, 0 reproduce the earlier rules exactly).
+//   * rts/docs/specs/ai_economy_calc.md package E (economy by calculation): use_economy_calc and economy_horizon_seconds (every profile file carries them; the old
+//     values false and 180 keep AI-E's walk cover and expand_saturation_fraction; use_economy_calc needs use_saturation_workers and use_saturation_expansion; only
+//     aggressive_s5_e has it true).
 //   * field_saturation.md package AI-P (placement and defence): use_forward_producers, use_threat_defence, threat_defence_min_enemy_supply,
 //     threat_defence_min_enemy_advantage, threat_defence_max_value_share and threat_defence_release_fraction (every profile file carries
 //     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).
@@ -731,6 +734,12 @@ namespace Rts.Ai
         /// <summary>Research rules RQ-1 and RQ-2 (research_and_unlocks.md R2.2): the AI queues the research its army mix needs, and with budget queues any research left while the rare surplus is on. False: research-gated units are never trained (R1.8). Unit: boolean.</summary>
         public bool UseResearch { get; }
 
+        /// <summary>Package E (ai_economy_calc.md section 2): worker caps (rule EW) and the depot trigger (rule ED) come from the income a worker or depot adds over economy_horizon_seconds against its cost, replacing AI-E's walk cover and expand_saturation_fraction. Needs use_saturation_workers and use_saturation_expansion. Unit: boolean.</summary>
+        public bool UseEconomyCalc { get; }
+
+        /// <summary>Package E (ai_economy_calc.md 2.1): how far ahead the AI plans its economy; only read when use_economy_calc is true. Unit: seconds. Range: 10 to 1800.</summary>
+        public int EconomyHorizonSeconds { get; }
+
         /// <summary>Rules CG and CW (ai_mechanic_use.md M1, M2.3) and the wave-aim draw: the AI casts Downdraft and the wave. False: it never casts. Unit: boolean.</summary>
         public bool UseCasts { get; }
 
@@ -1082,6 +1091,12 @@ namespace Rts.Ai
             HarassSpeedRatio = root.RequireFix64("harass_speed_ratio", "0", "4");
             UseBudgetQueues = root.RequireBool("use_budget_queues");
             UseResearch = root.RequireBool("use_research");
+            UseEconomyCalc = root.RequireBool("use_economy_calc");
+            EconomyHorizonSeconds = root.RequireInt("economy_horizon_seconds", 10, 1800);
+            if (UseEconomyCalc && (!UseSaturationWorkers || !UseSaturationExpansion))
+            {
+                throw root.Require("use_economy_calc").Fail("requires use_saturation_workers and use_saturation_expansion to be true as well");
+            }
             UseCasts = root.RequireBool("use_casts");
             WaveMinEnemySupply = root.RequireFix64("wave_min_enemy_supply", "0.5", "200");
             WaveMeleeRangeTiles = root.RequireFix64("wave_melee_range_tiles", "0.5", "3");
@@ -1275,7 +1290,7 @@ namespace Rts.Ai
                 "use_saturation_workers", "saturation_extra_workers_per_field", "rare_cap_yields_to_saturation", "use_saturation_expansion",
                 "expand_saturation_fraction", "expand_block_threat_supply", "use_forward_producers", "use_threat_defence", "threat_defence_min_enemy_supply",
                 "threat_defence_min_enemy_advantage", "threat_defence_max_value_share", "threat_defence_release_fraction", "harass_speed_ratio", "use_budget_queues", "use_research",
-                "use_casts", "wave_min_enemy_supply", "wave_melee_range_tiles", "wave_aim_weights", "wave_max_commands_per_think", "grounding_min_air_supply", "grounding_max_commands_per_think",
+                "use_economy_calc", "economy_horizon_seconds", "use_casts", "wave_min_enemy_supply", "wave_melee_range_tiles", "wave_aim_weights", "wave_max_commands_per_think", "grounding_min_air_supply", "grounding_max_commands_per_think",
                 "use_support_units", "support_max_per_type", "support_trail_tiles", "support_regroup_tiles",
                 "use_wall_breach", "wall_breach_memory_seconds", "wall_breach_standoff_tiles", "wall_probe_step_tiles", "wall_breach_max_commands_per_think",
                 "use_walls", "wall_style_weights", "wall_earliest_seconds", "wall_min_enemy_ground_share", "wall_threat_tiles", "wall_funnel_gap_tiles", "wall_max_lines_per_think",
