@@ -26,6 +26,12 @@
 //      it goes to the first field in target order instead (long haul). A player with no drop-off whose HQ is relocating sends idle
 //      workers after the HQ (MoveUnit). Then at most rebalance_workers_per_think of the highest-ID workers on an over-full served field
 //      move to the nearest served field below its cap.
+//   1c. Raids (ai_production_defence.md PD-3, AiBrainRaids.cs, only with use_raid_workers; rule RS): hits on own workers and structures, and worker losses, within defend_radius_tiles of an own drop-off make a raid site
+//      (AiMemory.RaidHits, active for raid_active_seconds); never from a sighting. Rule RW (same switch): a field within raid_field_radius_tiles of an active raid is closed: its cap is 0 (no worker is sent or trained for it,
+//      the rebalance and long-haul rules skip it) and rule G first moves the workers on it to an open field, else home, at most raid_evacuate_max_commands_per_think per think.
+//   6'. Raid response (ai_production_defence.md PD-4, AiBrainFight.cs MeasuredDefence, only with use_raid_response, which needs use_measured_defence; rule RA): rule RS also runs. With an active raid the defence answers the newest raid only (the threats are
+//      the visible enemy army units within defend_radius_tiles of its position, their mean the centre), the Rooted HQ joins the fixed side when the centre is within its weapon range plus raid_hq_cover_margin_tiles, and when even
+//      every candidate is predicted short the candidates hold: those farther than raid_hold_radius_tiles from home move home, the others get no order.
 //   3. Structures: (a) supply: when cap - used <= supply_buffer, the cap is below the global cap and no supply-giving structure is
 //      under construction, build supply_building; (b) build order: the first step with fewer structures (built or under
 //      construction) than its count, once supply used >= at_supply_used (later steps wait). A due structure that cannot be paid
@@ -237,6 +243,7 @@ namespace Rts.Ai
             Turn turn = new Turn(view, profile, plan, memory, rng, hq, intents);
             turn.Hq();
             turn.Cycle();
+            turn.Raids();
             turn.Gather();
             turn.BudgetOpen();
             turn.Structures();
@@ -815,6 +822,11 @@ namespace Rts.Ai
             /// </summary>
             private int CapOf(AiFieldView field)
             {
+                if (IsClosed(field))
+                {
+                    // Rule RW: a field near an active raid holds no workers.
+                    return 0;
+                }
                 if (field.Kind == ResourceKind.Common)
                 {
                     return _profile.UseSaturationWorkers ? SaturationCapOf(field) : _profile.WorkersPerField;
@@ -1404,12 +1416,13 @@ namespace Rts.Ai
                     // Unsafe fields stay out of the long haul (workers walk there alone; a depot may still be built beside one, rule E).
                     foreach (AiFieldView field in TargetOrder(_hq.Position))
                     {
-                        if (!IsUnsafe(field.Centre))
+                        if (!IsUnsafe(field.Centre) && !IsClosed(field))
                         {
                             haul.Add(field);
                         }
                     }
                 }
+                EvacuateClosedFields(assigned);
                 foreach (AiUnitView worker in _view.OwnUnits)
                 {
                     if (!worker.IsWorker || worker.GatherState != GatherState.Idle || worker.HasMoveTarget || worker.IsAttackMoving || worker.HasBuildOrder)
@@ -1462,6 +1475,11 @@ namespace Rts.Ai
                 int budget = _profile.RebalanceWorkersPerThink;
                 foreach (AiFieldView field in _served)
                 {
+                    if (IsClosed(field))
+                    {
+                        // Rule RW: closed fields are emptied by the evacuation, not rebalanced.
+                        continue;
+                    }
                     // Workers above the cap on this field. Unit: workers.
                     int excess = assigned[field.Index] - CapOf(field);
                     // Own units in descending ID order: the highest-ID workers on this field move first.
@@ -1536,7 +1554,7 @@ namespace Rts.Ai
                 }
                 foreach (AiFieldView field in _served)
                 {
-                    if ((underCap && assigned[field.Index] >= CapOf(field)) || (!underCap && anyOpen && CapOf(field) == 0))
+                    if (IsClosed(field) || (underCap && assigned[field.Index] >= CapOf(field)) || (!underCap && anyOpen && CapOf(field) == 0))
                     {
                         continue;
                     }
@@ -2768,11 +2786,42 @@ namespace Rts.Ai
                 {
                     // Floor: workers_per_field, or (AI-E E1.3) the cap of the first field in target order. Unit: workers. Range: 1 to 8, or a saturation cap (1 upward).
                     int floor = _profile.WorkersPerField;
+                    // Rule RW: true while some active raid closes fields (then the floor reads the first open field). Unit: boolean.
+                    bool raided = _profile.UseRaidWorkers && _memory.RaidHits.Count > 0;
                     if (_profile.UseSaturationWorkers)
                     {
                         // Fields in target order from the HQ. Unit: fields. Range: 0 to field count.
                         List<AiFieldView> order = TargetOrder(_hq.Position);
-                        floor = order.Count > 0 ? CapOf(order[0]) : floor;
+                        if (raided)
+                        {
+                            // Rule RW: the cap of the first open field in target order; 0 when every field is closed. Unit: workers. Range: 0 upward.
+                            floor = 0;
+                            foreach (AiFieldView candidate in order)
+                            {
+                                if (!IsClosed(candidate))
+                                {
+                                    floor = CapOf(candidate);
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            floor = order.Count > 0 ? CapOf(order[0]) : floor;
+                        }
+                    }
+                    else if (raided)
+                    {
+                        // Rule RW: the floor applies only while some served field is open.
+                        floor = 0;
+                        foreach (AiFieldView candidate in _served)
+                        {
+                            if (!IsClosed(candidate))
+                            {
+                                floor = _profile.WorkersPerField;
+                                break;
+                            }
+                        }
                     }
                     target = Math.Max(target, floor);
                 }

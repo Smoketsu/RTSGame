@@ -388,6 +388,20 @@
   "use_supply_ahead": false,
   // Rule SA: most supply structures under construction or ordered at once. Unit: structures. Range: 1 to 8. Source: rts/docs/specs/ai_production_defence.md section 4; placeholder.
   "supply_ahead_max_pending": 1,
+  // Rules RS and RW: fields near an active raid are closed (no workers sent or trained for them; workers on them move to an open field or home). Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_production_defence.md section 5; placeholder.
+  "use_raid_workers": false,
+  // Rule RS: a raid stays active this long after the last hit on an own worker or structure, or worker loss, near one of its drop-offs. Unit: seconds. Range: 1 to 120. Source: rts/docs/specs/ai_production_defence.md section 5; placeholder.
+  "raid_active_seconds": 10,
+  // Rule RW: a field whose centre is within this distance of an active raid's last hit is closed. Unit: tiles. Range: 1 to 30. Source: rts/docs/specs/ai_production_defence.md section 5; placeholder.
+  "raid_field_radius_tiles": 8,
+  // Rule RW: most orders per think that move workers off closed fields. Unit: commands. Range: 0 to 100. Source: rts/docs/specs/ai_production_defence.md section 5; placeholder.
+  "raid_evacuate_max_commands_per_think": 12,
+  // Rules RS and RA: the defence goes to the newest raid, counts the Rooted HQ, and holds at home when even every candidate is predicted short. Needs use_measured_defence. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_production_defence.md section 6; placeholder.
+  "use_raid_response": false,
+  // Rule RA: when the defence is predicted short, defenders farther than this from home move home; nearer ones get no order. Unit: tiles. Range: 1 to 20. Source: rts/docs/specs/ai_production_defence.md section 6; placeholder.
+  "raid_hold_radius_tiles": 4,
+  // Rule RA: the Rooted HQ joins the defending side when the threat centre is within its weapon range plus this margin. Unit: tiles. Range: 0 to 20. Source: rts/docs/specs/ai_production_defence.md section 6; placeholder.
+  "raid_hq_cover_margin_tiles": 2,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

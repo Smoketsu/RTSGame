@@ -622,8 +622,29 @@ namespace Rts.Ai
                     return false;
                 }
                 _memory.LastThreatTick = _view.Tick;
-                // Where the defenders go: the mean threat position, else the latest hit.
-                FixVec2 centre = _threatCount > 0 ? new FixVec2(_threatSumX / _threatCount, _threatSumY / _threatCount) : _latestHit!.Position;
+                // The threats this defence answers (the base threats, or with an active raid and rule RA the enemy army units near the newest raid) and their number.
+                List<AiUnitView> threats = _threats;
+                int threatCount = _threatCount;
+                // Where the defenders go: the mean threat position, else the latest hit (rule RA: else the newest raid).
+                FixVec2 centre;
+                if (_profile.UseRaidResponse && NewestRaid(out FixVec2 raidPosition))
+                {
+                    threats = ThreatsNear(raidPosition);
+                    threatCount = threats.Count;
+                    // Sums of the raid threats' coordinates. Unit: tiles. Range: 0 upward.
+                    Fix64 sumX = Fix64.Zero;
+                    Fix64 sumY = Fix64.Zero;
+                    foreach (AiUnitView threat in threats)
+                    {
+                        sumX += threat.Position.X;
+                        sumY += threat.Position.Y;
+                    }
+                    centre = threatCount > 0 ? new FixVec2(sumX / threatCount, sumY / threatCount) : raidPosition;
+                }
+                else
+                {
+                    centre = threatCount > 0 ? new FixVec2(_threatSumX / threatCount, _threatSumY / threatCount) : _latestHit!.Position;
+                }
                 // Candidates: not fallen back, not harassing, not ordered by unit control this think; nearest to the threat first.
                 List<AiUnitView> candidates = new List<AiUnitView>();
                 foreach (AiUnitView unit in armyAll)
@@ -657,7 +678,9 @@ namespace Rts.Ai
                 }
                 // The units chosen to defend.
                 List<AiUnitView> chosen = new List<AiUnitView>();
-                if (_threatCount > 0)
+                // Rule RA step 3: true when every candidate with the fixed side is predicted short, so the defence holds at home. Unit: boolean.
+                bool hold = false;
+                if (threatCount > 0)
                 {
                     // Own complete static defences near the threat, the fixed side.
                     List<AiUnitView> fixedUnits = new List<AiUnitView>();
@@ -671,8 +694,13 @@ namespace Rts.Ai
                             fixedUnits.Add(own);
                         }
                     }
+                    if (_profile.UseRaidResponse && HqCovers(centre))
+                    {
+                        // Rule RA step 2: the Rooted HQ's weapon counts on the defending side.
+                        fixedUnits.Add(_hq);
+                    }
                     // The threat as predictor entries (real health). Unit: units and health points.
-                    List<FightEntry> threat = FightPredictor.Group(_threats);
+                    List<FightEntry> threat = FightPredictor.Group(threats);
                     // The fixed defences as predictor entries (real health). Unit: units and health points.
                     List<FightEntry> fixedEntries = FightPredictor.Group(fixedUnits);
                     // True once the chosen units and the fixed defences reach defend_min_advantage.
@@ -683,6 +711,7 @@ namespace Rts.Ai
                         chosen.Add(candidates[i]);
                         enough = PredictFight(AiFight.Merge(fixedEntries, FightPredictor.Group(chosen)), threat, false).Advantage >= _profile.DefendMinAdvantage;
                     }
+                    hold = _profile.UseRaidResponse && !enough;
                 }
                 else
                 {
@@ -719,9 +748,23 @@ namespace Rts.Ai
                 _memory.DefendGroup.Clear();
                 // Defence goal, moved off a blocked tile. Unit: tiles.
                 FixVec2 goal = Standable(centre);
+                // Rule RA step 3: where a holding defence waits (the home point moved off a blocked tile). Unit: tiles.
+                FixVec2 holdPoint = hold ? Standable(Home()) : goal;
+                // Squared raid_hold_radius_tiles. Unit: squared tiles. Range: 1 to 400.
+                Fix64 holdRadiusSquared = _profile.RaidHoldRadiusTiles * _profile.RaidHoldRadiusTiles;
                 foreach (AiUnitView unit in defenders)
                 {
                     _memory.DefendGroup.Add(unit.Id);
+                    if (hold)
+                    {
+                        // Farther than the hold radius from home and not already moving to within 2 tiles of it: move home; nearer units get no order and no focus call.
+                        if (!Controlled(unit) && (unit.Position - holdPoint).LengthSquared() > holdRadiusSquared
+                            && !(unit.HasMoveTarget && (unit.MoveTarget - holdPoint).LengthSquared() <= SameGoalSquared))
+                        {
+                            Emit(AiIntent.Move(unit.Id, holdPoint));
+                        }
+                        continue;
+                    }
                     if (Controlled(unit) || Focus(unit))
                     {
                         continue;

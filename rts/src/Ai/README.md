@@ -41,6 +41,7 @@ its think ticks, `(tick + player) % ThinkTicks == 0`, with `ThinkTicks = max(1, 
 | `AiWallLines.cs` | Authored wall lines (ai_mechanic_use.md P4): the parsed `ai/walls/<map id>.json` (`AiMapWalls`, `AiWallArea`, `AiWallLine`), `Parse` (validation against the map and tuning) and `HeldAreas` (which areas the AI holds, from its own units); attached to a profile by `AiProfile.FromDataSet` as `WallLines` |
 | `AiBrainWalls.cs` | Rule WL (`use_walls`): a partial of `AiBrain`'s `Turn` that orders `build_wall_line` and gates on the held areas' lines from spare money within `wall_max_spend_common` |
 | `AiBrainProduction.cs` | Rules RR, PC and SA (`use_production_capacity`, `use_supply_ahead`, ai_production_defence.md PD-1 and PD-2): a partial of `AiBrain`'s `Turn` with the capacity helpers (`Producible`, `RateOf`, `CapOfProducer`, `IncomePerMinute`, `WorkerRate`) and rule PC (a producer is built while producer capacity is below the measured army income; replaces rule X); `AiMemory.DepositLog` holds the income |
+| `AiBrainRaids.cs` | Rules RS and RW (`use_raid_workers`, ai_production_defence.md PD-3): a partial of `AiBrain`'s `Turn` with `Raids` (raid sites from hits and worker losses, never sightings), the closed-field test and the worker evacuation; `AiMemory.RaidHits`, `OwnWorkerPositions` and `RaidScanTick` hold the state |
 | `AiBudget.cs` | Package B: the budget queue arithmetic on arrays (Open, Distribute, Close, the defence ceiling, the rare surplus helpers) |
 | `AiBrainBudget.cs` | Package B: the Open and Close steps of a think and the buying helpers of the six queues (part of `AiBrain.Turn`) |
 | `AiFight.cs` | Predictor-entry helpers for package D (merge, scale, structure entries) |
@@ -128,3 +129,11 @@ determinism review.
   (every profile carries them; the old values false and 1 play exactly as before). With the switch on, rule SA (in `Structures`, after rule 3a) orders one more
   supply structure while others are pending when the supply the producers can add during one supply build would not fit under the cap, up to
   `supply_ahead_max_pending` at once, only when it can be paid now. Only `aggressive_s5_pd` has it on (3).
+- Raid workers (rts/docs/specs/ai_production_defence.md package PD-3, `AiBrainRaids.cs`): the root keys `use_raid_workers`, `raid_active_seconds`, `raid_field_radius_tiles` and
+  `raid_evacuate_max_commands_per_think` (every profile carries them; the old values false, 10, 8 and 12 play exactly as before). With the switch on, rule RS (`Turn.Raids`, after the cycle rule,
+  before Gather) records a raid site at an own drop-off from hits on own workers and structures and from worker losses (never from a sighting; `AiMemory.RaidHits`, `OwnWorkerPositions`,
+  `RaidScanTick`), and rule RW closes the fields near an active raid: cap 0 (no worker sent or trained), skipped by the long haul and the rebalance, and the workers on them move to an open field or home.
+  Only `aggressive_s5_pd` has it on.
+- Raid response (rts/docs/specs/ai_production_defence.md package PD-4, `AiBrainFight.cs` `MeasuredDefence`): the root keys `use_raid_response` (needs `use_measured_defence`; the profile fails to load otherwise),
+  `raid_hold_radius_tiles` and `raid_hq_cover_margin_tiles` (every profile carries them; the old values false, 4 and 2 play exactly as before). With the switch on, rule RS runs even without `use_raid_workers`
+  and rule RA answers the newest raid only, lets the Rooted HQ's weapon join the fixed defending side, and holds the defenders at home when even every candidate is predicted short. Only `aggressive_s5_pd` has it on.
