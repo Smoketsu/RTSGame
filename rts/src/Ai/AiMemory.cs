@@ -8,7 +8,7 @@
 // same inputs build the same memory and submit the same commands (proven by identical harness STATE_HASH lines).
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
 // ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
-// ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity); PD-3 adds RaidHits, OwnWorkerPositions and RaidScanTick (rules RS and RW, only with use_raid_workers).
+// ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity); PD-3 adds RaidHits, OwnWorkerPositions and RaidScanTick (rules RS and RW, only with use_raid_workers); revision 2 adds RaidClosedFields, RaidSeenTick, RaidCarriedHits, RaidAnswered and DamageReport.IsArmy (all written only with a raid switch on, except IsArmy; none hashed).
 using System.Collections.Generic;
 using Rts.Sim.Core;
 
@@ -67,6 +67,9 @@ namespace Rts.Ai
 
         /// <summary>Position of the own unit when it was hit. Unit: tiles.</summary>
         public FixVec2 Position { get; set; }
+
+        /// <summary>Revision 2 (rule RS): true when the hit unit is an army unit (footprint 0, no Hq, cannot gather), set by the controller at each hit; read only by rule RS. Unit: boolean.</summary>
+        public bool IsArmy { get; set; }
     }
 
     /// <summary>Everything one controller remembers between thinks. Mutable; owned by one controller.</summary>
@@ -161,6 +164,18 @@ namespace Rts.Ai
 
         /// <summary>Rule RS (only with use_raid_workers): tick of the last raid scan, or -1 before the first; only damage reports newer than this are new hits. Unit: ticks. Range: -1, or 0 upward.</summary>
         public int RaidScanTick { get; set; } = -1;
+
+        /// <summary>Revision 2 rule RS (ai_production_defence.md R2.1.1, only with a raid switch): the field indices each active raid has closed, by the raid's drop-off ID; sets only grow while the raid is active. Unit: field indices, 0 to field count - 1. Empty while the switches are off. Not hashed.</summary>
+        public SortedDictionary<EntityId, SortedSet<int>> RaidClosedFields { get; } = new SortedDictionary<EntityId, SortedSet<int>>();
+
+        /// <summary>Revision 2 rule RS (R2.1.2, only with a raid switch): the last think tick at which an enemy army unit was seen in an active raid's area, by the raid's drop-off ID. Unit: ticks, 0 to now. Empty while the switches are off. Not hashed.</summary>
+        public SortedDictionary<EntityId, int> RaidSeenTick { get; } = new SortedDictionary<EntityId, int>();
+
+        /// <summary>Revision 2 rule RS (R2.1.3, only with a raid switch): hits on non-army own units that died between thinks, carried from the intel prune to the next raid scan, in ascending unit ID order, then emptied. Unit: Tick in ticks (0 upward), Position in tiles. Not hashed.</summary>
+        public List<(int Tick, FixVec2 Position)> RaidCarriedHits { get; } = new List<(int Tick, FixVec2 Position)>();
+
+        /// <summary>Revision 2 rule RA (R2.1.4, only with use_raid_response): the drop-off ID of the raid the defence answered at the last think, or <see cref="EntityId.None"/>. Not hashed.</summary>
+        public EntityId RaidAnswered { get; set; } = EntityId.None;
 
         /// <summary>Highest tick whose events were read, or -1. Unit: ticks.</summary>
         public int LastEventTickRead { get; set; } = -1;

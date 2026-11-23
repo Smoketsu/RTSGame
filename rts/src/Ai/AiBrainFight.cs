@@ -622,107 +622,90 @@ namespace Rts.Ai
                     return false;
                 }
                 _memory.LastThreatTick = _view.Tick;
-                // The threats this defence answers (the base threats, or with an active raid and rule RA the enemy army units near the newest raid) and their number.
+                // The threats this defence answers (the base threats, or with an active raid and rule RA the enemy army units near the raid answered) and their number.
                 List<AiUnitView> threats = _threats;
                 int threatCount = _threatCount;
-                // Where the defenders go: the mean threat position, else the latest hit (rule RA: else the newest raid).
+                // Where the defenders go: the mean threat position, else the latest hit (rule RA: else the answered raid's position).
                 FixVec2 centre;
-                // Position of the newest raid's latest hit, set only when NewestRaid returns true. Unit: tiles. Range: inside the map (0 to map size on each axis).
-                if (_profile.UseRaidResponse && NewestRaid(out FixVec2 raidPosition))
-                {
-                    threats = ThreatsNear(raidPosition);
-                    threatCount = threats.Count;
-                    // Sums of the raid threats' X and Y coordinates. Unit: tiles. Range: 0 upward.
-                    Fix64 sumX = Fix64.Zero;
-                    // Sum of the raid threats' Y coordinates. Unit: tiles. Range: 0 upward.
-                    Fix64 sumY = Fix64.Zero;
-                    foreach (AiUnitView threat in threats)
-                    {
-                        sumX += threat.Position.X;
-                        sumY += threat.Position.Y;
-                    }
-                    centre = threatCount > 0 ? new FixVec2(sumX / threatCount, sumY / threatCount) : raidPosition;
-                }
-                else
-                {
-                    centre = threatCount > 0 ? new FixVec2(_threatSumX / threatCount, _threatSumY / threatCount) : _latestHit!.Position;
-                }
-                // Candidates: not fallen back, not harassing, not ordered by unit control this think; nearest to the threat first.
-                List<AiUnitView> candidates = new List<AiUnitView>();
-                foreach (AiUnitView unit in armyAll)
-                {
-                    if (!_memory.FallenBack.Contains(unit.Id) && !_memory.HarassGroup.Contains(unit.Id) && !Controlled(unit))
-                    {
-                        candidates.Add(unit);
-                    }
-                }
                 // True while an attack runs, so units of its group are the last choice (D.5, review item 3). Unit: boolean.
                 bool attacking = _memory.Stance == AiStance.Attack;
-                candidates.Sort((a, b) =>
-                {
-                    // Whether each unit belongs to the attack group (those sort last). Unit: boolean.
-                    bool ga = attacking && _memory.AttackGroup.Contains(a.Id);
-                    bool gb = attacking && _memory.AttackGroup.Contains(b.Id);
-                    if (ga != gb)
-                    {
-                        return ga ? 1 : -1;
-                    }
-                    // Squared distances of the two units from the threat. Unit: squared tiles. Range: 0 upward.
-                    Fix64 da = (a.Position - centre).LengthSquared();
-                    Fix64 db = (b.Position - centre).LengthSquared();
-                    return da < db ? -1 : (da > db ? 1 : a.Id.CompareTo(b.Id));
-                });
-                // Every army unit that may defend when the stance is Defend (the whole list, nearest first).
-                List<AiUnitView> everyone = new List<AiUnitView>(candidates);
-                if (candidates.Count > _profile.DefendMaxCandidates)
-                {
-                    candidates.RemoveRange(_profile.DefendMaxCandidates, candidates.Count - _profile.DefendMaxCandidates);
-                }
+                // Every army unit that may defend when the stance is Defend (the whole list, nearest first), and the nearest ones up to defend_max_candidates.
+                List<AiUnitView> everyone;
+                List<AiUnitView> candidates;
                 // The units chosen to defend.
                 List<AiUnitView> chosen = new List<AiUnitView>();
                 // Rule RA step 3: true when every candidate with the fixed side is predicted short, so the defence holds at home. Unit: boolean.
                 bool hold = false;
-                if (threatCount > 0)
+                // Rule RA (revision 2, R2.1.4): the active raids in answer order, or an empty list without rule RA or without an active raid.
+                List<KeyValuePair<EntityId, (int Tick, FixVec2 Position)>> raids = _profile.UseRaidResponse ? RaidOrder() : new List<KeyValuePair<EntityId, (int Tick, FixVec2 Position)>>();
+                if (raids.Count > 0)
                 {
-                    // Own complete static defences near the threat, the fixed side.
-                    List<AiUnitView> fixedUnits = new List<AiUnitView>();
-                    // Squared engagement radius. Unit: squared tiles.
-                    Fix64 engagementSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
-                    foreach (AiUnitView own in _view.OwnUnits)
+                    // True once a raid with threats has been recorded (a winnable one, or the first that is not). Unit: boolean.
+                    bool recorded = false;
+                    // True once the recorded raid is winnable. Unit: boolean.
+                    bool won = false;
+                    centre = raids[0].Value.Position;
+                    threats = new List<AiUnitView>();
+                    threatCount = 0;
+                    everyone = new List<AiUnitView>();
+                    candidates = new List<AiUnitView>();
+                    // The raid answered this think (drop-off ID). Unit: entity ID.
+                    EntityId answered = raids[0].Key;
+                    foreach (KeyValuePair<EntityId, (int Tick, FixVec2 Position)> raid in raids)
                     {
-                        if (own.IsStructure && !own.IsUnderConstruction && own.Definition.Economy.IsStaticDefence && own.Definition.Weapon != null
-                            && (own.Position - centre).LengthSquared() <= engagementSquared)
+                        // The visible raiders near this raid; none means the raid is skipped.
+                        List<AiUnitView> raidThreats = ThreatsNear(raid.Value.Position);
+                        if (raidThreats.Count == 0)
                         {
-                            fixedUnits.Add(own);
+                            continue;
+                        }
+                        // Mean of the raiders' positions. Unit: tiles. Range: inside the map.
+                        FixVec2 raidCentre = MeanPosition(raidThreats);
+                        // The candidates against this raid's centre, and everyone.
+                        List<AiUnitView> raidCandidates = DefenceCandidates(armyAll, raidCentre, attacking, out List<AiUnitView> raidEveryone);
+                        // The units chosen for this raid.
+                        List<AiUnitView> raidChosen = new List<AiUnitView>();
+                        // True when the chosen units and the fixed side reach defend_min_advantage here. Unit: boolean.
+                        bool raidEnough = DefenceEnough(raidCentre, raidThreats, raidCandidates, raidChosen);
+                        if (raidEnough || !recorded)
+                        {
+                            threats = raidThreats;
+                            threatCount = raidThreats.Count;
+                            centre = raidCentre;
+                            everyone = raidEveryone;
+                            candidates = raidCandidates;
+                            chosen = raidChosen;
+                            answered = raid.Key;
+                            recorded = true;
+                            won = raidEnough;
+                        }
+                        if (raidEnough)
+                        {
+                            break;
                         }
                     }
-                    if (_profile.UseRaidResponse && HqCovers(centre))
+                    hold = recorded && !won;
+                    if (!recorded)
                     {
-                        // Rule RA step 2: the Rooted HQ's weapon counts on the defending side.
-                        fixedUnits.Add(_hq);
+                        // No raid has visible threats: the blind branch toward the first raid.
+                        candidates = DefenceCandidates(armyAll, centre, attacking, out everyone);
+                        DefenceBlind(candidates, chosen);
                     }
-                    // The threat as predictor entries (real health). Unit: units and health points.
-                    List<FightEntry> threat = FightPredictor.Group(threats);
-                    // The fixed defences as predictor entries (real health). Unit: units and health points.
-                    List<FightEntry> fixedEntries = FightPredictor.Group(fixedUnits);
-                    // True once the chosen units and the fixed defences reach defend_min_advantage.
-                    bool enough = PredictFight(fixedEntries, threat, false).Advantage >= _profile.DefendMinAdvantage;
-                    // Candidate number. Range: 0 to the candidate count.
-                    for (int i = 0; i < candidates.Count && !enough; i++)
-                    {
-                        chosen.Add(candidates[i]);
-                        enough = PredictFight(AiFight.Merge(fixedEntries, FightPredictor.Group(chosen)), threat, false).Advantage >= _profile.DefendMinAdvantage;
-                    }
-                    hold = _profile.UseRaidResponse && !enough;
+                    _memory.RaidAnswered = answered;
                 }
                 else
                 {
-                    // Supply of the nearest units chosen so far. Unit: supply.
-                    int supply = 0;
-                    for (int i = 0; i < candidates.Count && supply < _profile.DefendBlindSupply; i++)
+                    centre = threatCount > 0 ? new FixVec2(_threatSumX / threatCount, _threatSumY / threatCount) : _latestHit!.Position;
+                    candidates = DefenceCandidates(armyAll, centre, attacking, out everyone);
+                    if (threatCount > 0)
                     {
-                        chosen.Add(candidates[i]);
-                        supply += _view.SupplyOf(candidates[i].Definition);
+                        // True when the chosen units and the fixed side reach defend_min_advantage. Unit: boolean.
+                        bool enough = DefenceEnough(centre, threats, candidates, chosen);
+                        hold = _profile.UseRaidResponse && !enough;
+                    }
+                    else
+                    {
+                        DefenceBlind(candidates, chosen);
                     }
                 }
                 if (attacking)
@@ -777,6 +760,97 @@ namespace Rts.Ai
                     }
                 }
                 return _memory.Stance == AiStance.Defend;
+            }
+
+            /// <summary>D.5: the army units that may defend (not fallen back, not harassing, not ordered by unit control this think), nearest to <paramref name="centre"/> first with attack-group members last while attacking; <paramref name="everyone"/> gets the whole list, the result the first defend_max_candidates.</summary>
+            /// <param name="armyAll">Every own army unit that is not an active scout.</param>
+            /// <param name="centre">The threat centre. Unit: tiles.</param>
+            /// <param name="attacking">True while the stance is Attack. Unit: boolean.</param>
+            /// <param name="everyone">Receives every candidate, sorted.</param>
+            private List<AiUnitView> DefenceCandidates(List<AiUnitView> armyAll, FixVec2 centre, bool attacking, out List<AiUnitView> everyone)
+            {
+                // Candidates: not fallen back, not harassing, not ordered by unit control this think; nearest to the threat first.
+                List<AiUnitView> candidates = new List<AiUnitView>();
+                foreach (AiUnitView unit in armyAll)
+                {
+                    if (!_memory.FallenBack.Contains(unit.Id) && !_memory.HarassGroup.Contains(unit.Id) && !Controlled(unit))
+                    {
+                        candidates.Add(unit);
+                    }
+                }
+                candidates.Sort((a, b) =>
+                {
+                    // Whether each unit belongs to the attack group (those sort last). Unit: boolean.
+                    bool ga = attacking && _memory.AttackGroup.Contains(a.Id);
+                    bool gb = attacking && _memory.AttackGroup.Contains(b.Id);
+                    if (ga != gb)
+                    {
+                        return ga ? 1 : -1;
+                    }
+                    // Squared distances of the two units from the threat. Unit: squared tiles. Range: 0 upward.
+                    Fix64 da = (a.Position - centre).LengthSquared();
+                    Fix64 db = (b.Position - centre).LengthSquared();
+                    return da < db ? -1 : (da > db ? 1 : a.Id.CompareTo(b.Id));
+                });
+                everyone = new List<AiUnitView>(candidates);
+                if (candidates.Count > _profile.DefendMaxCandidates)
+                {
+                    candidates.RemoveRange(_profile.DefendMaxCandidates, candidates.Count - _profile.DefendMaxCandidates);
+                }
+                return candidates;
+            }
+
+            /// <summary>D.5 with threats: adds candidates to <paramref name="chosen"/> (nearest first) until the fixed defences near <paramref name="centre"/> (the HQ too under rule RA) and the chosen reach defend_min_advantage; true when they did. Unit: boolean.</summary>
+            /// <param name="centre">The threat centre. Unit: tiles.</param>
+            /// <param name="threats">The visible threats; not empty.</param>
+            /// <param name="candidates">The candidates, nearest first.</param>
+            /// <param name="chosen">Receives the chosen units (every candidate when the result is false).</param>
+            private bool DefenceEnough(FixVec2 centre, List<AiUnitView> threats, List<AiUnitView> candidates, List<AiUnitView> chosen)
+            {
+                // Own complete static defences near the threat, the fixed side.
+                List<AiUnitView> fixedUnits = new List<AiUnitView>();
+                // Squared engagement radius. Unit: squared tiles.
+                Fix64 engagementSquared = _profile.EngagementRadiusTiles * _profile.EngagementRadiusTiles;
+                foreach (AiUnitView own in _view.OwnUnits)
+                {
+                    if (own.IsStructure && !own.IsUnderConstruction && own.Definition.Economy.IsStaticDefence && own.Definition.Weapon != null
+                        && (own.Position - centre).LengthSquared() <= engagementSquared)
+                    {
+                        fixedUnits.Add(own);
+                    }
+                }
+                if (_profile.UseRaidResponse && HqCovers(centre))
+                {
+                    // Rule RA step 2: the Rooted HQ's weapon counts on the defending side.
+                    fixedUnits.Add(_hq);
+                }
+                // The threat as predictor entries (real health). Unit: units and health points.
+                List<FightEntry> threat = FightPredictor.Group(threats);
+                // The fixed defences as predictor entries (real health). Unit: units and health points.
+                List<FightEntry> fixedEntries = FightPredictor.Group(fixedUnits);
+                // True once the chosen units and the fixed defences reach defend_min_advantage.
+                bool enough = PredictFight(fixedEntries, threat, false).Advantage >= _profile.DefendMinAdvantage;
+                // Candidate number. Range: 0 to the candidate count.
+                for (int i = 0; i < candidates.Count && !enough; i++)
+                {
+                    chosen.Add(candidates[i]);
+                    enough = PredictFight(AiFight.Merge(fixedEntries, FightPredictor.Group(chosen)), threat, false).Advantage >= _profile.DefendMinAdvantage;
+                }
+                return enough;
+            }
+
+            /// <summary>D.5 without visible threats: adds the nearest candidates to <paramref name="chosen"/> until their supply reaches defend_blind_supply.</summary>
+            /// <param name="candidates">The candidates, nearest first.</param>
+            /// <param name="chosen">Receives the chosen units.</param>
+            private void DefenceBlind(List<AiUnitView> candidates, List<AiUnitView> chosen)
+            {
+                // Supply of the nearest units chosen so far. Unit: supply.
+                int supply = 0;
+                for (int i = 0; i < candidates.Count && supply < _profile.DefendBlindSupply; i++)
+                {
+                    chosen.Add(candidates[i]);
+                    supply += _view.SupplyOf(candidates[i].Definition);
+                }
             }
 
             // ------------------------------------------------------------------ D.6 unit control

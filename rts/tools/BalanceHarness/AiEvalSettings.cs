@@ -157,6 +157,9 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Radius around an own drop-off for raid hits and for the defenders that answer them. Unit: tiles. Range: 1 to 30.</summary>
         public int RaidRadiusTiles { get; private set; }
 
+        /// <summary>Revision 2 (R2.2), reported-only: enemy army supply near a slot's base that marks the main attack, not a raid (see ProductionMetrics.OverrunSecond). Unit: supply. Range: 1 to 200.</summary>
+        public int OverrunSupply { get; private set; }
+
         /// <summary>First game second counted in the bank mean. Unit: seconds. Range: 0 to 600.</summary>
         public int BankMeanFromSeconds { get; private set; }
 
@@ -191,7 +194,7 @@ namespace Rts.Tools.BalanceHarness
                 "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "opening_max_use_fraction", "opening_max_mirror_win_fraction",
                 "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests",
                 "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction", "summary_bucket_seconds", "summary_bank_times_seconds",
-                "summary_window_seconds", "summary_sample_seconds", "fed_window_seconds", "raid_radius_tiles", "bank_mean_from_seconds");
+                "summary_window_seconds", "summary_sample_seconds", "fed_window_seconds", "raid_radius_tiles", "bank_mean_from_seconds", "overrun_supply");
             AiEvalSettings settings = new AiEvalSettings();
             settings.LadderBaseSeed = (ulong)root.RequireInt("ladder_base_seed", 0, int.MaxValue);
             // Games per cell, checked for the multiple-of-4 rule (the seat rule needs whole blocks of four games).
@@ -255,6 +258,7 @@ namespace Rts.Tools.BalanceHarness
             settings.FedWindowSeconds = root.RequireInt("fed_window_seconds", 1, 600);
             settings.RaidRadiusTiles = root.RequireInt("raid_radius_tiles", 1, 30);
             settings.BankMeanFromSeconds = root.RequireInt("bank_mean_from_seconds", 0, 600);
+            settings.OverrunSupply = root.RequireInt("overrun_supply", 1, 200);
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");

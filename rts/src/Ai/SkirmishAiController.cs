@@ -247,6 +247,8 @@ namespace Rts.Ai
                 }
                 report.Tick = hit.Tick;
                 report.Position = target.Position;
+                // Revision 2: the AiUnitView.IsArmy predicate on the target's definition (footprint 0, no Hq, cannot gather).
+                report.IsArmy = target.Definition.Economy.FootprintTiles == 0 && target.Definition.Hq == null && !target.Definition.Economy.CanGather;
             }
             // Ticks covered by the events just read (the log holds the last stepped tick only).
             Memory.LastEventTickRead = Math.Max(Memory.LastEventTickRead, sim.Clock.Tick - 1);

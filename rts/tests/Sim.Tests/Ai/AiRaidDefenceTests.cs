@@ -1,5 +1,5 @@
 // rts/tests/Sim.Tests/Ai/AiRaidDefenceTests.cs
-// Tests of rts/docs/specs/ai_production_defence.md packages PD-3 (rules RS and RW: RS-1 to RS-4, RW-1 to RW-5, D-1 for RW) and PD-4 (rule RA: RA-1 to RA-4, D-1 for RA). Part of Rts.Sim.Tests.
+// Tests of rts/docs/specs/ai_production_defence.md packages PD-3 (rules RS and RW: RS-1 to RS-4, RW-1 to RW-5, D-1 for RW) and PD-4 (rule RA: RA-1 to RA-4, D-1 for RA), then revision 2 (spec R2.3: R2-H1-1 to R2-H5-1, R2-D-1 and an off-path check). Part of Rts.Sim.Tests.
 // Raid common setup (spec section 8): a real greybox_1v1 simulation, P0 Skai with its Great Aerie at the map spawn (8, 8), a complete skai.perch_depot of P0 at (18.5, 7.5), the map explored for P0, three fledglings gathering
 // field 6 at (21, 10); the other fields near the bases are 0 at (4, 10), 1 at (10, 4) and 7 at (21, 4) (checked against rts/data/maps/greybox_1v1.json). P1 is Water; its enemy units are spawned by script. Hits are fed to the memory
 // the way SkirmishAiController.ReadEvents does it (an own unit's damage report from a UnitDamagedEvent with a valid attacker). Profiles are aggressive_s5_pd text with the counter-mix, tech, static defence, scouting and walls off.
@@ -628,6 +628,402 @@ namespace Rts.Sim.Tests.Ai
             }
             Assert.That(runs[0], Does.Contain("Move"));
             Assert.That(runs[1], Is.EqualTo(runs[0]));
+        }
+
+        // ------------------------------------------------------------------ Revision 2 (spec R2.3)
+
+        /// <summary>The raid memory including the revision 2 members, as text, for equality checks.</summary>
+        private static string RaidKey2(AiMemory memory)
+        {
+            // Closed field sets, seen ticks, carried hits and the answered raid as text parts.
+            List<string> parts = new List<string>();
+            foreach (KeyValuePair<EntityId, SortedSet<int>> closed in memory.RaidClosedFields)
+            {
+                parts.Add(closed.Key.Value + ":" + string.Join("+", closed.Value));
+            }
+            List<string> seen = new List<string>();
+            foreach (KeyValuePair<EntityId, int> pair in memory.RaidSeenTick)
+            {
+                seen.Add(pair.Key.Value + "@" + pair.Value);
+            }
+            return RaidKey(memory) + "|closed " + string.Join(",", parts) + "|seen " + string.Join(",", seen) + "|carried " + memory.RaidCarriedHits.Count + "|answered " + memory.RaidAnswered.Value;
+        }
+
+        /// <summary>The worker caps of the served fields (indices 0, 1, 6, 7 in that order) after the last think, read through the economy probe.</summary>
+        private static IReadOnlyList<int> Caps(Simulation sim, AiProfile profile, AiMemory memory)
+        {
+            AiBrain.EconomyProbe? probe = AiBrain.Probe(AiWorldView.Build(sim, P0, memory.KnownFieldRemaining), profile, SkaiPlan(profile), memory);
+            Assert.That(probe, Is.Not.Null);
+            Assert.That(probe!.Served, Is.EqualTo(new List<int> { 0, 1, 6, 7 }));
+            return probe.ServedCaps;
+        }
+
+        /// <summary>Orders every P1 Windrunner to (60, 60), far out of sight.</summary>
+        private void SendRaidersAway(Simulation sim)
+        {
+            foreach (AiUnitView unit in AiWorldView.Build(sim, P1, Array.Empty<int>()).OwnUnits)
+            {
+                if (unit.Definition.Id == "skai.windrunner")
+                {
+                    sim.Submit(new MoveUnitCommand(sim.Clock.Tick, P1, _sequence++, unit.Id, new FixVec2(Fix64.FromInt(60), Fix64.FromInt(60))));
+                }
+            }
+        }
+
+        /// <summary>R2-H1-1's run: RS-1, then a hit at (14.5, 15.5) on a live fledgling; returns the sim, the memory and the depot, and the text of the second think's intents and raid memory.</summary>
+        private string H1Closed(AiMemory memory, out Simulation sim, out EntityId depot)
+        {
+            sim = RaidedScene(500, memory);
+            AiProfile profile = Hand();
+            Decide(sim, profile, memory);
+            depot = Own(sim, "skai.perch_depot")[0];
+            Assert.That(memory.RaidClosedFields[depot], Is.EquivalentTo(new[] { 6, 7 }));
+            sim.Step();
+            // The hit: now, on a live fledgling (the report's position is what counts), 8.9 tiles from the depot and 9.9 from the HQ, more than 8 from the centres of fields 6 (8.5) and 7 and from fields 0 and 1.
+            FixVec2 where = new FixVec2(Fix64.Parse("14.5"), Fix64.Parse("15.5"));
+            memory.RecentDamage[Own(sim, "skai.fledgling")[0]] = new DamageReport { Tick = sim.Clock.Tick, Position = where, IsArmy = false };
+            List<AiIntent> intents = Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits[depot], Is.EqualTo((sim.Clock.Tick, where)));
+            Assert.That(memory.RaidClosedFields[depot], Is.EquivalentTo(new[] { 6, 7 }));
+            IReadOnlyList<int> caps = Caps(sim, profile, memory);
+            Assert.That(caps[2], Is.EqualTo(0), "field 6 stays closed");
+            Assert.That(caps[3], Is.EqualTo(0), "field 7 stays closed");
+            foreach (string gather in Gathers(intents))
+            {
+                Assert.That(gather, Does.Not.EndWith(">6"));
+                Assert.That(gather, Does.Not.EndWith(">7"));
+            }
+            return Key(intents) + "|" + RaidKey2(memory);
+        }
+
+        /// <summary>R2-H1-1: after RS-1, a newer hit 8.9 tiles from the depot moves the raid position, yet fields 6 and 7 stay closed (cap 0) and no Gather names them; revision 1 reopened them.</summary>
+        [Test]
+        public void R2H1_1_ClosedFieldStaysClosed()
+        {
+            H1Closed(NewMemory(), out _, out _);
+        }
+
+        /// <summary>R2-H1-2: with the raiders gone and raid_active_seconds passed, the raid's field set is gone and field 6 is open again.</summary>
+        [Test]
+        public void R2H1_2_SetsGoWithTheRaid()
+        {
+            AiMemory memory = NewMemory();
+            H1Closed(memory, out Simulation sim, out EntityId depot);
+            AiProfile profile = Hand();
+            SteppedAfterRaid(sim, memory.RaidHits[depot].Tick, 220);
+            Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits, Is.Empty);
+            Assert.That(memory.RaidClosedFields, Is.Empty);
+            Assert.That(Caps(sim, profile, memory)[2], Is.GreaterThan(0));
+        }
+
+        /// <summary>R2-H2-1's run: a visible raider keeps the raid 11 s after the hit; when it leaves, the raid ends 11 s after the last think that saw it. Returns the text of the memory after the first long think.</summary>
+        private string H2Seen()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = RaidedScene(500, memory);
+            AiProfile profile = Hand();
+            List<AiIntent> first = Decide(sim, profile, memory);
+            EntityId depot = Own(sim, "skai.perch_depot")[0];
+            int hitTick = memory.RaidHits[depot].Tick;
+            foreach (AiIntent intent in first)
+            {
+                if (intent.Kind == AiIntentKind.Gather)
+                {
+                    sim.Submit(new GatherCommand(sim.Clock.Tick, P0, _sequence++, intent.Unit, intent.Field));
+                }
+            }
+            while (sim.Clock.Tick < hitTick + 220)
+            {
+                sim.Step();
+                // Deviation from the spec text (reported): the spec asserts that no damage report follows RS-1's, but the Windrunner (range 4) keeps hitting the workers for a few ticks while they walk off field 6
+                // (a hit at +17 ticks with the literal assertion). The test therefore does not feed later hits to the memory: it models the case the spec names, a raid whose last hit is RS-1's with the raider still in sight.
+            }
+            List<AiIntent> second = Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits.ContainsKey(depot), Is.True, "still active 11 s after the hit");
+            Assert.That(memory.RaidHits[depot].Tick, Is.EqualTo(hitTick));
+            Assert.That(memory.RaidSeenTick[depot], Is.EqualTo(sim.Clock.Tick));
+            Assert.That(Caps(sim, profile, memory)[2], Is.EqualTo(0), "field 6 stays closed");
+            string key = Key(second) + "|" + RaidKey2(memory);
+            // The raider leaves; 11 s after the last think that saw it the raid is gone.
+            int seenTick = sim.Clock.Tick;
+            SendRaidersAway(sim);
+            while (sim.Clock.Tick < seenTick + 220)
+            {
+                sim.Step();
+            }
+            Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits, Is.Empty);
+            Assert.That(memory.RaidSeenTick, Is.Empty);
+            Assert.That(Caps(sim, profile, memory)[2], Is.GreaterThan(0));
+            return key;
+        }
+
+        /// <summary>R2-H2-1: a visible raider keeps the raid active past raid_active_seconds (revision 1: gone), and the raid ends 11 s after the raider was last seen.</summary>
+        [Test]
+        public void R2H2_1_VisibleRaiderKeepsTheRaid()
+        {
+            H2Seen();
+        }
+
+        /// <summary>R2-H2-2: after RS-4's expiry a Windrunner that appears and has hit nothing does not revive the raid: no raid, no seen tick, no closed field, no worker re-ordered.</summary>
+        [Test]
+        public void R2H2_2_NoRevivalBySighting()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = RaidedScene(500, memory);
+            AiProfile profile = Hand();
+            Decide(sim, profile, memory);
+            int raidTick = memory.RaidHits[Own(sim, "skai.perch_depot")[0]].Tick;
+            SteppedAfterRaid(sim, raidTick, 220);
+            Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits, Is.Empty);
+            Spawn(sim, "skai.windrunner", P1, "21.5", "12.5");
+            Assert.That(AiWorldView.Build(sim, P0, memory.KnownFieldRemaining).VisibleEnemies.Count, Is.GreaterThan(0), "the new raider is seen");
+            List<AiIntent> intents = Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits, Is.Empty);
+            Assert.That(memory.RaidSeenTick, Is.Empty);
+            Assert.That(memory.RaidClosedFields, Is.Empty);
+            Assert.That(Gathers(intents), Is.Empty);
+        }
+
+        /// <summary>R2-H3-1: a report for a unit that is not alive (9998, hit 2 ticks ago at (20.5, 9.5)) opens a raid when it is not an army unit and none when it is; the carried list is empty after the think.</summary>
+        [Test]
+        public void R2H3_1_HitOnWorkerThatDied()
+        {
+            // The raid at the depot of the run with a worker report, or none for an army report.
+            foreach (bool army in new[] { false, true })
+            {
+                Simulation sim = RaidScene(500);
+                AiMemory memory = NewMemory();
+                FixVec2 where = new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("9.5"));
+                memory.RecentDamage[new EntityId(9998)] = new DamageReport { Tick = sim.Clock.Tick - 2, Position = where, IsArmy = army };
+                Decide(sim, Hand(), memory);
+                Assert.That(memory.RaidCarriedHits, Is.Empty);
+                if (army)
+                {
+                    Assert.That(memory.RaidHits, Is.Empty);
+                }
+                else
+                {
+                    Assert.That(memory.RaidHits[Own(sim, "skai.perch_depot")[0]], Is.EqualTo((sim.Clock.Tick - 2, where)));
+                }
+            }
+        }
+
+        /// <summary>R2-H3-2: ReadEvents marks a hit on a Talon Archer as an army hit and a hit on a fledgling as not.</summary>
+        [Test]
+        public void R2H3_2_ReadEventsMarksArmyHits()
+        {
+            Simulation sim = RaidScene(500);
+            AiProfile profile = Hand();
+            SkirmishAiController controller = new SkirmishAiController(P0, profile);
+            controller.OnMatchStart(sim);
+            ListCommandSink sink = new ListCommandSink(sim.Clock.Tick);
+            // A Talon Archer and a Windrunner of P1 far from the bases; the Windrunner hits the archer first.
+            EntityId talon = Spawn(sim, "skai.talon_archer", P0, "40.5", "40.5");
+            EntityId raider = Spawn(sim, "skai.windrunner", P1, "41.5", "40.5");
+            for (int i = 0; i < 400 && !controller.Memory.RecentDamage.ContainsKey(talon); i++)
+            {
+                controller.Think(sim, sink);
+                sim.Step();
+            }
+            controller.Think(sim, sink);
+            Assert.That(controller.Memory.RecentDamage.ContainsKey(talon), Is.True, "the archer was hit");
+            Assert.That(controller.Memory.RecentDamage[talon].IsArmy, Is.True);
+            // Then a fledgling beside the raider, which is ordered to attack it.
+            EntityId worker = Spawn(sim, "skai.fledgling", P0, "41.5", "41.5");
+            sim.Submit(new AttackUnitCommand(sim.Clock.Tick, P1, _sequence++, raider, worker));
+            for (int i = 0; i < 400 && !controller.Memory.RecentDamage.ContainsKey(worker); i++)
+            {
+                controller.Think(sim, sink);
+                sim.Step();
+            }
+            controller.Think(sim, sink);
+            Assert.That(controller.Memory.RecentDamage.ContainsKey(worker), Is.True, "the fledgling was hit");
+            Assert.That(controller.Memory.RecentDamage[worker].IsArmy, Is.False);
+        }
+
+        /// <summary>R2-H3-3: R2-H3-1 with both raid switches off: nothing is carried, no raid opens and the report is pruned as before.</summary>
+        [Test]
+        public void R2H3_3_SwitchesOff()
+        {
+            Simulation sim = RaidScene(500);
+            AiMemory memory = NewMemory();
+            memory.RecentDamage[new EntityId(9998)] = new DamageReport { Tick = sim.Clock.Tick - 2, Position = new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("9.5")), IsArmy = false };
+            Decide(sim, Hand("\"use_raid_workers\": true", "\"use_raid_workers\": false", "\"use_raid_response\": true", "\"use_raid_response\": false"), memory);
+            Assert.That(memory.RaidCarriedHits, Is.Empty);
+            Assert.That(memory.RaidHits, Is.Empty);
+            Assert.That(memory.RecentDamage.ContainsKey(new EntityId(9998)), Is.False, "pruned as today");
+        }
+
+        /// <summary>The H4 scene: P0 Skai with two Talon Archers 11.7 tiles from both raid areas (beyond the focus radius), raid A at the depot from a hit on a field-6 worker (now minus 20 ticks) and raid B at the HQ from a hit on the field-0 worker (now), with <paramref name="countA"/> and <paramref name="countB"/> P1 Windrunners at (21.5, 12.5) and (6.5, 12.5).</summary>
+        private Simulation H4Scene(AiMemory memory, int countA, int countB, out List<EntityId> raidersA, out List<EntityId> raidersB, out List<EntityId> archers)
+        {
+            Simulation sim = RaidScene(500, 0, 1);
+            archers = new List<EntityId> { Spawn(sim, "skai.talon_archer", P0, "14.5", "3.5"), Spawn(sim, "skai.talon_archer", P0, "13.5", "3.5") };
+            raidersA = new List<EntityId>();
+            raidersB = new List<EntityId>();
+            for (int i = 0; i < countA; i++)
+            {
+                raidersA.Add(Spawn(sim, "skai.windrunner", P1, "21.5", "12.5"));
+            }
+            for (int i = 0; i < countB; i++)
+            {
+                raidersB.Add(Spawn(sim, "skai.windrunner", P1, "4.5", "18.5"));
+            }
+            List<EntityId> fledglings = Own(sim, "skai.fledgling");
+            memory.RecentDamage[fledglings[0]] = new DamageReport { Tick = sim.Clock.Tick - 20, Position = new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("9.5")) };
+            memory.RecentDamage[fledglings[fledglings.Count - 1]] = new DamageReport { Tick = sim.Clock.Tick, Position = new FixVec2(Fix64.Parse("4.5"), Fix64.Parse("12.5")) };
+            return sim;
+        }
+
+        /// <summary>The goal text of <paramref name="ids"/>' mean, as AttackGoals prints it.</summary>
+        private static string GoalOf(Simulation sim, List<EntityId> ids)
+        {
+            FixVec2 mean = Mean(sim, ids);
+            return mean.X.ToString() + "," + mean.Y.ToString();
+        }
+
+        /// <summary>R2-H4-1: the defence answers the newest raid (B at the HQ) and keeps answering it when a new hit makes A the newest; revision 1 swung to A.</summary>
+        [Test]
+        public void R2H4_1_StickyAnswer()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = H4Scene(memory, 1, 1, out List<EntityId> raidersA, out List<EntityId> raidersB, out List<EntityId> archers);
+            AiProfile profile = RaHand();
+            Assert.That(Advantage(sim, profile, archers, false, raidersA), Is.GreaterThanOrEqualTo(profile.DefendMinAdvantage), "enough against A");
+            Assert.That(Advantage(sim, profile, archers, false, raidersB), Is.GreaterThanOrEqualTo(profile.DefendMinAdvantage), "enough against B");
+            EntityId depot = Own(sim, "skai.perch_depot")[0];
+            EntityId hq = Own(sim, "skai.great_aerie")[0];
+            List<AiIntent> first = Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits.Count, Is.EqualTo(2));
+            Assert.That(memory.RaidAnswered, Is.EqualTo(hq), "B is the newest");
+            Assert.That(AttackGoals(first, memory.DefendGroup), Is.Not.Empty, Key(first));
+            Assert.That(AttackGoals(first, memory.DefendGroup), Is.All.EqualTo(GoalOf(sim, raidersB)), Key(first));
+            // A new hit makes A the newest raid.
+            sim.Step();
+            memory.RecentDamage[Own(sim, "skai.fledgling")[0]] = new DamageReport { Tick = sim.Clock.Tick, Position = new FixVec2(Fix64.Parse("20.5"), Fix64.Parse("9.5")) };
+            string goalB = GoalOf(sim, raidersB);
+            List<AiIntent> second = Decide(sim, profile, memory);
+            Assert.That(memory.RaidHits[depot].Tick, Is.GreaterThan(memory.RaidHits[hq].Tick), "A is now the newest");
+            Assert.That(memory.RaidAnswered, Is.EqualTo(hq));
+            Assert.That(AttackGoals(second, memory.DefendGroup), Is.All.EqualTo(goalB), "the goal does not move to A: " + Key(second));
+        }
+
+        /// <summary>R2-H4-2's run: the newest raid (B, HQ, three Windrunners) is predicted short, the older (A, depot, one Windrunner) is not; the defence answers A. Returns the intents and memory text.</summary>
+        private string H4Winnable(out Simulation sim, out AiMemory memory, out List<EntityId> raidersA)
+        {
+            memory = NewMemory();
+            sim = H4Scene(memory, 1, 3, out raidersA, out List<EntityId> raidersB, out List<EntityId> archers);
+            AiProfile profile = RaHand();
+            Assert.That(Advantage(sim, profile, archers, false, raidersA), Is.GreaterThanOrEqualTo(profile.DefendMinAdvantage), "enough against A");
+            Assert.That(Advantage(sim, profile, archers, false, raidersB), Is.LessThan(profile.DefendMinAdvantage), "short against B (the HQ is 10.9 tiles from the raiders, beyond its reach of 6 plus 2)");
+            EntityId depot = Own(sim, "skai.perch_depot")[0];
+            List<AiIntent> intents = Decide(sim, profile, memory);
+            Assert.That(memory.RaidAnswered, Is.EqualTo(depot));
+            Assert.That(AttackGoals(intents, memory.DefendGroup), Is.Not.Empty, Key(intents));
+            Assert.That(AttackGoals(intents, memory.DefendGroup), Is.All.EqualTo(GoalOf(sim, raidersA)));
+            Assert.That(intents.FindAll(i => i.Kind == AiIntentKind.Move && archers.Contains(i.Unit)), Is.Empty, "no hold at home");
+            return Key(intents) + "|" + RaidKey2(memory) + "|" + string.Join(",", memory.DefendGroup);
+        }
+
+        /// <summary>R2-H4-2: an older raid that can be won is answered although the newest cannot; revision 1 held at home.</summary>
+        [Test]
+        public void R2H4_2_WinnableOlderRaid()
+        {
+            H4Winnable(out _, out _, out _);
+        }
+
+        /// <summary>R2-H4-3: with every raid predicted short the defence holds at home with every candidate, and RaidAnswered is the newest raid.</summary>
+        [Test]
+        public void R2H4_3_AllShortHolds()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = H4Scene(memory, 3, 3, out List<EntityId> raidersA, out List<EntityId> raidersB, out List<EntityId> archers);
+            AiProfile profile = RaHand();
+            Assert.That(Advantage(sim, profile, archers, false, raidersA), Is.LessThan(profile.DefendMinAdvantage), "short against A");
+            Assert.That(Advantage(sim, profile, archers, false, raidersB), Is.LessThan(profile.DefendMinAdvantage), "short against B");
+            List<AiIntent> intents = Decide(sim, profile, memory);
+            Assert.That(memory.RaidAnswered, Is.EqualTo(Own(sim, "skai.great_aerie")[0]));
+            foreach (EntityId archer in archers)
+            {
+                Assert.That(memory.DefendGroup, Does.Contain(archer));
+                Assert.That(intents.FindAll(i => i.Unit == archer && i.Kind == AiIntentKind.Move).Count, Is.EqualTo(1), "moves home");
+            }
+            Assert.That(intents.FindAll(i => i.Kind == AiIntentKind.AttackMove && archers.Contains(i.Unit)), Is.Empty);
+        }
+
+        /// <summary>R2-H4-4: after R2-H4-2 the answered raid's raider leaves and the raid expires: RaidAnswered is None or names a raid that is still active.</summary>
+        [Test]
+        public void R2H4_4_ClearedOnExpiry()
+        {
+            H4Winnable(out Simulation sim, out AiMemory memory, out List<EntityId> raidersA);
+            EntityId depot = Own(sim, "skai.perch_depot")[0];
+            foreach (EntityId raider in raidersA)
+            {
+                sim.Submit(new MoveUnitCommand(sim.Clock.Tick, P1, _sequence++, raider, new FixVec2(Fix64.FromInt(60), Fix64.FromInt(60))));
+            }
+            int start = sim.Clock.Tick;
+            while (sim.Clock.Tick < start + 220)
+            {
+                sim.Step();
+            }
+            Decide(sim, RaHand(), memory);
+            Assert.That(memory.RaidHits.ContainsKey(depot), Is.False, "the depot raid expired");
+            Assert.That(memory.RaidAnswered == EntityId.None || memory.RaidHits.ContainsKey(memory.RaidAnswered), Is.True);
+        }
+
+        /// <summary>R2-H5-1: with rare_cap_yields_to_saturation on and fields 0 and 1 full, a hit that closes fields 6 and 7 makes the common-full value true in the same think; before the raid scan it was false (revision 1 kept that).</summary>
+        [Test]
+        public void R2H5_1_CommonFullAfterTheScan()
+        {
+            AiProfile profile = Hand();
+            Assert.That(profile.RareCapYieldsToSaturation, Is.True, "the candidate has the key on");
+            Simulation probeSim = RaidScene(500, 3);
+            IReadOnlyList<int> quiet = Caps(probeSim, profile, NewMemory());
+            AiMemory memory = NewMemory();
+            memory.RareCapActive = true;
+            Simulation sim = RaidedScene(500, memory, 3, quiet[0], quiet[1]);
+            (bool CommonFull, List<int> Caps)? result = AiBrain.ProbeCommonFull(AiWorldView.Build(sim, P0, memory.KnownFieldRemaining), profile, SkaiPlan(profile), memory);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(memory.RaidClosedFields.Count, Is.EqualTo(1), "the hit closed fields");
+            Assert.That(result!.Value.CommonFull, Is.True, "read after the scan: 6 and 7 are closed, 0 and 1 are full");
+            // The map has no rare field in reach of this base (served fields are 0, 1, 6 and 7, all common), so only the common-full value is asserted.
+            Assert.That(result.Value.Caps[2], Is.EqualTo(0));
+        }
+
+        /// <summary>R2-D-1: R2-H1-1, R2-H2-1 and R2-H4-2 run twice from identical inputs give identical intents and memory, the new members included.</summary>
+        [Test]
+        public void R2D1_Twice()
+        {
+            string[] h1 = new string[2];
+            string[] h2 = new string[2];
+            string[] h4 = new string[2];
+            for (int run = 0; run < 2; run++)
+            {
+                h1[run] = H1Closed(NewMemory(), out _, out _);
+                h2[run] = H2Seen();
+                h4[run] = H4Winnable(out _, out _, out _);
+            }
+            Assert.That(h1[1], Is.EqualTo(h1[0]));
+            Assert.That(h2[1], Is.EqualTo(h2[0]));
+            Assert.That(h4[1], Is.EqualTo(h4[0]));
+            Assert.That(h1[0], Does.Contain("Gather"));
+        }
+
+        /// <summary>The off path: with both raid switches off over a hit and a loss the revision 2 members stay empty and RaidAnswered stays None.</summary>
+        [Test]
+        public void R2_OffPathLeavesNewMemoryEmpty()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = RaidedScene(500, memory);
+            AiProfile off = Hand("\"use_raid_workers\": true", "\"use_raid_workers\": false", "\"use_raid_response\": true", "\"use_raid_response\": false");
+            Decide(sim, off, memory);
+            Assert.That(memory.RaidClosedFields, Is.Empty);
+            Assert.That(memory.RaidSeenTick, Is.Empty);
+            Assert.That(memory.RaidCarriedHits, Is.Empty);
+            Assert.That(memory.RaidAnswered, Is.EqualTo(EntityId.None));
         }
     }
 }

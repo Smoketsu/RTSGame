@@ -494,8 +494,15 @@ namespace Rts.Tools.BalanceHarness
                 .Append(eval.SummaryWindowSeconds.ToString(CultureInfo.InvariantCulture)).Append(" s; raid radius ").Append(eval.RaidRadiusTiles.ToString(CultureInfo.InvariantCulture))
                 .Append(" tiles; income 240-300 is the sum of the income buckets covering 240 to 300 s (slot-games whose last bucket had not started are left out).\n\n");
             sb.Append("| cell | slot-games | worker_losses | worker_fed_losses | raid_seconds | raid_unanswered_edge_seconds | bank_mean | bank at 300 s | income 240-300 |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+            // Revision 2 (R2.2): the overrun-cut table, filled beside the main one. Reported only; no bar reads it.
+            StringBuilder overrunTable = new StringBuilder();
+            overrunTable.Append("\nOverrun cut (reported only, not a bar): overrun_second is the first second at which enemy army supply near the slot's base reached ").Append(eval.OverrunSupply.ToString(CultureInfo.InvariantCulture))
+                .Append(" (median over the slot-games that reached it); the pre-overrun counts are the losses before it (all losses when never).\n\n| cell | slot-games | reached overrun | overrun_second | worker_losses_pre_overrun | worker_fed_losses_pre_overrun |\n| --- | ---: | ---: | ---: | ---: | ---: |\n");
             foreach (KeyValuePair<string, List<GameSummary>> cell in cells)
             {
+                List<int> overrunSeconds = new List<int>();
+                List<int> lossesPre = new List<int>();
+                List<int> fedPre = new List<int>();
                 List<int> losses = new List<int>();
                 List<int> fed = new List<int>();
                 List<int> raid = new List<int>();
@@ -508,6 +515,12 @@ namespace Rts.Tools.BalanceHarness
                     ProductionMetrics m = summary.Production!;
                     losses.Add(m.WorkerLosses);
                     fed.Add(m.WorkerFedLosses);
+                    lossesPre.Add(m.WorkerLossesPreOverrun);
+                    fedPre.Add(m.WorkerFedLossesPreOverrun);
+                    if (m.OverrunSecond != null)
+                    {
+                        overrunSeconds.Add(m.OverrunSecond.Value);
+                    }
                     raid.Add(m.RaidSeconds);
                     unanswered.Add(m.RaidUnansweredEdgeSeconds);
                     if (m.BankMean != null)
@@ -531,7 +544,10 @@ namespace Rts.Tools.BalanceHarness
                 }
                 sb.Append("| ").Append(cell.Key).Append(" | ").Append(cell.Value.Count.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(MedianText(losses)).Append(" | ").Append(MedianText(fed)).Append(" | ")
                     .Append(MedianText(raid)).Append(" | ").Append(MedianText(unanswered)).Append(" | ").Append(MedianText(mean)).Append(" | ").Append(MedianText(bank)).Append(" | ").Append(MedianText(income)).Append(" |\n");
+                overrunTable.Append("| ").Append(cell.Key).Append(" | ").Append(cell.Value.Count.ToString(CultureInfo.InvariantCulture)).Append(" | ").Append(overrunSeconds.Count.ToString(CultureInfo.InvariantCulture)).Append(" | ")
+                    .Append(MedianText(overrunSeconds)).Append(" | ").Append(MedianText(lossesPre)).Append(" | ").Append(MedianText(fedPre)).Append(" |\n");
             }
+            sb.Append(overrunTable);
             sb.Append("\nSamples (null after the game's end are left out). The last two columns are the median of producers x 1000 / income_60 and of capacity x 60 / income_60 per slot-game (integer division; slot-games with income_60 0 left out).\n\n");
             sb.Append("| cell | time (s) | n | producers | capacity | income_60 | army_supply | producers x 1000 / income_60 | capacity x 60 / income_60 |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
             foreach (KeyValuePair<string, List<GameSummary>> cell in cells)

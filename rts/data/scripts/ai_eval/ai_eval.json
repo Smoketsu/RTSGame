@@ -52,6 +52,8 @@
   "raid_radius_tiles": 12,
   // First game second whose common bank enters the bank_mean metric (sampled at every whole second up to the window). Unit: seconds. Range: 0 to 600. Source: rts/docs/specs/ai_production_defence.md section 7; placeholder.
   "bank_mean_from_seconds": 60,
+  // Overrun cut of the reported-only alternative reading: enemy army supply near the slot's base that marks the main attack, not a raid. Unit: supply. Range: 1 to 200. Source: rts/docs/specs/ai_production_defence.md R2.2; placeholder.
+  "overrun_supply": 20,
   // Response tests, one per scenario script and AI-under-test faction. script: file in this folder; check: air_answer, armoured_answer, trade, raid or turtle; the other keys are that check's parameters (seconds are game seconds, fractions and ratios as named). Unit: objects. Range: 1 to 64 entries. Source: skirmish_ai_v3.md A.4; placeholder.
   "response_tests": [
     { "script": "response_roc_rush_skai.json", "check": "air_answer", "known_within_seconds": 30, "by_seconds": 270, "min_aa_units": 2, "survive_seconds": 600 },

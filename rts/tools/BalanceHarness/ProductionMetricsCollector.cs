@@ -48,6 +48,12 @@ namespace Rts.Tools.BalanceHarness
             /// <summary>Of those, killed soon after their training. Unit: workers. Range: 0 upward.</summary>
             public int WorkerFedLosses;
 
+            /// <summary>Revision 2: tick and fed flag of each worker loss counted, in event order, for the pre-overrun cut. Unit: ticks (0 upward), boolean.</summary>
+            public List<KeyValuePair<int, bool>> Kills { get; } = new List<KeyValuePair<int, bool>>();
+
+            /// <summary>Revision 2: the overrun second, or null while not reached. Unit: seconds. Range: 1 to the window, or null.</summary>
+            public int? OverrunSecond;
+
             /// <summary>Raid seconds judged so far. Unit: seconds. Range: 0 upward.</summary>
             public int RaidSeconds;
 
@@ -165,10 +171,13 @@ namespace Rts.Tools.BalanceHarness
                     if (_seen.TryGetValue(killed.Victim, out Seen? victim) && IsWorker(victim.Definition) && _slots.TryGetValue(victim.Owner.Value, out SlotState? loser) && IsEnemy(sim, victim.Owner, killed.KillerOwner))
                     {
                         loser.WorkerLosses++;
-                        if (loser.TrainedAt.TryGetValue(killed.Victim, out int trainedTick) && killed.Tick - trainedTick <= _settings.FedWindowSeconds * _tps)
+                        // True when this loss is a fed loss. Unit: boolean.
+                        bool fed = loser.TrainedAt.TryGetValue(killed.Victim, out int trainedTick) && killed.Tick - trainedTick <= _settings.FedWindowSeconds * _tps;
+                        if (fed)
                         {
                             loser.WorkerFedLosses++;
                         }
+                        loser.Kills.Add(new KeyValuePair<int, bool>(killed.Tick, fed));
                     }
                 }
                 else if (simEvent is UnitDamagedEvent damaged && damaged.Tick < windowEnd)
@@ -197,8 +206,19 @@ namespace Rts.Tools.BalanceHarness
             List<ProductionMetrics> list = new List<ProductionMetrics>();
             foreach (SlotState slot in _slots.Values)
             {
+                // Kills before the overrun second, and the fed ones among them (all when the overrun was never reached). Unit: workers.
+                int pre = 0;
+                int fedPre = 0;
+                foreach (KeyValuePair<int, bool> kill in slot.Kills)
+                {
+                    if (slot.OverrunSecond == null || kill.Key < slot.OverrunSecond.Value * _tps)
+                    {
+                        pre++;
+                        fedPre += kill.Value ? 1 : 0;
+                    }
+                }
                 list.Add(new ProductionMetrics(slot.WorkerLosses, slot.WorkerFedLosses, slot.RaidSeconds, slot.Unanswered, slot.Producers, slot.Capacity, slot.Income60, slot.ArmySupply,
-                    slot.BankCount > 0 ? (int?)(int)(slot.BankSum / slot.BankCount) : null));
+                    slot.BankCount > 0 ? (int?)(int)(slot.BankSum / slot.BankCount) : null, slot.OverrunSecond, pre, fedPre));
             }
             return list.ToArray();
         }
@@ -278,12 +298,39 @@ namespace Rts.Tools.BalanceHarness
                 }
                 // Whole seconds elapsed, the bank sample's time. Unit: seconds.
                 int elapsed = second + 1;
+                if (slot.OverrunSecond == null && elapsed <= _settings.SummaryWindowSeconds && OverrunReached(sim, new PlayerId(pair.Key)))
+                {
+                    slot.OverrunSecond = elapsed;
+                }
                 if (elapsed >= _settings.BankMeanFromSeconds && elapsed <= _settings.SummaryWindowSeconds && sim.Players.TryGet(new PlayerId(pair.Key), out Player? player))
                 {
                     slot.BankSum += player.Common;
                     slot.BankCount++;
                 }
             }
+        }
+
+        /// <summary>Revision 2: true when the supply of enemy army units within the raid radius of an own drop-off (the HQ included) is at least overrun_supply.</summary>
+        private bool OverrunReached(Simulation sim, PlayerId owner)
+        {
+            // Supply of the enemy army units near an own drop-off. Unit: supply. Range: 0 upward.
+            int enemy = 0;
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (!IsArmy(unit.Definition) || !IsEnemy(sim, owner, unit.Owner))
+                {
+                    continue;
+                }
+                foreach (Unit own in sim.Units.All)
+                {
+                    if (own.Owner == owner && EconomyRules.IsDropOff(own) && Near(own.Position, unit.Position))
+                    {
+                        enemy += unit.Definition.Supply;
+                        break;
+                    }
+                }
+            }
+            return enemy >= _settings.OverrunSupply;
         }
 
         /// <summary>True when no own armed army unit stands or is headed within the radius of <paramref name="hit"/> and own army supply is at least that of the enemy army units within it.</summary>
