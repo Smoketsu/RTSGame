@@ -54,7 +54,7 @@ namespace Rts.Sim.Tests.Ai
         private static AiProfile Profile(bool safety, params string[] edits)
         {
             // The file text being edited.
-            string text = CandidateText.Replace("\"use_threat_safety\": true,", "\"use_threat_safety\": " + (safety ? "true" : "false") + ",").Replace("\"use_counter_mix\": true,", "\"use_counter_mix\": false,").Replace("\"use_tech_on_demand\": true,", "\"use_tech_on_demand\": false,")
+            string text = CandidateText.Replace("\"use_threat_safety\": true,", "\"use_threat_safety\": false,").Replace("\"use_threat_safety\": false,", "\"use_threat_safety\": " + (safety ? "true" : "false") + ",").Replace("\"use_threat_harass\": true,", "\"use_threat_harass\": false,").Replace("\"use_counter_mix\": true,", "\"use_counter_mix\": false,").Replace("\"use_tech_on_demand\": true,", "\"use_tech_on_demand\": false,")
                 .Replace("\"use_rare_priority\": true,", "\"use_rare_priority\": false,").Replace("\"use_predictor_mix\": true,", "\"use_predictor_mix\": false,");
             // Index into the old and new pairs. Range: even numbers from 0.
             for (int i = 0; i < edits.Length; i += 2)
@@ -432,6 +432,8 @@ namespace Rts.Sim.Tests.Ai
             GameRecord baseline = GameRunner.Play(Data, "prototype_1v1", "skai_vs_water", 0, seed, plain, plain, "aggressive_s5", "aggressive_s5", 600);
             GameRecord changed = GameRunner.Play(Data, "prototype_1v1", "skai_vs_water", 0, seed, zero, zero, "aggressive_s5", "aggressive_s5", 600);
             Assert.That(changed.ToJsonLine(), Is.EqualTo(baseline.ToJsonLine()));
+            // The candidate's text with use_threat_safety true whatever the shipped value is.
+            string safetyOn = CandidateText.Replace("\"use_threat_safety\": false,", "\"use_threat_safety\": true,");
             // Validation, each failure naming the file and the key.
             string file = "ai/aggressive_s5_s.json";
             // Old text, new text and the key the error must name.
@@ -444,7 +446,7 @@ namespace Rts.Sim.Tests.Ai
             };
             foreach ((string oldText, string newText, string key) in bad)
             {
-                DataValidationException error = Expect.Throws<DataValidationException>(() => AiProfile.Parse(CandidateText.Replace(oldText, newText), file, Data.Content));
+                DataValidationException error = Expect.Throws<DataValidationException>(() => AiProfile.Parse(safetyOn.Replace(oldText, newText), file, Data.Content));
                 Assert.That(error.Message, Does.Contain(file).And.Contain(key), newText);
             }
             Assert.That(AiProfile.Parse(CandidateText.Replace("\"threat_unsafe_margin\": 150,", "\"threat_unsafe_margin\": 100000,"), file, Data.Content).ThreatUnsafeMargin, Is.EqualTo(100000));
@@ -455,13 +457,13 @@ namespace Rts.Sim.Tests.Ai
                 DataValidationException missing = Expect.Throws<DataValidationException>(() => AiProfile.Parse(without, file, Data.Content));
                 Assert.That(missing.Message, Does.Contain(file).And.Contain(key));
             }
-            // Every shipped profile carries both keys; only aggressive_s5_s has the switch on.
+            // Every shipped profile carries both keys; no profile but the candidate aggressive_s5_s has the switch on (the candidate's value follows the SM verdicts).
             foreach (string path in Directory.GetFiles(Path.Combine(TestData.FindDataDirectory(), "ai"), "*.json"))
             {
                 // Profile ID from the file name.
                 string id = Path.GetFileNameWithoutExtension(path);
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
-                Assert.That(profile.UseThreatSafety, Is.EqualTo(id == "aggressive_s5_s"), id);
+                Assert.That(profile.UseThreatSafety && id != "aggressive_s5_s", Is.False, id);
                 Assert.That(profile.ThreatUnsafeMargin, Is.EqualTo(150), id);
             }
         }

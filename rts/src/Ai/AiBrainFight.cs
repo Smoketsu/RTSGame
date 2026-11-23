@@ -445,25 +445,38 @@ namespace Rts.Ai
                         supply += _view.SupplyOf(unit.Definition);
                     }
                 }
-                if (supply < _profile.HarassSquadSupply || !EnemyArmyPosition(out FixVec2 armyPosition))
+                if (supply < _profile.HarassSquadSupply)
+                {
+                    return;
+                }
+                // True when the enemy army position is known (rule TH can run without it).
+                bool armyKnown = EnemyArmyPosition(out FixVec2 armyPosition);
+                if (!armyKnown && !_profile.UseThreatHarass)
                 {
                     return;
                 }
                 // The known drop-off (HQ included) farthest from the enemy army, ties to the lower ID, and its squared distance. Unit: squared tiles.
                 KnownStructure? target = null;
                 Fix64 farthest = Fix64.Zero;
-                foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
+                if (_profile.UseThreatHarass)
                 {
-                    if (!known.IsHq && !(_view.Content.Units.TryGetValue(known.DefinitionId, out UnitDefinition? definition) && definition.Economy.IsDropOff))
+                    target = ThreatHarassTarget(squad, armyKnown, armyPosition);
+                }
+                else
+                {
+                    foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
                     {
-                        continue;
-                    }
-                    // Squared distance of this candidate from the enemy army. Unit: squared tiles. Range: 0 upward.
-                    Fix64 squared = (known.Position - armyPosition).LengthSquared();
-                    if (target == null || squared > farthest)
-                    {
-                        target = known;
-                        farthest = squared;
+                        if (!known.IsHq && !(_view.Content.Units.TryGetValue(known.DefinitionId, out UnitDefinition? definition) && definition.Economy.IsDropOff))
+                        {
+                            continue;
+                        }
+                        // Squared distance of this candidate from the enemy army. Unit: squared tiles. Range: 0 upward.
+                        Fix64 squared = (known.Position - armyPosition).LengthSquared();
+                        if (target == null || squared > farthest)
+                        {
+                            target = known;
+                            farthest = squared;
+                        }
                     }
                 }
                 if (target == null)
@@ -492,6 +505,62 @@ namespace Rts.Ai
                         budget--;
                     }
                 }
+            }
+
+            /// <summary>
+            /// Rule TH (ai_threat_map.md 5): the known enemy drop-off (HQ included, ascending ID) whose risk, the largest map enemy strength at the sample points on the line from the squad centre to it (2 samples per cell, the
+            /// target cell included), is the smallest and below the squad's strength; ties to the larger squared distance from the enemy army position (skipped when none is known), then the lower ID. Null when none is eligible.
+            /// </summary>
+            /// <param name="squad">The squad being started (non-empty).</param>
+            /// <param name="armyKnown">True when <paramref name="armyPosition"/> is a known enemy army position.</param>
+            /// <param name="armyPosition">The enemy army position of D.3. Unit: tiles.</param>
+            private KnownStructure? ThreatHarassTarget(List<AiUnitView> squad, bool armyKnown, FixVec2 armyPosition)
+            {
+                // Squad strength S, the sum of the members' strengths. Unit: resource units. Range: 0 upward.
+                int strength = 0;
+                // Sum of the member positions, then the squad centre A (the mean). Unit: tiles.
+                FixVec2 sum = FixVec2.Zero;
+                foreach (AiUnitView unit in squad)
+                {
+                    strength += AiThreatMap.Strength(unit.Definition, unit.Health, _profile);
+                    sum = sum + unit.Position;
+                }
+                FixVec2 centre = new FixVec2(sum.X / squad.Count, sum.Y / squad.Count);
+                // Best candidate so far, its risk and its squared distance from the enemy army position. Unit: resource units, squared tiles.
+                KnownStructure? best = null;
+                int bestRisk = 0;
+                Fix64 bestSquared = Fix64.Zero;
+                foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
+                {
+                    if (!known.IsHq && !(_view.Content.Units.TryGetValue(known.DefinitionId, out UnitDefinition? definition) && definition.Economy.IsDropOff))
+                    {
+                        continue;
+                    }
+                    // Vector from the centre to the candidate. Unit: tiles.
+                    FixVec2 way = known.Position - centre;
+                    // Sample count N = max(1, ceil(2 x length / cell side)). Unit: samples. Range: 1 upward.
+                    int samples = Math.Max(1, (way.Length() * 2 / _profile.ThreatCellTiles).CeilingToInt());
+                    // Risk, the largest enemy strength at a sample point (the last one is the candidate). Unit: resource units. Range: 0 upward.
+                    int risk = 0;
+                    // Sample number. Range: 1 to samples.
+                    for (int i = 1; i <= samples; i++)
+                    {
+                        risk = Math.Max(risk, AiThreatMap.EnemyAt(_memory, _profile, centre + new FixVec2(way.X * i / samples, way.Y * i / samples)));
+                    }
+                    if (risk >= strength)
+                    {
+                        continue;
+                    }
+                    // Squared distance of the candidate from the enemy army position, the first tie-break. Unit: squared tiles.
+                    Fix64 squared = armyKnown ? (known.Position - armyPosition).LengthSquared() : Fix64.Zero;
+                    if (best == null || risk < bestRisk || (risk == bestRisk && armyKnown && squared > bestSquared))
+                    {
+                        best = known;
+                        bestRisk = risk;
+                        bestSquared = squared;
+                    }
+                }
+                return best;
             }
 
             /// <summary>Rule HR run and end: ends the squad when it would lose or has lingered without seeing a worker; else sends members at the weakest visible enemy worker or back to the target.</summary>

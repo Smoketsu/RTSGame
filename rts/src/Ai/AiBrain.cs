@@ -76,7 +76,8 @@
 //      empty, plus armed known structures), each fading by ring over threat_spread_cells; built from the fogged view and memory only. Package S-MAP is passive: no rule reads
 //      it, so it changes no decision on its own. Rule TS (use_threat_safety, package S-TS): IsUnsafe(point) is true near an uncleared enemy spawn or a known enemy HQ (within expand_safe_radius_tiles),
 //      or when the map's enemy strength at the point exceeds own strength there plus threat_unsafe_margin, so every caller (target order, the long haul, relocation, retarget) reads the map; unarmed known
-//      structures and the single last seen army point no longer count. Rule TH is a later package.
+//      structures and the single last seen army point no longer count. Rule TH (use_threat_harass, package S-TH): StartSquad picks the known enemy drop-off with the least map enemy strength along the line from the squad centre to the target (sampled twice per cell), only among those below the squad's own
+//      strength, and starts no squad when none is; the existing defence check and RunSquad are unchanged.
 //   4a'. Placement and defence (field_saturation.md package AI-P, AiBrainPlacement.cs, only with the keys on). use_forward_producers: rule X
 //      and rule T build the producer on the ring around the own base (Rooted HQ, or a complete depot with a live field in reach) with the
 //      fewest producers within base_radius_tiles (ties to the HQ, then the lower ID); no good site there: the HQ ring. use_threat_defence:

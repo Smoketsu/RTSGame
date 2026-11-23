@@ -416,6 +416,8 @@
   "use_threat_safety": false,
   // P-006 S rule TS: enemy strength a point may hold above own strength and still be safe. Unit: resource units of army value. Range: 0 to 100000. Source: rts/docs/specs/ai_threat_map.md section 4; placeholder.
   "threat_unsafe_margin": 150,
+  // P-006 S rule TH: the harass squad picks the known enemy drop-off with the least enemy strength on the way, and starts only when that is below the squad's strength; needs use_threat_map and use_target_choice. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md section 5; placeholder.
+  "use_threat_harass": false,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {

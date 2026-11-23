@@ -1,7 +1,7 @@
 // rts/src/Ai/AiThreatMap.cs
 // The threat map of rts/docs/specs/ai_threat_map.md section 3 (package S-MAP): a coarse grid in the skirmish AI's memory holding its own strength and its
 // remembered enemy strength, each fading with distance. Part of Rts.Ai. Built once per think, right after the intel step, and only when the profile has
-// use_threat_map true; it changes no decision by itself: rule TS (AiBrain.IsUnsafe, use_threat_safety) reads it through EnemyAt and OwnAt, rule TH is a later package. Fog: enemy strength comes only from
+// use_threat_map true; it changes no decision by itself: rule TS (AiBrain.IsUnsafe, use_threat_safety) reads it through EnemyAt and OwnAt, and rule TH (AiBrainFight.StartSquad, use_threat_harass) reads EnemyAt and Strength. Fog: enemy strength comes only from
 // AiWorldView.VisibleEnemies (sightings kept in AiMemory.ThreatSightings) and AiMemory.KnownEnemyStructures; own strength from AiWorldView.OwnUnits.
 // Determinism: integers and Fix64 only (floor divisions with long products), sources walked in ascending entity ID and cells in ascending index, no random draw,
 // nothing here is hashed.
@@ -133,7 +133,7 @@ namespace Rts.Ai
         /// <param name="definition">The unit's definition.</param>
         /// <param name="health">Current health. Unit: health points. Range: 0 upward.</param>
         /// <param name="profile">The profile (rare cost weight).</param>
-        private static int Strength(UnitDefinition definition, Fix64 health, AiProfile profile)
+        internal static int Strength(UnitDefinition definition, Fix64 health, AiProfile profile)
         {
             // Health counted, capped at the maximum so a structure above its build health still counts as 1. Unit: health points.
             Fix64 counted = health > definition.MaxHealth ? definition.MaxHealth : health;
