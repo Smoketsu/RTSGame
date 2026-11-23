@@ -9,7 +9,7 @@
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
 // ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
 // ai_economy_calc.md adds EconomyNote (rule ED's explanation record, written once per think only with use_economy_calc; not hashed).
-// ai_threat_map.md S-MAP adds ThreatSightings, ThreatEnemy, ThreatOwn, ThreatColumns, ThreatRows and ThreatTick (the threat map, written only with use_threat_map; none hashed).
+// ai_threat_map.md S-MAP adds ThreatSightings, ThreatEnemy, ThreatOwn, ThreatColumns, ThreatRows and ThreatTick (the threat map, written only with use_threat_map; none hashed); rule TS reads the layers through AiThreatMap.EnemyAt and OwnAt.
 // ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity); PD-3 adds RaidHits, OwnWorkerPositions and RaidScanTick (rules RS and RW, only with use_raid_workers); revision 2 adds RaidClosedFields, RaidSeenTick, RaidCarriedHits, RaidAnswered and DamageReport.IsArmy (all written only with a raid switch on, except IsArmy; none hashed).
 using System.Collections.Generic;
 using Rts.Sim.Core;

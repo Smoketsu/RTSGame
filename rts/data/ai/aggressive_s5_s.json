@@ -1,7 +1,7 @@
-// rts/data/ai/aggressive_s5_s.json: the threat-map candidate of rts/docs/specs/ai_threat_map.md (P-006 package S): a copy of aggressive_s5.json (as on main when package S-MAP started) with use_threat_map switched on and both consumer rules absent, so the candidate and aggressive_s5 differ only in the map, which changes no decision. Part of rts/data/ai; read by Rts.Ai.AiProfile.
+// rts/data/ai/aggressive_s5_s.json: the threat-map candidate of rts/docs/specs/ai_threat_map.md (P-006 package S): a copy of aggressive_s5.json (as on main when package S-MAP started) with use_threat_map and rule TS (use_threat_safety) switched on and rule TH absent, so the candidate and aggressive_s5 differ only in the map and the safety rule. Part of rts/data/ai; read by Rts.Ai.AiProfile.
 {
   "$schema_version": 1,
-  "$doc": "Package S candidate (aggressive_s5 with use_threat_map on, ai_threat_map.md): keeps the threat map of own and remembered enemy strength; no rule reads it yet. Nothing else differs from aggressive_s5. Every number is a placeholder.",
+  "$doc": "Package S candidate (aggressive_s5 with use_threat_map and use_threat_safety on, ai_threat_map.md): IsUnsafe reads the threat map (rule TS). Nothing else differs from aggressive_s5. Every number is a placeholder.",
   // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "aggressive_s5_s",
   // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
@@ -412,6 +412,10 @@
   "threat_cell_tiles": 4,
   // P-006 S: how far a unit's strength reaches on the threat map: ring k of K adds (K + 1 - k) / (K + 1) of it. Unit: cells. Range: 0 to 8. Source: rts/docs/specs/ai_threat_map.md section 3.3; placeholder.
   "threat_spread_cells": 2,
+  // P-006 S rule TS: IsUnsafe reads the threat map (enemy strength above own strength plus threat_unsafe_margin, or an enemy HQ or uncleared enemy spawn within expand_safe_radius_tiles); needs use_threat_map. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md section 4; placeholder.
+  "use_threat_safety": true,
+  // P-006 S rule TS: enemy strength a point may hold above own strength and still be safe. Unit: resource units of army value. Range: 0 to 100000. Source: rts/docs/specs/ai_threat_map.md section 4; placeholder.
+  "threat_unsafe_margin": 150,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

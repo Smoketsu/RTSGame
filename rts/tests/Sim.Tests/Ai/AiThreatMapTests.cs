@@ -389,7 +389,8 @@ namespace Rts.Sim.Tests.Ai
             SpawnAt(sim, "skai.talon_archer", P0, 8, 15);
             SpawnAt(sim, "skai.windrunner", P0, 9, 15);
             AiProfile plain = AiProfile.FromDataSet(Data, "aggressive_s5");
-            AiProfile mapped = Candidate;
+            // The candidate with its consumer switch off again (package S-TS switched rule TS on in the file), so the map alone is compared.
+            AiProfile mapped = AiProfile.Parse(ProfileText("aggressive_s5_s").Replace("\"use_threat_safety\": true,", "\"use_threat_safety\": false,"), "ai/aggressive_s5_s.json", Data.Content);
             AiMemory plainMemory = new AiMemory();
             AiMemory mappedMemory = new AiMemory();
             DeterministicRandom plainRng = new DeterministicRandom(99);
@@ -530,10 +531,11 @@ namespace Rts.Sim.Tests.Ai
                     changed.Add(candidateLines[i].Trim());
                 }
             }
-            Assert.That(changed.Count, Is.EqualTo(3), string.Join("\n", changed));
+            Assert.That(changed.Count, Is.EqualTo(4), string.Join("\n", changed));
             Assert.That(changed[0], Does.StartWith("\"$doc\":"));
             Assert.That(changed[1], Is.EqualTo("\"id\": \"aggressive_s5_s\","));
             Assert.That(changed[2], Is.EqualTo("\"use_threat_map\": true,"));
+            Assert.That(changed[3], Is.EqualTo("\"use_threat_safety\": true,"), "package S-TS switches rule TS on in the candidate");
             Assert.That(candidate.Split('\n')[0], Does.StartWith("// rts/data/ai/aggressive_s5_s.json"));
         }
 

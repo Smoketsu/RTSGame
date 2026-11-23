@@ -74,7 +74,9 @@
 //   S. Threat map (ai_threat_map.md, AiThreatMap.cs, only with use_threat_map): right after the intel step Decide keeps a coarse grid of own strength (complete armed army
 //      units and static defences) and remembered enemy strength (sightings of visible armed army units, aged over enemy_army_memory_seconds and dropped when their tile is seen
 //      empty, plus armed known structures), each fading by ring over threat_spread_cells; built from the fogged view and memory only. Package S-MAP is passive: no rule reads
-//      it, so it changes no decision (rules TS and TH are later packages).
+//      it, so it changes no decision on its own. Rule TS (use_threat_safety, package S-TS): IsUnsafe(point) is true near an uncleared enemy spawn or a known enemy HQ (within expand_safe_radius_tiles),
+//      or when the map's enemy strength at the point exceeds own strength there plus threat_unsafe_margin, so every caller (target order, the long haul, relocation, retarget) reads the map; unarmed known
+//      structures and the single last seen army point no longer count. Rule TH is a later package.
 //   4a'. Placement and defence (field_saturation.md package AI-P, AiBrainPlacement.cs, only with the keys on). use_forward_producers: rule X
 //      and rule T build the producer on the ring around the own base (Rooted HQ, or a complete depot with a live field in reach) with the
 //      fewest producers within base_radius_tiles (ties to the HQ, then the lower ID); no good site there: the HQ ring. use_threat_defence:
@@ -299,6 +301,36 @@ namespace Rts.Ai
             // This think's working state; nothing is decided.
             Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
             return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots, turn.StaticDefenceUnderConstructionNow, turn.StaticDefencesAtHq, turn.ServedCaps());
+        }
+
+        /// <summary>
+        /// Test hook (ai_threat_map.md section 4): runs one think's intel and, with use_threat_map, the threat map update, then reports the target order from the own HQ (field indices) and IsUnsafe of each of
+        /// <paramref name="points"/>. Null when the player has no HQ. Changes only <paramref name="memory"/>.
+        /// </summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The AI profile.</param>
+        /// <param name="plan">The profile's plan for the player's faction.</param>
+        /// <param name="memory">The controller's memory; updated.</param>
+        /// <param name="points">Points to test. Unit: tiles.</param>
+        internal static (List<int> Order, List<bool> Unsafe)? ProbeSafety(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory, IReadOnlyList<FixVec2> points)
+        {
+            // The own HQ (lowest ID), or null when the player has none.
+            AiUnitView? hq = FindHq(view);
+            UpdateIntel(view, profile, memory, hq);
+            if (profile.UseThreatMap)
+            {
+                AiThreatMap.Update(view, profile, memory);
+            }
+            if (hq == null)
+            {
+                return null;
+            }
+            if (memory.OwnSpawnIndex < 0)
+            {
+                memory.OwnSpawnIndex = NearestSpawn(view, hq.Position);
+            }
+            Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
+            return turn.SafetyReport(hq.Position, points);
         }
 
         /// <summary>
@@ -2082,6 +2114,26 @@ namespace Rts.Ai
             {
                 // Squared safety radius. Unit: squared tiles.
                 Fix64 radiusSquared = _profile.ExpandSafeRadiusTiles * _profile.ExpandSafeRadiusTiles;
+                if (_profile.UseThreatSafety)
+                {
+                    // Rule TS (ai_threat_map.md 4): an enemy HQ or an uncleared enemy spawn within the radius, else enemy strength above own strength plus the margin in the point's cell.
+                    foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
+                    {
+                        if (known.IsHq && (known.Position - point).LengthSquared() <= radiusSquared)
+                        {
+                            return true;
+                        }
+                    }
+                    // Spawn index. Range: 0 to spawn count - 1.
+                    for (int i = 0; i < _view.Spawns.Count; i++)
+                    {
+                        if (i != _memory.OwnSpawnIndex && !_memory.ClearedSpawns.Contains(i) && (_view.Spawns[i] - point).LengthSquared() <= radiusSquared)
+                        {
+                            return true;
+                        }
+                    }
+                    return AiThreatMap.EnemyAt(_memory, _profile, point) > AiThreatMap.OwnAt(_memory, _profile, point) + _profile.ThreatUnsafeMargin;
+                }
                 foreach (KnownStructure known in _memory.KnownEnemyStructures.Values)
                 {
                     if ((known.Position - point).LengthSquared() <= radiusSquared)
@@ -3197,6 +3249,26 @@ namespace Rts.Ai
                     }
                 }
                 return count;
+            }
+
+            /// <summary>Field indices in target order from <paramref name="from"/>, then IsUnsafe of each of <paramref name="points"/> (test hook through <see cref="ProbeSafety"/>).</summary>
+            /// <param name="from">Point the target order is measured from. Unit: tiles.</param>
+            /// <param name="points">Points to test. Unit: tiles.</param>
+            public (List<int> Order, List<bool> Unsafe) SafetyReport(FixVec2 from, IReadOnlyList<FixVec2> points)
+            {
+                // Field indices in target order. Unit: field index.
+                List<int> order = new List<int>();
+                foreach (AiFieldView field in TargetOrder(from))
+                {
+                    order.Add(field.Index);
+                }
+                // IsUnsafe of each point, in the order given.
+                List<bool> flags = new List<bool>();
+                foreach (FixVec2 point in points)
+                {
+                    flags.Add(IsUnsafe(point));
+                }
+                return (order, flags);
             }
 
             /// <summary>Indices of the served fields, ascending (test hook through <see cref="Probe"/>).</summary>

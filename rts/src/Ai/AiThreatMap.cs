@@ -1,7 +1,7 @@
 // rts/src/Ai/AiThreatMap.cs
 // The threat map of rts/docs/specs/ai_threat_map.md section 3 (package S-MAP): a coarse grid in the skirmish AI's memory holding its own strength and its
 // remembered enemy strength, each fading with distance. Part of Rts.Ai. Built once per think, right after the intel step, and only when the profile has
-// use_threat_map true; no rule reads it yet (rules TS and TH are later packages), so it changes no decision. Fog: enemy strength comes only from
+// use_threat_map true; it changes no decision by itself: rule TS (AiBrain.IsUnsafe, use_threat_safety) reads it through EnemyAt and OwnAt, rule TH is a later package. Fog: enemy strength comes only from
 // AiWorldView.VisibleEnemies (sightings kept in AiMemory.ThreatSightings) and AiMemory.KnownEnemyStructures; own strength from AiWorldView.OwnUnits.
 // Determinism: integers and Fix64 only (floor divisions with long products), sources walked in ascending entity ID and cells in ascending index, no random draw,
 // nothing here is hashed.
