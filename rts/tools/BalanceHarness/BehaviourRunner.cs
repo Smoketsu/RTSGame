@@ -239,6 +239,7 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="profile">Profile ID.</param>
         public static List<string> ByOpeningLines(IBehaviourCheck check, IReadOnlyList<GameRecord> records, string profile)
         {
+            // The BEHAVIOUR_BY_OPENING lines, one per (faction, opening). Unit: lines. Range: 0 upward.
             List<string> result = new List<string>();
             if (!check.PrintByOpening)
             {
@@ -258,6 +259,7 @@ namespace Rts.Tools.BalanceHarness
                     // Faction and opening of the slot. Range: IDs, the opening possibly empty.
                     string faction = slot == 0 ? record.Slot0Faction : record.Slot1Faction;
                     string opening = slot == 0 ? record.Opening0 : record.Opening1;
+                    // Group key, "<faction> <opening>" (opening possibly empty). Range: IDs joined by one space.
                     string key = faction + " " + opening;
                     if (!groups.TryGetValue(key, out CheckTally? tally))
                     {
@@ -308,7 +310,7 @@ namespace Rts.Tools.BalanceHarness
             // Income bucket length in ticks, and the checks to run.
             int bucketTicks = settings.SummaryBucketSeconds * data.Tuning.Match.TicksPerSecond;
             List<string> notDeclared = new List<string>();
-            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond);
+            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond, data);
 
             List<string> common = new List<string> { "--data", options.DataDirectory, "--seed", baseSeed.ToString(CultureInfo.InvariantCulture), "--max-game-seconds", maxSeconds.ToString(CultureInfo.InvariantCulture),
                 "--games", games.ToString(CultureInfo.InvariantCulture), "--profile-a", options.ProfileA, "--profile-b", options.ProfileB, "--paired", "--summary" };

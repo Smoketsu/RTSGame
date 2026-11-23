@@ -290,8 +290,8 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>The unmodelled mechanics of the FightPredictor header, in report order.</summary>
         public static readonly string[] MechanicIds = { "drench", "splash", "momentum", "flooding", "windstorm_range", "regeneration", "hit_delay", "focus_fire" };
 
-        /// <summary>Integer ratio num / den as text with three decimals, rounded half up; "-" when den is 0.</summary>
-        /// <param name="num">Numerator. Range: 0 upward.</param>
+        /// <summary>Integer ratio num / den as text with three decimals, rounded half up (half away from zero for a negative numerator, with a leading minus); "-" when den is 0.</summary>
+        /// <param name="num">Numerator. Range: any (a negative one is the econ_gap decision gap).</param>
         /// <param name="den">Denominator. Range: 0 upward.</param>
         public static string Ratio3(long num, long den)
         {
@@ -299,9 +299,9 @@ namespace Rts.Tools.BalanceHarness
             {
                 return "-";
             }
-            // Thousandths, rounded half up. Range: 0 upward.
-            long milli = (num * 2000 + den) / (den * 2);
-            return (milli / 1000).ToString(CultureInfo.InvariantCulture) + "." + (milli % 1000).ToString("D3", CultureInfo.InvariantCulture);
+            // Thousandths of the absolute ratio, rounded half up. Range: 0 upward.
+            long milli = (Math.Abs(num) * 2000 + den) / (den * 2);
+            return (num < 0 && milli > 0 ? "-" : "") + (milli / 1000).ToString(CultureInfo.InvariantCulture) + "." + (milli % 1000).ToString("D3", CultureInfo.InvariantCulture);
         }
 
         /// <summary>Entries of one side: one per unit ID in ordinal order, count and count x MaxHealth (C.3).</summary>

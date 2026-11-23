@@ -536,23 +536,41 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(result.Note.DepotNet, Is.GreaterThan(0));
         }
 
-        /// <summary>EC-7: with the rare cap on a rare field in reach of the site adds nothing to DepotNet; with it off it adds (by the same formula as a common field, so DepotNet is higher).</summary>
+        /// <summary>
+        /// EC-7: the first target's site (27.5, 13.5) has two common fields (indices 2 and 3) and one rare field (16, 600 left) in reach. With the rare cap on DepotNet equals DepotNetValue over the two common fields
+        /// only; with it off it equals DepotNetValue over all three, the rare field walked between them (trip cycle 40 ties with field 3, so field 3 then 16, then field 2 at 48). Both runs want the same workers, so the
+        /// bank change moves nothing but the cap. The cycles are the 40 ticks of a load plus the walk from the site, read from a run at this site; a different site rule needs them read again (the site is asserted by the lead).
+        /// </summary>
         [Test]
         public void EC7_RareFieldAddsOnlyWhileUncapped()
         {
-            // The rare bank is above rare_bank_soft_cap (300); rare_cap_yields_to_saturation false keeps the cap on whatever the common fields hold.
+            // rare_cap_yields_to_saturation false keeps the rare cap on whatever the common fields hold.
             string[] noYield = { "\"rare_cap_yields_to_saturation\": true,", "\"rare_cap_yields_to_saturation\": false," };
-            // Net value of the depot rule's first target with the rare bank at the given amount. Unit: resource units.
-            long Net(int rareBank, params string[] edits)
+            // Explanation record of the first think with the given rare bank. Unit: record (see AiMemory.EconomyNote).
+            (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note(int rareBank)
             {
                 Simulation sim = Base(8, 100);
                 SetStock(sim, 300, rareBank);
-                // Only the net value is read, so the ordering does not matter.
-                return Think(sim, Candidate(edits), null, 1).Note.DepotNet;
+                return Think(sim, Candidate(noYield), null, 1).Note;
             }
-            long capped = Net(5000, noYield);
-            long open = Net(0, noYield);
-            Assert.That(open, Is.GreaterThan(capped), "a rare field in reach of the site adds value only while the rare cap is off");
+            (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) capped = Note(5000);
+            (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) open = Note(0);
+            Assert.That(open.Wanted, Is.EqualTo(capped.Wanted), "the bank does not change the worker target, so the headroom is the same");
+            Assert.That(open.Lead, Is.EqualTo(capped.Lead));
+            Assert.That(capped.Lead, Is.EqualTo(561), "the site (27.5, 13.5) the cycles below were read at");
+            // Workers the AI may still add. Unit: workers. Range: 0 upward.
+            int headroom = 48 - capped.Wanted;
+            // Fields as (slots, trip cycle in ticks, known amount): the common fields 3 and 2, and the rare field 16 between them.
+            (int Slots, int Cycle, int Known) common3 = (3, 40, 3000);
+            (int Slots, int Cycle, int Known) common2 = (3, 48, 3000);
+            (int Slots, int Cycle, int Known) rare16 = (2, 40, 600);
+            // Build time of a worker and cost of the depot. Unit: ticks and resource units.
+            int build = new MatchClock(TicksPerSecond).SecondsToTicks(Data.Content.Units["skai.fledgling"].Economy.BuildSeconds);
+            UnitDefinition depot = Data.Content.Units["skai.perch_depot"];
+            long OverFields(params (int Slots, int Cycle, int Known)[] fields) => AiBrain.DepotNetValue(fields, 3600, capped.Lead, build, 40, Data.Tuning.Economy.GatherAmountPerTrip, 50, headroom, depot.CostCommon + depot.CostRare);
+            Assert.That(capped.DepotNet, Is.EqualTo(OverFields(common3, common2)), "capped: the common fields only");
+            Assert.That(open.DepotNet, Is.EqualTo(OverFields(common3, rare16, common2)), "open: the rare field in reach adds by the same formula");
+            Assert.That(open.DepotNet, Is.GreaterThan(capped.DepotNet));
         }
 
         /// <summary>
