@@ -17,7 +17,7 @@ namespace Rts.Ai
         {
             /// <summary>
             /// Rule RS (spec section 5.1): records raid sites from this think's hits on own workers and structures and worker losses, drops expired ones, and remembers the own workers for the next think.
-            /// Runs only with use_raid_workers or use_raid_response. Changes only AiMemory.RaidHits, OwnWorkerPositions and RaidScanTick.
+            /// Runs only with use_raid_workers or use_raid_response. Changes only AiMemory.RaidHits, RaidClosedFields, RaidSeenTick, RaidCarriedHits, RaidAnswered, OwnWorkerPositions and RaidScanTick, and the turn's common-full flag.
             /// </summary>
             public void Raids()
             {
@@ -228,7 +228,7 @@ namespace Rts.Ai
                 return false;
             }
 
-            /// <summary>Rule RW: true when the field is closed, that is its centre is near an active raid (see <see cref="NearRaid"/>). Unit: boolean.</summary>
+            /// <summary>Rule RW: true when the field is closed, that is an active raid holds it in AiMemory.RaidClosedFields (a raid keeps every field it closed until it ends). Unit: boolean.</summary>
             /// <param name="field">Any field.</param>
             private bool IsClosed(AiFieldView field)
             {
@@ -253,7 +253,7 @@ namespace Rts.Ai
             {
                 // The raids, ascending drop-off ID.
                 List<KeyValuePair<EntityId, (int Tick, FixVec2 Position)>> order = new List<KeyValuePair<EntityId, (int Tick, FixVec2 Position)>>(_memory.RaidHits);
-                // Stable insertion: the answered raid first, then newest hit tick first, then lower ID.
+                // Total order (deterministic although List.Sort is not stable): the answered raid first, then newest hit tick first, then lower ID.
                 order.Sort((a, b) =>
                 {
                     // Whether each raid is the one answered last think. Unit: boolean.
