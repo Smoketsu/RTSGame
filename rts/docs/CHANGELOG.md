@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Added `rts/docs/specs/ai_threat_map.md`, the build spec for P-006 package S (one threat map): a grid of own and remembered enemy strength behind `use_threat_map`, rule TS (replaces `IsUnsafe` at every call site, `use_threat_safety`) and rule TH (harass target and route by strength, `use_threat_harass`), all off in every profile, candidate `aggressive_s5_s`. Harness package S-M (depot-life record, harass metrics, paired sign test with a stated power). Bars against `aggressive_s5` on `prototype_1v1` fixed before any run, none a win rate. No Sim change, no pin moves.
 - P-006 package E-OPT (harness): `EconomyModel` (integer economy model and exhaustive best-schedule search) and the `econ_gap` behaviour check (decision gap, total gap, model error), tests H-E4 to H-E8; `Ratio3` prints negative values. Review fixes for E: test EC-7 strengthened, missing comments added.
 - P-006 package E-M measured (`reports/ai_econ/`): five of six bars pass; EB-4 fails (decision gap 96 against 91 permille, inside the model's error), so `use_economy_calc` stays off except in `aggressive_s5_e`.
 - P-006 package E0 (harness): the `income_by` behaviour check (income by a chosen second), `print_by_opening` (`BEHAVIOUR_BY_OPENING` lines per faction and opening) and the summary fields `workers_by_bucket` and `spent_other_by_bucket`.
