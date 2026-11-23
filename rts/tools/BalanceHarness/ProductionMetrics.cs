@@ -42,10 +42,22 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Integer mean (floor) of the common bank over every whole second from bank_mean_from_seconds to the window end, or null when no such second was reached. Unit: common. Range: 0 upward.</summary>
         public int? BankMean { get; }
 
-        /// <summary>Bundles the values.</summary>
+        /// <summary>Revision 2 (R2.2), reported only: the first whole second up to the window at which enemy army supply within raid_radius_tiles of the slot's HQ or of any own drop-off was at least overrun_supply (once reached, every later second counts); null when never. Unit: seconds. Range: 1 to the window, or null.</summary>
+        public int? OverrunSecond { get; }
+
+        /// <summary>Revision 2, reported only: <see cref="WorkerLosses"/> with a kill tick before <see cref="OverrunSecond"/> (all of them when it is null). Unit: workers. Range: 0 to WorkerLosses.</summary>
+        public int WorkerLossesPreOverrun { get; }
+
+        /// <summary>Revision 2, reported only: <see cref="WorkerFedLosses"/> with a kill tick before <see cref="OverrunSecond"/> (all of them when it is null). Unit: workers. Range: 0 to WorkerFedLosses.</summary>
+        public int WorkerFedLossesPreOverrun { get; }
+
+        /// <summary>Bundles the values. The overrun values default to "never reached" (the pre-overrun counts to the totals), which is what a record written before revision 2 means.</summary>
         public ProductionMetrics(int workerLosses, int workerFedLosses, int raidSeconds, int raidUnansweredEdgeSeconds, IReadOnlyList<int?> producers, IReadOnlyList<int?> capacity,
-            IReadOnlyList<int?> income60, IReadOnlyList<int?> armySupply, int? bankMean)
+            IReadOnlyList<int?> income60, IReadOnlyList<int?> armySupply, int? bankMean, int? overrunSecond = null, int? workerLossesPreOverrun = null, int? workerFedLossesPreOverrun = null)
         {
+            OverrunSecond = overrunSecond;
+            WorkerLossesPreOverrun = workerLossesPreOverrun ?? workerLosses;
+            WorkerFedLossesPreOverrun = workerFedLossesPreOverrun ?? workerFedLosses;
             WorkerLosses = workerLosses;
             WorkerFedLosses = workerFedLosses;
             RaidSeconds = raidSeconds;
@@ -65,6 +77,8 @@ namespace Rts.Tools.BalanceHarness
                 .Append(",\"raid_unanswered_edge_seconds\":").Append(Int(RaidUnansweredEdgeSeconds));
             sb.Append(",\"producers\":").Append(Array(Producers)).Append(",\"capacity\":").Append(Array(Capacity)).Append(",\"income_60\":").Append(Array(Income60)).Append(",\"army_supply\":").Append(Array(ArmySupply));
             sb.Append(",\"bank_mean\":").Append(BankMean == null ? "null" : Int(BankMean.Value));
+            sb.Append(",\"overrun_second\":").Append(OverrunSecond == null ? "null" : Int(OverrunSecond.Value)).Append(",\"worker_losses_pre_overrun\":").Append(Int(WorkerLossesPreOverrun))
+                .Append(",\"worker_fed_losses_pre_overrun\":").Append(Int(WorkerFedLossesPreOverrun));
             return sb.ToString();
         }
 
@@ -75,7 +89,10 @@ namespace Rts.Tools.BalanceHarness
             JsonValue bank = node.Require("bank_mean");
             return new ProductionMetrics(node.RequireInt("worker_losses", 0, int.MaxValue), node.RequireInt("worker_fed_losses", 0, int.MaxValue), node.RequireInt("raid_seconds", 0, int.MaxValue),
                 node.RequireInt("raid_unanswered_edge_seconds", 0, int.MaxValue), Read(node, "producers"), Read(node, "capacity"), Read(node, "income_60"), Read(node, "army_supply"),
-                bank.Kind == JsonKind.Null ? (int?)null : bank.AsInt());
+                bank.Kind == JsonKind.Null ? (int?)null : bank.AsInt(),
+                node.TryGetMember("overrun_second", out JsonValue? overrun) && overrun.Kind != JsonKind.Null ? overrun.AsInt() : (int?)null,
+                node.TryGetMember("worker_losses_pre_overrun", out JsonValue? pre) ? pre.AsInt() : (int?)null,
+                node.TryGetMember("worker_fed_losses_pre_overrun", out JsonValue? fedPre) ? fedPre.AsInt() : (int?)null);
         }
 
         /// <summary>A sample array as JSON, null entries as null.</summary>

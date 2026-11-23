@@ -1,9 +1,10 @@
 // rts/tests/Sim.Tests/Harness/ProductionDefenceMetricsTests.cs
 // Acceptance tests H-1 to H-4 of rts/docs/specs/ai_production_defence.md section 8 (package PD-M): the harness metrics worker_losses, worker_fed_losses, raid_seconds, raid_unanswered_edge_seconds, producers,
 // capacity and the observation-only rule. H-1 to H-3 feed hand-built event streams to ProductionMetricsCollector over a real simulation of greybox_1v1 (units placed by script commands; the events are made up);
-// H-4 plays a real game with and without the observer. Part of Rts.Sim.Tests.
+// H-4 plays a real game with and without the observer. Revision 2 (R2.3) adds R2-M-1 (the overrun cut, a hand-built event stream) and R2-M-2 (observation only, with the new keys). Part of Rts.Sim.Tests.
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Rts.Ai;
 using Rts.Sim.Commands;
@@ -227,6 +228,63 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(GameRecord.Parse(line).ToJsonLine(), Is.EqualTo(line));
             // The non-metric part of the line is the plain observer's: the metric keys come last in each summary.
             Assert.That(watched.Summary0!.ToJson(), Does.StartWith(basic.Summary0.ToJson().TrimEnd('}')));
+        }
+
+        /// <summary>R2-M-1: 20 enemy one-supply army units near the slot's HQ from 300 s, worker kills at 200 s and 350 s, the second worker trained at 320 s: overrun_second 300, worker_losses 2, worker_losses_pre_overrun 1, worker_fed_losses 1, worker_fed_losses_pre_overrun 0.</summary>
+        [Test]
+        public void R2M1_OverrunCut()
+        {
+            Assert.That(Data.Content.Units["skai.windrunner"].Supply, Is.EqualTo(1), "the test counts one-supply raiders");
+            Simulation sim = Scene("skai", "skai");
+            FixVec2 hq = HqOf(sim, P0);
+            EntityId early = Spawn(sim, "skai.fledgling", P0, At(hq, 2, 0));
+            EntityId late = Spawn(sim, "skai.fledgling", P0, At(hq, 3, 0));
+            // Nineteen enemy army units within 12 tiles of the HQ: one short of overrun_supply.
+            EntityId killer = EntityId.None;
+            for (int i = 0; i < 19; i++)
+            {
+                killer = Spawn(sim, "skai.windrunner", P1, At(hq, i % 5, 3 + i / 5));
+            }
+            ProductionMetricsCollector collector = Begin(sim);
+            Assert.That(Settings.OverrunSupply, Is.EqualTo(20));
+            Feed(collector, sim, 200 * 20, new UnitKilledEvent(200 * 20, early, killer, P0, P1));
+            Feed(collector, sim, 100 * 20 - 1);
+            Assert.That(collector.Results()[0].OverrunSecond, Is.Null, "19 supply is not an overrun");
+            // The twentieth, then the end of second 299: the overrun is reached at 300 s.
+            Spawn(sim, "skai.windrunner", P1, At(hq, 4, 7));
+            Feed(collector, sim, 300 * 20 - 1);
+            Feed(collector, sim, 320 * 20, new UnitTrainedEvent(320 * 20, EntityId.None, late, "skai.fledgling"));
+            Feed(collector, sim, 350 * 20, new UnitKilledEvent(350 * 20, late, killer, P0, P1));
+            ProductionMetrics slot0 = collector.Results()[0];
+            Assert.That(slot0.OverrunSecond, Is.EqualTo(300));
+            Assert.That(slot0.WorkerLosses, Is.EqualTo(2));
+            Assert.That(slot0.WorkerLossesPreOverrun, Is.EqualTo(1));
+            Assert.That(slot0.WorkerFedLosses, Is.EqualTo(1));
+            Assert.That(slot0.WorkerFedLossesPreOverrun, Is.EqualTo(0));
+            Assert.That(collector.Results()[1].OverrunSecond, Is.Null, "the enemy's base was not overrun");
+        }
+
+        /// <summary>R2-M-2: observation only with the new keys: a real 240 s game has the same state hash and result with and without the observer, writes the three keys, and a line without them parses with the pre-overrun counts equal to the totals.</summary>
+        [Test]
+        public void R2M2_ObservationOnly()
+        {
+            ulong seed = SeedDerivation.GameSeed(20261117UL, "prototype_1v1", "skai_vs_water", 0);
+            GameRecord plain = GameRunner.Play(Data, "prototype_1v1", "skai_vs_water", 0, seed, "aggressive_s5", "aggressive_s5", 240);
+            GameRecord watched = GameRunner.Play(Data, "prototype_1v1", "skai_vs_water", 0, seed, "aggressive_s5", "aggressive_s5", 240, null, -1, -1, Settings.NewObserver());
+            Assert.That(watched.StateHash, Is.EqualTo(plain.StateHash));
+            Assert.That(watched.Result, Is.EqualTo(plain.Result));
+            string line = watched.ToJsonLine();
+            Assert.That(line, Does.Contain("\"overrun_second\":"));
+            Assert.That(line, Does.Contain("\"worker_losses_pre_overrun\":"));
+            Assert.That(line, Does.Contain("\"worker_fed_losses_pre_overrun\":"));
+            Assert.That(GameRecord.Parse(line).ToJsonLine(), Is.EqualTo(line));
+            // A record from before revision 2 has none of the keys; it reads as never overrun.
+            string old = Regex.Replace(line, ",\"overrun_second\":[^,]*,\"worker_losses_pre_overrun\":[0-9]+,\"worker_fed_losses_pre_overrun\":[0-9]+", string.Empty);
+            Assert.That(old, Does.Not.Contain("overrun"));
+            ProductionMetrics parsed = GameRecord.Parse(old).Summary0!.Production!;
+            Assert.That(parsed.OverrunSecond, Is.Null);
+            Assert.That(parsed.WorkerLossesPreOverrun, Is.EqualTo(parsed.WorkerLosses));
+            Assert.That(parsed.WorkerFedLossesPreOverrun, Is.EqualTo(parsed.WorkerFedLosses));
         }
     }
 }

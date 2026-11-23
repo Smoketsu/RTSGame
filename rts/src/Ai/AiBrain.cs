@@ -27,10 +27,10 @@
 //      workers after the HQ (MoveUnit). Then at most rebalance_workers_per_think of the highest-ID workers on an over-full served field
 //      move to the nearest served field below its cap.
 //   1c. Raids (ai_production_defence.md PD-3, AiBrainRaids.cs, only with use_raid_workers; rule RS): hits on own workers and structures, and worker losses, within defend_radius_tiles of an own drop-off make a raid site
-//      (AiMemory.RaidHits, active for raid_active_seconds); never from a sighting. Rule RW (same switch): a field within raid_field_radius_tiles of an active raid is closed: its cap is 0 (no worker is sent or trained for it,
+//      (AiMemory.RaidHits, active for raid_active_seconds); never from a sighting. Revision 2 (spec R2.1): hits on non-army units that died between thinks count (RaidCarriedHits), a field near any hit of a raid stays closed for the raid's whole life (RaidClosedFields), and a visible enemy army unit near the raid's area keeps an existing raid alive past raid_active_seconds (RaidSeenTick; a sighting never starts one). Rule RW (same switch): a field of an active raid's closed set is closed: its cap is 0 (no worker is sent or trained for it,
 //      the rebalance and long-haul rules skip it) and rule G first moves the workers on it to an open field, else home, at most raid_evacuate_max_commands_per_think per think.
-//   6'. Raid response (ai_production_defence.md PD-4, AiBrainFight.cs MeasuredDefence, only with use_raid_response, which needs use_measured_defence; rule RA): rule RS also runs. With an active raid the defence answers the newest raid only (the threats are
-//      the visible enemy army units within defend_radius_tiles of its position, their mean the centre), the Rooted HQ joins the fixed side when the centre is within its weapon range plus raid_hq_cover_margin_tiles, and when even
+//   6'. Raid response (ai_production_defence.md PD-4, AiBrainFight.cs MeasuredDefence, only with use_raid_response, which needs use_measured_defence; rule RA): rule RS also runs. With an active raid the defence answers one raid at a time (revision 2, R2.1.4: the raid answered last think first, then the others newest first; the first raid whose visible threats the candidates can beat is answered, else the holding goes to the first raid with threats, else the blind branch goes to the first raid; AiMemory.RaidAnswered; the threats are
+//      the visible enemy army units within defend_radius_tiles of its position, their mean the centre; after the raid scan the common-full test is redone, R2.1.5), the Rooted HQ joins the fixed side when the centre is within its weapon range plus raid_hq_cover_margin_tiles, and when even
 //      every candidate is predicted short the candidates hold: those farther than raid_hold_radius_tiles from home move home, the others get no order.
 //   3. Structures: (a) supply: when cap - used <= supply_buffer, the cap is below the global cap and no supply-giving structure is
 //      under construction, build supply_building; (b) build order: the first step with fewer structures (built or under
@@ -285,6 +285,28 @@ namespace Rts.Ai
             // This think's working state; nothing is decided.
             Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
             return new EconomyProbe(turn.ServedIndices(), turn.WantedWorkers(), turn.LiveDepots, turn.StaticDefenceUnderConstructionNow, turn.StaticDefencesAtHq, turn.ServedCaps());
+        }
+
+        /// <summary>
+        /// Test hook (R2-H5-1): runs one think's intel, a Turn and the raid scan, and reports the common-full value and the served fields' caps afterwards. Null when the player has no HQ.
+        /// </summary>
+        /// <param name="view">What the AI may know this think.</param>
+        /// <param name="profile">The AI profile.</param>
+        /// <param name="plan">The faction plan.</param>
+        /// <param name="memory">The controller's memory; updated.</param>
+        internal static (bool CommonFull, List<int> Caps)? ProbeCommonFull(AiWorldView view, AiProfile profile, AiFactionPlan plan, AiMemory memory)
+        {
+            // The own HQ (lowest ID), or null when the player has none.
+            AiUnitView? hq = FindHq(view);
+            UpdateIntel(view, profile, memory, hq);
+            if (hq == null)
+            {
+                return null;
+            }
+            // This think's working state.
+            Turn turn = new Turn(view, profile, plan, memory, new DeterministicRandom(1), hq, new List<AiIntent>());
+            turn.Raids();
+            return turn.CommonFullNow();
         }
 
         /// <summary>
@@ -647,11 +669,17 @@ namespace Rts.Ai
             }
             // Damage reports to drop (old, or about units that are gone).
             List<EntityId> stale = new List<EntityId>();
+            // True when a raid rule is on, so hits on dead non-army units are carried to the raid scan (revision 2, rule RS). Unit: boolean.
+            bool carry = profile.UseRaidWorkers || profile.UseRaidResponse;
             foreach (KeyValuePair<EntityId, DamageReport> pair in memory.RecentDamage)
             {
                 if (!alive.Contains(pair.Key) || pair.Value.Tick < view.Tick - window)
                 {
                     stale.Add(pair.Key);
+                    if (carry && !alive.Contains(pair.Key) && pair.Value.Tick > memory.RaidScanTick && !pair.Value.IsArmy)
+                    {
+                        memory.RaidCarriedHits.Add((pair.Value.Tick, pair.Value.Position));
+                    }
                 }
             }
             foreach (EntityId id in stale)
@@ -1006,14 +1034,7 @@ namespace Rts.Ai
                 }
                 if (profile.RareCapYieldsToSaturation)
                 {
-                    _commonFull = true;
-                    foreach (AiFieldView field in _served)
-                    {
-                        if (field.Kind == ResourceKind.Common && _assignedAtStart[field.Index] < CapOf(field))
-                        {
-                            _commonFull = false;
-                        }
-                    }
+                    UpdateCommonFull();
                 }
                 ScanThreat();
                 _model = profile.UseEnemyModel ? AiIntel.ModelCounts(view, profile, memory) : new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
@@ -1021,6 +1042,28 @@ namespace Rts.Ai
                 // Package B: buy through the queues when the switch is on and some worker is earning; the rare surplus (step 5) may re-weight the composition.
                 _bq = profile.UseBudgetQueues && _income;
                 _composition = BudgetComposition(profile.UseCounterMix ? AiCounter.Mix(view, profile, plan, memory) : plan.Composition);
+            }
+
+            /// <summary>
+            /// AI-E E1.4: sets _commonFull, true when every served common field holds at least its cap of the workers seen at the start of the think. Called by the constructor and, revision 2 (R2.1.5), again after the raid scan,
+            /// so the caps read the raid state of this think. Needs _served and _assignedAtStart.
+            /// </summary>
+            private void UpdateCommonFull()
+            {
+                _commonFull = true;
+                foreach (AiFieldView field in _served)
+                {
+                    if (field.Kind == ResourceKind.Common && _assignedAtStart[field.Index] < CapOf(field))
+                    {
+                        _commonFull = false;
+                    }
+                }
+            }
+
+            /// <summary>Test hook (R2-H5-1): the common-full value as last computed, and the worker cap of each served field in index order. Unit: boolean; workers.</summary>
+            public (bool CommonFull, List<int> Caps) CommonFullNow()
+            {
+                return (_commonFull, ServedCaps());
             }
 
             /// <summary>True when some field with known resources lies within field_max_distance_tiles of <paramref name="point"/>.</summary>
