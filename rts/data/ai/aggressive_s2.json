@@ -406,6 +406,12 @@
   "raid_hold_radius_tiles": 4,
   // Rule RA: the Rooted HQ joins the defending side when the threat centre is within its weapon range plus this margin. Unit: tiles. Range: 0 to 20. Source: rts/docs/specs/ai_production_defence.md section 6; placeholder.
   "raid_hq_cover_margin_tiles": 2,
+  // P-006 S: keep the threat map (own and remembered enemy strength per cell, built from the fogged view and memory); changes no decision by itself, rules TS and TH read it. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md section 3; placeholder.
+  "use_threat_map": false,
+  // P-006 S: side of one threat-map cell. Unit: tiles. Range: 1 to 16. Source: rts/docs/specs/ai_threat_map.md section 3.1; placeholder.
+  "threat_cell_tiles": 4,
+  // P-006 S: how far a unit's strength reaches on the threat map: ring k of K adds (K + 1 - k) / (K + 1) of it. Unit: cells. Range: 0 to 8. Source: rts/docs/specs/ai_threat_map.md section 3.3; placeholder.
+  "threat_spread_cells": 2,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {

@@ -78,7 +78,7 @@ namespace Rts.Tools.BalanceHarness
             bool toFile = options.OutDirectory != BatchOptions.DefaultOutDirectory;
             using (TextWriter text = toFile ? new StreamWriter(options.OutDirectory) : TextWriter.Null)
             {
-                GameTrace trace = new GameTrace(toFile ? text : output, GameTrace.DefaultIntervalSeconds);
+                GameTrace trace = new GameTrace(toFile ? text : output, GameTrace.DefaultIntervalSeconds) { ThreatGrid = options.ThreatGrid };
                 // With --profile-a and --profile-b the game is the ladder's (unpaired seat rule, or the paired layout with --paired); else the batch profile twice.
                 GameRecord record = options.ProfileA.Length > 0
                     ? GameRunner.PlayLadder(data, options.WorkerMap, options.WorkerMatchup, options.TraceGame, baseSeed, options.ProfileA, options.ProfileB, maxSeconds, options.Paired, 0UL, trace)

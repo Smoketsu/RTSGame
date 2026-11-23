@@ -105,6 +105,8 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --tr
 With `--profile-a <id> --profile-b <id>` the two slots play the ladder seat rule for the game index (use the ladder's `--seed` and `--max-game-seconds` to replay a ladder game). Without `--out` the timeline goes to stdout; the game's batch-style result line is always printed to stdout after it. A review made with it is in
 `rts/docs/reports/ai_trace_2026-11-16/`.
 
+A player whose profile has `use_threat_map` true (`aggressive_s5_s`) gets a `thr=s<sightings>/e<Enemy at own HQ cell>/o<Own at own HQ cell>/m<largest Enemy>@<column>,<row>` column on each sample line (ai_threat_map.md 3.5); other profiles' lines are unchanged. `--threat-grid` additionally prints, at each sample for such a player, `threat enemy P<n>` and one line per grid row, then `threat own P<n>` the same way.
+
 ## Fight mode (micro benchmark, packages F1 to F3)
 
 Spec: `rts/docs/specs/micro_benchmark.md`. Settings: `rts/data/scripts/fights/fights.json` (read by `FightSettings`; one value per line, so a script can edit it by key) and the matchups file

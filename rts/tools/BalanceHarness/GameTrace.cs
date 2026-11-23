@@ -67,6 +67,9 @@ namespace Rts.Tools.BalanceHarness
             _intervalSeconds = intervalSeconds;
         }
 
+        /// <summary>True (--threat-grid) to print both threat layers of every player whose profile has use_threat_map at each sample; false prints nothing. Set before the game starts.</summary>
+        public bool ThreatGrid { get; set; }
+
         /// <summary>Called once after the controllers started and before the first step.</summary>
         /// <param name="sim">The started simulation.</param>
         /// <param name="header">Description of the game, written as the first line.</param>
@@ -99,6 +102,8 @@ namespace Rts.Tools.BalanceHarness
                 }
                 trace.Memory = ai.Memory;
                 trace.EconomyCalc = ai.Profile.UseEconomyCalc;
+                trace.ThreatMap = ai.Profile.UseThreatMap;
+                trace.ThreatCellTiles = ai.Profile.ThreatCellTiles;
                 if (ai.Memory.Stance != trace.LastStance)
                 {
                     trace.StanceChanges.Add("tick " + sim.Clock.Tick.ToString(CultureInfo.InvariantCulture) + " (" + Seconds(sim.Clock.Tick) + "s) " + trace.LastStance + " -> "
@@ -432,8 +437,88 @@ namespace Rts.Tools.BalanceHarness
                     + " stance=" + trace.LastStance + " attacks=" + (trace.Memory?.AttacksStarted ?? 0).ToString(CultureInfo.InvariantCulture)
                     + " retreats=" + (trace.Memory?.Retreats ?? 0).ToString(CultureInfo.InvariantCulture)
                     + EconomyColumn(trace)
+                    + ThreatColumn(trace, ownHq)
                     + (isFinal ? " (final)" : string.Empty) + "\n");
+                WriteThreatGrid(trace);
                 trace.ResetInterval();
+            }
+        }
+
+        /// <summary>
+        /// The threat map column of one sample line (ai_threat_map.md 3.5): " thr=s&lt;sightings&gt;/e&lt;Enemy at the own HQ cell&gt;/o&lt;Own at the own HQ cell&gt;/m&lt;largest Enemy&gt;@&lt;column&gt;,&lt;row&gt;"
+        /// (largest ties to the lower cell index; "m0@-1,-1" when the layer is all 0), and the empty text when the player's profile has use_threat_map false, so the trace of every older
+        /// profile is unchanged. Unit: text.
+        /// </summary>
+        /// <param name="trace">The player's trace state.</param>
+        /// <param name="ownHq">Position of the player's HQ, or zero without one. Unit: tiles.</param>
+        private static string ThreatColumn(PlayerTrace trace, FixVec2 ownHq)
+        {
+            if (!trace.ThreatMap || trace.Memory == null)
+            {
+                return string.Empty;
+            }
+            // The memory of the player's controller, and the grid it holds (empty before the first think builds it).
+            AiMemory memory = trace.Memory;
+            // Enemy and own strength in the HQ's cell. Unit: resource units. Range: 0 upward.
+            int atEnemy = 0, atOwn = 0;
+            // Largest Enemy value and its cell index (-1 while all 0). Unit: resource units; cell index.
+            int largest = 0, largestCell = -1;
+            if (memory.ThreatEnemy.Length > 0)
+            {
+                // Cell of the own HQ. Range: 0 to cells - 1.
+                int hqCell = Math.Min(memory.ThreatRows - 1, Math.Max(0, ownHq.Y.FloorToInt() / trace.ThreatCellTiles)) * memory.ThreatColumns
+                    + Math.Min(memory.ThreatColumns - 1, Math.Max(0, ownHq.X.FloorToInt() / trace.ThreatCellTiles));
+                atEnemy = memory.ThreatEnemy[hqCell];
+                atOwn = memory.ThreatOwn[hqCell];
+                for (int i = 0; i < memory.ThreatEnemy.Length; i++)
+                {
+                    if (memory.ThreatEnemy[i] > largest)
+                    {
+                        largest = memory.ThreatEnemy[i];
+                        largestCell = i;
+                    }
+                }
+            }
+            return " thr=s" + memory.ThreatSightings.Count.ToString(CultureInfo.InvariantCulture) + "/e" + atEnemy.ToString(CultureInfo.InvariantCulture)
+                + "/o" + atOwn.ToString(CultureInfo.InvariantCulture) + "/m" + largest.ToString(CultureInfo.InvariantCulture) + "@"
+                + (largestCell < 0 ? -1 : largestCell % memory.ThreatColumns).ToString(CultureInfo.InvariantCulture) + ","
+                + (largestCell < 0 ? -1 : largestCell / memory.ThreatColumns).ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// With --threat-grid and a player whose profile has use_threat_map true: "threat enemy P&lt;n&gt;" then one line per grid row (row 0 first, values separated by spaces), then "threat own P&lt;n&gt;" the same way.
+        /// Writes nothing otherwise.
+        /// </summary>
+        /// <param name="trace">The player's trace state.</param>
+        private void WriteThreatGrid(PlayerTrace trace)
+        {
+            if (!ThreatGrid || !trace.ThreatMap || trace.Memory == null)
+            {
+                return;
+            }
+            WriteLayer("enemy", trace, trace.Memory.ThreatEnemy);
+            WriteLayer("own", trace, trace.Memory.ThreatOwn);
+        }
+
+        /// <summary>Writes one layer of the threat grid under its "threat &lt;name&gt; P&lt;n&gt;" line.</summary>
+        /// <param name="name">"enemy" or "own".</param>
+        /// <param name="trace">The player's trace state.</param>
+        /// <param name="layer">The layer, row x columns + column. Unit: resource units.</param>
+        private void WriteLayer(string name, PlayerTrace trace, int[] layer)
+        {
+            _out.Write("threat " + name + " P" + trace.Id.Value.ToString(CultureInfo.InvariantCulture) + "\n");
+            // Grid shape of the player's memory. Unit: cells.
+            int columns = trace.Memory!.ThreatColumns;
+            int rows = trace.Memory.ThreatRows;
+            for (int row = 0; row < rows; row++)
+            {
+                // The values of this row as text.
+                StringBuilder line = new StringBuilder();
+                for (int column = 0; column < columns; column++)
+                {
+                    line.Append(column > 0 ? " " : string.Empty).Append(layer[row * columns + column].ToString(CultureInfo.InvariantCulture));
+                }
+                _out.Write(line + "\n");
             }
         }
 
@@ -706,6 +791,12 @@ namespace Rts.Tools.BalanceHarness
 
             /// <summary>True when the player's profile has use_economy_calc on, so its sample lines carry the econ= column. Unit: boolean.</summary>
             public bool EconomyCalc { get; set; }
+
+            /// <summary>True when the player's profile has use_threat_map on, so its sample lines carry the thr= column. Unit: boolean.</summary>
+            public bool ThreatMap { get; set; }
+
+            /// <summary>The player's profile's threat_cell_tiles (to find the HQ's cell). Unit: tiles. Range: 1 to 16; 4 before the first think.</summary>
+            public int ThreatCellTiles { get; set; } = 4;
 
             /// <summary>Stance after the previous think. Starts as Massing, the memory's start value.</summary>
             public AiStance LastStance { get; set; } = AiStance.Massing;

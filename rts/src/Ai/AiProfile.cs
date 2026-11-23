@@ -54,6 +54,8 @@
 //   * rts/docs/specs/ai_economy_calc.md package E (economy by calculation): use_economy_calc and economy_horizon_seconds (every profile file carries them; the old
 //     values false and 180 keep AI-E's walk cover and expand_saturation_fraction; use_economy_calc needs use_saturation_workers and use_saturation_expansion; only
 //     aggressive_s5_e has it true).
+//   * rts/docs/specs/ai_threat_map.md package S-MAP (the threat map): use_threat_map, threat_cell_tiles and threat_spread_cells (every profile file carries
+//     them; the old values false, 4 and 2 play exactly as before; the map is passive, no rule reads it yet; only aggressive_s5_s has use_threat_map true).
 //   * field_saturation.md package AI-P (placement and defence): use_forward_producers, use_threat_defence, threat_defence_min_enemy_supply,
 //     threat_defence_min_enemy_advantage, threat_defence_max_value_share and threat_defence_release_fraction (every profile file carries
 //     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).
@@ -860,6 +862,15 @@ namespace Rts.Ai
         /// <summary>Rule RA: the Rooted HQ joins the defending side when the threat centre is within its weapon range plus this margin. Unit: tiles (Fix64). Range: 0 to 20.</summary>
         public Fix64 RaidHqCoverMarginTiles { get; }
 
+        /// <summary>Package S (ai_threat_map.md section 3): keep the threat map of own and remembered enemy strength; changes no decision by itself. Unit: boolean.</summary>
+        public bool UseThreatMap { get; }
+
+        /// <summary>Package S: side of one threat-map cell. Unit: tiles (integer). Range: 1 to 16.</summary>
+        public int ThreatCellTiles { get; }
+
+        /// <summary>Package S: rings a unit's strength reaches on the threat map (ring k of K adds (K + 1 - k) / (K + 1) of it). Unit: cells (integer). Range: 0 to 8.</summary>
+        public int ThreatSpreadCells { get; }
+
         /// <summary>
         /// The authored wall lines by map ID (ordinal order), attached by <see cref="FromDataSet"/> from DataSet.AiWallLines; empty for a profile made by <see cref="Parse(string, string, ContentCatalog)"/> from text.
         /// Immutable after load. Unit: map ID to lines. Range: 0 or more maps.
@@ -1151,6 +1162,9 @@ namespace Rts.Ai
             UseRaidResponse = root.RequireBool("use_raid_response");
             RaidHoldRadiusTiles = root.RequireFix64("raid_hold_radius_tiles", "1", "20");
             RaidHqCoverMarginTiles = root.RequireFix64("raid_hq_cover_margin_tiles", "0", "20");
+            UseThreatMap = root.RequireBool("use_threat_map");
+            ThreatCellTiles = root.RequireInt("threat_cell_tiles", 1, 16);
+            ThreatSpreadCells = root.RequireInt("threat_spread_cells", 0, 8);
             if (UseRaidResponse && !UseMeasuredDefence)
             {
                 throw root.Require("use_raid_response").Fail("requires use_measured_defence to be true as well");
@@ -1299,6 +1313,7 @@ namespace Rts.Ai
                 "use_supply_ahead", "supply_ahead_max_pending",
                 "use_raid_workers", "raid_active_seconds", "raid_field_radius_tiles", "raid_evacuate_max_commands_per_think",
                 "use_raid_response", "raid_hold_radius_tiles", "raid_hq_cover_margin_tiles",
+                "use_threat_map", "threat_cell_tiles", "threat_spread_cells",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
