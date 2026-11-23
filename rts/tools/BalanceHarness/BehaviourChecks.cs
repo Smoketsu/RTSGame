@@ -2,6 +2,7 @@
 // The behaviour checks (spec: rts/docs/specs/balance_measurement.md M.4): a check is a named predicate over one slot's game summary (and its game record), registered by ID in <see cref="BehaviourChecks"/> (the only
 // composition root for checks, as BuiltInMechanics is for mechanics) and declared with its bar values in rts/data/scripts/ai_eval/behaviour_checks.json. A later package adds a check by adding one registry entry and
 // one data entry. Every bar comparison is integer arithmetic (fractions are parts per 10 000, "pt"), so a verdict is exact and platform independent. Tool-side only. Part of Rts.Tools.BalanceHarness.
+// Package S-M (ai_threat_map.md 7.2) adds depot_losses_young, harass_trade and harass_squads (always Held; the bar is the paired test) and the optional paired_direction key of first_drop_off and income_by.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -67,9 +68,19 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>The loaded data set (maps, units, tuning, AI profiles) for a check that models the game (econ_gap), or null when not known (settings validation without a run).</summary>
         public DataSet? Data { get; }
 
-        /// <summary>Bundles the values; the last three are optional (unknown while only validating settings).</summary>
-        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null)
+        /// <summary>Last tick the summary counts (summary_window_seconds x ticks per second), or int.MaxValue when not known. Unit: ticks. Range: 1 upward.</summary>
+        public int WindowTicks { get; }
+
+        /// <summary>Bundles the values; the last four are optional (unknown while only validating settings).</summary>
+        /// <param name="rareWeightPt">Rare weight. Unit: parts per 10 000.</param>
+        /// <param name="bucketTicks">Income bucket. Unit: ticks.</param>
+        /// <param name="bankSeconds">Bank snapshot seconds, or null.</param>
+        /// <param name="ticksPerSecond">Ticks per second, or 1 when not known.</param>
+        /// <param name="data">The data set, or null.</param>
+        /// <param name="windowSeconds">The summary window, or int.MaxValue when not known. Unit: seconds. Range: 60 to 2400, or int.MaxValue.</param>
+        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null, int windowSeconds = int.MaxValue)
         {
+            WindowTicks = windowSeconds == int.MaxValue ? int.MaxValue : windowSeconds * ticksPerSecond;
             Data = data;
             RareWeightPt = rareWeightPt;
             BucketTicks = bucketTicks;
@@ -129,6 +140,9 @@ namespace Rts.Tools.BalanceHarness
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(FirstDropOff.CheckId, c => new FirstDropOff(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(IncomeBy.CheckId, c => new IncomeBy(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(EconGap.CheckId, c => new EconGap(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(DepotLossesYoung.CheckId, c => new DepotLossesYoung(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(HarassTrade.CheckId, c => new HarassTrade(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(HarassSquads.CheckId, c => new HarassSquads(c)),
         };
 
         /// <summary>True when <paramref name="id"/> is a registered check.</summary>
@@ -449,7 +463,7 @@ namespace Rts.Tools.BalanceHarness
             /// <inheritdoc />
             public void ReadSettings(JsonValue entry)
             {
-                entry.RejectUnknownKeys("enabled", "max_seconds", "max_violation_fraction");
+                entry.RejectUnknownKeys("enabled", "max_seconds", "max_violation_fraction", "paired_direction");
                 Enabled = entry.RequireBool("enabled");
                 _maxSeconds = entry.RequireInt("max_seconds", 0, 7200);
                 MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
@@ -513,7 +527,7 @@ namespace Rts.Tools.BalanceHarness
             /// <inheritdoc />
             public void ReadSettings(JsonValue entry)
             {
-                entry.RejectUnknownKeys("enabled", "at_seconds", "min_income", "max_violation_fraction", "print_by_opening");
+                entry.RejectUnknownKeys("enabled", "at_seconds", "min_income", "max_violation_fraction", "print_by_opening", "paired_direction");
                 Enabled = entry.RequireBool("enabled");
                 // The at_seconds entry (kept to name the key in a settings error). Unit: seconds. Range: 1 to 7200.
                 JsonValue at = entry.Require("at_seconds");
@@ -545,6 +559,153 @@ namespace Rts.Tools.BalanceHarness
                     weighted += _context.Weighted(slot.Income[b][0], slot.Income[b][1]);
                 }
                 return new BehaviourResult(weighted >= (long)_minIncome * 10000 ? CheckOutcome.Held : CheckOutcome.Violated, weighted, 10000);
+            }
+        }
+
+        /// <summary>
+        /// Package S-M (ai_threat_map.md 7.2): own drop-offs lost young. Metric = the entries of drop_off_life whose death_tick is at least 0, at most young_seconds after placed_tick, not after the summary window and
+        /// before the slot's overrun_second when it has one. Always Held (max_violation_fraction 1; the bar is the paired test); never Unjudged.
+        /// </summary>
+        private sealed class DepotLossesYoung : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "depot_losses_young";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Longest life that counts as young. Unit: seconds. Range: 1 to 1800.</summary>
+            private int _youngSeconds;
+
+            /// <summary>Bundles the context.</summary>
+            public DepotLossesYoung(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "young_seconds", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                _youngSeconds = entry.RequireInt("young_seconds", 1, 1800);
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                // Longest young life, the window end and the overrun tick. Unit: ticks.
+                long youngTicks = (long)_youngSeconds * _context.TicksPerSecond;
+                int? overrunSecond = slot.Production?.OverrunSecond;
+                long overrunTick = overrunSecond.HasValue ? (long)overrunSecond.Value * _context.TicksPerSecond : long.MaxValue;
+                // Young drop-offs lost. Unit: structures. Range: 0 upward.
+                long lost = 0;
+                foreach (int[] life in slot.DropOffLife)
+                {
+                    if (life[1] >= 0 && life[1] - life[0] <= youngTicks && life[1] <= _context.WindowTicks && life[1] < overrunTick)
+                    {
+                        lost++;
+                    }
+                }
+                return new BehaviourResult(CheckOutcome.Held, lost, 1);
+            }
+        }
+
+        /// <summary>Package S-M (ai_threat_map.md 7.2): value killed less value lost by the slot's harass squad units (may be negative). Always Held; never Unjudged.</summary>
+        private sealed class HarassTrade : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "harass_trade";
+
+            /// <summary>Bundles the context (unused: the check reads only the summary).</summary>
+            public HarassTrade(BehaviourContext context)
+            {
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                return new BehaviourResult(CheckOutcome.Held, slot.Harass.KillsValue - slot.Harass.LossesValue, 1);
+            }
+        }
+
+        /// <summary>Package S-M (ai_threat_map.md 7.2): harass squads started by the slot. Always Held; never Unjudged.</summary>
+        private sealed class HarassSquads : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "harass_squads";
+
+            /// <summary>Bundles the context (unused: the check reads only the summary).</summary>
+            public HarassSquads(BehaviourContext context)
+            {
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                return new BehaviourResult(CheckOutcome.Held, slot.Harass.Squads, 1);
             }
         }
 

@@ -2,6 +2,7 @@
 // The per-slot summary of one game (spec: rts/docs/specs/balance_measurement.md M.4.2): spending in total and by class, the bank at fixed times, income per time bucket, every HQ move, the units trained (package E0 adds workers_by_bucket and spent_other_by_bucket: workers per completed income bucket and non-worker, non-drop-off spending per bucket), the structures
 // completed and the mechanic uses counted. SummaryObserver fills it; it is written to a game record as "summary0" and "summary1" (keys in the order of the spec, maps in ordinal key order) and parsed back by the
 // coordinator, so behaviour checks and the balance report read records only. With ai_eval.json metric settings it also carries the ProductionMetrics keys (spec ai_production_defence.md section 7). Immutable. Tool-side only. Part of Rts.Tools.BalanceHarness.
+// Package S-M (ai_threat_map.md 7.1) adds drop_off_life and harass; a record without them parses as empty lives and zero counters.
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -55,6 +56,12 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>[common, rare] net spending per bucket on every class except worker and drop_off (ai_economy_calc.md 3.1); empty for a record from before package E0. Unit: resource units per bucket. Range: 0 upward each (a refund can make one negative); one entry per bucket that started.</summary>
         public IReadOnlyList<int[]> SpentOtherByBucket { get; }
 
+        /// <summary>Package S-M (ai_threat_map.md 7.1): one [placed tick, death tick] per own non-HQ drop-off structure in placement order; the death tick is the tick of an enemy kill, else -1; empty for a record from before S-M. Unit: ticks. Range: 0 upward, -1 for alive.</summary>
+        public IReadOnlyList<int[]> DropOffLife { get; }
+
+        /// <summary>Package S-M (ai_threat_map.md 7.1): the harass counters of the slot (squads, worker kills, value killed, value lost); all 0 for a record from before S-M.</summary>
+        public HarassMetrics Harass { get; }
+
         /// <summary>The production and defence metrics (spec ai_production_defence.md section 7), or null for a summary collected without them (every older record and every observer built without settings). Their keys come after the older ones.</summary>
         public ProductionMetrics? Production { get; }
 
@@ -63,8 +70,10 @@ namespace Rts.Tools.BalanceHarness
             IReadOnlyDictionary<string, int> trained, IReadOnlyDictionary<string, int> completed, IReadOnlyDictionary<string, int> mechanics,
             IReadOnlyList<int?>? workers = null, IReadOnlyList<int>? dropOffTicks = null,
             IReadOnlyDictionary<string, int>? firstTick = null, ProductionMetrics? production = null,
-            IReadOnlyList<int>? workersByBucket = null, IReadOnlyList<int[]>? spentOtherByBucket = null)
+            IReadOnlyList<int>? workersByBucket = null, IReadOnlyList<int[]>? spentOtherByBucket = null, IReadOnlyList<int[]>? dropOffLife = null, HarassMetrics? harass = null)
         {
+            DropOffLife = dropOffLife ?? Array.Empty<int[]>();
+            Harass = harass ?? HarassMetrics.Empty;
             WorkersByBucket = workersByBucket ?? Array.Empty<int>();
             SpentOtherByBucket = spentOtherByBucket ?? Array.Empty<int[]>();
             Production = production;
@@ -129,7 +138,12 @@ namespace Rts.Tools.BalanceHarness
             {
                 sb.Append(i > 0 ? "," : "").Append('[').Append(Int(SpentOtherByBucket[i][0])).Append(',').Append(Int(SpentOtherByBucket[i][1])).Append(']');
             }
-            sb.Append(']');
+            sb.Append("],\"drop_off_life\":[");
+            for (int i = 0; i < DropOffLife.Count; i++)
+            {
+                sb.Append(i > 0 ? "," : "").Append('[').Append(Int(DropOffLife[i][0])).Append(',').Append(Int(DropOffLife[i][1])).Append(']');
+            }
+            sb.Append("],\"harass\":[").Append(Int(Harass.Squads)).Append(',').Append(Int(Harass.WorkerKills)).Append(',').Append(Int(Harass.KillsValue)).Append(',').Append(Int(Harass.LossesValue)).Append(']');
             if (FirstTick.Count > 0)
             {
                 sb.Append(",\"first_tick\":").Append(Counts(FirstTick));
@@ -203,11 +217,27 @@ namespace Rts.Tools.BalanceHarness
                     spentOther.Add(Pair(item));
                 }
             }
+            // Package S-M fields; a record without them reads as empty drop-off lives and zero harass counters.
+            // Per drop-off [placed tick, death tick or -1]. Unit: ticks. Range: 0 upward, -1 for alive.
+            List<int[]> dropOffLife = new List<int[]>();
+            if (node.TryGetMember("drop_off_life", out JsonValue? lifeNode))
+            {
+                foreach (JsonValue item in lifeNode.Items)
+                {
+                    dropOffLife.Add(Pair(item));
+                }
+            }
+            // The harass counters [squads, worker kills, kills value, losses value]; zeros when the key is absent.
+            HarassMetrics harass = HarassMetrics.Empty;
+            if (node.TryGetMember("harass", out JsonValue? harassNode))
+            {
+                harass = new HarassMetrics(harassNode.Items[0].AsInt(), harassNode.Items[1].AsInt(), harassNode.Items[2].AsInt(), harassNode.Items[3].AsInt());
+            }
             // First-tick map; a record without it reads as empty.
             IReadOnlyDictionary<string, int>? firstTick = node.TryGetMember("first_tick", out JsonValue? firstNode) ? ReadCounts(firstNode) : null;
             return new GameSummary(node.RequireInt("spent_common", int.MinValue, int.MaxValue), node.RequireInt("spent_rare", int.MinValue, int.MaxValue), spent, bank, income, moves,
                 ReadCounts(node.Require("trained")), ReadCounts(node.Require("completed")), ReadCounts(node.Require("mechanics")), workers, dropOffs, firstTick,
-                node.TryGetMember(ProductionMetrics.FirstKey, out _) ? ProductionMetrics.Parse(node) : null, workersByBucket, spentOther);
+                node.TryGetMember(ProductionMetrics.FirstKey, out _) ? ProductionMetrics.Parse(node) : null, workersByBucket, spentOther, dropOffLife, harass);
         }
 
         /// <summary>An integer as invariant text.</summary>

@@ -21,7 +21,7 @@ namespace Rts.Tools.BalanceHarness
             + " | --data <data folder> --pool --profile-b <candidate id> [--stage 1|2|all] [--pairs N] [--matchups x,y] [--maps a,b] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --behaviour --profile-a <baseline id> --profile-b <candidate id> [--checks id,id] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --balance [--profile <id>] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--from <balance.jsonl>] [--fights-from <fights.jsonl>] [--strict]"
-            + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>]";
+            + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>] [--threat-grid]";
 
         /// <summary>Fault switch value that makes a re-run (verification) worker perturb the seed of its first game. Test use only.</summary>
         public const string FaultPerturb = "perturb";
@@ -140,6 +140,9 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>True when --trace was given: play one game and write its timeline (see <see cref="GameTrace"/>); needs --map and --matchup.</summary>
         public bool Trace { get; private set; }
 
+        /// <summary>True when --threat-grid was given: a trace also prints both threat layers at each sample for every player whose profile has use_threat_map (ai_threat_map.md 3.5). Unit: boolean.</summary>
+        public bool ThreatGrid { get; private set; }
+
         /// <summary>Trace: game index within the cell from --game; 0 is the game a batch plays first. Unit: games. Range: 0 upward.</summary>
         public int TraceGame { get; private set; }
 
@@ -195,6 +198,9 @@ namespace Rts.Tools.BalanceHarness
                         continue;
                     case "--trace":
                         options.Trace = true;
+                        continue;
+                    case "--threat-grid":
+                        options.ThreatGrid = true;
                         continue;
                     case "--ladder":
                         options.Ladder = true;

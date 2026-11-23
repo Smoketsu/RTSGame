@@ -71,6 +71,10 @@
 //      rule E picks the target field and its site first, then orders the depot when the clock is due, the served fields are low, or home is full
 //      (workers plus those the HQ can finish during the depot's lead time reach the target) and the depot's net value over the horizon is above 0,
 //      replacing the saturated test; the explanation goes to AiMemory.EconomyNote.
+//   S. Threat map (ai_threat_map.md, AiThreatMap.cs, only with use_threat_map): right after the intel step Decide keeps a coarse grid of own strength (complete armed army
+//      units and static defences) and remembered enemy strength (sightings of visible armed army units, aged over enemy_army_memory_seconds and dropped when their tile is seen
+//      empty, plus armed known structures), each fading by ring over threat_spread_cells; built from the fogged view and memory only. Package S-MAP is passive: no rule reads
+//      it, so it changes no decision (rules TS and TH are later packages).
 //   4a'. Placement and defence (field_saturation.md package AI-P, AiBrainPlacement.cs, only with the keys on). use_forward_producers: rule X
 //      and rule T build the producer on the ring around the own base (Rooted HQ, or a complete depot with a live field in reach) with the
 //      fewest producers within base_radius_tiles (ties to the HQ, then the lower ID); no good site there: the HQ ring. use_threat_defence:
@@ -229,6 +233,10 @@ namespace Rts.Ai
             // The own HQ (lowest ID), or null when the player has none.
             AiUnitView? hq = FindHq(view);
             UpdateIntel(view, profile, memory, hq);
+            if (profile.UseThreatMap)
+            {
+                AiThreatMap.Update(view, profile, memory);
+            }
             if (profile.UseProductionCapacity)
             {
                 PruneDepositLog(view, profile, memory);

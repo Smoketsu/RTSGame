@@ -9,6 +9,7 @@
 // Every collection is sorted (SortedDictionary / SortedSet) so iteration never depends on hash order.
 // ai_mechanic_use.md P4 adds WallTilesRefused and WallSpentCommon (rule WL, only with use_walls).
 // ai_economy_calc.md adds EconomyNote (rule ED's explanation record, written once per think only with use_economy_calc; not hashed).
+// ai_threat_map.md S-MAP adds ThreatSightings, ThreatEnemy, ThreatOwn, ThreatColumns, ThreatRows and ThreatTick (the threat map, written only with use_threat_map; none hashed).
 // ai_production_defence.md PD-1 adds DepositLog (rule PC's measured income, only with use_production_capacity); PD-3 adds RaidHits, OwnWorkerPositions and RaidScanTick (rules RS and RW, only with use_raid_workers); revision 2 adds RaidClosedFields, RaidSeenTick, RaidCarriedHits, RaidAnswered and DamageReport.IsArmy (all written only with a raid switch on, except IsArmy; none hashed).
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -129,6 +130,24 @@ namespace Rts.Ai
 
         /// <summary>Enemy structures and HQs seen and not yet seen gone, by entity ID (ascending).</summary>
         public SortedDictionary<EntityId, KnownStructure> KnownEnemyStructures { get; } = new SortedDictionary<EntityId, KnownStructure>();
+
+        /// <summary>Package S-MAP (ai_threat_map.md 3.4): armed enemy army units as last seen, by entity ID (ascending): position (tiles), strength when seen (resource units, 0 upward) and the tick seen (ticks). Written only with use_threat_map; not hashed.</summary>
+        public SortedDictionary<EntityId, (FixVec2 Position, int Strength, int Tick)> ThreatSightings { get; } = new SortedDictionary<EntityId, (FixVec2 Position, int Strength, int Tick)>();
+
+        /// <summary>Package S-MAP: remembered enemy strength per cell, row x columns + column, as built by the last think (resource units, 0 upward); empty until the first build. Not hashed.</summary>
+        public int[] ThreatEnemy { get; set; } = System.Array.Empty<int>();
+
+        /// <summary>Package S-MAP: own strength per cell, same layout as <see cref="ThreatEnemy"/> (resource units, 0 upward). Not hashed.</summary>
+        public int[] ThreatOwn { get; set; } = System.Array.Empty<int>();
+
+        /// <summary>Package S-MAP: columns of the threat grid. Unit: cells. Range: 0 before the first build, then 1 to 1024.</summary>
+        public int ThreatColumns { get; set; }
+
+        /// <summary>Package S-MAP: rows of the threat grid. Unit: cells. Range: 0 before the first build, then 1 to 1024.</summary>
+        public int ThreatRows { get; set; }
+
+        /// <summary>Package S-MAP: tick the threat layers were built, or -1 at start (and always with use_threat_map false). Unit: ticks. Range: -1, or 0 upward.</summary>
+        public int ThreatTick { get; set; } = -1;
 
         /// <summary>True once an enemy army unit has been seen.</summary>
         public bool HasLastSeenEnemy { get; set; }
