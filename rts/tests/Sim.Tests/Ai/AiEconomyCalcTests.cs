@@ -1,6 +1,6 @@
 // rts/tests/Sim.Tests/Ai/AiEconomyCalcTests.cs
 // Tests of package E of rts/docs/specs/ai_economy_calc.md (the AI economy by calculation): the walk-ticks extraction (EC-1), the worker cap of rule EW (EC-2, EC-3), profile parsing and the candidate
-// file (EC-8, EC-9), the off path (EC-10), determinism (EC-11) and the trace column (EC-13). Rule ED's tests (EC-4 to EC-7, EC-12) are added by package E2 in this file. Part of Rts.Sim.Tests.
+// file (EC-8, EC-9), the off path (EC-10), determinism (EC-11) and the trace column (EC-13), then rule ED (package E2): the depot net value and home-full test (EC-4), Expand integration (EC-5), the starved case (EC-6), the rare field (EC-7) and a mirror run (EC-12). Part of Rts.Sim.Tests.
 // Real simulations on shipped maps (greybox_1v1: field 0 (4, 10) and 1 (10, 4) are P0's main fields), AiBrain.Probe on the views, and short full games through GameRunner.
 using System;
 using System.Collections.Generic;
@@ -341,6 +341,322 @@ namespace Rts.Sim.Tests.Ai
                 }
             }
             Assert.That(samples, Is.GreaterThanOrEqualTo(8));
+        }
+
+        // ------------------------------------------------------------------ package E2: rule ED
+
+        /// <summary>The candidate profile's text with the early-expansion gate off (so the clock gate is the plain 240 s) and the given (old, new) text pairs applied; each old text must occur.</summary>
+        private static AiProfile Candidate(params string[] oldNewPairs)
+        {
+            // The text being edited.
+            string text = ProfileText("aggressive_s5_e").Replace("\"use_early_expansion\": true,", "\"use_early_expansion\": false,");
+            // Index into the pairs. Range: even numbers from 0.
+            for (int i = 0; i < oldNewPairs.Length; i += 2)
+            {
+                Assert.That(text, Does.Contain(oldNewPairs[i]), oldNewPairs[i]);
+                text = text.Replace(oldNewPairs[i], oldNewPairs[i + 1]);
+            }
+            return AiProfile.Parse(text, "ai/aggressive_s5_e.json", Data.Content);
+        }
+
+        /// <summary>Steps until the clock reaches <paramref name="tick"/>.</summary>
+        private static void StepTo(Simulation sim, int tick)
+        {
+            while (sim.Clock.Tick < tick)
+            {
+                sim.Step();
+            }
+        }
+
+        /// <summary>Own worker IDs of P0, ascending.</summary>
+        private static List<EntityId> Workers(Simulation sim)
+        {
+            List<EntityId> ids = new List<EntityId>();
+            foreach (Unit unit in sim.Units.All)
+            {
+                if (unit.Owner == P0 && unit.Definition.Economy.CanGather)
+                {
+                    ids.Add(unit.Id);
+                }
+            }
+            return ids;
+        }
+
+        /// <summary>Sets P0's stock.</summary>
+        private static void SetStock(Simulation sim, int common, int rare)
+        {
+            Assert.That(sim.Players.TryGet(P0, out Player? record), Is.True);
+            record!.SetStock(common, rare);
+        }
+
+        /// <summary>A prototype_1v1 match with <paramref name="workers"/> workers per side at <paramref name="seconds"/>, one worker gathering (so the AI has income) and 300 common in the bank.</summary>
+        private Simulation Base(int workers, int seconds)
+        {
+            Simulation sim = Game("prototype_1v1", workers);
+            StepTo(sim, seconds * TicksPerSecond);
+            sim.Submit(new GatherCommand(sim.Clock.Tick, P0, _sequence++, Workers(sim)[1], 0));
+            sim.Step();
+            SetStock(sim, 300, 0);
+            return sim;
+        }
+
+        /// <summary>
+        /// Up to <paramref name="thinks"/> decisions of P0 on the current view with one memory (nothing is applied; a field with no depot site is marked and the next think tries the next field). Returns the depot orders
+        /// of the think that ordered one (or 0) and the explanation record of the last think run.
+        /// </summary>
+        private static (int Orders, (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note) Think(Simulation sim, AiProfile profile, AiMemory? memory = null, int thinks = 6)
+        {
+            memory ??= new AiMemory();
+            for (int think = 0; think < thinks; think++)
+            {
+                // Depot orders of this think. Unit: orders. Range: 0 upward.
+                int orders = 0;
+                foreach (AiIntent intent in AiBrain.Decide(AiWorldView.Build(sim, P0), profile, profile.RequireFaction("skai"), memory, new DeterministicRandom(1)))
+                {
+                    orders += intent.Kind == AiIntentKind.Build && intent.DefinitionId == "skai.perch_depot" ? 1 : 0;
+                }
+                if (orders > 0)
+                {
+                    return (orders, memory.EconomyNote);
+                }
+            }
+            return (0, memory.EconomyNote);
+        }
+
+        /// <summary>EC-4: the DepotNet worked example of 2.3 (525 at 180 s, -100 at 60 s, 380 with headroom 3) and the home-full test (false at 7 workers, true at 8; wanted 10, lead 600, build 240).</summary>
+        [Test]
+        public void EC4_DepotNetAndHomeFull()
+        {
+            // Spec numbers: depot cost 100, build 400 ticks, placement 40, a site 20 tiles away at speed 2.5 (160 ticks): lead 600; worker build 240, cost 50; one common field, 3 slots, trip cycle 60, 10000 left.
+            int walk = (Fix64.FromInt(20) * 20 / Fix64.Parse("2.5")).CeilingToInt();
+            Assert.That(walk, Is.EqualTo(160));
+            int lead = walk + 40 + 400;
+            Assert.That(lead, Is.EqualTo(600));
+            (int Slots, int Cycle, int Known)[] field = { (3, 60, 10000) };
+            Assert.That(AiBrain.DepotNetValue(field, 3600, lead, 240, 40, 5, 50, 20, 100), Is.EqualTo(525));
+            Assert.That(AiBrain.DepotNetValue(field, 1200, lead, 240, 40, 5, 50, 20, 100), Is.EqualTo(-100), "horizon 60 s: worker 1 earns 6 loads (30), which does not repay 50");
+            Assert.That(AiBrain.DepotNetValue(field, 3600, lead, 240, 40, 5, 50, 3, 100), Is.EqualTo(380), "headroom 3 counts workers 1 to 3 only: 630 - 150 - 100");
+            Assert.That(AiBrain.DepotNetValue(field, 3600, lead, 240, 40, 5, 50, 0, 100), Is.EqualTo(-100), "no headroom: only the depot's cost");
+            Assert.That(AiBrain.DepotNetValue(new (int Slots, int Cycle, int Known)[0], 3600, lead, 240, 40, 5, 50, 20, 100), Is.EqualTo(-100), "no new field");
+            // A second, farther field is walked after the first one fills; the order given is the order walked.
+            (int Slots, int Cycle, int Known)[] two = { (3, 60, 10000), (3, 100, 10000) };
+            Assert.That(AiBrain.DepotNetValue(two, 3600, lead, 240, 40, 5, 50, 20, 100), Is.GreaterThan(525));
+            Assert.That(AiBrain.HomeFull(false, 7, lead, 240, 10), Is.False);
+            Assert.That(AiBrain.HomeFull(false, 8, lead, 240, 10), Is.True);
+            Assert.That(AiBrain.HomeFull(true, 0, lead, 240, 10), Is.True, "starved: always full");
+        }
+
+        /// <summary>
+        /// EC-5: Expand before the clock gate (100 s, gate at 240 s, low false). Home full and DepotNet above 0 with the bank at 100 or more: a depot is ordered at the step-1 site and the note says Fired; DepotNet at most 0 (no
+        /// headroom): none; home not full: none. After the clock gate with DepotNet at most 0 a depot is ordered (not Fired). The threat gate, the live-depot limit and a depot under construction still block.
+        /// </summary>
+        [Test]
+        public void EC5_ExpandIntegration()
+        {
+            AiProfile on = Candidate();
+            // The base target: workers wanted for the fresh base, and the lead time and net value the first think reports.
+            int wanted = Probe(Game("prototype_1v1", 2), on).WantedWorkers;
+            Assert.That(wanted, Is.GreaterThan(4));
+            // Workers per side so that home is full for any lead (wanted itself).
+            (int Orders, (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note) full = Think(Base(wanted, 100), on);
+            Assert.That(full.Orders, Is.EqualTo(1), "home full and a positive net value: a depot before the clock gate");
+            Assert.That(full.Note.Fired, Is.True);
+            Assert.That(full.Note.DepotNet, Is.GreaterThan(0));
+            Assert.That(full.Note.Wanted, Is.EqualTo(wanted));
+            UnitDefinition depot = Data.Content.Units["skai.perch_depot"];
+            // Lead without the walk: placement plus the depot's build time. Unit: ticks.
+            MatchClock clock = new MatchClock(TicksPerSecond);
+            Assert.That(full.Note.Lead, Is.GreaterThan(Data.Tuning.Economy.WorkerPlacementTicks(clock) + clock.SecondsToTicks(depot.Economy.BuildSeconds)), "the walk is part of the lead");
+            Assert.That(full.Note.Tick, Is.EqualTo(100 * TicksPerSecond + 1));
+            // No headroom (max_workers at the target): DepotNet is the depot's cost below 0, so no depot.
+            (int Orders, (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note) capped = Think(Base(wanted, 100), Candidate("\"max_workers\": 48,", "\"max_workers\": " + wanted + ","));
+            Assert.That(capped.Orders, Is.EqualTo(0));
+            Assert.That(capped.Note.DepotNet, Is.EqualTo(-(depot.CostCommon + depot.CostRare)));
+            // Home not full: fewer workers than wanted less the workers the HQ can finish during the lead time.
+            int workerBuild = Math.Max(1, new MatchClock(TicksPerSecond).SecondsToTicks(Data.Content.Units["skai.fledgling"].Economy.BuildSeconds));
+            int few = wanted - full.Note.Lead / workerBuild - 1;
+            Assert.That(few, Is.GreaterThan(1));
+            (int Orders, (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note) notFull = Think(Base(few, 100), on);
+            Assert.That(notFull.Orders, Is.EqualTo(0), "home not full: no depot before the clock gate");
+            Assert.That(notFull.Note.DepotNet, Is.GreaterThan(0), "the net value alone is positive; it is home that is not full");
+            // After the clock gate a depot is ordered although DepotNet is at most 0 (the clock is kept), and it is not a calculated order.
+            (int Orders, (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note) late = Think(Base(wanted, 250), Candidate("\"max_workers\": 48,", "\"max_workers\": " + wanted + ","));
+            Assert.That(late.Orders, Is.EqualTo(1));
+            Assert.That(late.Note.DepotNet, Is.LessThanOrEqualTo(0));
+            Assert.That(late.Note.Fired, Is.False);
+            // The live-depot limit blocks.
+            Assert.That(Think(Base(wanted, 100), Candidate("\"max_live_depots\": 4,", "\"max_live_depots\": 0,")).Orders, Is.EqualTo(0));
+            // A seen threat of the grasper's supply (the gate is 4) blocks, as for rule E.
+            Simulation threatened = Base(wanted, 100);
+            Spawn(threatened, "water.grasper", P1, threatened.Map.Spawns[0] + new FixVec2(Fix64.FromInt(3), Fix64.FromInt(3)));
+            SetStock(threatened, 300, 0);
+            Assert.That(Think(threatened, Candidate("\"expand_block_threat_supply\": 4,", "\"expand_block_threat_supply\": 0,")).Orders, Is.EqualTo(0), "any threat blocks");
+            // A depot under construction blocks a second one: apply the first order, then think again.
+            Simulation building = Base(wanted, 100);
+            AiMemory memory = new AiMemory();
+            foreach (AiIntent intent in AiBrain.Decide(AiWorldView.Build(building, P0), on, on.RequireFaction("skai"), memory, new DeterministicRandom(1)))
+            {
+                if (intent.Kind == AiIntentKind.Build)
+                {
+                    building.Submit(intent.ToCommand(building.Clock.Tick, P0, _sequence++));
+                }
+            }
+            building.Step();
+            Assert.That(Think(building, on).Orders, Is.EqualTo(0), "the pending depot order blocks a second depot");
+        }
+
+        /// <summary>EC-6: with every field at home empty (no served field) home counts as full and a depot is ordered with DepotNet above 0 even before the clock gate.</summary>
+        [Test]
+        public void EC6_Starved()
+        {
+            AiProfile on = Candidate();
+            Simulation sim = Base(6, 100);
+            // The own HQ, to find the fields at home.
+            Unit hq = null!;
+            foreach (Unit unit in sim.Units.All)
+            {
+                hq = unit.Owner == P0 && unit.Definition.Hq != null ? unit : hq;
+            }
+            // Fields within reach of the HQ are emptied.
+            for (int i = 0; i < sim.Resources.Count; i++)
+            {
+                FixVec2 centre = sim.Terrain.CentreOf(sim.Terrain.IndexOf(sim.Resources[i].X, sim.Resources[i].Y));
+                if ((centre - hq.Position).LengthSquared() <= on.FieldMaxDistanceTiles * on.FieldMaxDistanceTiles)
+                {
+                    sim.Resources[i].Take(1000000);
+                }
+            }
+            sim.Step();
+            // One think of memory so the empty fields are known, as in AI-E's E-2.
+            AiMemory memory = new AiMemory();
+            Probe(sim, on, memory);
+            Assert.That(Probe(sim, on, memory).Served, Is.Empty, "nothing is served");
+            (int Orders, (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) Note) result = Think(sim, on, memory);
+            Assert.That(result.Orders, Is.EqualTo(1));
+            Assert.That(result.Note.DepotNet, Is.GreaterThan(0));
+        }
+
+        /// <summary>EC-7: with the rare cap on a rare field in reach of the site adds nothing to DepotNet; with it off it adds (by the same formula as a common field, so DepotNet is higher).</summary>
+        [Test]
+        public void EC7_RareFieldAddsOnlyWhileUncapped()
+        {
+            // The rare bank is above rare_bank_soft_cap (300); rare_cap_yields_to_saturation false keeps the cap on whatever the common fields hold.
+            string[] noYield = { "\"rare_cap_yields_to_saturation\": true,", "\"rare_cap_yields_to_saturation\": false," };
+            // Net value of the depot rule's first target with the rare bank at the given amount. Unit: resource units.
+            long Net(int rareBank, params string[] edits)
+            {
+                Simulation sim = Base(8, 100);
+                SetStock(sim, 300, rareBank);
+                // Only the net value is read, so the ordering does not matter.
+                return Think(sim, Candidate(edits), null, 1).Note.DepotNet;
+            }
+            long capped = Net(5000, noYield);
+            long open = Net(0, noYield);
+            Assert.That(open, Is.GreaterThan(capped), "a rare field in reach of the site adds value only while the rare cap is off");
+        }
+
+        /// <summary>
+        /// EC-12: a greybox run, two aggressive_s5_e Skai AIs on prototype_1v1 for 600 s. Assigned workers on a served field never exceed its cap + 1 for more than one think in a row (as E-6); every think whose note is Fired
+        /// has DepotNet above 0 and home full; a field with less than a worker's cost left has cap 0.
+        /// </summary>
+        [Test]
+        public void EC12_MirrorRun()
+        {
+            AiProfile profile = Shipped("aggressive_s5_e");
+            // A field with 30 left (less than the 50 a worker costs) has cap 0.
+            Simulation small = Game("greybox_1v1", 2);
+            small.Resources[0].Take(small.Resources[0].Remaining - 30);
+            small.Step();
+            AiMemory smallMemory = new AiMemory();
+            Probe(small, profile, smallMemory);
+            AiBrain.EconomyProbe afterTake = Probe(small, profile, smallMemory);
+            Assert.That(afterTake.Served, Does.Contain(0));
+            Assert.That(afterTake.ServedCaps[new List<int>(afterTake.Served).IndexOf(0)], Is.EqualTo(0));
+
+            List<PlayerSetup> players = new List<PlayerSetup>
+            {
+                new PlayerSetup(P0, new TeamId(0), "skai", "Skai A"),
+                new PlayerSetup(P1, new TeamId(1), "skai", "Skai B"),
+            };
+            Simulation sim = new Simulation(new SimulationConfig(Data.CreateMatchSettings(1234), Data.Content, players,
+                BuiltInMechanics.CreateRegistry(), Data.Tuning, Data.RequireMap("prototype_1v1")));
+            sim.Start();
+            Spawn(sim, "skai.great_aerie", P0, sim.Map.Spawns[0]);
+            Spawn(sim, "skai.great_aerie", P1, sim.Map.Spawns[1]);
+            // Worker index. Range: 0 to 5.
+            for (int i = 0; i < 6; i++)
+            {
+                // Offset of this worker from its HQ. Unit: tiles.
+                FixVec2 offset = new FixVec2(Fix64.FromInt(-2 + i % 3), Fix64.FromInt(1 + i / 3));
+                Spawn(sim, "skai.fledgling", P0, sim.Map.Spawns[0] + offset);
+                Spawn(sim, "skai.fledgling", P1, sim.Map.Spawns[1] - offset);
+            }
+            SkirmishAiController first = new SkirmishAiController(P0, profile);
+            List<IPlayerController> controllers = new List<IPlayerController> { first, new SkirmishAiController(P1, profile) };
+            ExploreKit.ExploreAll(sim);
+            AiHost.StartAll(sim, controllers);
+            // Ticks between two thinks (think_interval_seconds). Unit: ticks. Range: 1 upward.
+            int thinkTicks = (profile.ThinkIntervalSeconds * TicksPerSecond).RoundToInt();
+            // Memory of the probe (field knowledge only).
+            AiMemory probeMemory = new AiMemory();
+            // Consecutive thinks each field index has been more than one over its cap. Unit: thinks.
+            SortedDictionary<int, int> over = new SortedDictionary<int, int>();
+            // Build time of a worker, to judge "home full". Unit: ticks. Range: 1 upward.
+            int workerBuild = Math.Max(1, sim.Clock.SecondsToTicks(Data.Content.Units["skai.fledgling"].Economy.BuildSeconds));
+            // Thinks whose note was Fired, and thinks checked. Unit: thinks.
+            int fired = 0;
+            int checkedThinks = 0;
+            while (sim.Clock.Tick < 600 * TicksPerSecond)
+            {
+                AiHost.ThinkAll(sim, controllers);
+                AiWorldView view = AiWorldView.Build(sim, P0);
+                AiBrain.EconomyProbe? probe = AiBrain.Probe(view, profile, profile.RequireFaction("skai"), probeMemory);
+                if (probe != null && sim.Clock.Tick % thinkTicks == 0)
+                {
+                    checkedThinks++;
+                    // Workers per field index right now, and own workers alive plus queued. Unit: workers.
+                    int[] assigned = new int[sim.Resources.Count];
+                    int workers = 0;
+                    foreach (AiUnitView unit in view.OwnUnits)
+                    {
+                        if (unit.IsWorker && unit.GatherFieldIndex >= 0)
+                        {
+                            assigned[unit.GatherFieldIndex]++;
+                        }
+                        workers += unit.IsWorker ? 1 : 0;
+                        foreach (string queued in unit.Queue)
+                        {
+                            workers += queued == "skai.fledgling" ? 1 : 0;
+                        }
+                    }
+                    // The think's explanation record, when this think wrote one.
+                    (int Tick, int Wanted, long DepotNet, int Lead, bool Fired) note = first.Memory.EconomyNote;
+                    if (note.Tick == sim.Clock.Tick && note.Fired)
+                    {
+                        fired++;
+                        Assert.That(note.DepotNet, Is.GreaterThan(0), "fired at tick " + note.Tick);
+                        Assert.That(AiBrain.HomeFull(probe.Served.Count == 0, workers, note.Lead, workerBuild, note.Wanted), Is.True, "home full when fired at tick " + note.Tick);
+                    }
+                    // True when some served field below its cap could take a worker; with none the surplus has nowhere to go and the check does not apply. Unit: boolean.
+                    bool room = false;
+                    for (int k = 0; k < probe.Served.Count; k++)
+                    {
+                        room |= probe.ServedCaps[k] > 0 && assigned[probe.Served[k]] < probe.ServedCaps[k];
+                    }
+                    for (int k = 0; k < probe.Served.Count; k++)
+                    {
+                        int field = probe.Served[k];
+                        over.TryGetValue(field, out int run);
+                        over[field] = room && probe.ServedCaps[k] > 0 && assigned[field] > probe.ServedCaps[k] + 1 ? run + 1 : 0;
+                        Assert.That(over[field], Is.LessThanOrEqualTo(1), "field " + field + " over cap + 1 for two thinks at tick " + sim.Clock.Tick);
+                        // A field with less than a worker's cost left takes no worker.
+                        Assert.That(sim.Resources[field].Remaining >= 50 || probe.ServedCaps[k] == 0, Is.True, "field " + field + " nearly empty at tick " + sim.Clock.Tick);
+                    }
+                }
+                sim.Step();
+            }
+            Assert.That(checkedThinks, Is.GreaterThan(50));
+            TestContext.Out.WriteLine("EC12 fired_thinks=" + fired + " checked_thinks=" + checkedThinks);
         }
     }
 }

@@ -103,7 +103,9 @@ determinism review.
   `abl_s5_no_e` is the same file with AI-E off. `AiWorldView` carries the gather slots, the trip length and the interact range.
 - Economy by calculation (rts/docs/specs/ai_economy_calc.md package E, `AiBrain.CalcCapOf`): the root keys `use_economy_calc` and
   `economy_horizon_seconds` (every profile carries them; false and 180 play exactly as before; `use_economy_calc` needs both AI-E switches).
-  With it on, a field's worker cap is the count of workers whose added income over the horizon exceeds the worker's cost (rule EW).
+  With it on, a field's worker cap is the count of workers whose added income over the horizon exceeds the worker's cost (rule EW), and a
+  depot is ordered when home is full (counting the workers the HQ can train during the depot's lead time) and the depot's net value over the
+  horizon is above 0 (rule ED, `AiBrain.ExpandByCalculation`; the clock gate and the remaining-fraction trigger stay).
   Only `aggressive_s5_e` (a copy of `aggressive_s5`) has it on. `AiWorldView` also carries the gather amount per trip and the worker
   placement time; `AiMemory.EconomyNote` and the `econ=` trace column explain the decisions.
 - Placement and defence (rts/docs/specs/field_saturation.md package AI-P, `AiBrainPlacement.cs`): the root keys `use_forward_producers`,

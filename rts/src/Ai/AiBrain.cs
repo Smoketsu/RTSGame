@@ -67,7 +67,10 @@
 //      a depot only from expand_block_threat_supply (0 = any threat blocks).
 //   4a'''. Economy by calculation (ai_economy_calc.md, only with use_economy_calc, which needs both AI-E switches). Rule EW (CalcCapOf): a field's
 //      cap is the count of workers whose added income over economy_horizon_seconds (after the worker's build time) exceeds the worker's cost,
-//      from the gather slots, the trip time, the walk and the field's known remainder, replacing the AI-E walk cover.
+//      from the gather slots, the trip time, the walk and the field's known remainder, replacing the AI-E walk cover. Rule ED (ExpandByCalculation):
+//      rule E picks the target field and its site first, then orders the depot when the clock is due, the served fields are low, or home is full
+//      (workers plus those the HQ can finish during the depot's lead time reach the target) and the depot's net value over the horizon is above 0,
+//      replacing the saturated test; the explanation goes to AiMemory.EconomyNote.
 //   4a'. Placement and defence (field_saturation.md package AI-P, AiBrainPlacement.cs, only with the keys on). use_forward_producers: rule X
 //      and rule T build the producer on the ring around the own base (Rooted HQ, or a complete depot with a live field in reach) with the
 //      fewest producers within base_radius_tiles (ties to the HQ, then the lower ID); no good site there: the HQ ring. use_threat_defence:
@@ -405,6 +408,69 @@ namespace Rts.Ai
                 cap++;
             }
             return cap;
+        }
+
+        /// <summary>
+        /// Rule ED's net value of a depot (ai_economy_calc.md 2.3 step 4): walk the new fields in the order given with a worker counter k from 1 and, per field, a slot counter j from 1; worker k is counted while
+        /// Gain(horizon - lead - k x build, j) exceeds the worker cost and k is within the headroom (net += gain - cost, k and j rise), else go to the next field (k kept, j back to 1); stop when the fields run out,
+        /// the span is not above 0 or k passes the headroom. The result is net less the depot's cost. Unit: resource units. Range: any (negative when the depot does not repay).
+        /// </summary>
+        /// <param name="fields">The new fields in walk order (ascending trip cycle, ties to the lower index): gather slots (workers), trip cycle (ticks) and known remaining amount (resource units).</param>
+        /// <param name="horizon">The planning horizon. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="lead">Ticks until the depot serves: walk, placement and build. Unit: ticks. Range: 0 upward.</param>
+        /// <param name="build">Build time of one worker. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="hold">Ticks a slot is held per load. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="amount">Resource per load. Unit: resource units. Range: 1 to 100.</param>
+        /// <param name="cost">Cost of one worker. Unit: resource units. Range: 0 upward.</param>
+        /// <param name="headroom">Workers the AI may still add before max_workers. Unit: workers. Range: 0 upward.</param>
+        /// <param name="depotCost">Cost of the depot. Unit: resource units. Range: 0 upward.</param>
+        internal static long DepotNetValue(IReadOnlyList<(int Slots, int Cycle, int Known)> fields, long horizon, int lead, int build, int hold, int amount, int cost, int headroom, int depotCost)
+        {
+            // Worth of the workers counted so far, before the depot's cost. Unit: resource units. Range: 0 upward.
+            long net = 0;
+            // The worker being valued, counted from 1 across all fields. Unit: workers. Range: 1 to headroom + 1.
+            int k = 1;
+            foreach ((int slots, int cycle, int known) in fields)
+            {
+                // The slot being valued on this field, counted from 1. Unit: workers. Range: 1 upward.
+                int j = 1;
+                while (k <= headroom)
+                {
+                    // Ticks worker k earns over: the horizon after the depot serves and the worker is trained. Unit: ticks. Range: any.
+                    long span = horizon - lead - (long)k * build;
+                    if (span <= 0)
+                    {
+                        return net - depotCost;
+                    }
+                    // What this worker adds on this field. Unit: resource units. Range: 0 upward.
+                    long gain = Gain(span, j, slots, hold, cycle, known, amount);
+                    if (gain <= cost)
+                    {
+                        break;
+                    }
+                    net += gain - cost;
+                    k++;
+                    j++;
+                }
+                if (k > headroom)
+                {
+                    break;
+                }
+            }
+            return net - depotCost;
+        }
+
+        /// <summary>
+        /// Rule ED's "home full" test (ai_economy_calc.md 2.3 step 3): true when nothing is served, or the workers plus those the HQ can still finish during the lead time (integer division lead / build) reach the target.
+        /// </summary>
+        /// <param name="starved">True when no field is served. Unit: boolean.</param>
+        /// <param name="workers">Own workers alive plus queued. Unit: workers. Range: 0 upward.</param>
+        /// <param name="lead">Ticks until the depot serves. Unit: ticks. Range: 0 upward.</param>
+        /// <param name="build">Build time of one worker. Unit: ticks. Range: 1 upward.</param>
+        /// <param name="wanted">Workers wanted before max_workers. Unit: workers. Range: 0 upward.</param>
+        internal static bool HomeFull(bool starved, int workers, int lead, int build, int wanted)
+        {
+            return starved || workers + lead / build >= wanted;
         }
 
         /// <summary>The economy facts one think derives from a view (test hook, see <see cref="Probe"/>).</summary>
@@ -2800,6 +2866,11 @@ namespace Rts.Ai
             /// <summary>Rule E (skirmish_ai_v2.md B.5): builds a depot beside the first unserved field in target order when one is due.</summary>
             public void Expand()
             {
+                if (_profile.UseEconomyCalc)
+                {
+                    // Rule ED's explanation record starts each think empty (ai_economy_calc.md 2.4); ExpandByCalculation fills it in.
+                    _memory.EconomyNote = (_view.Tick, WantedWorkersUncapped(), 0L, 0, false);
+                }
                 // True while a seen threat blocks depots: any threat (expand_block_threat_supply 0) or one of at least that supply (AI-E E2.2). Unit: boolean. Range: true or false.
                 bool blocked = _profile.ExpandBlockThreatSupply == 0 ? UnderThreat : _threatSupply >= _profile.ExpandBlockThreatSupply;
                 if (_plan.DropOffBuildingId.Length == 0 || blocked || _liveDepots >= _profile.MaxLiveDepots || _depotUnderConstruction)
@@ -2831,6 +2902,12 @@ namespace Rts.Ai
                 bool earlyLift = earlyGate && _view.Tick >= _view.SecondsToTicks(EarlyExpansionSeconds(_profile, _memory, _view.Tick));
                 // Rule RS: a needed rare resource puts rare sites first in the target order.
                 bool rarePriority = RarePriority() || earlyLift;
+                if (_profile.UseEconomyCalc)
+                {
+                    // Rule ED (ai_economy_calc.md 2.3) replaces the saturated test and its ordering of the steps.
+                    ExpandByCalculation(dueSeconds, low, rarePriority);
+                    return;
+                }
                 // AI-E E2.1: workers (queued included) at expand_saturation_fraction of the uncapped target. Unit: boolean. Range: true or false.
                 bool saturated = false;
                 if (_profile.UseSaturationExpansion)
@@ -2863,6 +2940,100 @@ namespace Rts.Ai
                     return;
                 }
                 TryBuild(_view.Content.Units[_plan.DropOffBuildingId], (x, y), false, AiBudget.Expansion);
+            }
+
+            /// <summary>
+            /// Rule ED (ai_economy_calc.md 2.3, only with use_economy_calc): the target field and its site first (as rule E), then the lead time, whether home is full and the depot's net value; the depot is ordered when
+            /// the clock is due, the served fields are low, or home is full and the net value is above 0. Writes <see cref="AiMemory.EconomyNote"/>.
+            /// </summary>
+            /// <param name="dueSeconds">Clock time from which the next depot is due. Unit: seconds. Range: 0 upward.</param>
+            /// <param name="low">True when the served fields are running low. Unit: boolean.</param>
+            /// <param name="rarePriority">True when rare sites come first in the target order. Unit: boolean.</param>
+            private void ExpandByCalculation(Fix64 dueSeconds, bool low, bool rarePriority)
+            {
+                // The first field in target order that is neither served nor known to have no depot site.
+                AiFieldView? target = null;
+                foreach (AiFieldView field in TargetOrder(_hq.Position, rarePriority))
+                {
+                    if (!_served.Contains(field) && !_memory.UnbuildableFields.Contains(field.Index))
+                    {
+                        target = field;
+                        break;
+                    }
+                }
+                if (target == null)
+                {
+                    return;
+                }
+                if (!TryFindDepotSite(target, out int x, out int y))
+                {
+                    _memory.UnbuildableFields.Add(target.Index);
+                    return;
+                }
+                UnitDefinition depot = _view.Content.Units[_plan.DropOffBuildingId];
+                UnitDefinition worker = _view.Content.Units[_plan.WorkerUnitId];
+                // Centre of the site tile. Unit: tiles.
+                FixVec2 siteCentre = _view.CentreOf(x, y);
+                // Ticks the builder walks from the HQ to the site (0 when the worker cannot move). Unit: ticks. Range: 0 upward.
+                int walkOneWay = worker.SpeedTilesPerSecond > Fix64.Zero ? ((siteCentre - _hq.Position).Length() * _view.TicksPerSecond / worker.SpeedTilesPerSecond).CeilingToInt() : 0;
+                // Ticks until the depot serves: the walk, the placement and the build. Unit: ticks. Range: 0 upward.
+                int lead = walkOneWay + _view.WorkerPlacementTicks + BuildTicks(depot);
+                // Workers wanted before max_workers. Unit: workers. Range: 0 upward.
+                int wanted = WantedWorkersUncapped();
+                // True when home holds its workers, counting those the HQ can still finish while the depot is made. Unit: boolean.
+                bool homeFull = AiBrain.HomeFull(Starved, WorkersIncludingQueued(), lead, BuildTicks(worker), wanted);
+                // The depot's net value over the horizon. Unit: resource units. Range: any.
+                long net = DepotNetAt(siteCentre, depot, worker, lead, wanted);
+                // True when the economy calculation alone says build. Unit: boolean.
+                bool calc = homeFull && net > 0;
+                // True when the clock or the low-field trigger already allows the depot. Unit: boolean.
+                bool dueOrLow = _view.Tick >= _view.SecondsToTicks(dueSeconds) || low;
+                _memory.EconomyNote = (_view.Tick, wanted, net, lead, false);
+                if (!dueOrLow && !calc)
+                {
+                    return;
+                }
+                if (TryBuild(depot, (x, y), false, AiBudget.Expansion) && !dueOrLow)
+                {
+                    _memory.EconomyNote = (_view.Tick, wanted, net, lead, true);
+                }
+            }
+
+            /// <summary>
+            /// Net value of a depot at <paramref name="siteCentre"/> (ai_economy_calc.md 2.3 step 4): the fields it would newly serve (known resources, not served, within field_max_distance_tiles of the site; a rare field only while
+            /// the rare cap is off), ordered by trip cycle then index, valued by <see cref="AiBrain.DepotNetValue"/>. Unit: resource units. Range: any.
+            /// </summary>
+            /// <param name="siteCentre">Centre of the depot's tile. Unit: tiles.</param>
+            /// <param name="depot">The depot definition.</param>
+            /// <param name="worker">The worker definition.</param>
+            /// <param name="lead">Ticks until the depot serves. Unit: ticks. Range: 0 upward.</param>
+            /// <param name="wanted">Workers wanted before max_workers. Unit: workers. Range: 0 upward.</param>
+            private long DepotNetAt(FixVec2 siteCentre, UnitDefinition depot, UnitDefinition worker, int lead, int wanted)
+            {
+                // Ticks a slot is held per load, at least 1. Unit: ticks. Range: 1 upward.
+                int hold = Math.Max(1, _view.GatherTicksPerTrip);
+                // The new fields with their index, slots, trip cycle and known amount, to be ordered. Unit: fields.
+                List<(int Index, int Slots, int Cycle, int Known)> found = new List<(int Index, int Slots, int Cycle, int Known)>();
+                foreach (AiFieldView field in _view.Fields)
+                {
+                    if (Known(field) <= 0 || _served.Contains(field) || (field.Centre - siteCentre).LengthSquared() > ReachSquared || (field.Kind == ResourceKind.Rare && RareCapped))
+                    {
+                        continue;
+                    }
+                    // Distance to the site, capped at field_max_distance_tiles. Unit: tiles. Range: 0 to field_max_distance_tiles.
+                    Fix64 distance = Fix64.Min((field.Centre - siteCentre).Length(), _profile.FieldMaxDistanceTiles);
+                    found.Add((field.Index, field.Kind == ResourceKind.Rare ? _view.GatherSlotsRare : _view.GatherSlotsCommon,
+                        hold + AiBrain.WalkTicks(distance, depot.Radius, _view.InteractRangeTiles, worker.SpeedTilesPerSecond, _view.TicksPerSecond), Known(field)));
+                }
+                found.Sort((a, b) => a.Cycle != b.Cycle ? a.Cycle.CompareTo(b.Cycle) : a.Index.CompareTo(b.Index));
+                List<(int Slots, int Cycle, int Known)> ordered = new List<(int Slots, int Cycle, int Known)>();
+                foreach ((_, int slots, int cycle, int known) in found)
+                {
+                    ordered.Add((slots, cycle, known));
+                }
+                // Workers the AI may still add before max_workers. Unit: workers. Range: 0 upward.
+                int headroom = Math.Max(0, _profile.MaxWorkers - Math.Max(WorkersIncludingQueued(), wanted));
+                return AiBrain.DepotNetValue(ordered, HorizonTicks(), lead, BuildTicks(worker), hold, _view.GatherAmountPerTrip, worker.CostCommon + worker.CostRare, headroom, depot.CostCommon + depot.CostRare);
             }
 
             /// <summary>
