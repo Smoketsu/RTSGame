@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Spec `ai_production_defence.md` revision 2: diagnosis of run C1 (about half of Water's worker losses fall while its base is overrun; the income drop is evacuated workers idling) and a raid-rule delta (RS, RW, RA) plus a reported-only overrun metric; bars unchanged.
 - AI production and defence PD-5: measurement of `aggressive_s5_pd` in `reports/ai_pd/` (3 of 7 bars pass: PD-B4, PD-B5, PD-B7; PD-B1, PD-B2, PD-B3, PD-B6 fail; nothing tuned); comment-only documentation in `AiBrainRaids.cs` and `AiBrainFight.cs`.
 - AI production and defence PD-3 and PD-4 (`specs/ai_production_defence.md`): rule RS (raid sites from hits on and losses of own units, never sightings) and rule RW (closed fields, worker evacuation, no replacements into a raid) behind `use_raid_workers`; rule RA (the defence answers the newest raid, counts the HQ, holds at home when predicted short) behind `use_raid_response`. On only in `aggressive_s5_pd`; every pin held. Suite 1194 Sim, 33 Net, 30 Replay.
 - AI production and defence PD-1 and PD-2 (`specs/ai_production_defence.md`): rules RR (no common held for rare-short items) and PC (add producers while capacity is below income, with the `AiMemory.DepositLog` income measure) behind `use_production_capacity`; rule SA (supply buildings ahead of production) behind `use_supply_ahead`; candidate profile `aggressive_s5_pd`. Switches off elsewhere; every pin held. Suite 1179 Sim, 33 Net, 30 Replay.
