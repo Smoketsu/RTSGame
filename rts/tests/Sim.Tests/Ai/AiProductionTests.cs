@@ -596,6 +596,9 @@ namespace Rts.Sim.Tests.Ai
                 Assert.That(profile.RaidActiveSeconds, Is.EqualTo(Fix64.FromInt(10)), id);
                 Assert.That(profile.RaidFieldRadiusTiles, Is.EqualTo(Fix64.FromInt(8)), id);
                 Assert.That(profile.RaidEvacuateMaxCommandsPerThink, Is.EqualTo(12), id);
+                Assert.That(profile.UseRaidResponse, Is.EqualTo(id == "aggressive_s5_pd"), id);
+                Assert.That(profile.RaidHoldRadiusTiles, Is.EqualTo(Fix64.FromInt(4)), id);
+                Assert.That(profile.RaidHqCoverMarginTiles, Is.EqualTo(Fix64.FromInt(2)), id);
             }
             DataValidationException range = Expect.Throws<DataValidationException>(() => Hand("aggressive_s5_pd", "\"income_window_seconds\": 60", "\"income_window_seconds\": 5"));
             Assert.That(range.Message, Does.Contain("income_window_seconds"));
@@ -647,7 +650,8 @@ namespace Rts.Sim.Tests.Ai
         {
             AiProfile baseline = AiProfile.FromDataSet(Data, "aggressive_s5_m");
             AiProfile twin = AiProfile.Parse(ProfileText("aggressive_s5_m").Replace("\"income_window_seconds\": 60", "\"income_window_seconds\": 120").Replace("\"production_capacity_target\": 1,", "\"production_capacity_target\": 2,").Replace("\"supply_ahead_max_pending\": 1", "\"supply_ahead_max_pending\": 6")
-                .Replace("\"raid_active_seconds\": 10", "\"raid_active_seconds\": 30").Replace("\"raid_field_radius_tiles\": 8", "\"raid_field_radius_tiles\": 20").Replace("\"raid_evacuate_max_commands_per_think\": 12", "\"raid_evacuate_max_commands_per_think\": 1"),
+                .Replace("\"raid_active_seconds\": 10", "\"raid_active_seconds\": 30").Replace("\"raid_field_radius_tiles\": 8", "\"raid_field_radius_tiles\": 20").Replace("\"raid_evacuate_max_commands_per_think\": 12", "\"raid_evacuate_max_commands_per_think\": 1")
+                .Replace("\"raid_hold_radius_tiles\": 4", "\"raid_hold_radius_tiles\": 15").Replace("\"raid_hq_cover_margin_tiles\": 2", "\"raid_hq_cover_margin_tiles\": 9"),
                 "ai/aggressive_s5_m.json", Data.Content);
             Assert.That(twin.UseProductionCapacity, Is.False);
             Assert.That(twin.IncomeWindowSeconds, Is.EqualTo(120));
@@ -656,6 +660,9 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(twin.UseRaidWorkers, Is.False);
             Assert.That(twin.RaidActiveSeconds, Is.EqualTo(Fix64.FromInt(30)));
             Assert.That(twin.RaidEvacuateMaxCommandsPerThink, Is.EqualTo(1));
+            Assert.That(twin.UseRaidResponse, Is.False);
+            Assert.That(twin.RaidHoldRadiusTiles, Is.EqualTo(Fix64.FromInt(15)));
+            Assert.That(twin.RaidHqCoverMarginTiles, Is.EqualTo(Fix64.FromInt(9)));
             Assert.That(Trace(twin, twin), Is.EqualTo(Trace(baseline, baseline)));
         }
     }

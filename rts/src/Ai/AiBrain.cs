@@ -29,6 +29,9 @@
 //   1c. Raids (ai_production_defence.md PD-3, AiBrainRaids.cs, only with use_raid_workers; rule RS): hits on own workers and structures, and worker losses, within defend_radius_tiles of an own drop-off make a raid site
 //      (AiMemory.RaidHits, active for raid_active_seconds); never from a sighting. Rule RW (same switch): a field within raid_field_radius_tiles of an active raid is closed: its cap is 0 (no worker is sent or trained for it,
 //      the rebalance and long-haul rules skip it) and rule G first moves the workers on it to an open field, else home, at most raid_evacuate_max_commands_per_think per think.
+//   6'. Raid response (ai_production_defence.md PD-4, AiBrainFight.cs MeasuredDefence, only with use_raid_response, which needs use_measured_defence; rule RA): rule RS also runs. With an active raid the defence answers the newest raid only (the threats are
+//      the visible enemy army units within defend_radius_tiles of its position, their mean the centre), the Rooted HQ joins the fixed side when the centre is within its weapon range plus raid_hq_cover_margin_tiles, and when even
+//      every candidate is predicted short the candidates hold: those farther than raid_hold_radius_tiles from home move home, the others get no order.
 //   3. Structures: (a) supply: when cap - used <= supply_buffer, the cap is below the global cap and no supply-giving structure is
 //      under construction, build supply_building; (b) build order: the first step with fewer structures (built or under
 //      construction) than its count, once supply used >= at_supply_used (later steps wait). A due structure that cannot be paid

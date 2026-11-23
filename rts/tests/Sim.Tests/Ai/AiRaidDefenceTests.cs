@@ -453,5 +453,181 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(runs[0], Does.Contain("Gather"));
             Assert.That(runs[1], Is.EqualTo(runs[0]));
         }
+
+        // ------------------------------------------------------------------ Rule RA
+
+        /// <summary>The profile of the RA tests: aggressive_s5_pd (use_raid_response on) with unit control off, so the units under test are not taken out of the defence by the fall-back and keep-distance rules; then the old/new pairs.</summary>
+        /// <param name="oldNewPairs">Old text, new text, old text, new text and so on.</param>
+        private static AiProfile RaHand(params string[] oldNewPairs)
+        {
+            // The pairs with unit control switched off first.
+            List<string> pairs = new List<string> { "\"use_unit_control\": true", "\"use_unit_control\": false" };
+            pairs.AddRange(oldNewPairs);
+            return Hand(pairs.ToArray());
+        }
+
+        /// <summary>The raid scene of RA-1 to RA-3: two P1 Windrunners at <paramref name="x"/>, <paramref name="y"/> stepped until one has hit an own unit; returns the sim and the raiders' IDs.</summary>
+        private Simulation Raiders(AiMemory memory, string x, string y, out List<EntityId> raiders)
+        {
+            Simulation sim = RaidScene(500);
+            raiders = new List<EntityId> { Spawn(sim, "skai.windrunner", P1, x, y), Spawn(sim, "skai.windrunner", P1, x, y) };
+            StepUntilHit(sim, memory);
+            return sim;
+        }
+
+        /// <summary>The mean position of some units. Unit: tiles.</summary>
+        private static FixVec2 Mean(Simulation sim, List<EntityId> ids)
+        {
+            Fix64 sumX = Fix64.Zero;
+            Fix64 sumY = Fix64.Zero;
+            foreach (EntityId id in ids)
+            {
+                Assert.That(sim.Units.TryGet(id, out Unit? unit), Is.True);
+                sumX += unit!.Position.X;
+                sumY += unit.Position.Y;
+            }
+            return new FixVec2(sumX / ids.Count, sumY / ids.Count);
+        }
+
+        /// <summary>The predictor advantage of the given own units (and the own HQ when asked) against the given enemy units, with the profile's settings. Unit: ratio.</summary>
+        private static Fix64 Advantage(Simulation sim, AiProfile profile, List<EntityId> own, bool withHq, List<EntityId> enemy)
+        {
+            AiWorldView view = AiWorldView.Build(sim, P0, Array.Empty<int>());
+            List<AiUnitView> mine = new List<AiUnitView>();
+            foreach (AiUnitView unit in view.OwnUnits)
+            {
+                if (own.Contains(unit.Id) || (withHq && unit.IsHq))
+                {
+                    mine.Add(unit);
+                }
+            }
+            List<AiUnitView> foes = new List<AiUnitView>();
+            foreach (AiUnitView unit in view.VisibleEnemies)
+            {
+                if (enemy.Contains(unit.Id))
+                {
+                    foes.Add(unit);
+                }
+            }
+            return FightPredictor.Predict(FightPredictor.Group(mine), FightPredictor.Group(foes), false, Data.Content.Combat, PredictorSettings.From(profile)).Advantage;
+        }
+
+        /// <summary>The AttackMove goals in the intents of units in <paramref name="group"/> (the defend group; the others rally at home), as "x,y" text.</summary>
+        private static List<string> AttackGoals(List<AiIntent> intents, ICollection<EntityId> group)
+        {
+            List<string> goals = new List<string>();
+            foreach (AiIntent intent in intents)
+            {
+                if (intent.Kind == AiIntentKind.AttackMove && group.Contains(intent.Unit))
+                {
+                    goals.Add(intent.Point.X.ToString() + "," + intent.Point.Y.ToString());
+                }
+            }
+            return goals;
+        }
+
+        /// <summary>RA-1: the defenders go to the mean of the two raiders that hit (the newest raid), not the mean of all three visible threats in the base; with the switch off they go to the mean of all three.</summary>
+        [Test]
+        public void RA1_NewestRaid()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = Raiders(memory, "20.5", "9.5", out List<EntityId> raiders);
+            // A third raider that has hit nothing: tile (6.5, 12.5), 4.7 tiles from the HQ and 14 from the raid.
+            EntityId third = Spawn(sim, "skai.windrunner", P1, "6.5", "12.5");
+            // Six own Windrunners farther than the focus radius (8 tiles) from every raider, enough to answer the two raiders.
+            for (int i = 0; i < 6; i++)
+            {
+                Spawn(sim, "skai.windrunner", P0, (14 + i).ToString() + ".5", "20.5");
+            }
+            AiMemory off = NewMemory();
+            foreach (KeyValuePair<EntityId, DamageReport> report in memory.RecentDamage)
+            {
+                off.RecentDamage[report.Key] = new DamageReport { Tick = report.Value.Tick, Position = report.Value.Position };
+            }
+            List<AiIntent> on = Decide(sim, RaHand(), memory);
+            Assert.That(memory.RaidHits.Count, Is.EqualTo(1));
+            FixVec2 expected = Mean(sim, raiders);
+            Assert.That(AttackGoals(on, memory.DefendGroup), Is.Not.Empty, Key(on));
+            Assert.That(AttackGoals(on, memory.DefendGroup), Is.All.EqualTo(expected.X.ToString() + "," + expected.Y.ToString()), Key(on));
+            List<EntityId> all = new List<EntityId>(raiders) { third };
+            FixVec2 everyone = Mean(sim, all);
+            List<AiIntent> old = Decide(sim, RaHand("\"use_raid_response\": true", "\"use_raid_response\": false"), off);
+            Assert.That(AttackGoals(old, off.DefendGroup), Is.Not.Empty);
+            Assert.That(AttackGoals(old, off.DefendGroup), Is.All.EqualTo(everyone.X.ToString() + "," + everyone.Y.ToString()));
+        }
+
+        /// <summary>RA-2: one Talon Archer against two Windrunners is predicted short: it moves home and gets no attack order, and joins the defend group; with the switch off it is sent at the raiders.</summary>
+        [Test]
+        public void RA2_Hold()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = Raiders(memory, "20.5", "9.5", out List<EntityId> raiders);
+            EntityId talon = Spawn(sim, "skai.talon_archer", P0, "14.5", "8.5");
+            AiProfile profile = RaHand();
+            Assert.That(Advantage(sim, profile, new List<EntityId> { talon }, false, raiders), Is.LessThan(profile.DefendMinAdvantage));
+            AiMemory quiet = NewMemory();
+            foreach (KeyValuePair<EntityId, DamageReport> report in memory.RecentDamage)
+            {
+                quiet.RecentDamage[report.Key] = new DamageReport { Tick = report.Value.Tick, Position = report.Value.Position };
+            }
+            List<AiIntent> intents = Decide(sim, profile, memory);
+            List<AiIntent> mine = intents.FindAll(i => i.Unit == talon);
+            Assert.That(mine.Count, Is.EqualTo(1), Key(mine));
+            Assert.That(mine[0].Kind, Is.EqualTo(AiIntentKind.Move));
+            Assert.That((mine[0].Point - new FixVec2(Fix64.FromInt(8), Fix64.FromInt(8))).LengthSquared() <= Fix64.FromInt(4), Is.True, "next to Home");
+            Assert.That(memory.DefendGroup, Does.Contain(talon));
+            List<AiIntent> old = Decide(sim, RaHand("\"use_raid_response\": true", "\"use_raid_response\": false"), quiet).FindAll(i => i.Unit == talon);
+            Assert.That(old.Count, Is.EqualTo(1), Key(old));
+            Assert.That(old[0].Kind == AiIntentKind.AttackMove || old[0].Kind == AiIntentKind.AttackUnit, Is.True, "switch off: sent at the raiders");
+        }
+
+        /// <summary>RA-3: with the raiders at (12.5, 8.5), inside the HQ's weapon range plus 2, the HQ joins the defending side; the branch taken (attack-move when HQ plus Talon Archer reach defend_min_advantage, else hold) matches the predictor's advantage of that pair.</summary>
+        [Test]
+        public void RA3_HqJoins()
+        {
+            AiMemory memory = NewMemory();
+            Simulation sim = Raiders(memory, "12.5", "8.5", out List<EntityId> raiders);
+            EntityId talon = Spawn(sim, "skai.talon_archer", P0, "14.5", "8.5");
+            AiProfile profile = RaHand();
+            Fix64 alone = Advantage(sim, profile, new List<EntityId> { talon }, false, raiders);
+            Fix64 withHq = Advantage(sim, profile, new List<EntityId> { talon }, true, raiders);
+            List<AiIntent> mine = Decide(sim, profile, memory).FindAll(i => i.Unit == talon);
+            Assert.That(mine.Count, Is.EqualTo(1), Key(mine) + " alone " + alone + " with HQ " + withHq);
+            if (withHq >= profile.DefendMinAdvantage)
+            {
+                Assert.That(mine[0].Kind == AiIntentKind.AttackMove || mine[0].Kind == AiIntentKind.AttackUnit, Is.True, "HQ plus talon is enough: " + withHq);
+            }
+            else
+            {
+                Assert.That(mine[0].Kind, Is.EqualTo(AiIntentKind.Move), "HQ plus talon is short: " + withHq);
+            }
+            // The rule's effect: without the HQ on the fixed side the same view would be judged on the Talon alone.
+            Assert.That(withHq, Is.GreaterThan(alone), "the HQ's weapon adds to the defending side");
+        }
+
+        /// <summary>RA-4: use_raid_response true with use_measured_defence false fails to load and names the key.</summary>
+        [Test]
+        public void RA4_Validation()
+        {
+            DataValidationException error = Expect.Throws<DataValidationException>(() => Hand("\"use_measured_defence\": true", "\"use_measured_defence\": false"));
+            Assert.That(error.Message, Does.Contain("use_raid_response"));
+        }
+
+        /// <summary>D-1 (RA): RA-2 run twice from identical inputs gives identical intents and memory.</summary>
+        [Test]
+        public void D1_RaidResponseTwice()
+        {
+            // Intents, raid memory and defend group of each run.
+            string[] runs = new string[2];
+            for (int run = 0; run < 2; run++)
+            {
+                AiMemory memory = NewMemory();
+                Simulation sim = Raiders(memory, "20.5", "9.5", out List<EntityId> raiders);
+                Spawn(sim, "skai.talon_archer", P0, "14.5", "8.5");
+                runs[run] = Key(Decide(sim, RaHand(), memory)) + "|" + RaidKey(memory) + "|" + string.Join(",", memory.DefendGroup);
+            }
+            Assert.That(runs[0], Does.Contain("Move"));
+            Assert.That(runs[1], Is.EqualTo(runs[0]));
+        }
     }
 }

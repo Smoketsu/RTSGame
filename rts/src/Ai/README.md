@@ -134,3 +134,6 @@ determinism review.
   before Gather) records a raid site at an own drop-off from hits on own workers and structures and from worker losses (never from a sighting; `AiMemory.RaidHits`, `OwnWorkerPositions`,
   `RaidScanTick`), and rule RW closes the fields near an active raid: cap 0 (no worker sent or trained), skipped by the long haul and the rebalance, and the workers on them move to an open field or home.
   Only `aggressive_s5_pd` has it on.
+- Raid response (rts/docs/specs/ai_production_defence.md package PD-4, `AiBrainFight.cs` `MeasuredDefence`): the root keys `use_raid_response` (needs `use_measured_defence`; the profile fails to load otherwise),
+  `raid_hold_radius_tiles` and `raid_hq_cover_margin_tiles` (every profile carries them; the old values false, 4 and 2 play exactly as before). With the switch on, rule RS runs even without `use_raid_workers`
+  and rule RA answers the newest raid only, lets the Rooted HQ's weapon join the fixed defending side, and holds the defenders at home when even every candidate is predicted short. Only `aggressive_s5_pd` has it on.

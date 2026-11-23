@@ -1,5 +1,5 @@
 // rts/src/Ai/AiBrainRaids.cs
-// Raid sites and raid-aware workers of the skirmish AI (rts/docs/specs/ai_production_defence.md package PD-3: rule RS, only with use_raid_workers, and rule RW, only with use_raid_workers). Part of Rts.Ai (a partial of AiBrain's Turn).
+// Raid sites and raid-aware workers of the skirmish AI (rts/docs/specs/ai_production_defence.md packages PD-3: rule RS, with use_raid_workers or use_raid_response, and rule RW, only with use_raid_workers; PD-4: the raid helpers of rule RA). Part of Rts.Ai (a partial of AiBrain's Turn).
 // Rule RS (Raids) turns hits on own workers and structures, and worker losses, near an own drop-off into raid sites held in AiMemory.RaidHits; a raid is recognised from hits and losses only, never from a sighting.
 // Rule RW closes the fields near an active raid: no worker is sent to one or trained for one (CapOf is 0), workers on one are ordered to an open field or home (EvacuateClosedFields), at most raid_evacuate_max_commands_per_think per think.
 // Reads only the view, the profile and memory (the AI's own damage reports and own worker positions). No random draw. Integers and Fix64 only; own units, drop-offs and fields walked in ascending ID or index order.
@@ -16,11 +16,11 @@ namespace Rts.Ai
         {
             /// <summary>
             /// Rule RS (spec section 5.1): records raid sites from this think's hits on own workers and structures and worker losses, drops expired ones, and remembers the own workers for the next think.
-            /// Runs only with use_raid_workers. Changes only AiMemory.RaidHits, OwnWorkerPositions and RaidScanTick.
+            /// Runs only with use_raid_workers or use_raid_response. Changes only AiMemory.RaidHits, OwnWorkerPositions and RaidScanTick.
             /// </summary>
             public void Raids()
             {
-                if (!_profile.UseRaidWorkers)
+                if (!_profile.UseRaidWorkers && !_profile.UseRaidResponse)
                 {
                     return;
                 }
@@ -109,6 +109,61 @@ namespace Rts.Ai
                     _memory.RaidHits.Remove(id);
                 }
                 _memory.RaidScanTick = now;
+            }
+
+            /// <summary>Rule RA step 1: the position of the newest active raid (largest tick, ties to the lower drop-off ID); false when no raid is active. Unit: tiles.</summary>
+            /// <param name="position">The raid position when the result is true; zero otherwise.</param>
+            private bool NewestRaid(out FixVec2 position)
+            {
+                // True once a raid has been seen. Unit: boolean.
+                bool found = false;
+                // Tick of the newest raid so far. Unit: ticks. Range: 0 upward.
+                int newest = 0;
+                position = FixVec2.Zero;
+                foreach (KeyValuePair<EntityId, (int Tick, FixVec2 Position)> raid in _memory.RaidHits)
+                {
+                    // Ascending drop-off ID, so a strictly larger tick is needed to replace: ties stay with the lower ID.
+                    if (!found || raid.Value.Tick > newest)
+                    {
+                        found = true;
+                        newest = raid.Value.Tick;
+                        position = raid.Value.Position;
+                    }
+                }
+                return found;
+            }
+
+            /// <summary>Rule RA step 1: the visible enemy army units within defend_radius_tiles of <paramref name="point"/>, ascending ID.</summary>
+            /// <param name="point">The raid position. Unit: tiles.</param>
+            private List<AiUnitView> ThreatsNear(FixVec2 point)
+            {
+                // Units found.
+                List<AiUnitView> near = new List<AiUnitView>();
+                // Squared defend radius. Unit: squared tiles. Range: 1 to 900.
+                Fix64 radiusSquared = _profile.DefendRadiusTiles * _profile.DefendRadiusTiles;
+                foreach (AiUnitView enemy in _view.VisibleEnemies)
+                {
+                    if (enemy.IsArmy && (enemy.Position - point).LengthSquared() <= radiusSquared)
+                    {
+                        near.Add(enemy);
+                    }
+                }
+                return near;
+            }
+
+            /// <summary>
+            /// Rule RA step 2: true when the own HQ is Rooted, complete and armed and <paramref name="centre"/> is within its weapon range plus raid_hq_cover_margin_tiles (squared), so it joins the fixed defending side.
+            /// </summary>
+            /// <param name="centre">The threat centre. Unit: tiles.</param>
+            private bool HqCovers(FixVec2 centre)
+            {
+                if (_hq.HqState != HqState.Rooted || _hq.IsUnderConstruction || _hq.Definition.Weapon == null)
+                {
+                    return false;
+                }
+                // Reach of the HQ's weapon plus the margin. Unit: tiles. Range: 0 to about 40.
+                Fix64 reach = _hq.Definition.Weapon.RangeTiles + _profile.RaidHqCoverMarginTiles;
+                return (centre - _hq.Position).LengthSquared() <= reach * reach;
             }
 
             /// <summary>Rule RW: true when the switch is on and some active raid's position is within raid_field_radius_tiles of <paramref name="point"/> (squared Fix64). Unit: boolean.</summary>

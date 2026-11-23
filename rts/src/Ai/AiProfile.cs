@@ -84,6 +84,8 @@
 //     play exactly as before; only aggressive_s5_pd has use_supply_ahead true (3).
 //   * rts/docs/specs/ai_production_defence.md package PD-3 (raid workers, rules RS and RW): use_raid_workers, raid_active_seconds (1 to 120), raid_field_radius_tiles (1 to 30) and
 //     raid_evacuate_max_commands_per_think (0 to 100). Every profile file carries them; the old values false, 10, 8 and 12 play exactly as before; only aggressive_s5_pd has use_raid_workers true.
+//   * rts/docs/specs/ai_production_defence.md package PD-4 (raid response, rule RA): use_raid_response (needs use_measured_defence), raid_hold_radius_tiles (1 to 20) and raid_hq_cover_margin_tiles (0 to 20).
+//     Every profile file carries them; the old values false, 4 and 2 play exactly as before; only aggressive_s5_pd has use_raid_response true.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -840,6 +842,15 @@ namespace Rts.Ai
         /// <summary>Rule RW: most orders per think that move workers off closed fields. Unit: commands. Range: 0 to 100.</summary>
         public int RaidEvacuateMaxCommandsPerThink { get; }
 
+        /// <summary>Rules RS and RA (ai_production_defence.md section 6): the defence goes to the newest raid, counts the Rooted HQ and holds at home when predicted short. Needs use_measured_defence. Unit: boolean.</summary>
+        public bool UseRaidResponse { get; }
+
+        /// <summary>Rule RA: when the defence is predicted short, defenders farther than this from home move home. Unit: tiles (Fix64). Range: 1 to 20.</summary>
+        public Fix64 RaidHoldRadiusTiles { get; }
+
+        /// <summary>Rule RA: the Rooted HQ joins the defending side when the threat centre is within its weapon range plus this margin. Unit: tiles (Fix64). Range: 0 to 20.</summary>
+        public Fix64 RaidHqCoverMarginTiles { get; }
+
         /// <summary>
         /// The authored wall lines by map ID (ordinal order), attached by <see cref="FromDataSet"/> from DataSet.AiWallLines; empty for a profile made by <see cref="Parse(string, string, ContentCatalog)"/> from text.
         /// Immutable after load. Unit: map ID to lines. Range: 0 or more maps.
@@ -1122,6 +1133,13 @@ namespace Rts.Ai
             RaidActiveSeconds = root.RequireFix64("raid_active_seconds", "1", "120");
             RaidFieldRadiusTiles = root.RequireFix64("raid_field_radius_tiles", "1", "30");
             RaidEvacuateMaxCommandsPerThink = root.RequireInt("raid_evacuate_max_commands_per_think", 0, 100);
+            UseRaidResponse = root.RequireBool("use_raid_response");
+            RaidHoldRadiusTiles = root.RequireFix64("raid_hold_radius_tiles", "1", "20");
+            RaidHqCoverMarginTiles = root.RequireFix64("raid_hq_cover_margin_tiles", "0", "20");
+            if (UseRaidResponse && !UseMeasuredDefence)
+            {
+                throw root.Require("use_raid_response").Fail("requires use_measured_defence to be true as well");
+            }
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
             BudgetOpeningProductionFactor = root.RequireInt("budget_opening_production_factor", 1, 20);
@@ -1265,6 +1283,7 @@ namespace Rts.Ai
                 "use_production_capacity", "income_window_seconds", "production_capacity_target",
                 "use_supply_ahead", "supply_ahead_max_pending",
                 "use_raid_workers", "raid_active_seconds", "raid_field_radius_tiles", "raid_evacuate_max_commands_per_think",
+                "use_raid_response", "raid_hold_radius_tiles", "raid_hq_cover_margin_tiles",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.
