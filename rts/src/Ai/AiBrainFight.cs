@@ -627,12 +627,14 @@ namespace Rts.Ai
                 int threatCount = _threatCount;
                 // Where the defenders go: the mean threat position, else the latest hit (rule RA: else the newest raid).
                 FixVec2 centre;
+                // Position of the newest raid's latest hit, set only when NewestRaid returns true. Unit: tiles. Range: inside the map (0 to map size on each axis).
                 if (_profile.UseRaidResponse && NewestRaid(out FixVec2 raidPosition))
                 {
                     threats = ThreatsNear(raidPosition);
                     threatCount = threats.Count;
-                    // Sums of the raid threats' coordinates. Unit: tiles. Range: 0 upward.
+                    // Sums of the raid threats' X and Y coordinates. Unit: tiles. Range: 0 upward.
                     Fix64 sumX = Fix64.Zero;
+                    // Sum of the raid threats' Y coordinates. Unit: tiles. Range: 0 upward.
                     Fix64 sumY = Fix64.Zero;
                     foreach (AiUnitView threat in threats)
                     {
