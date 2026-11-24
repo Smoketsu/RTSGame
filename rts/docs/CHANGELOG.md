@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Spec `rts/docs/specs/ai_reef_runner_defence.md` (developer request, 24 Nov): the Water AI trains Reef Runners for field defence. Data-only candidate `aggressive_s5_rr` (Reef Runner weight 30 in Water's main mix and all four openings), package RR-1. Harness package RR-M: `--paired-faction` plus checks `won`, `worker_losses_pre_overrun`, `army_supply_ratio_at`, `trained_unit`. Bars RR-B1 to B4 and guards RR-G1 to G5 fixed before any run, with stated power. Eight open questions run on their defaults. No Sim or AI code change; no pin moves. Not built yet.
 - Roster numbers merged as measured (developer, 24 Nov): Reef Runner `max_health` 60 to 66 (`roster_numbers_1.md`); it now wins the equal-cost fight against the Windrunner (12 of 12 held-out fights, margin +0.24). `matchups.json` calls it "scout and field defence". Guard G-6 failed (`response_turtle_water`) and was accepted by the developer. New fight bar set `rts/data/scripts/fights/roster_numbers_1.json`; report `rts/docs/reports/roster_numbers_1/`.
 - AI: `TrainWorkers` no longer queues a worker at an HQ the same think uproots (`hq_not_rooted` in the WL-13 exit game); one condition plus a test.
 - Re-pinned for the new content digest: smoke `df73e9584e791bc0`, economy_smoke `b724ff589cd6aa1b`, the AI trace, ablation and predictor pins, and `predict_fights`; `tutorial_01` is now `6cf2bdc218cfbb9f`. `HANDOFF_UNITY.md` carries the new hashes.
