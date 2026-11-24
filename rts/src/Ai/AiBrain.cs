@@ -3305,10 +3305,10 @@ namespace Rts.Ai
             /// <summary>Live depots of this think (test hook through <see cref="Probe"/>). Unit: depots.</summary>
             public int LiveDepots => _liveDepots;
 
-            /// <summary>Rule 4: trains one worker at a time at the Rooted HQ up to the target.</summary>
+            /// <summary>Rule 4: trains one worker at a time at the Rooted HQ up to the target; none while a relocation is active (RN-0: the same think may have ordered the uproot, and a worker queued then is rejected as hq_not_rooted).</summary>
             public void TrainWorkers()
             {
-                if (_hq.HqState != HqState.Rooted || _hq.IsUnderConstruction || _hq.Queue.Count > 0 || _hq.Definition.Hq == null
+                if (_hq.HqState != HqState.Rooted || _memory.RelocationActive || _hq.IsUnderConstruction || _hq.Queue.Count > 0 || _hq.Definition.Hq == null
                     || !string.Equals(_hq.Definition.Hq.WorkerUnitId, _plan.WorkerUnitId, StringComparison.Ordinal))
                 {
                     return;

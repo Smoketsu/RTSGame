@@ -110,8 +110,10 @@ namespace Rts.Sim.Tests.Ai
         {
             // Re-pinned 22 Nov 2026 for use_research true in aggressive_s5 (developer decision): aggressive_s5 old end tick 10378 and hash 963626e47dd707bf, new 9505 and 837f8e7118a9c9de, winner slot0 unchanged; aggressive_s3 unchanged.
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hashes only, end ticks 10378 and 9223 and winners unchanged. Old values 2a9fdef3422f6141 and 1db9fc659b9f0eea.
-            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9505,\"state_hash\":\"837f8e7118a9c9de\""));
-            Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9223,\"state_hash\":\"c04bdcc0d03b3910\""));
+            // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): aggressive_s5 old end tick 9505 and hash 837f8e7118a9c9de, new 9336 and 5d921472ffe76c92, winner slot0 unchanged.
+            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9336,\"state_hash\":\"5d921472ffe76c92\""));
+            // aggressive_s3 re-pinned for roster_numbers_1 too: old end tick 9223 and hash c04bdcc0d03b3910, new 9378 and e5cf4f79454bd01a, winner slot0 unchanged.
+            Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9378,\"state_hash\":\"e5cf4f79454bd01a\""));
         }
 
         /// <summary>The text of a shipped profile file.</summary>

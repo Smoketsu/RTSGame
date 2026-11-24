@@ -2,65 +2,66 @@
 # Fight predictor against measured fights
 
 - Predictor: FightPredictor.Predict with the predictor_* numbers of profile `aggressive_s5`; AI thresholds of that profile: attack_min_advantage 1.3, retreat_max_advantage 0.7.
-- Fights: read from `rts/docs/reports/fights_2026-11-18/fights.jsonl` (the records may come from other data than the data below); current data digest: tuning a020a25c7d7c2eae, content 9cb28f0929df518c.
+- Fights: read from `rts/docs/reports/fights_2026-11-18/fights.jsonl` (the records may come from other data than the data below); current data digest: tuning a020a25c7d7c2eae, content bc85169fa2a3c598.
 - Side A is seat 0; A shoots uphill only in the high_ground case. Predicted class none = both times equal (this includes both at the longest time). Margin = longer time / max(shorter time, min seconds), capped.
 - Decided fights (result seat0 or seat1) give the accuracy; a predicted none on a decided fight is wrong. Stalemates, unresolved fights and draws are not in the accuracy: they agree when the predictor says none.
 - Mismatched fights (start values too far apart, 0 here) are left out of every table.
 - Intervals are Wilson at z = 1.96 over decided fights; a row with fewer than 10 decided fights is marked small.
 
-**PREDICT fights=780 judged=780 decided=765 correct=562 accuracy=0.735 clean=0/0 no_winner_agree=0/15 decision=SIMULATE (proposed thresholds)**
+**PREDICT fights=780 judged=780 decided=765 correct=562 accuracy=0.735 clean=22/24 no_winner_agree=0/15 decision=SIMULATE (proposed thresholds)**
 
 ## Decision (proposed rule, C.7)
 
 | Threshold | Proposed | Measured | Fired |
 | --- | ---: | ---: | --- |
-| simulate_below_clean_accuracy | 0.85 | - (0/0) | no |
+| simulate_below_clean_accuracy | 0.85 | 0.917 (22/24) | no |
 | simulate_below_accuracy | 0.75 | 0.735 (562/765) | yes |
 | calibration_max_inversion | 0.10 | bin 1 below bin 0 | yes |
 | mechanic_min_fights | 20 | decided fights a mechanic needs to be judged | - |
-| fix_min_mechanic_accuracy | 0.70 | lowest judged mechanic: flooding 0.677 (105/155) | - |
+| fix_min_mechanic_accuracy | 0.70 | lowest judged mechanic: flooding 0.684 (106/155) | - |
 | fix_min_accuracy | 0.85 | - | - |
 
 **Decision: SIMULATE** (all thresholds are proposed placeholders for the developer to accept or change)
 
 - rule 1: headline accuracy 562/765 = 0.735 is below 0.75
-- rule 1: calibration is inverted: bin 1 wins 35/96 = 0.365, below bin 0 at 31/42 = 0.738 by more than 0.10
+- rule 1: calibration is inverted: bin 1 wins 48/103 = 0.466, below bin 0 at 27/45 = 0.600 by more than 0.10
 
 ## Overall
 
 | group | fights | decided | correct | accuracy | Wilson interval (%) | |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | all scored fights | 780 | 765 | 562 | 0.735 | [70.2, 76.5] | |
-| clean (no unmodelled mechanic present) | 0 | 0 | 0 | - | - | small |
+| clean (no unmodelled mechanic present) | 24 | 24 | 22 | 0.917 | [74.2, 97.7] | |
 
-No-winner fights: 15, of which the predictor said none for 0. Decided fights predicted none (counted wrong): 9 (seat 0 won 3).
+No-winner fights: 15, of which the predictor said none for 0. Decided fights predicted none (counted wrong): 1 (seat 0 won 0).
 
-Seat order: 381 pairs of decided fights differ only in seat order; in 364 of them the predictor names the same side in both orders (classes are mirror images), and in 57 of those the measured winner is a different side in the two orders (a seat split the predictor cannot see).
+Seat order: 381 pairs of decided fights differ only in seat order; in 369 of them the predictor names the same side in both orders (classes are mirror images), and in 60 of those the measured winner is a different side in the two orders (a seat split the predictor cannot see).
 
 ## By unordered unit pair (accuracy ascending)
 
 | pair | fights | decided | correct | accuracy | Wilson interval (%) | |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
-| skai.windrunner vs water.reef_runner | 10 | 10 | 0 | 0.000 | [0.0, 27.8] | |
 | water.grasper vs water.leviathan | 10 | 10 | 0 | 0.000 | [0.0, 27.8] | |
+| water.leviathan vs water.reef_runner | 10 | 10 | 0 | 0.000 | [0.0, 27.8] | |
 | water.leviathan vs water_ai_mix | 10 | 10 | 0 | 0.000 | [0.0, 27.8] | |
 | skai.roc_rider vs skai.talon_archer | 10 | 10 | 1 | 0.100 | [1.8, 40.4] | |
 | skai.talon_archer vs skai.thunderhead | 10 | 10 | 1 | 0.100 | [1.8, 40.4] | |
 | skai.talon_archer vs water.leviathan | 10 | 10 | 1 | 0.100 | [1.8, 40.4] | |
 | skai.thunderhead vs skai.windrunner | 10 | 10 | 1 | 0.100 | [1.8, 40.4] | |
 | skai.windrunner vs water.leviathan | 10 | 10 | 1 | 0.100 | [1.8, 40.4] | |
-| water.leviathan vs water.reef_runner | 10 | 10 | 1 | 0.100 | [1.8, 40.4] | |
 | skai.stormcaller vs water.spoutling | 10 | 10 | 2 | 0.200 | [5.7, 51.0] | |
 | skai.windrunner vs skai_ai_mix | 10 | 10 | 2 | 0.200 | [5.7, 51.0] | |
 | water.grasper vs water.ink_lobber | 10 | 10 | 2 | 0.200 | [5.7, 51.0] | |
 | water.ink_lobber vs water.reef_runner | 10 | 10 | 2 | 0.200 | [5.7, 51.0] | |
 | skai.roc_rider vs water_ai_mix | 10 | 10 | 3 | 0.300 | [10.8, 60.3] | |
 | skai.windrunner vs water.ink_lobber | 10 | 10 | 3 | 0.300 | [10.8, 60.3] | |
+| skai.windrunner vs water.reef_runner | 10 | 10 | 3 | 0.300 | [10.8, 60.3] | |
 | skai.talon_archer vs water.ink_lobber | 10 | 10 | 4 | 0.400 | [16.8, 68.7] | |
 | skai.roc_rider vs water.shellback | 10 | 4 | 2 | 0.500 | [15.0, 85.0] | small |
 | skai.talon_archer vs skai_ai_mix | 10 | 10 | 5 | 0.500 | [23.7, 76.3] | |
 | skai_ai_mix vs water.shellback | 10 | 4 | 2 | 0.500 | [15.0, 85.0] | small |
 | water.shellback vs water_ai_mix | 10 | 10 | 5 | 0.500 | [23.7, 76.3] | |
+| skai.talon_archer vs water.reef_runner | 10 | 10 | 6 | 0.600 | [31.3, 83.2] | |
 | skai.stormcaller vs water.grasper | 10 | 10 | 7 | 0.700 | [39.7, 89.2] | |
 | water.grasper vs water_ai_mix | 10 | 10 | 7 | 0.700 | [39.7, 89.2] | |
 | skai.roc_rider vs skai.windrunner | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
@@ -70,7 +71,6 @@ Seat order: 381 pairs of decided fights differ only in seat order; in 364 of the
 | skai.stormcaller vs water.ink_lobber | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
 | skai.stormcaller vs water.reef_runner | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
 | skai.talon_archer vs skai.windrunner | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
-| skai.talon_archer vs water.reef_runner | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
 | skai.thunderhead vs water.leviathan | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
 | skai.thunderhead vs water.shellback | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
 | skai_ai_mix vs water_ai_mix | 10 | 10 | 8 | 0.800 | [49.0, 94.3] | |
@@ -124,9 +124,9 @@ Seat order: 381 pairs of decided fights differ only in seat order; in 364 of the
 
 | side | fights | decided | correct | accuracy | Wilson interval (%) | |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
-| skai.windrunner | 120 | 120 | 68 | 0.567 | [47.7, 65.2] | |
-| water.leviathan | 120 | 120 | 69 | 0.575 | [48.6, 66.0] | |
-| skai.talon_archer | 120 | 120 | 72 | 0.600 | [51.1, 68.3] | |
+| water.leviathan | 120 | 120 | 68 | 0.567 | [47.7, 65.2] | |
+| skai.talon_archer | 120 | 120 | 70 | 0.583 | [49.4, 66.8] | |
+| skai.windrunner | 120 | 120 | 71 | 0.592 | [50.2, 67.5] | |
 | water.ink_lobber | 120 | 120 | 84 | 0.700 | [61.3, 77.5] | |
 | water.reef_runner | 120 | 120 | 84 | 0.700 | [61.3, 77.5] | |
 | water_ai_mix | 120 | 120 | 87 | 0.725 | [63.9, 79.7] | |
@@ -144,15 +144,15 @@ Seat order: 381 pairs of decided fights differ only in seat order; in 364 of the
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | choke | 156 | 152 | 118 | 0.776 | [70.4, 83.5] | |
 | flat | 312 | 304 | 239 | 0.786 | [73.7, 82.9] | |
-| flooded | 156 | 155 | 105 | 0.677 | [60.0, 74.6] | |
-| high_ground | 156 | 154 | 100 | 0.649 | [57.1, 72.0] | |
+| flooded | 156 | 155 | 106 | 0.684 | [60.7, 75.2] | |
+| high_ground | 156 | 154 | 99 | 0.643 | [56.5, 71.4] | |
 
 ## By army value
 
 | army value (zero padded) | fights | decided | correct | accuracy | Wilson interval (%) | |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
-| 000750 | 156 | 152 | 124 | 0.816 | [74.7, 86.9] | |
-| 001500 | 624 | 613 | 438 | 0.715 | [67.8, 74.9] | |
+| 000750 | 156 | 152 | 123 | 0.809 | [73.9, 86.4] | |
+| 001500 | 624 | 613 | 439 | 0.716 | [67.9, 75.0] | |
 
 ## By case and army value
 
@@ -161,10 +161,10 @@ Value and case are confounded: in the committed sweep only flat is played at 750
 | case / army value | fights | decided | correct | accuracy | Wilson interval (%) | |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | choke / 001500 | 156 | 152 | 118 | 0.776 | [70.4, 83.5] | |
-| flat / 000750 | 156 | 152 | 124 | 0.816 | [74.7, 86.9] | |
-| flat / 001500 | 156 | 152 | 115 | 0.757 | [68.3, 81.8] | |
-| flooded / 001500 | 156 | 155 | 105 | 0.677 | [60.0, 74.6] | |
-| high_ground / 001500 | 156 | 154 | 100 | 0.649 | [57.1, 72.0] | |
+| flat / 000750 | 156 | 152 | 123 | 0.809 | [73.9, 86.4] | |
+| flat / 001500 | 156 | 152 | 116 | 0.763 | [69.0, 82.4] | |
+| flooded / 001500 | 156 | 155 | 106 | 0.684 | [60.7, 75.2] | |
+| high_ground / 001500 | 156 | 154 | 99 | 0.643 | [56.5, 71.4] | |
 
 ## By unmodelled mechanic
 
@@ -173,16 +173,14 @@ Present means the mechanic occurs in the fight by its definitions and case (wind
 | mechanic | present: decided | present: accuracy | absent: accuracy | only: decided | only: accuracy |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | drench | 60 | 0.800 | 0.729 | 0 | - |
-| splash | 562 | 0.706 | 0.813 | 0 | - |
-| momentum | 556 | 0.748 | 0.699 | 0 | - |
-| flooding | 155 | 0.677 | 0.749 | 0 | - |
+| splash | 562 | 0.705 | 0.818 | 56 | 0.429 |
+| momentum | 556 | 0.750 | 0.694 | 88 | 0.761 |
+| flooding | 155 | 0.684 | 0.748 | 6 | 1.000 |
 | windstorm_range | 0 | - | 0.735 | 0 | - |
-| regeneration | 216 | 0.792 | 0.712 | 0 | - |
-| hit_delay | 765 | 0.735 | - | 24 | 0.917 |
+| regeneration | 216 | 0.792 | 0.712 | 23 | 0.913 |
+| hit_delay | 0 | - | 0.735 | 0 | - |
 | focus_fire | 0 | - | 0.735 | 0 | - |
-| clean | 0 | - | - | - | - |
-
-`hit_delay` is present in every decided fight, so no fight is clean and its absent column is empty.
+| clean | 24 | 0.917 | - | - | - |
 
 ## Calibration of the predicted margin
 
@@ -190,13 +188,13 @@ Decided fights only. "Winner left" is the lower median of the measured winner's 
 
 | bin (margin) | fights | predicted winner won | share | Wilson interval (%) | winner left (median) |
 | --- | ---: | ---: | ---: | --- | ---: |
-| predicted none | 9 | - | - | - | - |
-| 1 to below 1.1 | 42 | 31 | 0.738 | [58.9, 84.7] | 0.464 |
-| 1.1 to below 1.25 | 96 | 35 | 0.365 | [27.5, 46.4] | 0.762 |
-| 1.25 to below 1.5 | 99 | 62 | 0.626 | [52.8, 71.5] | 0.715 |
-| 1.5 to below 2 | 70 | 56 | 0.800 | [69.2, 87.7] | 0.724 |
-| 2 to below 3 | 132 | 102 | 0.773 | [69.4, 83.6] | 0.729 |
-| 3 and above | 317 | 276 | 0.871 | [82.9, 90.3] | 0.891 |
+| predicted none | 1 | - | - | - | - |
+| 1 to below 1.1 | 45 | 27 | 0.600 | [45.5, 73.0] | 0.464 |
+| 1.1 to below 1.25 | 103 | 48 | 0.466 | [37.3, 56.2] | 0.711 |
+| 1.25 to below 1.5 | 97 | 54 | 0.557 | [45.8, 65.2] | 0.720 |
+| 1.5 to below 2 | 83 | 68 | 0.819 | [72.3, 88.7] | 0.724 |
+| 2 to below 3 | 111 | 87 | 0.784 | [69.8, 85.0] | 0.734 |
+| 3 and above | 325 | 278 | 0.855 | [81.3, 88.9] | 0.884 |
 
 ## No-winner fights
 

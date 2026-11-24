@@ -1,7 +1,7 @@
-// rts/data/units/water/reef_runner.json: Reef Runner, the water scout: a seahorse riding a single wheel (concept sheet rts/docs/art/concept/turnarounds8/water_scout_sheet.jpg) that fires light needle shots from its snout. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Water counterpart of skai.windrunner: cheap, fast, light, weak. Every number is a placeholder for playtesting, not a balance decision.
+// rts/data/units/water/reef_runner.json: Reef Runner, the water scout: a seahorse riding a single wheel (concept sheet rts/docs/art/concept/turnarounds8/water_scout_sheet.jpg) that fires light needle shots from its snout. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Water counterpart of skai.windrunner: cheap, fast and light; a little sturdier than the Windrunner, so it wins their equal-cost fight, while the Windrunner keeps air targeting, momentum and the better dry-ground speed (rts/docs/specs/roster_numbers_1.md). Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Reef Runner unit definition for the water faction: the water scout, a seahorse on a single wheel firing light needle shots from its snout, counterpart of skai.windrunner; placeholder numbers (rts/docs/specs/skirmish_ai_v3.md A.3).",
+  "$doc": "Reef Runner unit definition for the water faction: the water scout, a seahorse on a single wheel firing light needle shots from its snout, counterpart of skai.windrunner; placeholder numbers (rts/docs/specs/skirmish_ai_v3.md A.3). Health raised to 66 by rts/docs/specs/roster_numbers_1.md section 2 so it wins the equal-cost fight against the Windrunner.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.reef_runner",
   // Name shown to players (named by the developer, 17 Nov 2026). Unit: text. Range: 1 to 40 characters. Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); developer naming 17 Nov 2026; placeholder.
@@ -10,8 +10,8 @@
   "faction_id": "water",
   // Pathing layer the unit moves on. Water: it still crosses a fully dry map (at 0.85 times speed), moves 1.15 or 1.3 times as fast on shallow or deep water and heals on own water. Unit: layer name. Range: "ground", "water" or "air". Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
   "layer": "water",
-  // Health at full. Unit: health points. Range: 1 to 100000 (design placeholders sit between 40 and 160). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
-  "max_health": 60,
+  // Health at full; 66 (was 60) so it wins the equal-cost fight against skai.windrunner by about a quarter of army value while not being kited by it. Unit: health points. Range: 1 to 100000 (design placeholders sit between 40 and 160). Source: rts/docs/specs/roster_numbers_1.md section 2.1 (was P-004 / skirmish_ai_v3.md A.3); placeholder.
+  "max_health": 66,
   // Speed before terrain multipliers: 4.1 gives 3.485 tiles per second on dry ground (x 0.85; the Windrunner has 3.5), 4.715 on shallow and 5.33 on deep water. Unit: tiles per second. Range: 0 to 100 (placeholders sit between 2 and 5). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.
   "speed_tiles_per_second": 4.1,
   // Supply used while the unit is alive. Unit: supply. Range: 0 to 100 (placeholders sit between 1 and 3). Source: P-004 / skirmish_ai_v3.md A.3 (water scout, counterpart of skai.windrunner); placeholder.

@@ -878,8 +878,9 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value 0x38e1f3919c6d0aeb; the outcome is unchanged (OUTCOME winner=1 tick=7613, the scripted AI never crowds a field). Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): old d016e3d25fb28d6a, new 1b76cd03ef38ef55; outcome unchanged.
         /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): research in the content digest and player hash, and the Stormcaller and Ink Lobber now need research the AI never does. Old value 0x1b76cd03ef38ef55; OUTCOME winner=1 tick=7613 before and after (the outcome did not move).
         /// Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 0x1c0951645337b54e; winner 1 and tick 7613 unchanged.
+        /// Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest): old value 0xdfc8991f885607f2; outcome unchanged (winner 1, tick 7613).
         /// </summary>
-        private const ulong V2ReferenceHash = 0xdfc8991f885607f2UL;
+        private const ulong V2ReferenceHash = 0xd4d353b73e0eae16UL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -910,11 +911,12 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old end tick 20151 and hash 015496c40671ead9; new end tick 13219 and hash dd13f646a7502e2f; the winner is still slot 0 (decided). Re-pinned again for the slot queue tie-break (`GatherSlotGrants` hashed after `GatherQueuedTick`): end tick stays 13219, hash dd13f646a7502e2f is now 5db5cdb273174f34, winner still slot 0.
         /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): the Water mix names the Ink Lobber, which now needs research the AI never does. Old end tick 13219 and hash 5db5cdb273174f34; new end tick 10910 and hash 6a39af6718193ef8; the winner is still slot 0.
         /// Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old hash 6a39af6718193ef8; end tick 10910 unchanged.
+        /// Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): old end tick 10910 and hash 846056c1a9efe5f4; new end tick 10355 and hash 82998543e32dcfe0; the winner (slot 0) is unchanged.
         /// </summary>
-        private const int BlindTraceEndTick = 10910;
+        private const int BlindTraceEndTick = 10355;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "846056c1a9efe5f4";
+        private const string BlindTraceHash = "82998543e32dcfe0";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

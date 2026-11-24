@@ -59,9 +59,9 @@
     "loses": { "against": "water.shellback", "case": "flat" }
   },
 
-  // Reef Runner (water.reef_runner): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  // Reef Runner (water.reef_runner): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table, developer decision 1 (rule 7) and rts/docs/specs/roster_numbers_1.md; fights run 24 Nov 2026, data digest tuning a020a25c7d7c2eae, content bc85169fa2a3c598.
   "water.reef_runner": {
-    "job": "scout",
+    "job": "scout and field defence",
     "wins": { "against": "water.spoutling", "case": "flat" },
     "loses": { "against": "skai.roc_rider", "case": "flat" }
   },
