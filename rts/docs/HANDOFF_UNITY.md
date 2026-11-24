@@ -20,8 +20,8 @@ The developer decided on 21 Nov: **get every feature usable by a player first, t
 
 | Check | New value |
 | --- | --- |
-| Harness, default script `rts/data/scripts/smoke.json` | `STATE_HASH=207be73eaa460b3c` |
-| Harness, `--script rts/data/scripts/economy_smoke.json` (the script `SimulationHost` plays by default) | `STATE_HASH=98b2e00d9babe167` |
+| Harness, default script `rts/data/scripts/smoke.json` | `STATE_HASH=df73e9584e791bc0` |
+| Harness, `--script rts/data/scripts/economy_smoke.json` (the script `SimulationHost` plays by default) | `STATE_HASH=b724ff589cd6aa1b` |
 
 - **Research exists** (`rts/docs/specs/research_and_unlocks.md`, package R1). The Storm Spire and Reef Workshop each list research items in `Definition.Economy.Researches`. A player queues one with the ordinary train order: `train_unit(building, researchId)`. Stormcaller, Thunderhead, Ink Lobber and Leviathan cannot be trained until their item is done.
   - Queries: `Player.HasResearched(id)`, `EconomyRules.IsResearchQueued(...)`, `EconomyRules.QueueEntryTicks(...)`, `EconomyRules.FirstMissingRequirement(...)` (now also returns research IDs). Names: `Content.Researches[id].DisplayName`.
