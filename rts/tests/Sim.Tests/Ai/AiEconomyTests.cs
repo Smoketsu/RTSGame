@@ -972,6 +972,32 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Of(DecideP0(sim, memory), AiIntentKind.UprootHq).Count, Is.EqualTo(1), "61 s later it can fire");
         }
 
+        /// <summary>RN-0: a think whose relocation rule orders the uproot of the Rooted HQ queues no worker in the same think (the simulation would reject it as hq_not_rooted).</summary>
+        [Test]
+        public void Rn0_NoWorkerAtAnHqTheSameThinkUproots()
+        {
+            Simulation sim = Game();
+            // The B-12 situation (home nearly empty, two live depots, a safe field to go to) with 500 common to pay a worker. Unit: common resource.
+            Leave(sim, 0, 150);
+            Leave(sim, 1, 150);
+            SpawnAtTile(sim, "skai.perch_depot", P0, 21, 7);
+            SpawnAtTile(sim, "skai.perch_depot", P0, 9, 49);
+            StepTo(sim, Ticks(10));
+            SetStock(sim, P0, 500, 0);
+            List<AiIntent> intents = DecideP0(sim);
+            Assert.That(Of(intents, AiIntentKind.UprootHq).Count, Is.EqualTo(1), "the relocation rule uproots");
+            // Train intents aimed at the HQ itself (other producers may train army units). Unit: intents.
+            int trainsAtHq = 0;
+            foreach (AiIntent train in Of(intents, AiIntentKind.Train))
+            {
+                if (train.Unit == Hq(sim, P0).Id)
+                {
+                    trainsAtHq++;
+                }
+            }
+            Assert.That(trainsAtHq, Is.EqualTo(0), "and no worker is queued at it in the same think");
+        }
+
         /// <summary>B-16: the target field is found empty during the move: the HQ is sent to the next field's destination.</summary>
         [Test]
         public void B16_RetargetOnDepletion()
