@@ -12,6 +12,8 @@ Spec: `rts/docs/specs/balance_measurement.md` C.1 to C.9. Measurement only: `Fig
 PREDICT fights=780 judged=780 decided=765 correct=562 accuracy=0.735 clean=0/0 no_winner_agree=0/15 decision=SIMULATE (proposed thresholds)
 ```
 
+**Regenerated 24 Nov 2026 for rts/docs/specs/roster_numbers_1.md** (Reef Runner `max_health` 60 to 66: the predictor reads the new health, so `predict.jsonl` and `predict.md` changed from line 15; the fights are still the 18 Nov records). Same command; accuracy is still 0.735 (562 of 765); the first line below is the old output, the new one reads `PREDICT fights=780 judged=780 decided=765 correct=562 accuracy=0.735 clean=22/24 no_winner_agree=0/15 decision=SIMULATE (proposed thresholds)`. The tables below describe the numbers before this regeneration.
+
 ## Was the committed sweep still valid for the current data?
 
 The records carry everything the predictor needs (units, case, army value, result, value left, mismatch flag). The committed `fights.md` says data digest tuning `8af17d045a9c63e6`, content `9cb28f0929df518c`. The current data gives tuning `a020a25c7d7c2eae` (the only data change since is the gather-slot values added to `tuning/economy.json` on 18 Nov) and the same content digest `9cb28f0929df518c`. Because the tuning digest differs, `--fights` was rerun on the current data (28 s on this machine, not 15 minutes): all 780 records are identical to the committed ones in every field except `state_hash` (which includes tuning), and `hq_floor.jsonl` is byte-identical. The committed sweep is therefore valid and is what this report reads.

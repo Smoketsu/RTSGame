@@ -736,7 +736,8 @@ namespace Rts.Sim.Tests.Economy
             // Re-pinned for drag to place (specs/walls_and_tech.md package D: Unit.BuildQueue in the unit hash, wall_line_max_tiles in the tuning digest): old value ea7a4a9d577c9b83, outcome unchanged (undecided, tick 1499).
             // Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value ce62b175ea751ba6, outcome unchanged (undecided, tick 1499).
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 72128f50a116322b.
-            Assert.That(first, Does.Contain("STATE_HASH=98b2e00d9babe167\n"));
+            // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest): old value 98b2e00d9babe167, outcome unchanged.
+            Assert.That(first, Does.Contain("STATE_HASH=b724ff589cd6aa1b\n"));
         }
     }
 }

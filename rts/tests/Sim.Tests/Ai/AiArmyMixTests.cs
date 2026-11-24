@@ -459,7 +459,8 @@ namespace Rts.Sim.Tests.Ai
             AiMemory memory = new AiMemory();
             Believe(memory, "water.grasper", 6, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.0000"), ("water.ink_lobber", "0.1736"), ("water.reef_runner", "0.4878"), ("water.shellback", "0.5514"), ("water.spoutling", "0.1228"));
+            // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): only the water.reef_runner advantage moves (old 0.4878).
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.0000"), ("water.ink_lobber", "0.1736"), ("water.reef_runner", "0.5366"), ("water.shellback", "0.5514"), ("water.spoutling", "0.1228"));
             SetStock(sim, P0, 0, 400);
             // Changed by the Leviathan (specs/missing_roster.md R2-8). With rare 400 its advantage is 1.2208 (R2-7 arithmetic at budget 600: n = min(600 / 300, 500 / 80) = 2), above the Pummeler's 1.0000, so the
             // Leviathan alone is kept and takes the 700 counter share; the Pummeler keeps its base 150. Without rare (above) its advantage is 0.4323, not kept, and the mix is unchanged.
@@ -479,7 +480,8 @@ namespace Rts.Sim.Tests.Ai
             // hitting air, its advantage is 1.1372 against the Spoutling's 0.3333 (Lanchester check: 1.25 Leviathans, 400 health, 33.3 dps against 3 Roc Riders, 480 health, 26.25 dps on armour:
             // 480 / 33.3 = 14.4 s to kill them, 400 / 26.25 = 15.2 s to die, plus the range head start). Only the Leviathan is kept, so it takes 700 and the Spoutling falls to its base 50 (it was 750).
             AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 700));
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.0397"), ("water.ink_lobber", "0.0119"), ("water.reef_runner", "0.0225"), ("water.shellback", "0.0778"), ("water.spoutling", "0.3333"), ("water.leviathan", "1.1372"));
+            // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): only the water.reef_runner advantages move here (old 0.0225 and 0.2692).
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.0397"), ("water.ink_lobber", "0.0119"), ("water.reef_runner", "0.0247"), ("water.shellback", "0.0778"), ("water.spoutling", "0.3333"), ("water.leviathan", "1.1372"));
             // Own Spoutling number. Range: 0 to 3.
             for (int i = 0; i < 4; i++)
             {
@@ -487,7 +489,7 @@ namespace Rts.Sim.Tests.Ai
             }
             // Changed by the Leviathan (same reason): with 4 Spoutlings owned its advantage 0.7826 beats the Shellback's 0.6708, and 0.9 x 0.7826 = 0.7044 drops the Shellback, so the Leviathan alone takes 700 (the Shellback was 750).
             AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 700));
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.4038"), ("water.ink_lobber", "0.1877"), ("water.reef_runner", "0.2692"), ("water.shellback", "0.6708"), ("water.spoutling", "0.3967"), ("water.leviathan", "0.7826"));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.4038"), ("water.ink_lobber", "0.1877"), ("water.reef_runner", "0.2862"), ("water.shellback", "0.6708"), ("water.spoutling", "0.3967"), ("water.leviathan", "0.7826"));
         }
 
         /// <summary>C2-3 and C2-4: Skai against 6 Pummelers keeps the Roc Rider; against 8 Windrunners it keeps Windrunner and Talon.</summary>
@@ -530,7 +532,8 @@ namespace Rts.Sim.Tests.Ai
             Believe(memory, "water.spoutling", 1, sim.Clock.Tick);
             Believe(memory, "water.reef_runner", 1, sim.Clock.Tick);
             AssertMix(MixOf(sim, S2b, "water", memory), PummelerMix);
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.5376"), ("water.ink_lobber", "0.8568"), ("water.reef_runner", "1.1546"), ("water.shellback", "1.3267"), ("water.spoutling", "0.7932"));
+            // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): the believed enemy army holds a Reef Runner, so every water advantage in this situation moves (old values grasper 1.5376, ink_lobber 0.8568, reef_runner 1.1546, shellback 1.3267, spoutling 0.7932); the mix weights above are unchanged.
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "1.5286"), ("water.ink_lobber", "0.8514"), ("water.reef_runner", "1.1773"), ("water.shellback", "1.3195"), ("water.spoutling", "0.7886"));
         }
 
         /// <summary>C2-6: implied units never raise the confidence; sightings do; the switch off keeps the package C confidence.</summary>

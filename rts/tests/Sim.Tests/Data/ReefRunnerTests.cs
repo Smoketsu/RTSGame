@@ -34,6 +34,12 @@ namespace Rts.Sim.Tests.Data
             Assert.That(unit.Weapon!.CanTargetGround, Is.True);
             Assert.That(unit.Weapon.CanTargetWater, Is.True);
             Assert.That(unit.Weapon.CanTargetAir, Is.False, "open question Q2 default: the Reef Runner does not hit air");
+            // roster_numbers_1 (specs/roster_numbers_1.md 2.1): health 66 (was 60); every other number of the unit is unchanged.
+            Assert.That(unit.MaxHealth, Is.EqualTo(Fix64.FromInt(66)));
+            Assert.That(unit.SpeedTilesPerSecond, Is.EqualTo(Fix64.Parse("4.1")));
+            Assert.That(unit.Weapon.Damage, Is.EqualTo(Fix64.FromInt(6)));
+            Assert.That(unit.Weapon.CooldownSeconds, Is.EqualTo(Fix64.Parse("0.8")));
+            Assert.That(unit.Weapon.RangeTiles, Is.EqualTo(Fix64.FromInt(4)));
             Assert.That(unit.CostCommon, Is.EqualTo(75));
             Assert.That(unit.CostRare, Is.EqualTo(0));
             Assert.That(unit.Supply, Is.EqualTo(1));

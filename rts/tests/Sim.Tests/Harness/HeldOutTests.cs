@@ -638,5 +638,35 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(FightPlan.Build(data, second).Fights.Count, Is.EqualTo(1904));
             Expect.DoesNotThrow(() => FightMatchups.Load(TestData.FindDataDirectory(), second, data));
         }
+
+        /// <summary>roster_numbers_1.json (the bar set of specs/roster_numbers_1.md section 3) parses and plans with the shipped data, uses only army values no committed set played, and the matchups file accepts it; nothing is played.</summary>
+        [Test]
+        public void RosterNumbers1Settings_ParseAndPlan_NewValues()
+        {
+            DataSet data = TestData.LoadAll();
+            // Data folder of the shipped files.
+            string dir = TestData.FindDataDirectory();
+            FightSettings bars = FightSettings.Parse(File.ReadAllText(Path.Combine(dir, "scripts/fights/roster_numbers_1.json")), data, "roster_numbers_1.json");
+            // Army values the three committed sets played. Unit: resource units.
+            SortedSet<int> used = new SortedSet<int>();
+            foreach (string file in new[] { "fights.json", "heldout.json", "heldout2.json" })
+            {
+                FightSettings earlier = FightSettings.Parse(File.ReadAllText(Path.Combine(dir, "scripts/fights", file)), data, file);
+                foreach (FightCase fightCase in earlier.Cases)
+                {
+                    used.UnionWith(fightCase.ArmyValues);
+                }
+            }
+            foreach (FightCase fightCase in bars.Cases)
+            {
+                foreach (int value in fightCase.ArmyValues)
+                {
+                    Assert.That(used.Contains(value), Is.False, fightCase.Id + " " + value);
+                }
+            }
+            // Planning throws when an army does not fit the arena.
+            Assert.That(FightPlan.Build(data, bars).Fights.Count, Is.GreaterThan(0));
+            Expect.DoesNotThrow(() => FightMatchups.Load(dir, bars, data));
+        }
     }
 }
