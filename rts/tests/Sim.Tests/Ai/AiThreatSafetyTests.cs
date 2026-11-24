@@ -417,7 +417,7 @@ namespace Rts.Sim.Tests.Ai
 
         /// <summary>
         /// TS-10: off path and validation. A copy of aggressive_s5 with threat_unsafe_margin 0 gives the same record line as aggressive_s5 (the key is unread while the switch is off; the pins of the spec are held by their
-        /// own tests, which are not re-pinned); use_threat_safety true with use_threat_map false fails to load naming use_threat_safety; the margin is range-checked; only aggressive_s5_s has the switch on and every profile carries the margin.
+        /// own tests, which are not re-pinned); use_threat_safety true with use_threat_map false fails to load naming use_threat_safety; the margin is range-checked; no profile but the candidate aggressive_s5_s may have the switch on and every profile carries the margin.
         /// </summary>
         [Test]
         public void TS10_OffPathAndValidation()

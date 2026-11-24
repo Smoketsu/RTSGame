@@ -48,7 +48,7 @@ namespace Rts.Sim.Tests.Ai
         /// <summary>Depot B, in the east (tile centre). Unit: tiles.</summary>
         private static readonly FixVec2 DepotB = new FixVec2(Fix64.Parse("50.5"), Fix64.Parse("14.5"));
 
-        /// <summary>The text of the candidate profile file with rule TH on as the final S-TH state of the file has it.</summary>
+        /// <summary>The text of the candidate profile file as shipped (the helpers set the two consumer switches themselves, whatever the file has).</summary>
         private static string CandidateText => File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "ai", "aggressive_s5_s.json"));
 
         /// <summary>

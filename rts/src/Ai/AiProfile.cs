@@ -57,9 +57,9 @@
 //   * rts/docs/specs/ai_threat_map.md package S-MAP (the threat map): use_threat_map, threat_cell_tiles and threat_spread_cells (every profile file carries
 //     them; the old values false, 4 and 2 play exactly as before; the map is passive until a rule reads it; only aggressive_s5_s has use_threat_map true).
 //   * rts/docs/specs/ai_threat_map.md package S-TS (rule TS, safety by the map): use_threat_safety and threat_unsafe_margin (every profile file carries them; the old
-//     values false and 150 play exactly as before and the margin is unread while the switch is off; use_threat_safety needs use_threat_map).
+//     values false and 150 play exactly as before and the margin is unread while the switch is off; use_threat_safety needs use_threat_map; false in every profile after run SM-1 found no measurable effect).
 //   * rts/docs/specs/ai_threat_map.md package S-TH (rule TH, harass target and route by the map): use_threat_harass (every profile file carries it; the old value false plays exactly
-//     as before; it needs use_threat_map and use_target_choice; only aggressive_s5_s has it true, or not, as the SM-2 verdict sets it).
+//     as before; it needs use_threat_map and use_target_choice; false in every profile after run SM-2 found no measurable effect and a worse income_by).
 //   * field_saturation.md package AI-P (placement and defence): use_forward_producers, use_threat_defence, threat_defence_min_enemy_supply,
 //     threat_defence_min_enemy_advantage, threat_defence_max_value_share and threat_defence_release_fraction (every profile file carries
 //     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).

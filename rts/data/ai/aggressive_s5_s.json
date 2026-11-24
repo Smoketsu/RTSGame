@@ -1,7 +1,7 @@
-// rts/data/ai/aggressive_s5_s.json: the threat-map candidate of rts/docs/specs/ai_threat_map.md (P-006 package S): a copy of aggressive_s5.json (as on main when package S-MAP started) with use_threat_map and rule TH (use_threat_harass) switched on and rule TS (use_threat_safety) off again, so the candidate and aggressive_s5 differ only in the map and the harass rule. Part of rts/data/ai; read by Rts.Ai.AiProfile.
+// rts/data/ai/aggressive_s5_s.json: the threat-map candidate of rts/docs/specs/ai_threat_map.md (P-006 package S): a copy of aggressive_s5.json (as on main when package S-MAP started) with use_threat_map switched on and both consumer rules off, because neither passed its measurement (reports/ai_threat/sm1 and sm2, spec section 10.4), so the candidate and aggressive_s5 differ only in the map, which changes no decision. Part of rts/data/ai; read by Rts.Ai.AiProfile.
 {
   "$schema_version": 1,
-  "$doc": "Package S candidate (aggressive_s5 with use_threat_map and use_threat_harass on, ai_threat_map.md): the harass squad picks its target and route by the threat map (rule TH). Nothing else differs from aggressive_s5. Every number is a placeholder.",
+  "$doc": "Package S candidate (aggressive_s5 with use_threat_map on, ai_threat_map.md): keeps the threat map of own and remembered enemy strength; rules TS and TH stay off after SM-1 and SM-2 (no measurable effect, and TH worsened income_by). Nothing else differs from aggressive_s5. Every number is a placeholder.",
   // Stable profile ID, equal to the file name. Unit: text ID. Range: lower-case letters, digits and underscores. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "aggressive_s5_s",
   // Time between AI decisions. Unit: seconds. Range: 0.1 to 5. Source: Technical planning / AI (skirmish AI); placeholder.
@@ -417,7 +417,7 @@
   // P-006 S rule TS: enemy strength a point may hold above own strength and still be safe. Unit: resource units of army value. Range: 0 to 100000. Source: rts/docs/specs/ai_threat_map.md section 4; placeholder.
   "threat_unsafe_margin": 150,
   // P-006 S rule TH: the harass squad picks the known enemy drop-off with the least enemy strength on the way, and starts only when that is below the squad's strength; needs use_threat_map and use_target_choice. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md section 5; placeholder.
-  "use_threat_harass": true,
+  "use_threat_harass": false,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "skai": {
