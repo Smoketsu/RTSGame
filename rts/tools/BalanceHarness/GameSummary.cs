@@ -231,6 +231,10 @@ namespace Rts.Tools.BalanceHarness
             HarassMetrics harass = HarassMetrics.Empty;
             if (node.TryGetMember("harass", out JsonValue? harassNode))
             {
+                if (harassNode.Items.Count != 4)
+                {
+                    throw harassNode.Fail("must have exactly 4 items [squads, worker_kills, kills_value, losses_value]");
+                }
                 harass = new HarassMetrics(harassNode.Items[0].AsInt(), harassNode.Items[1].AsInt(), harassNode.Items[2].AsInt(), harassNode.Items[3].AsInt());
             }
             // First-tick map; a record without it reads as empty.

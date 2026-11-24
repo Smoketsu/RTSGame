@@ -228,6 +228,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 // Candidate's and baseline's summed metric as the exact fraction num / den.
                 BigInteger xNum = BigInteger.Zero, xDen = BigInteger.One, yNum = BigInteger.Zero, yDen = BigInteger.One;
+                // True when this pair is left out (not exactly two games, a missing summary or an Unjudged slot-game). Range: true or false.
                 bool left = games.Count != 2;
                 foreach (GameRecord game in games)
                 {
@@ -235,14 +236,18 @@ namespace Rts.Tools.BalanceHarness
                     {
                         break;
                     }
+                    // The candidate's own summary in this game (null when the record has none). Unit: summary.
                     GameSummary? own = game.CandidateSlot == 0 ? game.Summary0 : game.CandidateSlot == 1 ? game.Summary1 : null;
+                    // The baseline's summary in this game (null when the record has none). Unit: summary.
                     GameSummary? other = game.CandidateSlot == 0 ? game.Summary1 : game.CandidateSlot == 1 ? game.Summary0 : null;
                     if (own == null || other == null)
                     {
                         left = true;
                         break;
                     }
+                    // The candidate's metric in this slot-game as num / den. Unit: as the check. Range: any (harass_trade may be negative).
                     BehaviourResult x = check.Evaluate(own, game);
+                    // The baseline's metric in this slot-game as num / den. Unit: as the check. Range: as x.
                     BehaviourResult y = check.Evaluate(other, game);
                     if (x.Outcome == CheckOutcome.Unjudged || y.Outcome == CheckOutcome.Unjudged)
                     {
@@ -515,6 +520,14 @@ namespace Rts.Tools.BalanceHarness
                 }
                 passed += candidate.Passes(check.MaxViolationPt) ? 1 : 0;
             }
+            // The pairing kind per faction of the selected matchups (M.1.3, ai_threat_map.md 10.1), written to stderr and the behaviour.md header. Text, "<faction>:<full|seed>" joined by commas.
+            List<string> pairFactions = new List<string>();
+            foreach (string matchup in matchups)
+            {
+                pairFactions.AddRange(GameRunner.SplitMatchup(matchup));
+            }
+            string pairing = PairedLadder.PairingText(Rts.Ai.AiProfile.FromDataSet(data, options.ProfileA), Rts.Ai.AiProfile.FromDataSet(data, options.ProfileB), pairFactions);
+            error.Write("pairing kind: " + pairing + "\n");
             string summaryLine = "BEHAVIOUR_SUMMARY candidate=" + options.ProfileB + " passed=" + passed.ToString(CultureInfo.InvariantCulture) + " of=" + checks.Count.ToString(CultureInfo.InvariantCulture);
 
             // Output folder: --out, or the behaviour subfolder of the default harness folder.
@@ -530,6 +543,7 @@ namespace Rts.Tools.BalanceHarness
             table.Append("# Behaviour checks: candidate ").Append(options.ProfileB).Append(" against baseline ").Append(options.ProfileA).Append("\n\n");
             table.Append("- Base seed ").Append(baseSeed.ToString(CultureInfo.InvariantCulture)).Append(", ").Append(games.ToString(CultureInfo.InvariantCulture)).Append(" games per cell in the paired layout (balance_measurement.md M.1.2), game cap ")
                 .Append(maxSeconds.ToString(CultureInfo.InvariantCulture)).Append(" s; a slot-game is one slot of one game; a profile passes a check when violated / judged is at most the check's max_violation_fraction.\n");
+            table.Append("- Pairing kind per faction (M.1.3): ").Append(pairing).Append(".\n");
             table.Append("- Determinism spot check: ").Append(verify.ToString(CultureInfo.InvariantCulture)).Append(" games re-run in-process with the observer, ").Append(mismatches.ToString(CultureInfo.InvariantCulture)).Append(" mismatches.\n");
             table.Append("- Checks not declared in behaviour_checks.json (not run): ").Append(notDeclared.Count == 0 ? "none" : string.Join(", ", notDeclared)).Append(".\n\n");
             table.Append("**").Append(summaryLine).Append("**\n\n");

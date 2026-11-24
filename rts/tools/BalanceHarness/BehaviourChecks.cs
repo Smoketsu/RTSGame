@@ -219,7 +219,7 @@ namespace Rts.Tools.BalanceHarness
             /// <inheritdoc />
             public void ReadSettings(JsonValue entry)
             {
-                entry.RejectUnknownKeys("enabled", "max_share", "max_violation_fraction");
+                entry.RejectUnknownKeys("enabled", "max_share", "max_violation_fraction", "paired_direction");
                 Enabled = entry.RequireBool("enabled");
                 _maxSharePt = Pt(entry, "max_share", "0", "1");
                 MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
@@ -292,7 +292,7 @@ namespace Rts.Tools.BalanceHarness
             /// <inheritdoc />
             public void ReadSettings(JsonValue entry)
             {
-                entry.RejectUnknownKeys("enabled", "min_distance_tiles", "window_buckets", "settle_buckets", "min_gain_fraction", "max_violation_fraction");
+                entry.RejectUnknownKeys("enabled", "min_distance_tiles", "window_buckets", "settle_buckets", "min_gain_fraction", "max_violation_fraction", "paired_direction");
                 Enabled = entry.RequireBool("enabled");
                 _minDistanceTenths = entry.RequireInt("min_distance_tiles", 0, 200) * 10;
                 _window = entry.RequireInt("window_buckets", 1, 20);
@@ -387,7 +387,7 @@ namespace Rts.Tools.BalanceHarness
             /// <inheritdoc />
             public void ReadSettings(JsonValue entry)
             {
-                entry.RejectUnknownKeys("enabled", "at_seconds", "min_workers", "max_violation_fraction");
+                entry.RejectUnknownKeys("enabled", "at_seconds", "min_workers", "max_violation_fraction", "paired_direction");
                 Enabled = entry.RequireBool("enabled");
                 JsonValue at = entry.Require("at_seconds");
                 // Seconds of the snapshot. Unit: seconds. Range: 1 to 7200.
@@ -784,7 +784,7 @@ namespace Rts.Tools.BalanceHarness
             public void ReadSettings(JsonValue entry)
             {
                 entry.RejectUnknownKeys("enabled", "at_seconds", "worker_cap_min", "worker_cap_max", "worker_cap_step", "depot_trigger_min", "depot_trigger_max", "depot_trigger_step", "max_depots",
-                    "max_gap_permille", "max_violation_fraction", "print_by_opening");
+                    "max_gap_permille", "max_violation_fraction", "print_by_opening", "paired_direction");
                 Enabled = entry.RequireBool("enabled");
                 // The at_seconds entry (kept to name the key in a settings error). Unit: seconds. Range: 1 to 7200.
                 JsonValue at = entry.Require("at_seconds");

@@ -137,6 +137,17 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(parsed.DropOffLife[1], Is.EqualTo(new[] { 4000, -1 }));
         }
 
+        /// <summary>Review fixes: a harass array that is not exactly four items fails naming the key; paired_direction is accepted on the four older checks.</summary>
+        [Test]
+        public void ReviewFixes_HarassArrayLengthAndPairedDirectionOnOlderChecks()
+        {
+            string record = Summary(null, null, null).ToJson().Replace("\"harass\":[0,0,0,0]", "\"harass\":[1,2,3]");
+            Assert.That(record, Does.Contain("\"harass\":[1,2,3]"));
+            Assert.That(Expect.Throws<DataValidationException>(() => GameSummary.Parse(JsonReader.Parse(record, "test"))).Message, Does.Contain("harass"));
+            Assert.That(Check("static_defence_share", "{\"enabled\": true, \"max_share\": 1, \"max_violation_fraction\": 1, \"paired_direction\": \"lower\"}"), Is.Not.Null);
+            Assert.That(Check("workers_at", "{\"enabled\": true, \"at_seconds\": 300, \"min_workers\": 1, \"max_violation_fraction\": 1, \"paired_direction\": \"higher\"}"), Is.Not.Null);
+        }
+
         /// <summary>H-S2: depot_losses_young with young_seconds 120: the first depot (80 s) counts; with overrun_second 170 it does not; a depot killed at 400 s after placement at 200 s (200 s) does not; a kill after the window does not.</summary>
         [Test]
         public void HS2_DepotLossesYoung()
@@ -303,12 +314,13 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(PairedStats.MdeSharePermille(4, 28016, 500), Is.EqualTo(1072), "D' = D_min = 6");
             Assert.That(PairedStats.MdeSharePermille(36, 28016, 500), Is.EqualTo(734));
             Assert.That(PairedStats.MdeSharePermille(12, 28016, 500), Is.EqualTo(905));
-            // The settings reject a direction that is neither lower nor higher, naming the key, and a check that has no paired_direction key.
+            // The settings reject a direction that is neither lower nor higher, naming the key, and a check entry with an unknown key (paired_direction is accepted on every check).
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), BehaviourSettings.RelativePath));
             DataValidationException bad = Expect.Throws<DataValidationException>(() => BehaviourSettings.Parse(text.Replace("\"paired_direction\": \"lower\"", "\"paired_direction\": \"sideways\"")));
             Assert.That(bad.Message, Does.StartWith(BehaviourSettings.SourceName).And.Contain("paired_direction"));
-            DataValidationException unknown = Expect.Throws<DataValidationException>(() => BehaviourSettings.Parse(text.Replace("\"max_share\": 0.15,", "\"max_share\": 0.15, \"paired_direction\": \"lower\",")));
-            Assert.That(unknown.Message, Does.Contain("paired_direction"));
+            DataValidationException unknown = Expect.Throws<DataValidationException>(() => BehaviourSettings.Parse(text.Replace("\"max_share\": 0.15,", "\"max_share\": 0.15, \"no_such_key\": 1,")));
+            Assert.That(unknown.Message, Does.Contain("no_such_key"));
+            Assert.That(BehaviourSettings.Parse(text.Replace("\"max_share\": 0.15,", "\"max_share\": 0.15, \"paired_direction\": \"lower\",")).PairedDirections["static_defence_share"], Is.EqualTo("lower"));
             BehaviourSettings shipped = BehaviourSettings.Load(TestData.FindDataDirectory());
             Assert.That(shipped.PairedDirections["first_drop_off"], Is.EqualTo("lower"));
             Assert.That(shipped.PairedDirections["income_by"], Is.EqualTo("higher"));

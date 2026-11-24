@@ -389,7 +389,8 @@ namespace Rts.Sim.Tests.Ai
             SpawnAt(sim, "skai.talon_archer", P0, 8, 15);
             SpawnAt(sim, "skai.windrunner", P0, 9, 15);
             AiProfile plain = AiProfile.FromDataSet(Data, "aggressive_s5");
-            AiProfile mapped = Candidate;
+            // The candidate with both consumer switches off (packages S-TS and S-TH may have switched one on in the file), so the map alone is compared.
+            AiProfile mapped = AiProfile.Parse(ProfileText("aggressive_s5_s").Replace("\"use_threat_safety\": true,", "\"use_threat_safety\": false,").Replace("\"use_threat_harass\": true,", "\"use_threat_harass\": false,"), "ai/aggressive_s5_s.json", Data.Content);
             AiMemory plainMemory = new AiMemory();
             AiMemory mappedMemory = new AiMemory();
             DeterministicRandom plainRng = new DeterministicRandom(99);
@@ -530,10 +531,15 @@ namespace Rts.Sim.Tests.Ai
                     changed.Add(candidateLines[i].Trim());
                 }
             }
-            Assert.That(changed.Count, Is.EqualTo(3), string.Join("\n", changed));
+            Assert.That(changed.Count, Is.GreaterThanOrEqualTo(3), string.Join("\n", changed));
             Assert.That(changed[0], Does.StartWith("\"$doc\":"));
             Assert.That(changed[1], Is.EqualTo("\"id\": \"aggressive_s5_s\","));
             Assert.That(changed[2], Is.EqualTo("\"use_threat_map\": true,"));
+            // Every later changed line is a value of one of the three package S switches (which consumer is on follows the SM verdicts, so the test does not name it).
+            for (int i = 3; i < changed.Count; i++)
+            {
+                Assert.That(Regex.IsMatch(changed[i], "^\"use_threat_(safety|harass)\": true,$"), Is.True, changed[i]);
+            }
             Assert.That(candidate.Split('\n')[0], Does.StartWith("// rts/data/ai/aggressive_s5_s.json"));
         }
 

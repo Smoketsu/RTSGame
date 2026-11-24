@@ -55,7 +55,11 @@
 //     values false and 180 keep AI-E's walk cover and expand_saturation_fraction; use_economy_calc needs use_saturation_workers and use_saturation_expansion; only
 //     aggressive_s5_e has it true).
 //   * rts/docs/specs/ai_threat_map.md package S-MAP (the threat map): use_threat_map, threat_cell_tiles and threat_spread_cells (every profile file carries
-//     them; the old values false, 4 and 2 play exactly as before; the map is passive, no rule reads it yet; only aggressive_s5_s has use_threat_map true).
+//     them; the old values false, 4 and 2 play exactly as before; the map is passive until a rule reads it; only aggressive_s5_s has use_threat_map true).
+//   * rts/docs/specs/ai_threat_map.md package S-TS (rule TS, safety by the map): use_threat_safety and threat_unsafe_margin (every profile file carries them; the old
+//     values false and 150 play exactly as before and the margin is unread while the switch is off; use_threat_safety needs use_threat_map; false in every profile after run SM-1 found no measurable effect).
+//   * rts/docs/specs/ai_threat_map.md package S-TH (rule TH, harass target and route by the map): use_threat_harass (every profile file carries it; the old value false plays exactly
+//     as before; it needs use_threat_map and use_target_choice; false in every profile after run SM-2 found no measurable effect and a worse income_by).
 //   * field_saturation.md package AI-P (placement and defence): use_forward_producers, use_threat_defence, threat_defence_min_enemy_supply,
 //     threat_defence_min_enemy_advantage, threat_defence_max_value_share and threat_defence_release_fraction (every profile file carries
 //     them; the old values false, false, 0, 0, 0, 1 reproduce the earlier rules exactly; use_threat_defence needs use_static_defence).
@@ -871,6 +875,15 @@ namespace Rts.Ai
         /// <summary>Package S: rings a unit's strength reaches on the threat map (ring k of K adds (K + 1 - k) / (K + 1) of it). Unit: cells (integer). Range: 0 to 8.</summary>
         public int ThreatSpreadCells { get; }
 
+        /// <summary>Package S rule TS (ai_threat_map.md section 4): IsUnsafe reads the threat map instead of the last seen army point and unarmed structures; needs <see cref="UseThreatMap"/>. Unit: boolean.</summary>
+        public bool UseThreatSafety { get; }
+
+        /// <summary>Package S rule TS: enemy strength a point may hold above own strength and still be safe. Unit: resource units of army value (integer). Range: 0 to 100000.</summary>
+        public int ThreatUnsafeMargin { get; }
+
+        /// <summary>Package S rule TH (ai_threat_map.md section 5): the harass squad picks the known enemy drop-off with the least enemy strength on the way and starts only when that is below its own strength; needs <see cref="UseThreatMap"/> and <see cref="UseTargetChoice"/>. Unit: boolean.</summary>
+        public bool UseThreatHarass { get; }
+
         /// <summary>
         /// The authored wall lines by map ID (ordinal order), attached by <see cref="FromDataSet"/> from DataSet.AiWallLines; empty for a profile made by <see cref="Parse(string, string, ContentCatalog)"/> from text.
         /// Immutable after load. Unit: map ID to lines. Range: 0 or more maps.
@@ -1165,6 +1178,21 @@ namespace Rts.Ai
             UseThreatMap = root.RequireBool("use_threat_map");
             ThreatCellTiles = root.RequireInt("threat_cell_tiles", 1, 16);
             ThreatSpreadCells = root.RequireInt("threat_spread_cells", 0, 8);
+            UseThreatSafety = root.RequireBool("use_threat_safety");
+            ThreatUnsafeMargin = root.RequireInt("threat_unsafe_margin", 0, 100000);
+            if (UseThreatSafety && !UseThreatMap)
+            {
+                throw root.Require("use_threat_safety").Fail("requires use_threat_map to be true as well");
+            }
+            UseThreatHarass = root.RequireBool("use_threat_harass");
+            if (UseThreatHarass && !UseThreatMap)
+            {
+                throw root.Require("use_threat_harass").Fail("requires use_threat_map to be true as well");
+            }
+            if (UseThreatHarass && !UseTargetChoice)
+            {
+                throw root.Require("use_threat_harass").Fail("requires use_target_choice to be true as well");
+            }
             if (UseRaidResponse && !UseMeasuredDefence)
             {
                 throw root.Require("use_raid_response").Fail("requires use_measured_defence to be true as well");
@@ -1313,7 +1341,7 @@ namespace Rts.Ai
                 "use_supply_ahead", "supply_ahead_max_pending",
                 "use_raid_workers", "raid_active_seconds", "raid_field_radius_tiles", "raid_evacuate_max_commands_per_think",
                 "use_raid_response", "raid_hold_radius_tiles", "raid_hq_cover_margin_tiles",
-                "use_threat_map", "threat_cell_tiles", "threat_spread_cells",
+                "use_threat_map", "threat_cell_tiles", "threat_spread_cells", "use_threat_safety", "threat_unsafe_margin", "use_threat_harass",
                 "budget_common_weights", "budget_rare_weights", "budget_opening_production_factor", "budget_threat_defence_factor", "budget_worker_floor",
                 "budget_defence_max_spend_share", "budget_rare_surplus_on", "budget_rare_surplus_off", "budget_rare_surplus_weight_factor", "factions");
             // Profile ID as written; must equal the file name without folder and extension.

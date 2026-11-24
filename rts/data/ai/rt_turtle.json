@@ -412,6 +412,12 @@
   "threat_cell_tiles": 4,
   // P-006 S: how far a unit's strength reaches on the threat map: ring k of K adds (K + 1 - k) / (K + 1) of it. Unit: cells. Range: 0 to 8. Source: rts/docs/specs/ai_threat_map.md section 3.3; placeholder.
   "threat_spread_cells": 2,
+  // P-006 S rule TS: IsUnsafe reads the threat map (enemy strength above own strength plus threat_unsafe_margin, or an enemy HQ or uncleared enemy spawn within expand_safe_radius_tiles); needs use_threat_map. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md section 4; placeholder.
+  "use_threat_safety": false,
+  // P-006 S rule TS: enemy strength a point may hold above own strength and still be safe. Unit: resource units of army value. Range: 0 to 100000. Source: rts/docs/specs/ai_threat_map.md section 4; placeholder.
+  "threat_unsafe_margin": 150,
+  // P-006 S rule TH: the harass squad picks the known enemy drop-off with the least enemy strength on the way, and starts only when that is below the squad's strength; needs use_threat_map and use_target_choice. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_threat_map.md section 5; placeholder.
+  "use_threat_harass": false,
   // Per-faction plans, keyed by faction ID. Source: Factions (Skai Riders, Water faction); placeholder.
   "factions": {
     "water": {
