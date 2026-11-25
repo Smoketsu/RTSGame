@@ -8,3 +8,4 @@ data_misc PASSED Passed!  - Failed:     0, Passed:   373, Skipped:     0, Total:
 sim_rest PASSED Passed!  - Failed:     0, Passed:   113, Skipped:     0, Total:   113, Duration: 1 s - Rts.Sim.Tests.dll (net8.0)
 net PASSED Passed!  - Failed:     0, Passed:    33, Skipped:     0, Total:    33, Duration: 1 m 22 s - Rts.Net.Tests.dll (net8.0)
 replay PASSED Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 28 s - Rts.Replay.Tests.dll (net8.0)
+harness_rerun_EconomyMetricsTests.Command_PrintsIncomeByAndOpeningLines PASSED Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 23 s - after the RR-M re-pin it had missed (behaviour line count 18 becomes 26); replaces that one failure of the harness chunk

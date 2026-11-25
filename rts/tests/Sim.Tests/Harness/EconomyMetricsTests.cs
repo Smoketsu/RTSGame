@@ -138,7 +138,8 @@ namespace Rts.Sim.Tests.Harness
                     behaviourLines++;
                 }
             }
-            Assert.That(behaviourLines, Is.EqualTo(18));
+            // Four checks added by ai_reef_runner_defence.md RR-M: 18 becomes 26 (two BEHAVIOUR lines per check, candidate and baseline).
+            Assert.That(behaviourLines, Is.EqualTo(26));
             int incomeIndex = Array.FindIndex(lines, l => l.StartsWith("BEHAVIOUR income_by ", StringComparison.Ordinal));
             Assert.That(incomeIndex, Is.GreaterThanOrEqualTo(0));
             Regex format = new Regex(@"^BEHAVIOUR_BY_OPENING check=income_by profile=aggressive_s5 faction=(skai|water) opening=(\S*) games=\d+ metric_median=\S+$");
