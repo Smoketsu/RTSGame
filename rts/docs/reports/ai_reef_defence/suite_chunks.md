@@ -5,3 +5,4 @@ ai_b FAILED Failed!  - Failed:     1, Passed:   277, Skipped:     0, Total:   27
 harness FAILED Failed!  - Failed:     1, Passed:   147, Skipped:     0, Total:   148, Duration: 14 m 54 s - Rts.Sim.Tests.dll (net8.0)
 economy_combat PASSED Passed!  - Failed:     0, Passed:   237, Skipped:     0, Total:   237, Duration: 18 s - Rts.Sim.Tests.dll (net8.0)
 data_misc PASSED Passed!  - Failed:     0, Passed:   373, Skipped:     0, Total:   373, Duration: 14 s - Rts.Sim.Tests.dll (net8.0)
+sim_rest PASSED Passed!  - Failed:     0, Passed:   113, Skipped:     0, Total:   113, Duration: 1 s - Rts.Sim.Tests.dll (net8.0)
