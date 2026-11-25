@@ -180,7 +180,8 @@ namespace Rts.Sim.Tests.Harness
             List<string> notDeclared = new List<string>();
             List<IBehaviourCheck> checks = one.Checks(null, BucketTicks, notDeclared);
             Assert.That(checks.Count, Is.EqualTo(1));
-            Assert.That(notDeclared, Is.EqualTo(new[] { "hq_move_new_income", "workers_at", "first_drop_off", "income_by", "econ_gap", "depot_losses_young", "harass_trade", "harass_squads" }));
+            // Four checks added by ai_reef_runner_defence.md RR-M: the last four IDs.
+            Assert.That(notDeclared, Is.EqualTo(new[] { "hq_move_new_income", "workers_at", "first_drop_off", "income_by", "econ_gap", "depot_losses_young", "harass_trade", "harass_squads", "won", "worker_losses_pre_overrun", "army_supply_ratio_at", "trained_unit" }));
             Expect.Throws<HarnessException>(() => one.Checks(new[] { "no_such_check" }, BucketTicks, new List<string>()));
         }
 
