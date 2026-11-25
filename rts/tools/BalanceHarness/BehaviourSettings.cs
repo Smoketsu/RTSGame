@@ -94,8 +94,9 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="ticksPerSecond">Simulation ticks per second. Unit: ticks per second. Range: 1 upward.</param>
         /// <param name="data">The loaded data set for a check that models the game (econ_gap), or null when only validating.</param>
         /// <param name="windowSeconds">The summary window of ai_eval.json (summary_window_seconds), or int.MaxValue when unknown. Unit: seconds. Range: 60 to 2400, or int.MaxValue.</param>
+        /// <param name="sampleSeconds">Seconds of the army samples (summary_sample_seconds), or null when unknown. Unit: seconds.</param>
         public List<IBehaviourCheck> Checks(IReadOnlyList<string>? only, int bucketTicks, List<string> notDeclared, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null,
-            int windowSeconds = int.MaxValue)
+            int windowSeconds = int.MaxValue, IReadOnlyList<int>? sampleSeconds = null)
         {
             if (only != null)
             {
@@ -107,7 +108,7 @@ namespace Rts.Tools.BalanceHarness
                     }
                 }
             }
-            BehaviourContext context = new BehaviourContext(RareWeightPt, bucketTicks, bankSeconds, ticksPerSecond, data, windowSeconds);
+            BehaviourContext context = new BehaviourContext(RareWeightPt, bucketTicks, bankSeconds, ticksPerSecond, data, windowSeconds, sampleSeconds);
             List<IBehaviourCheck> checks = new List<IBehaviourCheck>();
             foreach (KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>> pair in BehaviourChecks.Registry)
             {

@@ -168,7 +168,8 @@ namespace Rts.Sim.Tests.Harness
         public void Registry_AndDataFile()
         {
             BehaviourSettings shipped = BehaviourSettings.Load(TestData.FindDataDirectory());
-            Assert.That(shipped.Entries.Count, Is.EqualTo(9), "five older checks, econ_gap (package E-OPT) and the three package S-M checks");
+            // Four checks added by ai_reef_runner_defence.md RR-M: 9 becomes 13.
+            Assert.That(shipped.Entries.Count, Is.EqualTo(13), "five older checks, econ_gap (package E-OPT), the three package S-M checks and the four package RR-M checks");
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), BehaviourSettings.RelativePath));
             DataValidationException unknown = Expect.Throws<DataValidationException>(() => BehaviourSettings.Parse(text.Replace("\"static_defence_share\": {", "\"no_such_check\": {")));
             Assert.That(unknown.Message, Does.StartWith(BehaviourSettings.SourceName).And.Contain("no_such_check"));

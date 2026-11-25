@@ -114,6 +114,42 @@
       "max_violation_fraction": 1,
       // Which way is better in the paired behaviour test: more harass squads started is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_threat_map.md 7.2 (guard TH-B2); placeholder.
       "paired_direction": "higher"
+    },
+    "won": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "enabled": true,
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: winning is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "paired_direction": "higher"
+    },
+    "worker_losses_pre_overrun": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "enabled": true,
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: fewer own workers killed before the overrun second is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "paired_direction": "lower"
+    },
+    "army_supply_ratio_at": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "enabled": true,
+      // Second of the army supply sample the ratio is read at; must be one of summary_sample_seconds of ai_eval.json. Unit: seconds. Range: 180, 300 or 450 (the shipped sample seconds). Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "at_seconds": 300,
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: a larger own-to-enemy army supply ratio is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "paired_direction": "higher"
+    },
+    "trained_unit": {
+      // Run this check. Unit: boolean. Range: true or false. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "enabled": true,
+      // Unit whose trained count is the metric (whole game). Unit: unit ID. Range: a unit ID of the data set. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "unit": "water.reef_runner",
+      // Share of judged slot-games that may violate before the check fails for the profile; 1 because the check always holds and the bar is the paired test. Unit: fraction. Range: 0 to 1, at most 4 decimals. Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "max_violation_fraction": 1,
+      // Which way is better in the paired behaviour test: more of the unit trained is better. Unit: text. Range: "lower" or "higher". Source: rts/docs/specs/ai_reef_runner_defence.md 4.2; placeholder.
+      "paired_direction": "higher"
     }
   }
 }

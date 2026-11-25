@@ -327,7 +327,8 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(shipped.PairedDirections["depot_losses_young"], Is.EqualTo("lower"));
             Assert.That(shipped.PairedDirections["harass_trade"], Is.EqualTo("higher"));
             Assert.That(shipped.PairedDirections["harass_squads"], Is.EqualTo("higher"));
-            Assert.That(shipped.PairedDirections.Count, Is.EqualTo(5));
+            // Four checks added by ai_reef_runner_defence.md RR-M (won, worker_losses_pre_overrun, army_supply_ratio_at, trained_unit): 5 becomes 9.
+            Assert.That(shipped.PairedDirections.Count, Is.EqualTo(9));
         }
 
         /// <summary>H-S5: a game with and without the observer has the same state hash, play signature and result; the summary carries drop_off_life and harass; a record without the new keys parses (empty lives, zero harass) and the line round-trips.</summary>

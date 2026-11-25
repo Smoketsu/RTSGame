@@ -127,7 +127,8 @@ namespace Rts.Sim.Tests.Harness
                 "--max-game-seconds", "120", "--jobs", "4", "--out", folder }, out string stdout, out string stderr);
             Assert.That(exit, Is.AnyOf(0, 2), stderr);
             string[] lines = stdout.TrimEnd('\n').Split('\n');
-            Assert.That(lines[lines.Length - 1], Does.EndWith(" of=9"), "five checks of E0 and earlier, econ_gap (package E-OPT) and the three package S-M checks");
+            // Four checks added by ai_reef_runner_defence.md RR-M: of=9 becomes of=13.
+            Assert.That(lines[lines.Length - 1], Does.EndWith(" of=13"), "five checks of E0 and earlier, econ_gap (package E-OPT), the three package S-M checks and the four package RR-M checks");
             // Every check has two BEHAVIOUR lines (candidate, baseline); only income_by has opening lines.
             int behaviourLines = 0;
             foreach (string line in lines)

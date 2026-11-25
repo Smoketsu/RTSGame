@@ -19,7 +19,7 @@ namespace Rts.Tools.BalanceHarness
             + " | --data <data folder> --fights [--fight-settings <fights.json>] [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
             + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--fight-settings <fights.json>] [--profile <id>] [--baseline-profile <id>] [--jobs J] [--seed S] [--out <dir>]"
             + " | --data <data folder> --pool --profile-b <candidate id> [--stage 1|2|all] [--pairs N] [--matchups x,y] [--maps a,b] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
-            + " | --data <data folder> --behaviour --profile-a <baseline id> --profile-b <candidate id> [--checks id,id] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
+            + " | --data <data folder> --behaviour --profile-a <baseline id> --profile-b <candidate id> [--checks id,id] [--paired-faction <faction id>] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --balance [--profile <id>] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--from <balance.jsonl>] [--fights-from <fights.jsonl>] [--strict]"
             + " | --data <data folder> --trace --map <id> --matchup <a_vs_b> [--seed S] [--game N] [--max-game-seconds T] [--out <file>] [--threat-grid]";
 
@@ -106,6 +106,9 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Check IDs from --checks (behaviour), or null for every enabled check. Unit: check IDs.</summary>
         public IReadOnlyList<string>? Checks { get; private set; }
+
+        /// <summary>Faction ID from --paired-faction (behaviour only): the paired test judges only the slot-games whose slot plays this faction (rts/docs/specs/ai_reef_runner_defence.md 4.1), or empty for no filter. Range: a faction of the data set (checked by the runner).</summary>
+        public string PairedFaction { get; private set; } = string.Empty;
 
         /// <summary>Path from --fights-from (balance: a fights.jsonl to read the predictor accuracy from instead of running the sweep), or empty. Range: any readable file path.</summary>
         public string FightsFrom { get; private set; } = string.Empty;
@@ -269,6 +272,7 @@ namespace Rts.Tools.BalanceHarness
                     case "--stage":
                     case "--pairs":
                     case "--checks":
+                    case "--paired-faction":
                     case "--fights-from":
                     case "--fight-settings":
                     case "--baseline-profile":
@@ -368,6 +372,9 @@ namespace Rts.Tools.BalanceHarness
                     case "--checks":
                         options.Checks = SplitList(value);
                         break;
+                    case "--paired-faction":
+                        options.PairedFaction = value;
+                        break;
                     case "--fights-from":
                         options.FightsFrom = value;
                         break;
@@ -409,6 +416,10 @@ namespace Rts.Tools.BalanceHarness
             if (options.Behaviour && (options.ProfileA.Length == 0 || options.ProfileB.Length == 0))
             {
                 throw new HarnessException("--behaviour needs --profile-a and --profile-b. " + Usage);
+            }
+            if (options.PairedFaction.Length > 0 && !options.Behaviour)
+            {
+                throw new HarnessException("--paired-faction is allowed only with --behaviour. " + Usage);
             }
             if (options.Response && options.Profile.Length == 0)
             {
