@@ -337,6 +337,13 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="error">stderr for progress lines.</param>
         internal static List<GameRecord> PlayCells(IReadOnlyList<string> maps, IReadOnlyList<string> matchups, int games, int jobs, int chunkGames, IReadOnlyList<string> common, TextWriter error)
         {
+            // Resume support for long measurement runs: RTS_CHUNK_GAMES (games per worker call, whole number 1 upward) overrides the data file's chunk size. Games are independent, so the records are the same.
+            // Unit: games. Range: 1 upward; unset keeps the data value.
+            string? chunkOverride = Environment.GetEnvironmentVariable("RTS_CHUNK_GAMES");
+            if (!string.IsNullOrEmpty(chunkOverride))
+            {
+                chunkGames = int.Parse(chunkOverride, CultureInfo.InvariantCulture);
+            }
             List<BatchRunner.Chunk> chunks = new List<BatchRunner.Chunk>();
             List<IReadOnlyList<string>> jobList = new List<IReadOnlyList<string>>();
             foreach (string map in maps)
