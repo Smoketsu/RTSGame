@@ -176,7 +176,7 @@ namespace Rts.Sim.Tests.Ai
                 AiProfile profile = AiProfile.FromDataSet(Data, id);
                 foreach (KeyValuePair<string, AiFactionPlan> pair in profile.Factions)
                 {
-                    if (id != "aggressive_s4r" && id != "aggressive_s5" && id != "aggressive_s5_fp2" && id != "abl_s5_no_e" && id != "abl_s5_no_p" && id != "abl_s5_no_h" && id != "aggressive_s5_b" && id != "aggressive_s5_r" && id != "aggressive_s5_m" && id != "aggressive_s5_pd" && id != "aggressive_s5_e" && id != "aggressive_s5_s" && id != "abl_s5b_no_b" && id != "abl_s5_p1_only" && id != "abl_s5_p2_only")
+                    if (id != "aggressive_s4r" && id != "aggressive_s5" && id != "aggressive_s5_fp2" && id != "abl_s5_no_e" && id != "abl_s5_no_p" && id != "abl_s5_no_h" && id != "aggressive_s5_b" && id != "aggressive_s5_r" && id != "aggressive_s5_m" && id != "aggressive_s5_pd" && id != "aggressive_s5_e" && id != "aggressive_s5_s" && id != "abl_s5b_no_b" && id != "abl_s5_p1_only" && id != "abl_s5_p2_only" && id != "aggressive_s5_rr")
                     {
                         Assert.That(pair.Value.Openings.Count, Is.EqualTo(0), id + "/" + pair.Key);
                     }
