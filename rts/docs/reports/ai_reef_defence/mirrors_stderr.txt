@@ -51,3 +51,6 @@ chunk 50/96 prototype_1v1 water_vs_water 4/48
 chunk 51/96 prototype_1v1 water_vs_water 3/48
 chunk 52/96 prototype_1v1 water_vs_water 2/48
 chunk 53/96 prototype_1v1 water_vs_water 5/48
+chunk 54/96 prototype_1v1 water_vs_water 7/48
+chunk 55/96 prototype_1v1 water_vs_water 6/48
+chunk 56/96 prototype_1v1 water_vs_water 8/48
