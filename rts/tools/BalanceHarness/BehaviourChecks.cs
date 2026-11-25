@@ -3,6 +3,7 @@
 // composition root for checks, as BuiltInMechanics is for mechanics) and declared with its bar values in rts/data/scripts/ai_eval/behaviour_checks.json. A later package adds a check by adding one registry entry and
 // one data entry. Every bar comparison is integer arithmetic (fractions are parts per 10 000, "pt"), so a verdict is exact and platform independent. Tool-side only. Part of Rts.Tools.BalanceHarness.
 // Package S-M (ai_threat_map.md 7.2) adds depot_losses_young, harass_trade and harass_squads (always Held; the bar is the paired test) and the optional paired_direction key of first_drop_off and income_by.
+// Package RR-M (rts/docs/specs/ai_reef_runner_defence.md 4.2) adds won, worker_losses_pre_overrun, army_supply_ratio_at and trained_unit (always Held; the bar is the faction-paired test).
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -71,15 +72,21 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>Last tick the summary counts (summary_window_seconds x ticks per second), or int.MaxValue when not known. Unit: ticks. Range: 1 upward.</summary>
         public int WindowTicks { get; }
 
-        /// <summary>Bundles the values; the last four are optional (unknown while only validating settings).</summary>
+        /// <summary>Seconds of the summary's army samples (summary_sample_seconds), or empty when not known (settings validation without a run). Unit: seconds. Range: entries of 1 to 7200.</summary>
+        public IReadOnlyList<int> SampleSeconds { get; }
+
+        /// <summary>Bundles the values; the last five are optional (unknown while only validating settings).</summary>
         /// <param name="rareWeightPt">Rare weight. Unit: parts per 10 000.</param>
         /// <param name="bucketTicks">Income bucket. Unit: ticks.</param>
         /// <param name="bankSeconds">Bank snapshot seconds, or null.</param>
         /// <param name="ticksPerSecond">Ticks per second, or 1 when not known.</param>
         /// <param name="data">The data set, or null.</param>
         /// <param name="windowSeconds">The summary window, or int.MaxValue when not known. Unit: seconds. Range: 60 to 2400, or int.MaxValue.</param>
-        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null, int windowSeconds = int.MaxValue)
+        /// <param name="sampleSeconds">Seconds of the army samples, or null when not known. Unit: seconds.</param>
+        public BehaviourContext(int rareWeightPt, int bucketTicks, IReadOnlyList<int>? bankSeconds = null, int ticksPerSecond = 1, DataSet? data = null, int windowSeconds = int.MaxValue,
+            IReadOnlyList<int>? sampleSeconds = null)
         {
+            SampleSeconds = sampleSeconds ?? Array.Empty<int>();
             WindowTicks = windowSeconds == int.MaxValue ? int.MaxValue : windowSeconds * ticksPerSecond;
             Data = data;
             RareWeightPt = rareWeightPt;
@@ -143,6 +150,10 @@ namespace Rts.Tools.BalanceHarness
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(DepotLossesYoung.CheckId, c => new DepotLossesYoung(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(HarassTrade.CheckId, c => new HarassTrade(c)),
             new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(HarassSquads.CheckId, c => new HarassSquads(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(Won.CheckId, c => new Won(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(WorkerLossesPreOverrun.CheckId, c => new WorkerLossesPreOverrun(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(ArmySupplyRatioAt.CheckId, c => new ArmySupplyRatioAt(c)),
+            new KeyValuePair<string, Func<BehaviourContext, IBehaviourCheck>>(TrainedUnit.CheckId, c => new TrainedUnit(c)),
         };
 
         /// <summary>True when <paramref name="id"/> is a registered check.</summary>
@@ -706,6 +717,225 @@ namespace Rts.Tools.BalanceHarness
             public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
             {
                 return new BehaviourResult(CheckOutcome.Held, slot.Harass.Squads, 1);
+            }
+        }
+
+        /// <summary>Package RR-M (ai_reef_runner_defence.md 4.2): 1 / 1 when the game's result names this slot, else 0 / 1 (a draw or an undecided game is 0). Always Held; never Unjudged.</summary>
+        private sealed class Won : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "won";
+
+            /// <summary>Bundles the context.</summary>
+            public Won(BehaviourContext context)
+            {
+                // The context is not needed (the check reads the record).
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                // Index of this slot in the record, found by reference. Range: 0, 1 or -1 (not a slot of the record).
+                int index = ReferenceEquals(slot, game.Summary0) ? 0 : ReferenceEquals(slot, game.Summary1) ? 1 : -1;
+                // True when the result names this slot. Range: true or false.
+                bool won = (index == 0 && game.Result == GameRecord.Slot0) || (index == 1 && game.Result == GameRecord.Slot1);
+                return new BehaviourResult(CheckOutcome.Held, won ? 1 : 0, 1);
+            }
+        }
+
+        /// <summary>Package RR-M (ai_reef_runner_defence.md 4.2): own workers killed before the slot's overrun second (ProductionMetrics.WorkerLossesPreOverrun). Unjudged when the summary has no production metrics; otherwise always Held.</summary>
+        private sealed class WorkerLossesPreOverrun : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "worker_losses_pre_overrun";
+
+            /// <summary>Bundles the context.</summary>
+            public WorkerLossesPreOverrun(BehaviourContext context)
+            {
+                // The context is not needed (the check reads the summary).
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                return slot.Production == null ? new BehaviourResult(CheckOutcome.Unjudged, 0, 1) : new BehaviourResult(CheckOutcome.Held, slot.Production.WorkerLossesPreOverrun, 1);
+            }
+        }
+
+        /// <summary>Package RR-M (ai_reef_runner_defence.md 4.2): own army supply over the enemy's (at least 1) at the sample second at_seconds. Unjudged when either sample is null (the game ended earlier) or either summary has no production metrics; otherwise always Held.</summary>
+        private sealed class ArmySupplyRatioAt : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "army_supply_ratio_at";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Index of at_seconds in the sample seconds. Unit: index. Range: 0 to 7; 0 when the sample seconds are not known.</summary>
+            private int _index;
+
+            /// <summary>Bundles the context.</summary>
+            public ArmySupplyRatioAt(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "at_seconds", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                // The at_seconds entry (kept to name the key in an error). Unit: seconds. Range: 1 to 7200.
+                JsonValue at = entry.Require("at_seconds");
+                // Seconds of the sample. Unit: seconds. Range: 1 to 7200.
+                int seconds = at.AsInt(1, 7200);
+                if (_context.SampleSeconds.Count > 0)
+                {
+                    _index = -1;
+                    for (int i = 0; i < _context.SampleSeconds.Count; i++)
+                    {
+                        if (_context.SampleSeconds[i] == seconds)
+                        {
+                            _index = i;
+                        }
+                    }
+                    if (_index < 0)
+                    {
+                        throw at.Fail("must be one of summary_sample_seconds (found " + seconds.ToString(CultureInfo.InvariantCulture) + ")");
+                    }
+                }
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                // The enemy's summary: the other slot of the record, found by reference. Null when this slot is not in the record.
+                GameSummary? enemy = ReferenceEquals(slot, game.Summary0) ? game.Summary1 : ReferenceEquals(slot, game.Summary1) ? game.Summary0 : null;
+                if (slot.Production == null || enemy?.Production == null || _index >= slot.Production.ArmySupply.Count || _index >= enemy.Production.ArmySupply.Count
+                    || slot.Production.ArmySupply[_index] == null || enemy.Production.ArmySupply[_index] == null)
+                {
+                    return new BehaviourResult(CheckOutcome.Unjudged, 0, 1);
+                }
+                // Enemy army supply, at least 1 so the ratio is defined. Unit: supply. Range: 1 upward.
+                int enemySupply = Math.Max(1, enemy.Production.ArmySupply[_index]!.Value);
+                return new BehaviourResult(CheckOutcome.Held, slot.Production.ArmySupply[_index]!.Value, enemySupply);
+            }
+        }
+
+        /// <summary>Package RR-M (ai_reef_runner_defence.md 4.2): how many units of the unit ID the slot trained over the whole game (GameSummary.Trained; 0 when absent). Always Held; never Unjudged.</summary>
+        private sealed class TrainedUnit : IBehaviourCheck
+        {
+            /// <summary>Registry ID.</summary>
+            public const string CheckId = "trained_unit";
+
+            /// <summary>The shared numbers.</summary>
+            private readonly BehaviourContext _context;
+
+            /// <summary>Unit ID counted. Range: a unit of the data set (checked when the context knows the data).</summary>
+            private string _unit = string.Empty;
+
+            /// <summary>Bundles the context.</summary>
+            public TrainedUnit(BehaviourContext context)
+            {
+                _context = context;
+            }
+
+            /// <inheritdoc />
+            public string Id => CheckId;
+
+            /// <inheritdoc />
+            public bool Enabled { get; private set; }
+
+            /// <inheritdoc />
+            public int MaxViolationPt { get; private set; }
+
+            /// <inheritdoc />
+            public string BarText => "none";
+
+            /// <inheritdoc />
+            public IReadOnlyList<string> ExtraNames => Array.Empty<string>();
+
+            /// <inheritdoc />
+            public void ReadSettings(JsonValue entry)
+            {
+                entry.RejectUnknownKeys("enabled", "unit", "max_violation_fraction", "paired_direction");
+                Enabled = entry.RequireBool("enabled");
+                // The unit entry (kept to name the key in an error).
+                JsonValue unit = entry.Require("unit");
+                _unit = unit.AsString();
+                if (_context.Data != null && !_context.Data.Content.Units.ContainsKey(_unit))
+                {
+                    throw unit.Fail("must be a unit ID of the data set (found \"" + _unit + "\")");
+                }
+                MaxViolationPt = Pt(entry, "max_violation_fraction", "0", "1");
+            }
+
+            /// <inheritdoc />
+            public BehaviourResult Evaluate(GameSummary slot, GameRecord game)
+            {
+                return new BehaviourResult(CheckOutcome.Held, slot.Trained.TryGetValue(_unit, out int count) ? count : 0, 1);
             }
         }
 

@@ -52,6 +52,36 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="arguments">Worker arguments, each one argv entry.</param>
         public static WorkerResult RunOne(IReadOnlyList<string> arguments)
         {
+            // Resume support: RTS_WORKER_CACHE names a folder where each finished worker's stdout lines are kept, one file per distinct argument list; a later run with the same arguments reads them
+            // instead of playing again. Unset: no caching. Tool-side only, no effect on any record. Unit: folder path.
+            string? cacheFolder = Environment.GetEnvironmentVariable("RTS_WORKER_CACHE");
+            // Cache file of this worker call, or null without a cache folder. Unit: file path.
+            string? cacheFile = null;
+            if (!string.IsNullOrEmpty(cacheFolder))
+            {
+                // SHA-256 of the argument list, hex, as the file name. Range: 64 hex characters.
+                string key = BitConverter.ToString(System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", arguments)))).Replace("-", string.Empty);
+                Directory.CreateDirectory(cacheFolder);
+                cacheFile = Path.Combine(cacheFolder, key + ".jsonl");
+                if (File.Exists(cacheFile))
+                {
+                    return new WorkerResult(0, File.ReadAllLines(cacheFile), string.Empty);
+                }
+            }
+            WorkerResult result = RunOneUncached(arguments);
+            if (cacheFile != null && result.ExitCode == 0)
+            {
+                // Written to a temporary name first so a kill never leaves a half file under the real name.
+                File.WriteAllLines(cacheFile + ".tmp", result.Lines);
+                File.Move(cacheFile + ".tmp", cacheFile);
+            }
+            return result;
+        }
+
+        /// <summary>Plays one worker for real (the body of <see cref="RunOne"/> without the cache).</summary>
+        /// <param name="arguments">Worker arguments, each one argv entry.</param>
+        private static WorkerResult RunOneUncached(IReadOnlyList<string> arguments)
+        {
             ProcessStartInfo info = new ProcessStartInfo(HostPath())
             {
                 RedirectStandardOutput = true,

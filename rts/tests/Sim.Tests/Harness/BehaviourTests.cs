@@ -168,7 +168,8 @@ namespace Rts.Sim.Tests.Harness
         public void Registry_AndDataFile()
         {
             BehaviourSettings shipped = BehaviourSettings.Load(TestData.FindDataDirectory());
-            Assert.That(shipped.Entries.Count, Is.EqualTo(9), "five older checks, econ_gap (package E-OPT) and the three package S-M checks");
+            // Four checks added by ai_reef_runner_defence.md RR-M: 9 becomes 13.
+            Assert.That(shipped.Entries.Count, Is.EqualTo(13), "five older checks, econ_gap (package E-OPT), the three package S-M checks and the four package RR-M checks");
             string text = File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), BehaviourSettings.RelativePath));
             DataValidationException unknown = Expect.Throws<DataValidationException>(() => BehaviourSettings.Parse(text.Replace("\"static_defence_share\": {", "\"no_such_check\": {")));
             Assert.That(unknown.Message, Does.StartWith(BehaviourSettings.SourceName).And.Contain("no_such_check"));
@@ -179,7 +180,8 @@ namespace Rts.Sim.Tests.Harness
             List<string> notDeclared = new List<string>();
             List<IBehaviourCheck> checks = one.Checks(null, BucketTicks, notDeclared);
             Assert.That(checks.Count, Is.EqualTo(1));
-            Assert.That(notDeclared, Is.EqualTo(new[] { "hq_move_new_income", "workers_at", "first_drop_off", "income_by", "econ_gap", "depot_losses_young", "harass_trade", "harass_squads" }));
+            // Four checks added by ai_reef_runner_defence.md RR-M: the last four IDs.
+            Assert.That(notDeclared, Is.EqualTo(new[] { "hq_move_new_income", "workers_at", "first_drop_off", "income_by", "econ_gap", "depot_losses_young", "harass_trade", "harass_squads", "won", "worker_losses_pre_overrun", "army_supply_ratio_at", "trained_unit" }));
             Expect.Throws<HarnessException>(() => one.Checks(new[] { "no_such_check" }, BucketTicks, new List<string>()));
         }
 

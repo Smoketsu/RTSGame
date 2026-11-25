@@ -149,9 +149,18 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>BETTER, WORSE or NO_MEASURABLE_EFFECT.</summary>
         public string Verdict { get; }
 
+        /// <summary>Faction the pairs were judged for (--paired-faction), or empty for no filter. Range: a faction ID or empty.</summary>
+        public string Faction { get; }
+
+        /// <summary>Pairs left out because the candidate or the baseline had no slot-game of <see cref="Faction"/> (not counted as unjudged). Unit: pairs. Range: 0 upward; 0 without a faction.</summary>
+        public int SkippedPairs { get; }
+
         /// <summary>Bundles the values.</summary>
-        public PairedCheckRow(string check, string candidate, string baseline, int pairs, int unjudgedPairs, int better, int worse, int ties, int pPt, int mdePermille, string verdict)
+        public PairedCheckRow(string check, string candidate, string baseline, int pairs, int unjudgedPairs, int better, int worse, int ties, int pPt, int mdePermille, string verdict,
+            string faction = "", int skippedPairs = 0)
         {
+            Faction = faction;
+            SkippedPairs = skippedPairs;
             Check = check;
             Candidate = candidate;
             Baseline = baseline;
@@ -171,7 +180,8 @@ namespace Rts.Tools.BalanceHarness
             return "BEHAVIOUR_PAIRED check=" + Check + " candidate=" + Candidate + " baseline=" + Baseline + " pairs=" + Pairs.ToString(CultureInfo.InvariantCulture)
                 + " unjudged_pairs=" + UnjudgedPairs.ToString(CultureInfo.InvariantCulture) + " better=" + Better.ToString(CultureInfo.InvariantCulture)
                 + " worse=" + Worse.ToString(CultureInfo.InvariantCulture) + " ties=" + Ties.ToString(CultureInfo.InvariantCulture) + " p=" + PairedStats.P4(PPt)
-                + " mde_permille=" + MdePermille.ToString(CultureInfo.InvariantCulture) + " verdict=" + Verdict;
+                + " mde_permille=" + MdePermille.ToString(CultureInfo.InvariantCulture) + " verdict=" + Verdict
+                + (Faction.Length > 0 ? " faction=" + Faction + " skipped_pairs=" + SkippedPairs.ToString(CultureInfo.InvariantCulture) : string.Empty);
         }
 
         /// <summary>The row of the "## Paired" table of behaviour.md.</summary>
@@ -179,7 +189,8 @@ namespace Rts.Tools.BalanceHarness
         {
             return "| " + Check + " | " + Candidate + " | " + Baseline + " | " + Pairs.ToString(CultureInfo.InvariantCulture) + " | " + UnjudgedPairs.ToString(CultureInfo.InvariantCulture) + " | "
                 + Better.ToString(CultureInfo.InvariantCulture) + " | " + Worse.ToString(CultureInfo.InvariantCulture) + " | " + Ties.ToString(CultureInfo.InvariantCulture) + " | " + PairedStats.P4(PPt)
-                + " | " + MdePermille.ToString(CultureInfo.InvariantCulture) + " | " + Verdict + " |\n";
+                + " | " + MdePermille.ToString(CultureInfo.InvariantCulture) + " | " + Verdict
+                + (Faction.Length > 0 ? " | " + Faction + " | " + SkippedPairs.ToString(CultureInfo.InvariantCulture) : string.Empty) + " |\n";
         }
     }
 
@@ -203,7 +214,11 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="candidate">Candidate profile ID.</param>
         /// <param name="alphaPt">The sign test level (effect_alpha). Unit: parts per 10 000. Range: 1 to 5000.</param>
         /// <param name="z">The integer Z of the stated power. Range: 1 upward.</param>
-        public static PairedCheckRow PairedTest(IBehaviourCheck check, string direction, IReadOnlyList<GameRecord> records, string baseline, string candidate, int alphaPt, int z)
+        /// <param name="faction">
+        /// --paired-faction (ai_reef_runner_defence.md 4.1): when not empty only the slot-games whose slot plays this faction count, X from the candidate's and Y from the baseline's; a pair in which either has none is
+        /// skipped (counted in SkippedPairs, never as unjudged). Empty for the unfiltered test. Range: a faction ID or empty.
+        /// </param>
+        public static PairedCheckRow PairedTest(IBehaviourCheck check, string direction, IReadOnlyList<GameRecord> records, string baseline, string candidate, int alphaPt, int z, string faction = "")
         {
             // The games of each pair by "map|matchup|pair", ordinal order.
             SortedDictionary<string, List<GameRecord>> pairs = new SortedDictionary<string, List<GameRecord>>(StringComparer.Ordinal);
@@ -224,8 +239,12 @@ namespace Rts.Tools.BalanceHarness
             }
             // Counts: better, worse, tied and unjudged pairs. Unit: pairs.
             int better = 0, worse = 0, ties = 0, unjudged = 0;
+            // Pairs skipped by the faction filter. Unit: pairs.
+            int skipped = 0;
             foreach (List<GameRecord> games in pairs.Values)
             {
+                // Slot-games of the filter faction counted into X and into Y in this pair. Unit: slot-games.
+                int xCount = 0, yCount = 0;
                 // Candidate's and baseline's summed metric as the exact fraction num / den.
                 BigInteger xNum = BigInteger.Zero, xDen = BigInteger.One, yNum = BigInteger.Zero, yDen = BigInteger.One;
                 // True when this pair is left out (not exactly two games, a missing summary or an Unjudged slot-game). Range: true or false.
@@ -245,23 +264,44 @@ namespace Rts.Tools.BalanceHarness
                         left = true;
                         break;
                     }
-                    // The candidate's metric in this slot-game as num / den. Unit: as the check. Range: any (harass_trade may be negative).
-                    BehaviourResult x = check.Evaluate(own, game);
-                    // The baseline's metric in this slot-game as num / den. Unit: as the check. Range: as x.
-                    BehaviourResult y = check.Evaluate(other, game);
-                    if (x.Outcome == CheckOutcome.Unjudged || y.Outcome == CheckOutcome.Unjudged)
+                    // True when the candidate's / the baseline's slot in this game plays the filter faction (always true without a filter). Range: true or false.
+                    bool useX = faction.Length == 0 || (game.CandidateSlot == 0 ? game.Slot0Faction : game.Slot1Faction) == faction;
+                    bool useY = faction.Length == 0 || (game.CandidateSlot == 0 ? game.Slot1Faction : game.Slot0Faction) == faction;
+                    if (useX)
                     {
-                        left = true;
-                        break;
+                        // The candidate's metric in this slot-game as num / den. Unit: as the check. Range: any (harass_trade may be negative).
+                        BehaviourResult x = check.Evaluate(own, game);
+                        if (x.Outcome == CheckOutcome.Unjudged)
+                        {
+                            left = true;
+                            break;
+                        }
+                        xNum = xNum * x.Den + x.Num * xDen;
+                        xDen *= x.Den;
+                        xCount++;
                     }
-                    xNum = xNum * x.Den + x.Num * xDen;
-                    xDen *= x.Den;
-                    yNum = yNum * y.Den + y.Num * yDen;
-                    yDen *= y.Den;
+                    if (useY)
+                    {
+                        // The baseline's metric in this slot-game as num / den. Unit: as the check. Range: as x.
+                        BehaviourResult y = check.Evaluate(other, game);
+                        if (y.Outcome == CheckOutcome.Unjudged)
+                        {
+                            left = true;
+                            break;
+                        }
+                        yNum = yNum * y.Den + y.Num * yDen;
+                        yDen *= y.Den;
+                        yCount++;
+                    }
                 }
                 if (left)
                 {
                     unjudged++;
+                    continue;
+                }
+                if (faction.Length > 0 && (xCount == 0 || yCount == 0))
+                {
+                    skipped++;
                     continue;
                 }
                 // Sign of X - Y: negative when the candidate's value is smaller.
@@ -281,7 +321,7 @@ namespace Rts.Tools.BalanceHarness
             }
             SignTestResult test = PairedStats.SignTest(better, worse, alphaPt);
             return new PairedCheckRow(check.Id, candidate, baseline, better + worse + ties, unjudged, better, worse, ties, test.PPt, PairedStats.MdeSharePermille(better + worse, z, alphaPt),
-                test.Significant ? (better > worse ? Better : Worse) : PairedStats.NoMeasurableEffect);
+                test.Significant ? (better > worse ? Better : Worse) : PairedStats.NoMeasurableEffect, faction, skipped);
         }
 
         /// <summary>
@@ -297,6 +337,13 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="error">stderr for progress lines.</param>
         internal static List<GameRecord> PlayCells(IReadOnlyList<string> maps, IReadOnlyList<string> matchups, int games, int jobs, int chunkGames, IReadOnlyList<string> common, TextWriter error)
         {
+            // Resume support for long measurement runs: RTS_CHUNK_GAMES (games per worker call, whole number 1 upward) overrides the data file's chunk size. Games are independent, so the records are the same.
+            // Unit: games. Range: 1 upward; unset keeps the data value.
+            string? chunkOverride = Environment.GetEnvironmentVariable("RTS_CHUNK_GAMES");
+            if (!string.IsNullOrEmpty(chunkOverride))
+            {
+                chunkGames = int.Parse(chunkOverride, CultureInfo.InvariantCulture);
+            }
             List<BatchRunner.Chunk> chunks = new List<BatchRunner.Chunk>();
             List<IReadOnlyList<string>> jobList = new List<IReadOnlyList<string>>();
             foreach (string map in maps)
@@ -480,7 +527,12 @@ namespace Rts.Tools.BalanceHarness
             // Income bucket length in ticks, and the checks to run.
             int bucketTicks = settings.SummaryBucketSeconds * data.Tuning.Match.TicksPerSecond;
             List<string> notDeclared = new List<string>();
-            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond, data, settings.SummaryWindowSeconds);
+            List<IBehaviourCheck> checks = behaviour.Checks(options.Checks, bucketTicks, notDeclared, settings.SummaryBankTimesSeconds, data.Tuning.Match.TicksPerSecond, data, settings.SummaryWindowSeconds,
+                settings.SummarySampleSeconds);
+            if (options.PairedFaction.Length > 0 && !data.Content.Factions.ContainsKey(options.PairedFaction))
+            {
+                throw new HarnessException("--paired-faction '" + options.PairedFaction + "' is not a faction of the data set");
+            }
 
             List<string> common = new List<string> { "--data", options.DataDirectory, "--seed", baseSeed.ToString(CultureInfo.InvariantCulture), "--max-game-seconds", maxSeconds.ToString(CultureInfo.InvariantCulture),
                 "--games", games.ToString(CultureInfo.InvariantCulture), "--profile-a", options.ProfileA, "--profile-b", options.ProfileB, "--paired", "--summary" };
@@ -514,7 +566,7 @@ namespace Rts.Tools.BalanceHarness
                 lines.AddRange(ByOpeningLines(check, records, options.ProfileA));
                 if (behaviour.PairedDirections.TryGetValue(check.Id, out string? direction))
                 {
-                    PairedCheckRow row = PairedTest(check, direction, records, options.ProfileA, options.ProfileB, settings.EffectAlphaPt, zPower);
+                    PairedCheckRow row = PairedTest(check, direction, records, options.ProfileA, options.ProfileB, settings.EffectAlphaPt, zPower, options.PairedFaction);
                     pairedRows.Add(row);
                     lines.Add(row.Line());
                 }
@@ -554,7 +606,9 @@ namespace Rts.Tools.BalanceHarness
             if (pairedRows.Count > 0)
             {
                 table.Append("\n## Paired\n\nSign test of the pair sums at alpha ").Append(PairedStats.P4(settings.EffectAlphaPt)).Append(" (ai_threat_map.md 7.3); mde_permille is the share of decisive pairs in which the candidate must be better to be seen with power 0.80.\n\n");
-                table.Append("| check | candidate | baseline | pairs | unjudged pairs | better | worse | ties | p | mde permille | verdict |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
+                table.Append(options.PairedFaction.Length > 0
+                    ? "| check | candidate | baseline | pairs | unjudged pairs | better | worse | ties | p | mde permille | verdict | faction | skipped pairs |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+                    : "| check | candidate | baseline | pairs | unjudged pairs | better | worse | ties | p | mde permille | verdict |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n");
                 foreach (PairedCheckRow row in pairedRows)
                 {
                     table.Append(row.TableRow());
