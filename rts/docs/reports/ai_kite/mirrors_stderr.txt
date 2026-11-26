@@ -94,3 +94,5 @@ chunk 93/96 prototype_1v1 water_vs_water 45/48
 chunk 94/96 prototype_1v1 water_vs_water 46/48
 chunk 95/96 prototype_1v1 water_vs_water 47/48
 chunk 96/96 prototype_1v1 water_vs_water 48/48
+pairing kind: skai:full,water:full
+elapsed 2352.2 s
