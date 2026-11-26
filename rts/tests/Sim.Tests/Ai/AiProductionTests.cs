@@ -648,7 +648,8 @@ namespace Rts.Sim.Tests.Ai
         [Test]
         public void Off2_OldBehaviourAndDraws()
         {
-            AiProfile baseline = AiProfile.FromDataSet(Data, "aggressive_s5_m");
+            // Parsed from the file text like the twin (25 Nov 2026): FromDataSet also attaches the authored wall lines, which the text parse cannot, and with Reef Runners in the mix the drawn wall style builds them, so the two would differ for that reason alone.
+            AiProfile baseline = AiProfile.Parse(ProfileText("aggressive_s5_m"), "ai/aggressive_s5_m.json", Data.Content);
             AiProfile twin = AiProfile.Parse(ProfileText("aggressive_s5_m").Replace("\"income_window_seconds\": 60", "\"income_window_seconds\": 120").Replace("\"production_capacity_target\": 1,", "\"production_capacity_target\": 2,").Replace("\"supply_ahead_max_pending\": 1", "\"supply_ahead_max_pending\": 6")
                 .Replace("\"raid_active_seconds\": 10", "\"raid_active_seconds\": 30").Replace("\"raid_field_radius_tiles\": 8", "\"raid_field_radius_tiles\": 20").Replace("\"raid_evacuate_max_commands_per_think\": 12", "\"raid_evacuate_max_commands_per_think\": 1")
                 .Replace("\"raid_hold_radius_tiles\": 4", "\"raid_hold_radius_tiles\": 15").Replace("\"raid_hq_cover_margin_tiles\": 2", "\"raid_hq_cover_margin_tiles\": 9"),

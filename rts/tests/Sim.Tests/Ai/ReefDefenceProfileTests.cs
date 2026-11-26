@@ -176,7 +176,8 @@ namespace Rts.Sim.Tests.Ai
             int candidateCount = candidateWater.Summary1!.Trained.TryGetValue(Reef, out int c) ? c : 0;
             int baselineCount = baselineWater.Summary1!.Trained.TryGetValue(Reef, out int b) ? b : 0;
             Assert.That(candidateCount, Is.AtLeast(4), "candidate Water Reef Runners trained (baseline " + baselineCount + ")");
-            Assert.That(baselineCount, Is.LessThan(candidateCount), "baseline " + baselineCount + " against candidate " + candidateCount);
+            // Re-pinned 25 Nov 2026: aggressive_s5 carries the weights itself now (baseline was 1 Reef Runner), so both Waters train the same number.
+            Assert.That(baselineCount, Is.EqualTo(candidateCount), "baseline " + baselineCount + " against candidate " + candidateCount);
         }
     }
 }
