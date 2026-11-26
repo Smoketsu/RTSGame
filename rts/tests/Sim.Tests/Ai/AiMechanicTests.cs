@@ -458,8 +458,9 @@ namespace Rts.Sim.Tests.Ai
             }
             Assert.That(Math.Abs(melee - 500), Is.LessThanOrEqualTo(50));
             Assert.That(Math.Abs(all - 500), Is.LessThanOrEqualTo(50));
-            Assert.That(melee, Is.EqualTo(498));
-            Assert.That(all, Is.EqualTo(502));
+            // Re-pinned 25 Nov 2026 for water.reef_runner weight 30 in aggressive_s5_m (the water plan's weights changed the draws): old melee 498 and all 502.
+            Assert.That(melee, Is.EqualTo(499));
+            Assert.That(all, Is.EqualTo(501));
         }
 
         /// <summary>V-2 (wall half): over match seeds 1 to 1000 (player 0, water plan, the full candidate) the wall style counts are within 50 of none 200, funnel 300 and sealed 500. The counts are deterministic and pinned below (none 190, funnel 308, sealed 502); the wave aim counts of the full candidate (the wall draw comes first, so they differ from V2_Distribution's) are within 50 of 500 too.</summary>
@@ -486,10 +487,11 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(Math.Abs(funnel - 300), Is.LessThanOrEqualTo(50));
             Assert.That(Math.Abs(sealed_ - 500), Is.LessThanOrEqualTo(50));
             Assert.That(Math.Abs(melee - 500), Is.LessThanOrEqualTo(50));
-            Assert.That(none, Is.EqualTo(190));
-            Assert.That(funnel, Is.EqualTo(308));
-            Assert.That(sealed_, Is.EqualTo(502));
-            Assert.That(melee, Is.EqualTo(484));
+            // Re-pinned 25 Nov 2026 for water.reef_runner weight 30 in aggressive_s5_m: old none 190, funnel 308, sealed 502, melee 484.
+            Assert.That(none, Is.EqualTo(201));
+            Assert.That(funnel, Is.EqualTo(298));
+            Assert.That(sealed_, Is.EqualTo(501));
+            Assert.That(melee, Is.EqualTo(482));
             // The old profile makes no wall draw.
             AiProfile off = OffCopy;
             Assert.That(AiVariety.Create(off, off.RequireFaction("water"), AiVariety.SeedFor(1, P0), 20).WallStyle, Is.EqualTo(WallStyle.None));

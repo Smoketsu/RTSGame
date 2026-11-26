@@ -344,6 +344,8 @@ namespace Rts.Sim.Tests.Ai
             for (int i = 0; i < 3; i++)
             {
                 Spawn(sim, "water.grasper", P1, sim.Map.Spawns[1] + new FixVec2(Fix64.FromInt(-6 - i), Fix64.FromInt(-6)));
+                // Three Reef Runners too (25 Nov 2026): aggressive_s5_b now carries water.reef_runner at weight 30, equal to the grasper's, so without them the Reef Runner (not the Ink Lobber) would be the head.
+                Spawn(sim, "water.reef_runner", P1, sim.Map.Spawns[1] + new FixVec2(Fix64.FromInt(-6 - i), Fix64.FromInt(-8)));
             }
             SetStock(sim, P1, 100, 40);
             // Brinecaster Plans finished in setup (research_and_unlocks.md R1.8): the Ink Lobber is the cheaper unit that must not jump ahead.

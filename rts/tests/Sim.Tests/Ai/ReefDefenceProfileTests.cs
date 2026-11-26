@@ -116,8 +116,9 @@ namespace Rts.Sim.Tests.Ai
             {
                 Assert.That(waterB.Openings[i].Composition, Is.EquivalentTo(WithReef(waterA.Openings[i].Composition)), waterA.Openings[i].Id);
             }
-            Assert.That(waterB.Openings[1].Composition[Reef], Is.EqualTo(30), "water_grasper_pressure holds 30 instead of 10");
-            Assert.That(waterA.Openings[1].Composition[Reef], Is.EqualTo(10));
+            Assert.That(waterB.Openings[1].Composition[Reef], Is.EqualTo(30), "water_grasper_pressure holds 30");
+            // Re-pinned 25 Nov 2026: aggressive_s5 carries the weights itself now (was 10), so the baseline holds 30 too.
+            Assert.That(waterA.Openings[1].Composition[Reef], Is.EqualTo(30));
         }
 
         /// <summary>RR-1 2: the four Water openings keep their IDs and weights and no two have the same composition.</summary>
@@ -175,7 +176,8 @@ namespace Rts.Sim.Tests.Ai
             int candidateCount = candidateWater.Summary1!.Trained.TryGetValue(Reef, out int c) ? c : 0;
             int baselineCount = baselineWater.Summary1!.Trained.TryGetValue(Reef, out int b) ? b : 0;
             Assert.That(candidateCount, Is.AtLeast(4), "candidate Water Reef Runners trained (baseline " + baselineCount + ")");
-            Assert.That(baselineCount, Is.LessThan(candidateCount), "baseline " + baselineCount + " against candidate " + candidateCount);
+            // Re-pinned 25 Nov 2026: aggressive_s5 carries the weights itself now (baseline was 1 Reef Runner), so both Waters train the same number.
+            Assert.That(baselineCount, Is.EqualTo(candidateCount), "baseline " + baselineCount + " against candidate " + candidateCount);
         }
     }
 }
