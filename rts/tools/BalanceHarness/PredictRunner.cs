@@ -54,7 +54,13 @@ namespace Rts.Tools.BalanceHarness
             List<PredictedFight> snapshots = new List<PredictedFight>();
             // The lane simulation's game data from the loaded data, used by every profile whose predictor_model is sim (ignored by the others).
             FightSimRules simRules = FightSimRules.Build(data.Content, data.Tuning);
-            Predictions(records, fightSettings, data, PredictorSettings.From(profile, simRules), timing, fights, snapshots);
+            // The candidate's predictor numbers, with the kite term of --predict-kite-factor when given (both seats corrected, as in the game).
+            PredictorSettings predictor = PredictorSettings.From(profile, simRules);
+            if (options.PredictKiteFactor != null)
+            {
+                predictor = predictor.WithKite(options.PredictKiteFactor.Value, profile.KiteMinRangeGapTiles, profile.KiteSpeedRatioMin);
+            }
+            Predictions(records, fightSettings, data, predictor, timing, fights, snapshots);
             PredictTiming baselineTiming = new PredictTiming();
             List<PredictedFight> baselineFights = new List<PredictedFight>();
             List<PredictedFight> baselineSnapshots = new List<PredictedFight>();
@@ -80,7 +86,9 @@ namespace Rts.Tools.BalanceHarness
             // Output folder: --out, or the fights subfolder of the default harness folder (where --fights writes).
             string outDirectory = options.OutDirectory == BatchOptions.DefaultOutDirectory ? Path.Combine(BatchOptions.DefaultOutDirectory, "fights") : options.OutDirectory;
             Directory.CreateDirectory(outDirectory);
-            File.WriteAllText(Path.Combine(outDirectory, "predict.jsonl"), BuildJsonl(evaluation, snapshots), new UTF8Encoding(false));
+            // Kite settings for the kite_pair field, or null without the flag (output then unchanged).
+            PredictorSettings? kiteSettings = options.PredictKiteFactor == null ? null : predictor;
+            File.WriteAllText(Path.Combine(outDirectory, "predict.jsonl"), BuildJsonl(evaluation, snapshots, kiteSettings, data), new UTF8Encoding(false));
             string report = BuildReport(data, fightSettings, settings, profileId, profile, options, evaluation, decision);
             if (subsets != null)
             {
@@ -88,8 +96,15 @@ namespace Rts.Tools.BalanceHarness
                 AppendExtended(tail, subsets, baselineSubsets, bars, options.BaselineProfile, HarnessStats.ToDouble(data.Tuning.HarnessBatch.ConfidenceZ), settings);
                 report += tail.ToString();
             }
+            // Suffix of the PREDICT line with the kite factor and the number of kite-pair fights; empty without the flag.
+            string kiteSuffix = string.Empty;
+            if (kiteSettings != null)
+            {
+                report += KiteTable(evaluation, kiteSettings, data, out int kitePairFights);
+                kiteSuffix = " kite_factor=" + options.PredictKiteFactorText + " kite_pair_fights=" + kitePairFights.ToString(CultureInfo.InvariantCulture);
+            }
             File.WriteAllText(Path.Combine(outDirectory, "predict.md"), report, new UTF8Encoding(false));
-            output.Write(Line(evaluation, decision) + barsSuffix + "\n");
+            output.Write(Line(evaluation, decision) + barsSuffix + kiteSuffix + "\n");
             output.Flush();
             // Wall time per Predict call, stderr only (never in a file or on stdout): the C1 bar is read from here.
             error.Write("predict time profile " + profileId + ": mean " + timing.MeanMicroseconds().ToString(CultureInfo.InvariantCulture) + " us, largest " + timing.MaxMicroseconds().ToString(CultureInfo.InvariantCulture)
@@ -161,28 +176,99 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>predict.jsonl: one line per fight with the prediction in integers (milli = thousandths).</summary>
-        private static string BuildJsonl(PredictEvaluation e, IReadOnlyList<PredictedFight> snapshots)
+        /// <param name="e">The evaluation.</param>
+        /// <param name="snapshots">The snapshot predictions (subset D).</param>
+        /// <param name="kite">Settings with the kite term (adds the last field kite_pair to every line), or null for the original format.</param>
+        /// <param name="data">The loaded data set.</param>
+        private static string BuildJsonl(PredictEvaluation e, IReadOnlyList<PredictedFight> snapshots, PredictorSettings? kite, DataSet data)
         {
             StringBuilder sb = new StringBuilder();
             foreach (PredictedFight f in e.Fights)
             {
-                AppendLine(sb, f, string.Empty);
+                AppendLine(sb, f, string.Empty, kite == null ? string.Empty : KitePairField(f, kite, data));
             }
             // Snapshot predictions (subset D) follow the start predictions, each marked with its subset.
             foreach (PredictedFight f in snapshots)
             {
-                AppendLine(sb, f, ",\"subset\":\"D\"");
+                AppendLine(sb, f, ",\"subset\":\"D\"", kite == null ? string.Empty : KitePairField(f, kite, data));
             }
             return sb.ToString();
         }
 
         /// <summary>One predict.jsonl line; <paramref name="extra"/> is JSON text starting with a comma, inserted after the fight ID (empty for the original format).</summary>
-        private static void AppendLine(StringBuilder sb, PredictedFight f, string extra)
+        /// <param name="sb">Output.</param>
+        /// <param name="f">The fight.</param>
+        /// <param name="extra">Text after the fight ID.</param>
+        /// <param name="tail">JSON text starting with a comma, inserted before the closing brace (empty = none).</param>
+        private static void AppendLine(StringBuilder sb, PredictedFight f, string extra, string tail)
         {
             sb.Append("{\"fight\":").Append(GameRecord.Quote(f.Record.Fight)).Append(extra).Append(",\"kind\":").Append(GameRecord.Quote(f.Kind))
                 .Append(",\"result\":").Append(GameRecord.Quote(f.Record.Result)).Append(",\"predicted\":").Append(GameRecord.Quote(f.Class))
                 .Append(",\"margin_milli\":").Append(Milli(f.Margin)).Append(",\"time_seat0_milli\":").Append(Milli(f.TimeSeat0KillsSeat1))
-                .Append(",\"time_seat1_milli\":").Append(Milli(f.TimeSeat1KillsSeat0)).Append(",\"correct\":").Append(f.Correct ? "true" : "false").Append("}\n");
+                .Append(",\"time_seat1_milli\":").Append(Milli(f.TimeSeat1KillsSeat0)).Append(",\"correct\":").Append(f.Correct ? "true" : "false").Append(tail).Append("}\n");
+        }
+
+        /// <summary>True when some entry x of one seat and some entry y of the other have Kites(y, x) and Dps(x, y) above 0 (ai_kite_correction.md 4.1); the start armies of the record decide.</summary>
+        /// <param name="record">The measured fight.</param>
+        /// <param name="s">Settings with the kite rule's gap and ratio.</param>
+        /// <param name="data">The loaded data set.</param>
+        private static bool IsKitePair(FightRecord record, PredictorSettings s, DataSet data)
+        {
+            // Entries of both seats.
+            List<FightEntry> seat0 = PredictEvaluator.Entries(record.Units0, data);
+            List<FightEntry> seat1 = PredictEvaluator.Entries(record.Units1, data);
+            return OneWayKitePair(seat0, seat1, s, data) || OneWayKitePair(seat1, seat0, s, data);
+        }
+
+        /// <summary>True when some x of <paramref name="xs"/> is kited by some y of <paramref name="ys"/> and can hit it.</summary>
+        private static bool OneWayKitePair(List<FightEntry> xs, List<FightEntry> ys, PredictorSettings s, DataSet data)
+        {
+            foreach (FightEntry x in xs)
+            {
+                foreach (FightEntry y in ys)
+                {
+                    if (FightPredictor.Kites(y.Definition, x.Definition, s) && FightPredictor.Dps(x.Definition, y.Definition, false, data.Content.Combat) > Fix64.Zero)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The kite_pair JSON field (with its leading comma) of a fight.</summary>
+        private static string KitePairField(PredictedFight f, PredictorSettings s, DataSet data)
+        {
+            return ",\"kite_pair\":" + (IsKitePair(f.Record, s, data) ? "true" : "false");
+        }
+
+        /// <summary>The predict.md table of accuracy on decided fights split by kite_pair; <paramref name="kitePairFights"/> receives the number of kite-pair fights (start predictions).</summary>
+        private static string KiteTable(PredictEvaluation e, PredictorSettings s, DataSet data, out int kitePairFights)
+        {
+            // Tallies of the fights with and without a kite pair.
+            PredictTally with = new PredictTally();
+            PredictTally without = new PredictTally();
+            kitePairFights = 0;
+            foreach (PredictedFight f in e.Fights)
+            {
+                if (IsKitePair(f.Record, s, data))
+                {
+                    kitePairFights++;
+                    with.Add(f);
+                }
+                else
+                {
+                    without.Add(f);
+                }
+            }
+            // Wilson z-score (tuning/harness_batch.json). Range: 1 to 4.
+            double z = HarnessStats.ToDouble(data.Tuning.HarnessBatch.ConfidenceZ);
+            StringBuilder sb = new StringBuilder();
+            sb.Append("\n## Accuracy by kite pair (--predict-kite-factor)\n\nA kite pair: some unit of one seat is kited (rule D.6.2 keys of the profile) by a unit of the other and can hit it. The recorded fights were played with plain attack-move, so a fall on kite-pair fights is the intended belief, not an error.\n\n");
+            Header(sb, "kite_pair");
+            Row(sb, "true", with, z, 0);
+            Row(sb, "false", without, z, 0);
+            return sb.ToString();
         }
 
         /// <summary>A Fix64 in thousandths, rounded, as text (integer arithmetic).</summary>
