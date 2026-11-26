@@ -142,3 +142,5 @@ chunk 141/144 prototype_1v1 skai_vs_water 139/144
 chunk 142/144 prototype_1v1 skai_vs_water 142/144
 chunk 143/144 prototype_1v1 skai_vs_water 143/144
 chunk 144/144 prototype_1v1 skai_vs_water 144/144
+pairing kind: skai:full,water:full
+elapsed 3370.2 s
