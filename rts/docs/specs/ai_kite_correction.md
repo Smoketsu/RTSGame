@@ -99,7 +99,7 @@ The trial of section 6 also ran 0.5 (the value of the reef spec's T3 and T4).
 
 | Key | File | Unit | Range | Value |
 | --- | --- | --- | --- | --- |
-| `factions.water.predictor_kite_factor` | `rts/data/ai/aggressive_s5_kite.json` | fraction of damage per second a kited unit deals to its kiter in the predictor mix | 0 to 1 (absent or 1 = off) | **SEE 6** (placeholder) |
+| `factions.water.predictor_kite_factor` | `rts/data/ai/aggressive_s5_kite.json` | fraction of damage per second a kited unit deals to its kiter in the predictor mix | 0 to 1 (absent or 1 = off) | **0.4** (placeholder; calibrated here; 0.5 also tried, section 6) |
 | `kite_min_range_gap_tiles`, `kite_speed_ratio_min` | every profile (existing) | tiles; ratio | as now | read, not changed (2 and 0.8 in `aggressive_s5`) |
 
 ## 3. Package K-1 (`rts/src/Ai`, one new profile, tests)
@@ -149,14 +149,14 @@ A byte copy of `rts/data/ai/aggressive_s5.json` at `c7f2b37` with exactly these 
 | Line 1 header | `// rts/data/ai/aggressive_s5_kite.json: the kite correction candidate of rts/docs/specs/ai_kite_correction.md: a copy of aggressive_s5.json (main at c7f2b37, Reef Runner weights on) whose Water plan carries predictor_kite_factor, so Water's predictor mix believes the AI's own kite rule D.6.2. Nothing else differs. Part of rts/data/ai; read by Rts.Ai.AiProfile.` |
 | `$doc` | `"Kite correction candidate (ai_kite_correction.md): aggressive_s5 with predictor_kite_factor in the Water plan. Every number is a placeholder."` |
 | `id` | `aggressive_s5_kite` |
-| `factions.water`, new last key, with its comment line above | `// Predictor mix only: share of damage per second a unit deals to an enemy that kites it under rule D.6.2 (kite_min_range_gap_tiles, kite_speed_ratio_min). Unit: fraction. Range: 0 to 1 (absent or 1 = off). Source: rts/docs/specs/ai_kite_correction.md 2.5 (calibrated from roster_numbers_1.md 1.2); placeholder.` then `"predictor_kite_factor": <value of 2.5>` |
+| `factions.water`, new last key, with its comment line above | `// Predictor mix only: share of damage per second a unit deals to an enemy that kites it under rule D.6.2 (kite_min_range_gap_tiles, kite_speed_ratio_min). Unit: fraction. Range: 0 to 1 (absent or 1 = off). Source: rts/docs/specs/ai_kite_correction.md 2.5 (calibrated from roster_numbers_1.md 1.2); placeholder.` then `"predictor_kite_factor": 0.4` |
 
 The Skai plan and every other key stay as in `aggressive_s5`.
 
 ### 3.3 K-1 acceptance tests (NUnit, `rts/tests/Sim.Tests/Ai`, new class `AiKiteCorrectionTests` unless stated)
 
 1. **`K1_ProfileParsesAndDiffersOnlyInTheKey`.**
-   - `aggressive_s5_kite` parses. Its Water plan's `PredictorKiteFactor` equals the 2.5 value, and its Skai plan holds `Fix64.One`.
+   - `aggressive_s5_kite` parses. Its Water plan's `PredictorKiteFactor` equals 0.4, and its Skai plan holds `Fix64.One`.
    - Compare the parsed JSON trees of `aggressive_s5` and `aggressive_s5_kite` with `id`, `$doc` and `factions.water.predictor_kite_factor` removed: they are equal.
 2. **`K1_OldProfilesAreOff`.** Every shipped profile other than `aggressive_s5_kite` has `PredictorKiteFactor == Fix64.One` in every plan.
 3. **`K1_LoaderErrors`.** Each of these fails to load with a message naming `predictor_kite_factor`:
@@ -231,13 +231,13 @@ RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_mirrors dotnet run --project rts/
 dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --response --profile aggressive_s5      > <dir>/response_s5.txt
 dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --response --profile aggressive_s5_kite > <dir>/response_kite.txt
 dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --predict-fights --from rts/docs/reports/fights_2026-11-18/fights.jsonl --profile aggressive_s5 --out <dir>/predict_off
-dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --predict-fights --from rts/docs/reports/fights_2026-11-18/fights.jsonl --profile aggressive_s5 --predict-kite-factor <2.5 value> --out <dir>/predict_kite
+dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --predict-fights --from rts/docs/reports/fights_2026-11-18/fights.jsonl --profile aggressive_s5 --predict-kite-factor 0.4 --out <dir>/predict_kite
 ```
 
 Plus four traces: `--trace --paired --profile-a aggressive_s5 --profile-b aggressive_s5_kite --map prototype_1v1 --seed 20261201 --max-game-seconds 600`, with `--matchup skai_vs_water --game 0` and `--game 1`, then `--matchup water_vs_water --game 0` and `--game 1`.
 
 - `<dir>` is `rts/docs/reports/ai_kite_correction/`.
-- The main run's header must read `pairing kind: skai:full,water:seed`. Anything else: stop and report.
+- The main run's header must read `pairing kind: skai:full,water:full`. The key changes no composition or opening, so `PairedLadder.PairingKind` reports `full` for both factions; the designer's trials printed exactly this. Anything else: stop and report.
 - **Resumable pieces.** Run with `RTS_CHUNK_GAMES=1` and `RTS_WORKER_CACHE` inside the report folder, as RR-B did. After every 24 finished games, and after each run, commit the cache folder and push. A container restart then loses at most the games in flight; rerunning the same command resumes from the cache.
 - **Suite in chunks.** Run the suite by namespace filter in the chunks RR-B used (`reports/ai_reef_defence/README.md`, "Suite"), record each chunk's totals in `suite_chunks.md`, and push after each chunk.
 
@@ -304,7 +304,15 @@ Also reported: the K-H accuracy split (overall, on kite-pair records and on the 
 
 ### 5.5 Expected result (stated before the run)
 
-SEE 6.
+From the two trials (section 6.2, 36 pairs each, base seed 31337):
+- **K-B2 BETTER** (36 of 36 in both trials).
+- **K-B1 most likely NO_MEASURABLE_EFFECT.** Both trials had 3 candidate-only Water wins and 0 the other way (p 0.25). Extrapolated to 72 pairs that is about 6 wins, where the power is about 0.56 (5.3). BETTER is possible but not the expectation, and 3 of 36 is a hint, not a result.
+- **K-B3 no effect** (12 / 10 and 10 / 11 in the trials).
+- **K-B4 not WORSE** (13 / 8 in both).
+- **Skai is expected to keep winning at least 62 of the 72 candidate-Water games.**
+- **Games run longer** (28 of 36 pairs longer at 0.4, p 0.0012). That is reported, not barred.
+- **The Pummeler stays in the army at about half its old count**: the trials had 16 per game against 29, and it was trained in 33 of 36 candidate-Water games at 0.4.
+- The guards are expected to hold. K-G1's identity was observed in the trials: the candidate-Skai games were identical in both, 36 of 36. K-G6 was observed in 6.1. K-G3 has not been run on the candidate.
 
 ## 6. Every trial the designer ran (worktree at `c7f2b37`, Release, uncommitted scratch edits, all reverted)
 
@@ -322,7 +330,20 @@ The flips are the pairs expected from 1.2 (Pummeler, Shellback and `water_ai_mix
 
 ### 6.2 Games (`--behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_k --maps prototype_1v1 --matchups skai_vs_water --games 72 --seed 31337 --paired-faction water --jobs 4`, 36 cross pairs)
 
-PENDING.
+Paired lines are as printed (`--paired-faction water`): better / worse / ties (exact two-sided p). The other columns come from a scratch script over `behaviour.jsonl`, using Water slot-games only. Header: `pairing kind: skai:full,water:full`. Each run took about 30 minutes on 4 cores. The exit code was 2 because the existing check `hq_move_new_income` fails for both profiles alike (as in RR-B; not a bar).
+
+| Trial | Factor | `won` | `trained_unit` reef | `worker_losses_pre_overrun` | `army_supply_ratio_at` 300 s | Water wins (cand / base, of 36) | Game end later (cand / base pairs) | Candidate Water mean per game (base) | Pummeler / Reef share of trained army (cand; base 0.40 / 0.33) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| G1 | 0.4 | 3 / 0 / 33 (0.25) | 36 / 0 / 0 (0.0000) | 12 / 10 / 14 (0.83) | 13 / 8 / 15 (0.38) | 3 / 0 | 28 / 8 (p 0.0012); median end tick 11385 against 10399 | grasper 16.1 (29.4), reef 41.9 (24.1), spoutling 13.1 (9.4), shellback 6.4 (9.5), leviathan 2.8 (0.6), ink lobber 1.3 (0.9) | 0.20 / 0.51 |
+| G2 | 0.5 | 3 / 0 / 33 (0.25) | 36 / 0 / 0 (0.0000) | 10 / 11 / 15 (1.00) | 13 / 8 / 15 (0.38) | 3 / 0 | 26 / 10 (p 0.011); median 11522 against 10399 | grasper 17.0, reef 38.9, spoutling 13.1, shellback 7.4, leviathan 2.5, ink lobber 1.0 | 0.21 / 0.49 |
+
+**Also measured.**
+- The candidate trained fewer Pummelers than the baseline in 35 of 36 pairs in both trials.
+- The candidate still trained Pummelers in 33 of 36 games at 0.4 and in 36 of 36 at 0.5.
+- The Water opening draws were identical in all 36 pairs.
+- The 36 candidate-Skai games had the same state hash and play signature in G1 and G2.
+
+**Choice of 0.4.** The two values did not separate in games: the wins and the paired lines are the same, and the unit mix is within one unit per game. So the value rests on the calibration of 2.5 (0.34 to 0.39 from the measured kited fights). 0.5 would equally be defensible, and it kept the Pummeler in 3 more games. The trials were not used to tune: 0.4 was fixed from 2.5 before G1 ran.
 
 **Values tried:** factor 0.4 (calibrated, 2.5) and 0.5 (the reef spec's value). No other value was run. **Seeds:** only base seed 31337 for games, and only matchup `skai_vs_water`. The builder's bar seed 20261201, both mirrors and the response suite on the candidate were not run by the designer.
 
@@ -359,4 +380,4 @@ Each package pushes after every commit. Changelog bullets go to the coordinator,
 | Q-4 | Also apply the term to the fight decisions (attack, retreat)? | No, a separate step after K-B, with its own bars. |
 | Q-5 | Add an opt-in kite control to the fight mode (`roster_numbers_1.md` Q-2), so the predictor can be scored against kited fights? | Yes, as a separate harness spec; K-G6 stands until then. |
 | Q-6 | Accept that the win bar can detect only about 8 of 72 extra Water wins (power 0.8), and that NO_MEASURABLE_EFFECT is the likely verdict at this sample? | Yes. |
-| Q-7 | Factor from the square-law calibration (0.4) or the earlier 0.5? | See 2.5 (the value written there). |
+| Q-7 | Factor from the square-law calibration (0.4) or the earlier 0.5? The trials could not tell them apart. | 0.4. |
