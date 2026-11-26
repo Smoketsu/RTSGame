@@ -1,0 +1,1 @@
+PREDICT fights=780 judged=780 decided=765 correct=562 accuracy=0.735 clean=22/24 no_winner_agree=0/15 decision=SIMULATE (proposed thresholds)

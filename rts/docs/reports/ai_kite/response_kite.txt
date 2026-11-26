@@ -7,3 +7,5 @@ RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=1.43
 RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=4
 RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=3
 RESPONSE response_turtle_skai.json turtle PASS p1=PASS supply_lost_before_first_kill=6 first_structure_kill_s=426.9 p2=PASS won_by_s=682.0
+RESPONSE response_turtle_water.json turtle FAIL p1=FAIL supply_lost_before_first_kill=26 first_structure_kill_s=486.4 p2=PASS won_by_s=525.7
+RESPONSE_SUMMARY passed=5 of=10
