@@ -271,6 +271,10 @@ namespace Rts.Ai
                 }
                 // The predictor settings of the profile (C.1 keys).
                 PredictorSettings settings = PredictorSettings.From(profile, memory.FightSimRules);
+                if (plan.PredictorKiteFactor != Fix64.One)
+                {
+                    settings = settings.WithKite(plan.PredictorKiteFactor, profile.KiteMinRangeGapTiles, profile.KiteSpeedRatioMin);
+                }
                 // Advantage per pool unit (step 4) and the best of them. Unit: ratio.
                 SortedDictionary<string, Fix64> advantages = new SortedDictionary<string, Fix64>(StringComparer.Ordinal);
                 Fix64 top = Fix64.Zero;
