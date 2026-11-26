@@ -7,3 +7,4 @@ net PASSED Passed!  - Failed:     0, Passed:    33, Skipped:     0, Total:    33
 replay PASSED Passed!  - Failed:     0, Passed:    30, Skipped:     0, Total:    30, Duration: 29 s - Rts.Replay.Tests.dll (net8.0)
 ai_a PASSED Passed!  - Failed:     0, Passed:    67, Skipped:     0, Total:    67, Duration: 7 m 24 s - Rts.Sim.Tests.dll (net8.0)
 ai_b FAILED Failed!  - Failed:     9, Passed:   340, Skipped:     0, Total:   349, Duration: 24 m 48 s - Rts.Sim.Tests.dll (net8.0)
+harness PASSED Passed!  - Failed:     0, Passed:   148, Skipped:     0, Total:   148, Duration: 20 m 25 s - Rts.Sim.Tests.dll (net8.0)
