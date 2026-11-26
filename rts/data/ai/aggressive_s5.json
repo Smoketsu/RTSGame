@@ -1,4 +1,4 @@
-// rts/data/ai/aggressive_s5.json: the aggressive skirmish AI profile of field_saturation.md package AI-E: a copy of aggressive_s4r.json (packages R and L) with the saturation economy on and package AI-P switched off (19 Nov 2026, after the AI-P gate failed, see docs/reports/ai_p/README.md; the developer decides: the AI-P keys are at the old-profile values, so it plays as before AI-P; worker caps from gather slots, the rare cap yielding to saturation, a depot at 80 percent saturation, a threat blocks a depot only from 4 supply, max_workers 48 as a ceiling, up to 4 live depots). Part of rts/data/ai; read by Rts.Ai.AiProfile. AI-H is switched off here since 21 Nov 2026 (harass_speed_ratio 0, the old harass rule): the paired ladder found no measurable effect (verdict NO_MEASURABLE_EFFECT, docs/reports/paired_first/README.md) and P-006 switches such packages off; the key and the code stay, and abl_s5_no_h is the same profile.
+// rts/data/ai/aggressive_s5.json: the aggressive skirmish AI profile of field_saturation.md package AI-E: a copy of aggressive_s4r.json (packages R and L) with the saturation economy on and package AI-P switched off (19 Nov 2026, after the AI-P gate failed, see docs/reports/ai_p/README.md; the developer decides: the AI-P keys are at the old-profile values, so it plays as before AI-P; worker caps from gather slots, the rare cap yielding to saturation, a depot at 80 percent saturation, a threat blocks a depot only from 4 supply, max_workers 48 as a ceiling, up to 4 live depots). Part of rts/data/ai; read by Rts.Ai.AiProfile. AI-H is switched off here since 21 Nov 2026 (harass_speed_ratio 0, the old harass rule): the paired ladder found no measurable effect (verdict NO_MEASURABLE_EFFECT, docs/reports/paired_first/README.md) and P-006 switches such packages off; the key and the code stay, and abl_s5_no_h is the same profile. Since 25 Nov 2026 (developer's decision, rts/docs/reports/ai_reef_on/README.md) the Water compositions (main and the four openings) carry water.reef_runner at weight 30, as in aggressive_s5.
 {
   "$schema_version": 1,
   "$doc": "Package AI-E profile (aggressive_s4r plus the saturation economy of field_saturation.md E1 and E2); the AI-P switches (P1, P2) are off since 19 Nov 2026 after the AI-P gate failed, see docs/reports/ai_p/README.md. Every number is a placeholder. Research (use_research) is switched on here since 22 Nov 2026 by the developer's decision (research is on in the main AI); no other profile changed.",
@@ -573,8 +573,8 @@
         { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
         { "structure": "water.tidepool", "count": 3, "at_supply_used": 14 }
       ],
-      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; placeholder (the Ink Lobber costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
-      "composition": { "water.grasper": 30, "water.shellback": 10, "water.ink_lobber": 10, "water.spoutling": 10 },
+      // Army mix as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: Factions / Water faction / Unit concepts; water.reef_runner 30 from rts/docs/specs/ai_reef_runner_defence.md section 3 (equal to the Pummeler's weight in the standard mix); placeholder (the Ink Lobber costs rare: rule P buys it only while rare is in the bank, skirmish_ai_v2.md Q4).
+      "composition": { "water.grasper": 30, "water.shellback": 10, "water.ink_lobber": 10, "water.spoutling": 10, "water.reef_runner": 30 },
       // Attack only while the tide level is at or above this. Unit: fraction (0 low tide, 1 high tide). Range: 0 to 1. Source: Matchups (the water player times attacks for high tide); placeholder.
       "attack_tide_min": 0,
       // Attack only while the tide level is at or below this. Unit: fraction. Range: attack_tide_min to 1. Source: Matchups; placeholder.
@@ -600,8 +600,8 @@
             { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
             { "structure": "water.tidepool", "count": 3, "at_supply_used": 14 }
           ],
-          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.grasper": 30, "water.shellback": 10, "water.ink_lobber": 10, "water.spoutling": 10 },
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; water.reef_runner 30 from rts/docs/specs/ai_reef_runner_defence.md section 3 (equal to the Pummeler's weight in the standard mix); placeholder.
+          "composition": { "water.grasper": 30, "water.shellback": 10, "water.ink_lobber": 10, "water.spoutling": 10, "water.reef_runner": 30 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 300,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -626,8 +626,8 @@
             { "structure": "water.tidepool", "count": 3, "at_supply_used": 8 },
             { "structure": "water.shell_forge", "count": 1, "at_supply_used": 16 }
           ],
-          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L-R; placeholder.
-          "composition": { "water.grasper": 60, "water.reef_runner": 10 },
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L-R; water.reef_runner 30 from rts/docs/specs/ai_reef_runner_defence.md section 3 (equal to the Pummeler's weight in the standard mix); placeholder.
+          "composition": { "water.grasper": 60, "water.reef_runner": 30 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L-R; placeholder.
           "handover_seconds": 300,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L-R; placeholder.
@@ -651,8 +651,8 @@
             { "structure": "water.shell_forge", "count": 1, "at_supply_used": 10 },
             { "structure": "water.tidepool", "count": 2, "at_supply_used": 12 }
           ],
-          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.grasper": 20, "water.shellback": 20, "water.ink_lobber": 10, "water.spoutling": 10 },
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; water.reef_runner 30 from rts/docs/specs/ai_reef_runner_defence.md section 3 (equal to the Pummeler's weight in the standard mix); placeholder.
+          "composition": { "water.grasper": 20, "water.shellback": 20, "water.ink_lobber": 10, "water.spoutling": 10, "water.reef_runner": 30 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 420,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
@@ -677,8 +677,8 @@
             { "structure": "water.reef_workshop", "count": 1, "at_supply_used": 12 },
             { "structure": "water.tidepool", "count": 2, "at_supply_used": 16 }
           ],
-          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; placeholder.
-          "composition": { "water.ink_lobber": 20, "water.shellback": 20, "water.leviathan": 10, "water.spoutling": 10 },
+          // Army mix until handover_seconds, as integer weights per unit ID. Unit: weight. Range: 0 to 100 each, at least one above 0. Source: skirmish_ai_v4_rl.md L.5; water.reef_runner 30 from rts/docs/specs/ai_reef_runner_defence.md section 3 (equal to the Pummeler's weight in the standard mix); placeholder.
+          "composition": { "water.ink_lobber": 20, "water.shellback": 20, "water.leviathan": 10, "water.spoutling": 10, "water.reef_runner": 30 },
           // Clock time at which the opening's mix and timing values give way to the plan's. Unit: seconds. Range: 0 to 3600. Source: skirmish_ai_v4_rl.md L.5; placeholder.
           "handover_seconds": 480,
           // Replaces expand_at_seconds until the handover. Unit: seconds. Range: 0 to 1800. Source: skirmish_ai_v4_rl.md L.5; placeholder.
