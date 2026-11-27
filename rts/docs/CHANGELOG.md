@@ -7,6 +7,9 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Harness: `--response --seeds N [--seed B] [--jobs J] [--out <file>]` plays each response scenario on N derived match seeds in worker processes and writes JSON Lines (RG-1).
+- Harness: `--response-guard --from-a <baseline.jsonl> --from-b <candidate.jsonl>` joins two seeded runs and prints the RG-a/RG-b sign-test verdict; exit 0 holds, 2 fails, 1 on mismatched records (RG-2).
+- Data: `response_guard_base_seed` (integer seed), `response_guard_seeds` (count, 1 or more), `response_guard_scenario_alpha` and `response_guard_suite_alpha` (probabilities, 0 to 1) added to `rts/data/scripts/ai_eval/ai_eval.json`.
 - Added `rts/docs/specs/response_suite_guard.md` (indexed in `rts/docs/specs/README.md`): a measurement of how noisy the response scenarios are and a proposed seeded, paired response guard (packages RG-1 to RG-3) for the developer to decide. No bar or guard changes.
 - Report `rts/docs/reports/roster_numbers_2/`: roster_numbers_2 (Shellback `build_seconds` 20, Spoutling damage 10 and health 90) measured on seed 20261203: FAIL on the response guard G-6; no measurable effect on Water wins. The data change is not merged.
 - Added `rts/docs/specs/ai_midgame_window.md` (indexed in `rts/docs/specs/README.md`): diagnosis of Water's AI losses in the 210 to 450 s window from six traces and five trials, and rules FK (`fight_kite_factor`, fraction 0 to 1, placeholder 0.4) and DH (`use_defence_hold`, boolean), optional keys on only in candidate `aggressive_s5_mid`. Packages MG-1 and MG-B, bars fixed on base seed 20261209, seven open questions with defaults.
