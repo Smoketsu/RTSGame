@@ -24,3 +24,6 @@ chunk 23/72 prototype_1v1 skai_vs_water 22/72
 chunk 24/72 prototype_1v1 skai_vs_water 24/72
 chunk 25/72 prototype_1v1 skai_vs_water 26/72
 chunk 26/72 prototype_1v1 skai_vs_water 25/72
+chunk 27/72 prototype_1v1 skai_vs_water 28/72
+chunk 28/72 prototype_1v1 skai_vs_water 30/72
+chunk 29/72 prototype_1v1 skai_vs_water 27/72
