@@ -1,0 +1,54 @@
+chunk 1/48 prototype_1v1 skai_vs_skai 2/24
+chunk 2/48 prototype_1v1 skai_vs_skai 4/24
+chunk 3/48 prototype_1v1 skai_vs_skai 1/24
+chunk 4/48 prototype_1v1 skai_vs_skai 3/24
+chunk 5/48 prototype_1v1 skai_vs_skai 5/24
+chunk 6/48 prototype_1v1 skai_vs_skai 6/24
+chunk 7/48 prototype_1v1 skai_vs_skai 7/24
+chunk 8/48 prototype_1v1 skai_vs_skai 9/24
+chunk 9/48 prototype_1v1 skai_vs_skai 8/24
+chunk 10/48 prototype_1v1 skai_vs_skai 10/24
+chunk 11/48 prototype_1v1 skai_vs_skai 13/24
+chunk 12/48 prototype_1v1 skai_vs_skai 11/24
+chunk 13/48 prototype_1v1 skai_vs_skai 12/24
+chunk 14/48 prototype_1v1 skai_vs_skai 14/24
+chunk 15/48 prototype_1v1 skai_vs_skai 16/24
+chunk 16/48 prototype_1v1 skai_vs_skai 17/24
+chunk 17/48 prototype_1v1 skai_vs_skai 15/24
+chunk 18/48 prototype_1v1 skai_vs_skai 19/24
+chunk 19/48 prototype_1v1 skai_vs_skai 18/24
+chunk 20/48 prototype_1v1 skai_vs_skai 20/24
+chunk 21/48 prototype_1v1 skai_vs_skai 21/24
+chunk 22/48 prototype_1v1 skai_vs_skai 22/24
+chunk 23/48 prototype_1v1 skai_vs_skai 24/24
+chunk 24/48 prototype_1v1 skai_vs_skai 23/24
+chunk 25/48 prototype_1v1 water_vs_water 1/24
+chunk 26/48 prototype_1v1 water_vs_water 2/24
+chunk 27/48 prototype_1v1 water_vs_water 3/24
+chunk 28/48 prototype_1v1 water_vs_water 4/24
+chunk 29/48 prototype_1v1 water_vs_water 5/24
+chunk 30/48 prototype_1v1 water_vs_water 7/24
+chunk 31/48 prototype_1v1 water_vs_water 6/24
+chunk 32/48 prototype_1v1 water_vs_water 9/24
+chunk 33/48 prototype_1v1 water_vs_water 8/24
+chunk 34/48 prototype_1v1 water_vs_water 10/24
+chunk 35/48 prototype_1v1 water_vs_water 12/24
+chunk 36/48 prototype_1v1 water_vs_water 11/24
+chunk 37/48 prototype_1v1 water_vs_water 13/24
+chunk 38/48 prototype_1v1 water_vs_water 15/24
+chunk 39/48 prototype_1v1 water_vs_water 16/24
+chunk 40/48 prototype_1v1 water_vs_water 17/24
+chunk 41/48 prototype_1v1 water_vs_water 14/24
+chunk 42/48 prototype_1v1 water_vs_water 19/24
+chunk 43/48 prototype_1v1 water_vs_water 18/24
+chunk 44/48 prototype_1v1 water_vs_water 20/24
+chunk 45/48 prototype_1v1 water_vs_water 21/24
+chunk 46/48 prototype_1v1 water_vs_water 23/24
+chunk 47/48 prototype_1v1 water_vs_water 24/24
+chunk 48/48 prototype_1v1 water_vs_water 22/24
+CHECK balance_use FAIL 15 of 57 items below 0.100: skai/skai.wind_baffle 0.000, skai/skai.wind_gate 0.000, water/water.coral_gate 0.000, water/water.coral_wall 0.000, water/water.tidecaller 0.000, skai/downdraft 0.000, water/wave 0.000, water/drench 0.000, water/anti_air_on_water 0.000, skai/wall 0.000, water/wall 0.000, skai/gate 0.000, water/gate 0.000, skai/hq_last_stand 0.000, water/hq_last_stand 0.000
+CHECK balance_predictor FAIL accuracy=0.686 correct=525 decided=765 bar=0.850
+CHECK balance_unspent FAIL over bars common=400 rare=150: skai@300s common=115 rare=200, skai@600s common=70 rare=245, water@300s common=435 rare=250, water@600s common=50 rare=505, water@900s common=15 rare=850
+CHECK balance_openings PASS openings judged=4 all within 0.100 to 0.900 of distinct mirror games (at least 10)
+BALANCE profile=aggressive_s5 games=48 decided=48 distinct=48 checks_passed=1 of=4
+elapsed 872.8 s

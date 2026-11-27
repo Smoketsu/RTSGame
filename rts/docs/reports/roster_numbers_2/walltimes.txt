@@ -1,0 +1,11 @@
+main_before exit=0 wall=2516s
+mirrors_before exit=0 wall=1404s
+bars_before exit=0 wall=122s
+response_before exit=2 wall=299s
+DONE_before
+main_after exit=0 wall=2131s
+mirrors_after exit=0 wall=874s
+sweep exit=0 wall=33s
+bars_after exit=0 wall=47s
+response_after exit=2 wall=312s
+DONE_after
