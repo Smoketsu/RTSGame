@@ -1,0 +1,2 @@
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=2.588 killed=44 lost=17 hq_alive=true seed=0
+{"script":"response_mass_windrunner_water.json","check":"trade","game":0,"seed":"275488177782759956","profile":"aggressive_s5_mid","content_digest":"c6fae931039c8e32","passed":true,"parts":[{"number":1,"passed":true,"metric":"trade_ratio=2.588 killed=44 lost=17 hq_alive=true"}],"final_hash":"2f8e63da10e08a46"}

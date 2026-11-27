@@ -1,0 +1,2 @@
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=8 first_structure_kill_s=367.0 p2=PASS won_by_s=401.8 seed=5
+{"script":"response_turtle_water.json","check":"turtle","game":5,"seed":"4252610488343111475","profile":"aggressive_s5","content_digest":"c6fae931039c8e32","passed":true,"parts":[{"number":1,"passed":true,"metric":"supply_lost_before_first_kill=8 first_structure_kill_s=367.0"},{"number":2,"passed":true,"metric":"won_by_s=401.8"}],"final_hash":"1902b8c573b7adcd"}

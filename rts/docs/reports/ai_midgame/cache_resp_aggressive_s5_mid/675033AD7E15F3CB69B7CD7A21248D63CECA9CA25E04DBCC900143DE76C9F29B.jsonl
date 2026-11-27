@@ -1,0 +1,2 @@
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=6 seed=6
+{"script":"response_worker_raid_skai.json","check":"raid","game":6,"seed":"3294987079607279872","profile":"aggressive_s5_mid","content_digest":"c6fae931039c8e32","passed":false,"parts":[{"number":1,"passed":false,"metric":"static_defence_near_raided_base=false"},{"number":2,"passed":false,"metric":"max_workers_lost_in_wave=6"}],"final_hash":"7ab006b73309d6ba"}
