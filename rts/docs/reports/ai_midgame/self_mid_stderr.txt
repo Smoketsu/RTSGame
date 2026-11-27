@@ -69,3 +69,6 @@ chunk 68/72 prototype_1v1 skai_vs_water 68/72
 chunk 69/72 prototype_1v1 skai_vs_water 69/72
 chunk 70/72 prototype_1v1 skai_vs_water 70/72
 chunk 71/72 prototype_1v1 skai_vs_water 72/72
+chunk 72/72 prototype_1v1 skai_vs_water 71/72
+elapsed 28.0 s
+elapsed 1165.5 s
