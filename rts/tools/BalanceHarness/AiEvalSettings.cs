@@ -169,6 +169,18 @@ namespace Rts.Tools.BalanceHarness
             return new SummaryObserver(SummaryBucketSeconds, SummaryBankTimesSeconds, this);
         }
 
+        /// <summary>Base seed of the response guard (RG). Unit: seed. Range: 0 to 2147483647.</summary>
+        public ulong ResponseGuardBaseSeed { get; private set; }
+
+        /// <summary>Games per scenario of a guard run. Unit: games per scenario. Range: 1 to 64.</summary>
+        public int ResponseGuardSeeds { get; private set; }
+
+        /// <summary>RG-a level in parts per 10 000 (exact integer). Unit: parts per 10 000. Range: 1 to 5000.</summary>
+        public int ResponseGuardScenarioAlphaPt { get; private set; }
+
+        /// <summary>RG-b level in parts per 10 000 (exact integer). Unit: parts per 10 000. Range: 1 to 5000.</summary>
+        public int ResponseGuardSuiteAlphaPt { get; private set; }
+
         /// <summary>The response scenarios in file order. Range: 1 to 64 entries.</summary>
         public IReadOnlyList<ResponseTest> ResponseTests { get; private set; } = Array.Empty<ResponseTest>();
 
@@ -193,6 +205,7 @@ namespace Rts.Tools.BalanceHarness
             root.RejectUnknownKeys("ladder_base_seed", "ladder_games_per_cell", "ladder_maps", "ladder_matchups", "ladder_max_game_seconds", "ladder_min_decided",
                 "ladder_candidate_win_fraction_min", "ladder_non_regression_fraction_min", "ladder_verify_games", "opening_max_use_fraction", "opening_max_mirror_win_fraction",
                 "opening_min_mirror_win_fraction", "opening_min_games", "ladder_mirror_upper_min", "response_tests",
+                "response_guard_base_seed", "response_guard_seeds", "response_guard_scenario_alpha", "response_guard_suite_alpha",
                 "effect_alpha", "effect_z_alpha", "effect_z_power", "paired_min_complete_fraction", "summary_bucket_seconds", "summary_bank_times_seconds",
                 "summary_window_seconds", "summary_sample_seconds", "fed_window_seconds", "raid_radius_tiles", "bank_mean_from_seconds", "overrun_supply");
             AiEvalSettings settings = new AiEvalSettings();
@@ -259,6 +272,10 @@ namespace Rts.Tools.BalanceHarness
             settings.RaidRadiusTiles = root.RequireInt("raid_radius_tiles", 1, 30);
             settings.BankMeanFromSeconds = root.RequireInt("bank_mean_from_seconds", 0, 600);
             settings.OverrunSupply = root.RequireInt("overrun_supply", 1, 200);
+            settings.ResponseGuardBaseSeed = (ulong)root.RequireInt("response_guard_base_seed", 0, int.MaxValue);
+            settings.ResponseGuardSeeds = root.RequireInt("response_guard_seeds", 1, 64);
+            settings.ResponseGuardScenarioAlphaPt = PredictSettings.ReadPt(root, "response_guard_scenario_alpha", "0.0001", "0.5");
+            settings.ResponseGuardSuiteAlphaPt = PredictSettings.ReadPt(root, "response_guard_suite_alpha", "0.0001", "0.5");
             // Response tests in file order.
             List<ResponseTest> tests = new List<ResponseTest>();
             IReadOnlyList<JsonValue> items = root.RequireArray("response_tests");

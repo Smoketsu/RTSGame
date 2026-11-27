@@ -7,6 +7,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Harness: `--response --seeds N [--seed B] [--jobs J] [--out <file>]` plays each response scenario on N derived match seeds in worker processes and writes JSON Lines (RG-1).
+- Harness: `--response-guard --from-a <baseline.jsonl> --from-b <candidate.jsonl>` joins two seeded runs and prints the RG-a/RG-b sign-test verdict; exit 0 holds, 2 fails, 1 on mismatched records (RG-2).
+- Data: `response_guard_base_seed` (integer seed), `response_guard_seeds` (count, 1 or more), `response_guard_scenario_alpha` and `response_guard_suite_alpha` (probabilities, 0 to 1) added to `rts/data/scripts/ai_eval/ai_eval.json`.
+- Added `rts/docs/specs/response_suite_guard.md` (indexed in `rts/docs/specs/README.md`): a measurement of how noisy the response scenarios are and a proposed seeded, paired response guard (packages RG-1 to RG-3) for the developer to decide. No bar or guard changes.
 - Report `rts/docs/reports/roster_numbers_2/`: roster_numbers_2 (Shellback `build_seconds` 20, Spoutling damage 10 and health 90) measured on seed 20261203: FAIL on the response guard G-6; no measurable effect on Water wins. The data change is not merged.
 - Added `rts/docs/specs/ai_midgame_window.md` (indexed in `rts/docs/specs/README.md`): diagnosis of Water's AI losses in the 210 to 450 s window from six traces and five trials, and rules FK (`fight_kite_factor`, fraction 0 to 1, placeholder 0.4) and DH (`use_defence_hold`, boolean), optional keys on only in candidate `aggressive_s5_mid`. Packages MG-1 and MG-B, bars fixed on base seed 20261209, seven open questions with defaults.
 - AI: new optional faction-plan key `predictor_kite_factor` (fraction, 0 to 1; absent = off, old code path unchanged). When present and not 1, the predictor mix discounts damage from units that an enemy kites under rule D.6.2 (unit choice only). `FightPredictor.Kites` and `Dps` are now public so the harness can read them.
@@ -124,6 +128,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Data (roster_numbers_2, merged as measured by developer decision despite guard G-6): Shellback `build_seconds` 28 to 20 (seconds); Spoutling `max_health` 70 to 90 (health points) and weapon `damage` 5 to 10 (health points per hit); the Stormcaller comment in `matchups.json` notes its Spoutling win no longer holds.
+- Re-pinned for the new content digest and unit numbers: smoke `6032cbb453322ec8`, economy_smoke `3c51166b41f970cb`, `aggressive_s5` trace `a8fdbab6b1d410a1` (end tick 10557), `aggressive_s3` `118156933cdff0b5` (end tick 7660), `tutorial_01` `72b270805ee1ce96`, the ablation and predictor pins, producer capacity in `H3_ProducersAndCapacity` (708 to 858), `predict_fights` (accuracy 0.735 to 0.681), and the army mixes of `C8_WaterAgainstRocRiders` and `C2_2_WaterAgainstRocRiders`. `HANDOFF_UNITY.md` carries the new smoke hashes.
+- Added `RosterNumbers2Tests` and two `FightTests` cases (Spoutling against Roc Rider; Windrunner against Pummeler).
+- Decision (developer, 27 Nov): the response-suite guard in AI and roster measurements is the seeded, paired guard RG of `rts/docs/specs/response_suite_guard.md` (8 seeds per scenario, base seed 20261128) from now on; the single-game suite is reported as information only.
 - `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
 - `aggressive_s5` ships with AI-H off (`harass_speed_ratio` 0) after the paired ladder found no measurable effect (`docs/reports/paired_first/`); the key, the code and `abl_s5_no_h` stay. No hash or pin moved.
 - `PairedStats.SignTest` takes an exact alpha divisor; `GameTrace` spending uses the shared `PlayerLedger` (trace output unchanged).

@@ -32,7 +32,8 @@ namespace Rts.Sim.Tests.Ai
         private const int S3SelfTraceEndTick = 14986;
 
         /// <summary>The state hash that goes with <see cref="S3SelfTraceEndTick"/>, as 16 lower-case hex digits. Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 114f8276fd673c83; the end tick and the play signature are unchanged. Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest): old hash 4d71b4da89d3db91; end tick 14986 and signature unchanged.</summary>
-        private const string S3SelfTraceHash = "f441e8708886d80c";
+        // Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90): old hash f441e8708886d80c; the end tick (14986), the play signature and the winner (slot 0) are unchanged.
+        private const string S3SelfTraceHash = "d878ce3acddac59a";
 
         /// <summary>The play signature (hash of every AI command) of the same game, as 16 lower-case hex digits.</summary>
         private const string S3SelfTraceSignature = "4c225c548f969261";

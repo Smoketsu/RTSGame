@@ -737,7 +737,8 @@ namespace Rts.Sim.Tests.Economy
             // Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Old value ce62b175ea751ba6, outcome unchanged (undecided, tick 1499).
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 72128f50a116322b.
             // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest): old value 98b2e00d9babe167, outcome unchanged.
-            Assert.That(first, Does.Contain("STATE_HASH=b724ff589cd6aa1b\n"));
+            // Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90 change the content digest): old value b724ff589cd6aa1b, outcome unchanged.
+            Assert.That(first, Does.Contain("STATE_HASH=3c51166b41f970cb\n"));
         }
     }
 }
