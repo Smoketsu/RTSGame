@@ -1,7 +1,7 @@
 // rts/data/units/water/shellback.json: Shellback, the Water armoured defender. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Shellback unit definition for the water faction (armoured defender with high health and short-range kinetic shots, trained at the Shell Forge); placeholder numbers until the Phase 1 unit docs are written. Build time lowered to 20 s by rts/docs/specs/roster_numbers_2.md.",
+  "$doc": "Shellback unit definition for the water faction (armoured defender with high health and short-range kinetic shots, trained at the Shell Forge); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.shellback",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts (Shellback).
@@ -24,8 +24,8 @@
   "cost_common": 175,
   // Cost in the rare resource. Unit: resource units. Range: 0 to 100000. Source: placeholder; rare cost is kept to capstone-ish units.
   "cost_rare": 0,
-  // Time to train this unit at a producer; 20 (was 28) so the single Shell Forge fields more of the unit that still wins when kited (rts/docs/specs/roster_numbers_2.md 2.1). Unit: seconds. Range: 0.05 to 3600. Source: rts/docs/specs/roster_numbers_2.md 2.1 (was Economy); placeholder.
-  "build_seconds": 20,
+  // Time to train this unit at a producer. Unit: seconds. Range: 0.05 to 3600. Source: Economy; placeholder.
+  "build_seconds": 28,
   // Armour type, picks the row of the damage table in tuning/combat.json that applies to hits on this unit. Unit: armour type name. Range: "light", "armoured" or "structure". Source: Factions / Water faction / Unit concepts (armoured defender); placeholder.
   "armour_type": "armoured",
   // How far the unit sees; stored now, used by fog of war later. Unit: tiles. Range: 1 to 64. Source: placeholder.

@@ -1,7 +1,7 @@
 // rts/data/units/water/spoutling.json: Spoutling, anti-air unit whose Drench grounds flyers. Part of rts/data/units; read by the data loader (rts/src/Sim/Data) into a UnitDefinition at match start. Every number is a placeholder for playtesting, not a balance decision.
 {
   "$schema_version": 1,
-  "$doc": "Spoutling unit definition for the water faction (anti-air unit whose Drench grounds flyers); placeholder numbers until the Phase 1 unit docs are written. Damage 10 and health 90 set by rts/docs/specs/roster_numbers_2.md.",
+  "$doc": "Spoutling unit definition for the water faction (anti-air unit whose Drench grounds flyers); placeholder numbers until the Phase 1 unit docs are written.",
   // Stable unit ID, equal to the faction folder, a dot and the file name. Unit: text ID. Range: lower-case letters, digits, underscores and dots. Source: docs/decisions/ADR-003-entity-ids.md.
   "id": "water.spoutling",
   // Name shown to players. Unit: text. Range: 1 to 40 characters. Source: Factions / Water faction / Unit concepts.
@@ -10,8 +10,8 @@
   "faction_id": "water",
   // Pathing layer the unit moves on. Unit: layer name. Range: "ground", "water" or "air". Source: Factions / Water faction / Unit concepts.
   "layer": "water",
-  // Health at full; 90 (was 70) so it survives long enough against skai.roc_rider for its drench to ground it. Unit: health points. Range: 1 to 100000 (design placeholders sit between 40 and 160). Source: rts/docs/specs/roster_numbers_2.md 2.1 (was placeholder for Phase 1 unit docs); placeholder.
-  "max_health": 90,
+  // Health at full. Unit: health points. Range: 1 to 100000 (design placeholders sit between 40 and 160). Source: placeholder for Phase 1 unit docs.
+  "max_health": 70,
   // Movement speed on open ground. Unit: tiles per second. Range: 0 to 100 (placeholders sit between 2 and 5). Source: placeholder for Phase 1 unit docs.
   "speed_tiles_per_second": 3,
   // Supply used while the unit is alive. Unit: supply. Range: 0 to 100 (placeholders sit between 1 and 3). Source: placeholder for Phase 1 unit docs.
@@ -30,8 +30,8 @@
   "sight_range_tiles": 9,
   // Weapon: omit the whole object for an unarmed unit. Spoutling: anti-air drench spray that also hits the ground and water layers. Every number is a placeholder for playtesting. Source: placeholder for Phase 1 unit docs.
   "weapon": {
-    // Damage per hit before the damage table; 10 (was 5) so the anti-air unit comes close to an even trade with skai.roc_rider at equal cost while still losing its ground fights. Unit: health points. Range: 0.01 to 100000. Source: rts/docs/specs/roster_numbers_2.md 2.1 (was placeholder for Phase 1 unit docs); placeholder.
-    "damage": 10,
+    // Damage per hit before the damage table. Unit: health points. Range: 0.01 to 100000. Source: placeholder for Phase 1 unit docs.
+    "damage": 5,
     // Damage type, a key of the damage table. Unit: damage type name. Range: one of the damage_types in tuning/combat.json ("kinetic", "blast", "drench"). Source: Matchups and balance / Balance philosophy (soft counters only); placeholder.
     "damage_type": "drench",
     // Reach between unit edges (centre distance minus both radii); 1.5 or less counts as melee. Unit: tiles. Range: 0.1 to 64. Source: placeholder for Phase 1 unit docs.
