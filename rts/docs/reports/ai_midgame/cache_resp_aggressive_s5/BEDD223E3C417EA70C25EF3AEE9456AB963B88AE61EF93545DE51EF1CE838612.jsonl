@@ -1,0 +1,2 @@
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=158.0 model_air_known_s=115.0 p2=PASS aa_units=26 p3=PASS hq_alive=true seed=7
+{"script":"response_roc_rush_skai.json","check":"air_answer","game":7,"seed":"17711710552916620400","profile":"aggressive_s5","content_digest":"c6fae931039c8e32","passed":true,"parts":[{"number":1,"passed":true,"metric":"air_first_seen_s=158.0 model_air_known_s=115.0"},{"number":2,"passed":true,"metric":"aa_units=26"},{"number":3,"passed":true,"metric":"hq_alive=true"}],"final_hash":"91e9f011e42dc590"}
