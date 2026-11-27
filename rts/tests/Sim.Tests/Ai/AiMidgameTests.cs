@@ -72,6 +72,11 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>Spawns a unit with a script command, steps once and returns its ID.</summary>
+        /// <param name="sim">The running match. Unit: none (object).</param>
+        /// <param name="definition">Unit definition ID. Unit: text. Range: a unit of the data set.</param>
+        /// <param name="owner">The owning player slot. Unit: player. Range: P0 or P1.</param>
+        /// <param name="x">Tile x of the spawn. Unit: tiles (decimal text). Range: inside the map.</param>
+        /// <param name="y">Tile y of the spawn. Unit: tiles (decimal text). Range: inside the map.</param>
         private EntityId Spawn(Simulation sim, string definition, PlayerId owner, string x, string y)
         {
             sim.Submit(new SpawnUnitCommand(sim.Clock.Tick, PlayerId.None, _sequence++, definition, owner, new FixVec2(Fix64.Parse(x), Fix64.Parse(y))));
@@ -105,6 +110,12 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>Spawns <paramref name="count"/> units in rows of 8 from tile (<paramref name="x"/>, <paramref name="y"/>).</summary>
+        /// <param name="sim">The running match. Unit: none (object).</param>
+        /// <param name="definition">Unit definition ID. Unit: text. Range: a unit of the data set.</param>
+        /// <param name="owner">The owning player slot. Unit: player. Range: P0 or P1.</param>
+        /// <param name="count">Units to spawn. Unit: units. Range: 1 to 16.</param>
+        /// <param name="x">First column. Unit: tiles. Range: inside the map.</param>
+        /// <param name="y">First row. Unit: tiles. Range: inside the map.</param>
         private List<EntityId> Row(Simulation sim, string definition, PlayerId owner, int count, int x, int y)
         {
             // The units spawned. Unit: entity IDs.
@@ -118,24 +129,36 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>Decides for P0 with the profile's Water plan and a fresh generator, and returns the intents.</summary>
+        /// <param name="sim">The running match. Unit: none (object).</param>
+        /// <param name="profile">The AI profile. Unit: none (object).</param>
+        /// <param name="memory">The AI memory, changed by the think. Unit: none (object).</param>
         private static List<AiIntent> Decide(Simulation sim, AiProfile profile, AiMemory memory)
         {
             if (memory.AttackThreshold < 0)
             {
                 memory.AttackThreshold = 8;
             }
-            return AiBrain.Decide(AiWorldView.Build(sim, P0, memory.KnownFieldRemaining), profile, profile.RequireFaction("water"), memory, new DeterministicRandom(1));
+            // The view of P0 this tick. Unit: none (object).
+            AiWorldView view = AiWorldView.Build(sim, P0, memory.KnownFieldRemaining);
+            return AiBrain.Decide(view, profile, profile.RequireFaction("water"), memory, new DeterministicRandom(1));
         }
 
         /// <summary>The intents as text, for equality checks.</summary>
+        /// <param name="intents">The intents of one think. Unit: none (list).</param>
         private static string Key(List<AiIntent> intents)
         {
+            // One intent of the list is the lambda parameter i. Unit: none.
             return string.Join(";", intents.ConvertAll(i => i.Kind + ":" + i.Unit.Value + ":" + i.DefinitionId + ":" + i.Field + ":" + i.Point.X.ToString() + "," + i.Point.Y.ToString()));
         }
 
         /// <summary>The D.1 case: an own army of <paramref name="count"/> units of <paramref name="own"/> at (30, 30), the enemy model holding <paramref name="foes"/> Windrunners; returns the stance after one think.</summary>
+        /// <param name="profile">The AI profile. Unit: none (object).</param>
+        /// <param name="own">Own unit definition ID. Unit: text.</param>
+        /// <param name="count">Own units. Unit: units. Range: 1 to 16.</param>
+        /// <param name="foes">Windrunners in the enemy model. Unit: units. Range: 1 to 20.</param>
         private AiStance AttackStance(AiProfile profile, string own, int count, int foes)
         {
+            // The match of this case. Unit: none (object).
             Simulation sim = WaterVsSkai();
             Row(sim, own, P0, count, 30, 30);
             // The AI memory of this case. Unit: none (object).
@@ -146,8 +169,12 @@ namespace Rts.Sim.Tests.Ai
         }
 
         /// <summary>The D.2 case: an attack group of <paramref name="count"/> Pummelers at (30, 30), engaged with <paramref name="foes"/> visible Windrunners at (34, 30), 400 ticks into the attack; returns the memory after one think.</summary>
+        /// <param name="profile">The AI profile. Unit: none (object).</param>
+        /// <param name="count">Own Pummelers. Unit: units. Range: 1 to 16.</param>
+        /// <param name="foes">Visible enemy Windrunners. Unit: units. Range: 1 to 16.</param>
         private AiMemory RetreatCase(AiProfile profile, int count, int foes)
         {
+            // The match of this case. Unit: none (object).
             Simulation sim = WaterVsSkai();
             // The attack group. Unit: entity IDs.
             List<EntityId> group = Row(sim, "water.grasper", P0, count, 30, 30);
@@ -257,6 +284,7 @@ namespace Rts.Sim.Tests.Ai
             // Each case: the key the message must name, and the builder of the rejected profile.
             (string Key, Func<AiProfile> Make)[] cases =
             {
+                // The lambdas take no parameter; each builds one rejected profile.
                 ("fight_kite_factor", () => WithFactor("1.5")),
                 ("fight_kite_factor", () => WithFactor("-0.1")),
                 ("fight_kite_factor", () => WithFactor("0.4", "\"predictor_model\": \"formula\"", "\"predictor_model\": \"sim\"")),
@@ -280,8 +308,10 @@ namespace Rts.Sim.Tests.Ai
             string[] runs = new string[2];
             // The two profiles: absent and 1. Unit: none (objects).
             AiProfile[] profiles = { Base(), WithFactor("1") };
+            // Run number: 0 without the key, 1 with factor 1. Range: 0 to 1.
             for (int run = 0; run < 2; run++)
             {
+                // The match of this run. Unit: none (object).
                 Simulation sim = WaterVsSkai();
                 Row(sim, "water.grasper", P0, 8, 30, 30);
                 // The AI memory of this run. Unit: none (object).
