@@ -8,3 +8,4 @@ mirrors_after exit=0 wall=874s
 sweep exit=0 wall=33s
 bars_after exit=0 wall=47s
 response_after exit=2 wall=312s
+DONE_after
