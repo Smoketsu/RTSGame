@@ -1,0 +1,6 @@
+chunk 1/48 prototype_1v1 skai_vs_skai 2/24
+chunk 2/48 prototype_1v1 skai_vs_skai 4/24
+chunk 3/48 prototype_1v1 skai_vs_skai 1/24
+chunk 4/48 prototype_1v1 skai_vs_skai 3/24
+chunk 5/48 prototype_1v1 skai_vs_skai 5/24
+chunk 6/48 prototype_1v1 skai_vs_skai 6/24
