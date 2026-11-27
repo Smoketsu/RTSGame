@@ -74,7 +74,7 @@ Water's army is already about half of Skai's at 330 to 360 s, when Skai has 2 to
 ### 1.3 Hypothesis 2: "the AI hits the supply cap at 210 to 300 s". Confirmed as a state, refuted as the cause
 
 - **Trace:** Water is at or within 2 of its cap in most samples from 150 to 300 s. In two of the four seed-8086 games it sits there with 300 to 760 common banked. Skai is at its cap in every sample from 210 s (42/42, 50/50, 58/58, 66/66) with more banked than Water.
-- **Trial** (1.5, row SA): rule SA (`use_supply_ahead`, as in `aggressive_s5_pd`) on both sides made Water clearly worse. The army ratio at 300 s was better in 5 pairs and worse in 18 (median 0.53 against 0.78), the overrun came 18 s earlier, and Water was alive at 450 s in 17 of 24 games against 24. Over the whole game Water's army spend fell from a median 7325 to 6188 common and its structure spend rose from 1425 to 1800. Skai's structure spend rose from 2550 to 3750 and its army at 450 s from 68 to 82 supply.
+- **Trial** (1.5, row SA): rule SA (`use_supply_ahead`, as in `aggressive_s5_pd`) on both sides made Water clearly worse. The army ratio at 300 s was better in 5 pairs and worse in 18 (median 0.53 against 0.78), the overrun came 18 s earlier, and Water was alive at 450 s in 17 of 24 games against 24. Over the whole game Water's army spend fell from a median 7325 to 6188 common and its structure spend rose from 1425 to 1800. Skai's structure spend rose from 2550 to 3750, and its median army at 450 s from 68 to 76.5 supply (a game already over at 450 s counts as 0).
 - **Reading:** Skai's army is limited by its cap; Water's is limited by its income and its losses. Building supply earlier helps Skai and takes common from Water's army. Rule SA is **not** proposed for this window (Q-3).
 
 ### 1.4 Hypothesis 3: "no plan against massed Roc Riders". Not the swing; no rule proposed
@@ -96,13 +96,26 @@ Self-play runs: `--balance --profile <p> --maps prototype_1v1 --matchups skai_vs
 | SA | `use_supply_ahead` true, `supply_ahead_max_pending` 3 | 0 | 5 / 18; 0.53 | 2 / 76.5 | 17 | 313 | 11 / 13; 5 | 5 / 19 |
 | FK+DH+SA | all three | 0 | 11 / 13; 0.60 | 0 / 60.5 | 14 | 317.5 | 9 / 12; 5 | 5 / 18 |
 
-Cross trial (the design of section 4, smaller): CROSS_TRIAL_PLACEHOLDER
+Self-play sign tests against base (24 pairs): FK+DH, Water army at 450 s (dead = 0) better in 20 and worse in 4 (p 0.0015); Water income to 300 s better in 8 and worse in 15 (p 0.21). FK alone: army at 450 s 15 / 9 (p 0.31); income 11 / 10.
+
+Head-to-head trial (the h2h design of section 4, smaller; scratch code active only for the trial profile): `--behaviour --profile-a aggressive_s5 --profile-b trial_mid --maps prototype_1v1 --matchups skai_vs_water --games 48 --seed 8086 --paired-faction water --jobs 2`, full game length, 24 pairs, FK+DH. Pairing kind `skai:full,water:full`; spot check 0 mismatches.
+
+| Check | Better / worse / ties | p |
+| --- | --- | --- |
+| `won` | 0 / 0 / 24 (no Water win in either profile) | 1 |
+| `army_supply_ratio_at` 300 s | 14 / 8 / 2 | 0.29 |
+| Water army at 450 s, dead = 0 (script) | 13 / 11; median 24.5 against 18 | about 0.84 |
+| `worker_losses_pre_overrun` | 8 / 11 / 5 | 0.65 |
+| `income_by` (300 s) | 6 / 17 / 1 | **0.035, WORSE** (median income to 300 s 5828 against 5988 common) |
+| `harass_squads` | 13 / 4 / 7 | 0.049, BETTER |
+| `trained_unit` `water.reef_runner` | 7 / 15 / 2 | 0.13 |
 
 Readings:
 - No rule moved self-play wins (0 of 24 everywhere, at a 600 s cap).
 - FK+DH keeps Water's army alive: 30 against 12 supply at 450 s. Skai's army is unchanged, so Water still loses.
 - FK alone delays the overrun by about 20 s but loses more workers before it. That count is partly longer exposure: the overrun comes later.
 - SA hurts Water (1.3).
+- Head to head, against an unchanged Skai, FK+DH keeps much less of the army effect (13 / 11), and Water's income to 300 s is worse. In self-play the Skai side also runs the rules, and Skai's defence and attacks change with them (2.1). Inference: the army effect depends on both sides using the rules, and the income cost appears in both designs.
 
 ### 1.6 What a rule can and cannot do here (inference)
 
@@ -226,92 +239,112 @@ No other file in `rts/data` changes. No existing profile gets the keys.
 
 ## 4. Measurement MG-B (fixed before any run; nothing tuned after a result)
 
+### 4.0 Design: self-play pairs for the bars, head-to-head pairs for the guards
+
+The developer's problem is that Water's AI loses to Skai's AI when both play the same profile. A shipped rule acts for both factions. So the bars compare **self-play** games: `aggressive_s5_mid` against itself, and `aggressive_s5` against itself, game g of one run paired with game g of the other. The game seed depends on (base seed, map, matchup, game index), not on the profile (`SeedDerivation.GameSeed`), so a pair shares seed and seats. Each pair has one Water slot-game per run. This is the data-paired design of `roster_numbers_2.md` 4.1.
+
+The **head-to-head** run (`--behaviour --paired-faction`, candidate against baseline) answers a different question: is the candidate weaker than `aggressive_s5` for either faction? Those are guards (one strong AI).
+
+Stated plainly: the designer chose this split after seeing both trials (1.5). The self-play trial moved the mechanism strongly (army at 450 s better in 20 pairs, worse in 4); the head-to-head trial did not (13 / 11). The split follows from the question, not from the numbers, and both runs are reported in full. The head-to-head trial's income result (worse, p 0.035) is the reason for bar MB-5.
+
 ### 4.1 Runs (Release build of `main` after MG-1 is merged)
 
 The **base seed is 20261209** for every game run and trace. It is unspent: it is not in any file on any `origin` branch at `44fdff7`, and the designer never ran it. Spent seeds: 5551, 8086 (this spec's trials), 20261117, 20261127, 20261201, 20261203, 31337. `<dir>` is `rts/docs/reports/ai_midgame`.
 
 ```
-RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_main    dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_water --games 144 --seed 20261209 --paired-faction water --jobs 4 --out <dir>/main
-RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_main    dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_water --games 144 --seed 20261209 --paired-faction skai  --jobs 4 --out <dir>/main_skai
-RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_mirrors dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_skai   --games 48 --seed 20261209 --paired-faction skai  --jobs 4 --out <dir>/mirror_skai
-RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_mirrors dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups water_vs_water --games 48 --seed 20261209 --paired-faction water --jobs 4 --out <dir>/mirror_water
+RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_self_s5  dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --balance --profile aggressive_s5     --maps prototype_1v1 --matchups skai_vs_water --games 72 --seed 20261209 --jobs 4 --out <dir>/self_s5
+RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_self_mid dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --balance --profile aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_water --games 72 --seed 20261209 --jobs 4 --out <dir>/self_mid
+RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_h2h      dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_water --games 96 --seed 20261209 --paired-faction water --jobs 4 --out <dir>/h2h
+RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_h2h      dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_water --games 96 --seed 20261209 --paired-faction skai  --jobs 4 --out <dir>/h2h_skai
+RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_mirrors  dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups skai_vs_skai   --games 48 --seed 20261209 --paired-faction skai  --jobs 4 --out <dir>/mirror_skai
+RTS_CHUNK_GAMES=1 RTS_WORKER_CACHE=<dir>/cache_mirrors  dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --behaviour --profile-a aggressive_s5 --profile-b aggressive_s5_mid --maps prototype_1v1 --matchups water_vs_water --games 48 --seed 20261209 --paired-faction water --jobs 4 --out <dir>/mirror_water
 dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --response --profile aggressive_s5     > <dir>/response_s5.txt
 dotnet run --project rts/tools/BalanceHarness -c Release --no-build -- --data rts/data --response --profile aggressive_s5_mid > <dir>/response_mid.txt
 ```
 
-Plus four traces: `--trace --profile-a aggressive_s5 --profile-b aggressive_s5_mid --paired --map prototype_1v1 --seed 20261209 --max-game-seconds 600`, with `--matchup skai_vs_water --game 0`, `--game 1`, `--game 2` and `--game 3`, each to `<dir>/traces/skai_vs_water_game<g>.txt`. Games 0 to 3 are pairs 0 and 1, so each pair has one candidate-Water and one baseline-Water game.
+There are also four self-play traces: `--trace --map prototype_1v1 --matchup skai_vs_water --seed 20261209 --max-game-seconds 600 --game <g>` for g = 0 and 1, once with `--profile-a aggressive_s5 --profile-b aggressive_s5` and once with `--profile-a aggressive_s5_mid --profile-b aggressive_s5_mid`. Each goes to `<dir>/traces/<profile>_game<g>.txt`.
 
-- The second command reuses the first one's cache: it plays no new game and only re-tallies the same 144 games from Skai's point of view. If it starts playing games, stop and report.
-- The main run's header must read `pairing kind: skai:full,water:full` (the keys change no composition or opening). Anything else: stop and report.
-- **Resumable pieces.** Every game run uses `RTS_CHUNK_GAMES=1` and its `RTS_WORKER_CACHE` folder inside `<dir>`. After every 24 finished games, and after each run, commit the cache folder and the outputs and push. Rerunning the same command after a container restart resumes from the cache.
-- **The 450 s army** (bar MB-3) is not a harness check. The builder computes it from `main/behaviour.jsonl` with a throwaway script (not committed, as for `ai_kite/stats_main.md`). In each pair, X is the candidate's Water slot-game value of `army_supply[2]` and Y the baseline's; a null sample (the player is dead) counts as 0. The builder applies the exact two-sided sign test at 0.05 to the decisive pairs and commits the per-pair table as `<dir>/pairs.md`, with columns pair, Water won (candidate / baseline), army at 300 s and at 450 s (own / Skai, candidate game and baseline game), overrun second.
+- The `h2h_skai` command reuses the `h2h` cache. It plays no new game; it only re-tallies the same 96 games from Skai's point of view. If it starts playing games, stop and report.
+- The `h2h` run's header must read `pairing kind: skai:full,water:full`. Anything else: stop and report.
+- **Resumable pieces.** Every game run uses `RTS_CHUNK_GAMES=1` and its own `RTS_WORKER_CACHE` folder inside `<dir>`. After every 24 finished games, and after each run, commit the cache folder and the outputs and push. Rerunning the same command after a container restart resumes from the cache.
+- **The self-play pairing.** No harness flag pairs two `--balance` runs, so the builder joins `self_s5/balance.jsonl` and `self_mid/balance.jsonl` on (`matchup`, `game`) with a throwaway script, not committed (as `roster_numbers_2.md` 4.1 does). The builder commits the per-pair table as `<dir>/pairs.md`. Columns: game; Water slot; Water won (s5 / mid); Water and Skai army supply at 300 s and at 450 s (`army_supply[1]`, `[2]`; null = dead = 0); Water income to 300 s (sum of the first 10 entries of `income`, common); Water `worker_losses_pre_overrun`; Water `overrun_second`; end tick.
+- **Sign test.** Exact two-sided, α = 0.05, on the decisive pairs (ties left out). The script prints, per bar, D, better, worse, ties and p.
 - **Suite in chunks,** as `reports/ai_kite/suite_chunks.md`: record each chunk's totals in `<dir>/suite_chunks.md` and push after each chunk.
 
 ### 4.2 Bars
 
-Every paired bar is the exact two-sided sign test at α = 0.05 on the decisive pairs (ties left out). Game bars use the faction-paired test of `--paired-faction` and the existing checks of `behaviour_checks.json`, except MB-3 (4.1).
+Self-play bars (72 pairs, from `pairs.md`, Water's point of view):
 
-| ID | Run | Measure (direction) | Kind | Pass when |
-| --- | --- | --- | --- | --- |
-| MB-1 Water wins (the point) | main | `won` (higher), Water | primary | BETTER |
-| MB-2 Army at 300 s | main | `army_supply_ratio_at` 300 s (higher) | secondary | not WORSE |
-| MB-3 Army survives the window (the mechanism) | main | Water's own army supply at 450 s, dead = 0 (higher), script | mechanism | BETTER |
-| MB-4 Fields | main | `worker_losses_pre_overrun` (lower) | secondary | not WORSE |
-| MG-1 Skai against Water | main_skai | `won` (higher), Skai | guard | not WORSE |
-| MG-2 Skai mirror | mirror_skai | `won` (higher) | guard | not WORSE |
-| MG-3 Water mirror | mirror_water | `won` (higher) | guard | not WORSE |
-| MG-4 Response suite | response | no scenario that passes for `aggressive_s5` fails for `aggressive_s5_mid` | guard | holds |
-| MG-5 Clean commands | traces and main | (a) no candidate trace line has a rejection reason, or a larger count of one, than the baseline trace of the same pair (`site_occupied` excepted); (b) the main run's spot check prints 0 mismatches | guard | holds |
-| MG-6 Variety | main, mirrors, traces | (a) the Water opening is the same in both games of all 72 cross pairs (the pairing kind is `full`); (b) `harass_squads` not WORSE for Water in main and for Skai in main_skai; (c) for each of the four Water openings, the candidate's median trained count of each Water army unit type is reported next to the baseline's, and no unit type the baseline trains (median at least 2) has a candidate median of 0; (d) in each of the two candidate-Water traces the candidate starts at least one attack (`attacks=` above 0) before 600 s or before its HQ dies | guard | holds |
-| MG-7 Suite and pins | suite | full suite green on the measured commit; no existing pin moved; no assertion loosened | guard | holds |
+| ID | Measure (direction) | Kind | Pass when |
+| --- | --- | --- | --- |
+| MB-1 Water wins (the point) | Water won (higher) | primary | BETTER |
+| MB-2 Army at 300 s | Water army supply over Skai's at 300 s (higher); a pair with a null sample is left out | secondary | not WORSE |
+| MB-3 Army survives the window (the mechanism) | Water's own army supply at 450 s, dead = 0 (higher) | mechanism | BETTER |
+| MB-4 Workers | Water `worker_losses_pre_overrun` (lower) | secondary | not WORSE |
+| MB-5 Income | Water income to 300 s, common (higher) | secondary | not WORSE |
+
+Guards:
+
+| ID | Run | Check | Pass when |
+| --- | --- | --- | --- |
+| MG-1 Head to head, Water | h2h | `won` (higher), `--paired-faction water` | not WORSE |
+| MG-2 Head to head, Skai | h2h_skai | `won` (higher), `--paired-faction skai` | not WORSE |
+| MG-3 Skai mirror | mirror_skai | `won` (higher) | not WORSE |
+| MG-4 Water mirror | mirror_water | `won` (higher) | not WORSE |
+| MG-5 Response suite | response | no scenario that passes for `aggressive_s5` fails for `aggressive_s5_mid` | holds |
+| MG-6 Clean commands | traces, h2h | (a) no `aggressive_s5_mid` trace line has a rejection reason, or a larger count of one, than the `aggressive_s5` trace of the same game index (`site_occupied` excepted); (b) the h2h spot check prints 0 mismatches | holds |
+| MG-7 Variety | h2h, self-play, traces | (a) the h2h pairing kind is `full`, so the Water opening is the same in both games of every pair; (b) `harass_squads` not WORSE in h2h for Water and in h2h_skai for Skai; (c) for each of the four Water openings in self-play, the candidate's median trained count of each Water army unit type is reported next to the baseline's, and no unit type the baseline trains (median at least 2) has a candidate median of 0; (d) in each of the four traces, each side that is still alive at 300 s starts at least one attack (`attacks=` above 0) before 600 s or before its HQ dies, or did so in the `aggressive_s5` trace of the same game index either | holds |
+| MG-8 Suite and pins | suite | full suite green on the measured commit; no existing pin moved; no assertion loosened | holds |
 
 ### 4.3 Stated power (before the run)
 
-The thresholds and power are those of `ai_kite_correction.md` 5.3, because the design is the same: 72 cross pairs, a rare event for Water.
-- 8 decisive pairs need 8 better, 10 need 9, 12 need 10, 24 need 18, 72 need 45.
-- MB-1: baseline Water wins about 0 to 1 of 72. With none the other way, power is 0.22 for 4 candidate-only wins, 0.56 for 6 and 0.82 for 8. **Minimum detectable effect at power 0.8: about 8 of 72 pairs (11 percent) in which only the candidate's Water wins.**
-- MB-3: the self-play trial FK+DH moved the median Water army at 450 s from 12 to 30. If about 2 of 3 decisive pairs are better, 72 decisive pairs give power above 0.9. With about 0.6 better, power is about 0.5.
-- MG-2 and MG-3, with 24 pairs each, detect only a large regression (about 3 of 4 decisive pairs worse).
-- MG-1 has a ceiling: Skai wins about 71 of 72 already, so it can only detect a collapse.
+Sign-test thresholds for D decisive pairs (exact, two-sided, 0.05; `ai_kite_correction.md` 5.3): 8 need 8 better, 10 need 9, 12 need 10, 24 need 18, 48 need 32, 72 need 45.
+- **MB-1.** Self-play Water wins about 0 of 72 (0 of 24 in every trial). With none the other way, power is 0.22 for 4 candidate-only wins, 0.56 for 6 and 0.82 for 8. **Minimum detectable effect at power 0.8: about 8 of 72 pairs (11 percent) in which only the candidate's Water wins.**
+- **MB-3.** The self-play trial gave 20 better and 4 worse of 24. If the true share of better pairs among decisive ones is 0.7, 70 decisive pairs give power of about 0.93. At 0.6 the power is about 0.45.
+- **MB-5.** The trials leaned worse: 8 better, 15 worse in self-play, and the h2h check `income_by` was 6 / 17 (p 0.035). At a true worse share of 0.65, 72 pairs detect WORSE with power of about 0.75. **This is the bar most likely to fail.**
+- **Guards.** MG-1 and MG-2 (48 pairs) and MG-3 and MG-4 (24 pairs) detect only a large regression. MG-2 has a ceiling: Skai wins almost every game already.
 
 ### 4.4 Verdict rule
 
-- **PASS**: MB-1 BETTER, MB-3 BETTER, MB-2 and MB-4 not WORSE, MG-1 to MG-7 hold.
-- **NO_MEASURABLE_EFFECT**: MB-1 not significant and not WORSE, MB-3 BETTER, MB-2 and MB-4 not WORSE, MG-1 to MG-7 hold.
+- **PASS**: MB-1 BETTER, MB-3 BETTER, MB-2, MB-4 and MB-5 not WORSE, MG-1 to MG-8 hold.
+- **NO_MEASURABLE_EFFECT**: MB-1 not significant and not WORSE, MB-3 BETTER, MB-2, MB-4 and MB-5 not WORSE, MG-1 to MG-8 hold.
 - **FAIL**: MB-3 not BETTER, anything WORSE, or a guard fails.
 
 On PASS the developer decides whether the keys go into `aggressive_s5`; that would move the `aggressive_s5` pins once. On any other verdict `aggressive_s5_mid` stays a candidate (Q-6). There is **no revision round on 20261209**: a new value or rule is a new revision with a new unspent seed.
 
 ### 4.5 Expected result (stated before the run)
 
-- **MB-1: NO_MEASURABLE_EFFECT.** 0 to 3 candidate-only Water wins of 72. No self-play trial won a game. CROSS_EXPECT_PLACEHOLDER
-- **MB-3: BETTER** (the trial median rose from 12 to 30).
-- **MB-2:** not WORSE, likely not significant (trial: 15 better, 8 worse).
-- **MB-4: the risk.** In the trial, worker losses before the overrun were higher in 12 pairs and lower in 7. That is not significant at 24 pairs, but it leans worse, and the hold leaves outlying fields less defended.
-- **MG-4:** a risk, as for every recent candidate. `response_turtle_water` has flipped with small AI changes twice (RR-B, K-B).
-- **Games:** about as long as before (trial: median end 526.5 s against 532 s).
-- **Skai still wins at least 66 of 72** candidate-Water games.
+- **MB-1: NO_MEASURABLE_EFFECT**, with 0 to 2 candidate-only Water wins of 72. No trial game was won by Water, in self-play or head to head.
+- **MB-3: BETTER** (self-play trial 20 / 4, median 30 against 12).
+- **MB-2:** not WORSE, likely not significant (self-play trial 15 / 8).
+- **MB-4:** not WORSE, likely not significant (self-play trial 7 better, 12 worse; h2h 8 / 11).
+- **MB-5: the risk.** It leans worse in both trials. If it comes out WORSE, the verdict is FAIL, and the report should say whether the income fell during holds (rule DH leaves outlying fields to raiders) or for another reason.
+- **MG-5:** a risk, as for every recent candidate: `response_turtle_water` has flipped with small AI changes twice (RR-B, K-B).
+- **Other guards:** expected to hold. In the h2h trial, `harass_squads` was better for Water (13 / 4) and the spot check read 0 mismatches.
+- **Games:** about as long as before (self-play trial median end 526.5 s against 532 s at a 600 s cap).
+- **Skai still wins at least 66 of the 72** self-play games.
 
 ### 4.6 Reported, not judged
 
-Medians over the Water slot-games of main, for both profiles:
+Medians over the Water slot-games of self-play, for both profiles:
 - trained units per type;
-- army supply at 180, 300 and 450 s (own and Skai's; dead = 0, and the count alive);
-- worker losses before the overrun and in the window;
-- the overrun second, the game end tick, attacks started and retreats (from the traces).
+- army supply at 180, 300 and 450 s, own and Skai's (dead = 0, plus the count alive);
+- income per 30-s bucket to 300 s;
+- worker losses before the overrun;
+- the overrun second and the game end tick.
 
 Also reported:
-- candidate-Water wins of 72 and baseline-Water wins of 72;
-- the same medians for Skai's slot-games of main_skai;
+- the same medians for the h2h Water slot-games, and every `BEHAVIOUR_PAIRED` line of h2h and h2h_skai;
+- Water wins in each run;
 - both response files side by side;
-- from the traces: stance, army and losses at 210, 240, 270, 300, 330 and 360 s, in the table form of 1.1.
+- from the traces: stance, attacks, retreats, army and losses at 210, 240, 270, 300, 330 and 360 s, in the table form of 1.1.
 
 ## 5. Build order (each package sized for one Sonnet session)
 
 1. **MG-1** (builder): section 3, on a branch from `main`. Run the suite in chunks (`reports/ai_kite/suite_chunks.md`). Then the `sim-reviewer` (Opus) reviews `rts/src/Ai` for determinism and for "no faction or unit named". Merge after review. No pin moves.
 2. **MG-B** (builder): section 4 on `main` with MG-1 merged.
-   - Run the main run, then main_skai (re-tally), then the mirrors, then response, then the traces, committing and pushing after every 24 games and after each run.
-   - Write `pairs.md`, judge every bar from the outputs, and write `<dir>/README.md` (path header): the commands, wall times, the data commit (with or without `roster_numbers_2`), every bar row (D, better / worse / ties, p, verdict), the guards with evidence, 4.6, the verdict and the files.
+   - Run self_s5, self_mid, h2h, h2h_skai (re-tally), the two mirrors, response, then the traces, committing and pushing after every 24 games and after each run.
+   - Write `pairs.md` and the sign tests, judge every bar and guard from the outputs, and write `<dir>/README.md` (path header): the commands, wall times, the data commit (with or without `roster_numbers_2`), every bar row (D, better / worse / ties, p, verdict), the guards with evidence, 4.6, the verdict and the files.
    - Do not tune or rerun on another seed.
    - Give changelog bullets to the coordinator; do not edit `CHANGELOG.md` or `STATUS.md`.
 
