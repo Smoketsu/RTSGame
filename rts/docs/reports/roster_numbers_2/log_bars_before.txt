@@ -35,3 +35,20 @@ fights 850/1092
 fights 875/1092
 fights 900/1092
 fights 925/1092
+fights 950/1092
+fights 975/1092
+fights 1000/1092
+fights 1025/1092
+fights 1050/1092
+fights 1075/1092
+fights 1092/1092
+CHECK rule1_no_immunity PASS 13 targets checked
+CHECK rule2_multiplier_band FAIL drench/structure 0.25 below 0.5
+CHECK rule3_counter_margin FAIL skai.roc_rider loses to water.leviathan on flat: water.leviathan in seat 0 exchange ratio 12.5 above 3
+CHECK rule4_no_dominant_unit PASS no dominant unit
+CHECK rule4_every_unit_wins FAIL water.spoutling beats no unit of another faction on flat
+CHECK rule5_two_answers FAIL air (skai.roc_rider) against skai: 2 unit answers (skai.talon_archer, skai.windrunner), needs 1; 0 terrain answers (), needs 1 (non-purchase answers measured: terrain only)
+CHECK rule6_hq_floor FAIL skai skai.stormcaller x10 vs skai.great_aerie: 11.0 s, needs >= 15.0 s
+CHECK matchups_agree FAIL water.leviathan: claims it loses to water.shellback on flat; measured seat 0 win (left 0.28), seat 1 loss (left 0.00)
+FIGHTS fights=1092 decided=1082 draws=0 stalemates=9 unresolved=1 mismatched=166 checks_passed=2 of=8 dome_absorbed=9
+elapsed 121.6 s
