@@ -57,6 +57,40 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(strip(output.Trim()), Is.EqualTo(strip(committed!)));
         }
 
+        /// <summary>roster_numbers_2 (specs/roster_numbers_2.md 5.3, test 3): the shipped data plays flat/1500 Spoutling against Roc Rider as a seat 1 win with left0 0.000 and left1 0.125 (builder's F-after run).</summary>
+        [Test]
+        public void RosterNumbers2_SpoutlingAgainstRocRider()
+        {
+            int exit = HarnessTestSupport.Run(new[] { "--data", TestData.FindDataDirectory(), "--fights", "--only", "flat/1500/water.spoutling/skai.roc_rider" }, out string output, out string error);
+            Assert.That(exit, Is.EqualTo(0), error);
+            Assert.That(output, Does.Contain("\"result\":\"seat1\""));
+            Assert.That(output, Does.Contain("\"left0\":0.000"));
+            Assert.That(output, Does.Contain("\"left1\":0.125"));
+        }
+
+        /// <summary>roster_numbers_2 (test 4): a fight with no Spoutling side (Windrunner against Grasper) gives the same line as the committed roster_numbers_1 sweep, apart from seed and state_hash.</summary>
+        [Test]
+        public void RosterNumbers2_FightWithoutASpoutlingIsUntouched()
+        {
+            // ID of the fight compared. Unit: fight ID.
+            const string id = "flat/1500/skai.windrunner/water.grasper";
+            int exit = HarnessTestSupport.Run(new[] { "--data", TestData.FindDataDirectory(), "--fights", "--only", id }, out string output, out string error);
+            Assert.That(exit, Is.EqualTo(0), error);
+            // Text of a line without its seed and state_hash fields (the last two keys of a record).
+            System.Func<string, string> strip = line => System.Text.RegularExpressions.Regex.Replace(line, ",\"seed\":.*$", "");
+            // The committed record of the fight, or null.
+            string? committed = null;
+            foreach (string line in File.ReadLines(Path.Combine(TestData.FindDataDirectory(), "..", "docs", "reports", "roster_numbers_1", "sweep", "fights.jsonl")))
+            {
+                if (line.StartsWith("{\"fight\":\"" + id + "\"", StringComparison.Ordinal))
+                {
+                    committed = line;
+                }
+            }
+            Assert.That(committed, Is.Not.Null);
+            Assert.That(strip(output.Trim()), Is.EqualTo(strip(committed!)));
+        }
+
         /// <summary>Test 1: each bad edit is exit 1 naming the file and the field; the shipped arena with a 60-tile distance fails at plan time naming the first fight.</summary>
         [Test]
         public void SettingsValidation_NamesFileAndField()
