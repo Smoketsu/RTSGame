@@ -84,7 +84,8 @@ namespace Rts.Sim.Tests.Ai
             int exit = HarnessTestSupport.Run(new[] { "--data", TestData.FindDataDirectory(), "--predict-fights", "--from", Path.Combine(TestData.FindDataDirectory(), "..", "docs", "reports", "fights_2026-11-18", "fights.jsonl"),
                 "--profile", "aggressive_s5", "--out", folder }, out string output, out string error);
             Assert.That(exit, Is.EqualTo(0), error);
-            Assert.That(output, Does.Contain("accuracy=0.735"));
+            // Re-pinned for roster_numbers_2 (Spoutling damage 5 to 10, health 70 to 90; the predictor reads the new numbers, the fights are still the 18 Nov records): accuracy old 0.735, new 0.681 (521 of 765).
+            Assert.That(output, Does.Contain("accuracy=0.681"));
             Assert.That(File.ReadAllText(Path.Combine(folder, "predict.jsonl")),
                 Is.EqualTo(File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "..", "docs", "reports", "predict_fights", "predict.jsonl"))));
         }
