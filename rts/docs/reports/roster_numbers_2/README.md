@@ -58,3 +58,36 @@ None made (change reverted). The pins that would move are listed in spec 5.2. No
 ## Files
 
 `main_before/`, `main_after/`, `mirrors_before/`, `mirrors_after/`, `sweep/`, `bars_before/`, `bars_after/`, `cache_*/` (worker caches), `log_*.txt`, `response_before.txt`, `response_after.txt`, `walltimes.txt`, `pairs.md`, `guards.md`, this README. Data commit (reverted): `5fbb029` changing `rts/data/units/water/shellback.json`, `rts/data/units/water/spoutling.json`, `rts/data/scripts/fights/matchups.json`.
+
+## Merged as measured (27 Nov 2026)
+
+The developer decided to merge the data change as measured despite the failed guard G-6. Branch `review/roster-numbers-2-repin` (data commit cherry-picked from `review/roster-numbers-2-build`, then the re-pins). No change to `rts/src`, `rts/tools` or the three values. Suite totals: `suite_chunks.md`.
+
+| Pin | Where | Old | New |
+| --- | --- | --- | --- |
+| smoke hash | `HarnessUnitTests.cs` | `df73e9584e791bc0` | `6032cbb453322ec8` |
+| economy_smoke hash | `HarnessUnitTests.cs`, `WorkerConstructionTests.cs`, `HANDOFF_UNITY.md` | `b724ff589cd6aa1b` | `3c51166b41f970cb` |
+| `aggressive_s5` trace | `FightSimTests.cs` | end 9750, `91c318f5a0ad05cb` | end 10557, `a8fdbab6b1d410a1` (slot 0) |
+| `aggressive_s3` trace | `FightSimTests.cs` | end 9378, `e5cf4f79454bd01a` | end 7660, `118156933cdff0b5` (slot 0) |
+| predict accuracy | `FightSimTests.OldProfiles_PredictJsonlByteIdentical` | 0.735 | 0.681 (521 of 765) |
+| `predict.jsonl`, `predict.md` | `reports/predict_fights/` | regenerated, noted in that README | |
+| `V2ReferenceHash` and OUTCOME | `SkirmishAiTests.cs` | `0xd4d353b73e0eae16`, winner 1 tick 7613 | `0x94a98279b5b8d5c6`, winner 1 tick 5850 |
+| blind trace | `SkirmishAiTests.cs` | end 10355, `82998543e32dcfe0` (slot 0) | end 20401, `f2176c63a13a133e` (slot 1) |
+| `S3SelfTraceHash` | `AiVarietyTests.cs` | `f441e8708886d80c` | `d878ce3acddac59a` (end tick 14986 and signature unchanged) |
+| ablation skai_vs_water 2 | `AiHarassTests.cs`, `AiPlacementTests.cs` | `0x7ff001b72095a475` (11531) | `0x65408b2a603bf005` (10475) |
+| ablation skai_vs_skai 3 | same | `0x53c785498c77ec59` (9559) | `0x48c9ed39b11e71a3` (9559) |
+| ablation water_vs_water 2 | same | `0xa0b95b56e61cf63a` (14764) | `0xd0e16f06d017b2e7` (12303, slot 1) |
+| predictor advantages | `AiArmyMixTests` C2_1 (spoutling 0.1228 to 0.3297; 0.2823 to 0.7759), C2_2 first block (spoutling 0.3333 to 0.8571), C2_5 (grasper 1.5286 to 1.4411, ink_lobber 0.8514 to 0.8195, reef_runner 1.1773 to 1.1270, shellback 1.3195 to 1.2708, spoutling 0.7886 to 0.9606) | | |
+| C8 Spoutling score | `AiArmyMixTests.C8` | 0.0013333 | 0.003428571 |
+| H3 producer capacity | `ProductionDefenceMetricsTests.H3_ProducersAndCapacity` (Shellback build 28 to 20 s) | 708 (333 + 375) | 858 (333 + 525) |
+| `tutorial_01` headless hash (no test pins it; MissionRunner, won tick 726 as before) | for the coordinator, documents | `6cf2bdc218cfbb9f` | `72b270805ee1ce96` |
+
+New tests (spec 5.3): `RosterNumbers2Tests` (2), `FightTests.RosterNumbers2_*` (2; Spoutling against Roc Rider: seat1, left0 0.000, left1 0.125).
+
+### Not re-pinned: two failures (spec 5.2 says stop on an AssertMix weight change)
+
+- `AiArmyMixTests.C2_2_WaterAgainstRocRiders`, second AssertMix (4 Spoutlings owned): expected Leviathan 700 and Shellback 50; now Leviathan 0 and Shellback 750 (grasper 150, ink_lobber 50, spoutling 50 unchanged). The Spoutling's higher advantage changes the mix.
+- `AiArmyMixTests.C8_WaterAgainstRocRiders`: expected `mix["water.spoutling"]` 50 and Leviathan 700; Spoutling is now 348. The later assertions (Leviathan score 0.0046089, mix) were not reached and may also move.
+
+Both fail on the 5.2 rule and need a developer decision (re-pin the mixes or revisit the numbers).
+
