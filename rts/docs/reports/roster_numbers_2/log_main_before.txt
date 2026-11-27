@@ -54,3 +54,10 @@ chunk 53/72 prototype_1v1 skai_vs_water 53/72
 chunk 54/72 prototype_1v1 skai_vs_water 54/72
 chunk 55/72 prototype_1v1 skai_vs_water 55/72
 chunk 56/72 prototype_1v1 skai_vs_water 56/72
+chunk 57/72 prototype_1v1 skai_vs_water 58/72
+chunk 58/72 prototype_1v1 skai_vs_water 57/72
+chunk 59/72 prototype_1v1 skai_vs_water 59/72
+chunk 60/72 prototype_1v1 skai_vs_water 60/72
+chunk 61/72 prototype_1v1 skai_vs_water 61/72
+chunk 62/72 prototype_1v1 skai_vs_water 62/72
+chunk 63/72 prototype_1v1 skai_vs_water 63/72
