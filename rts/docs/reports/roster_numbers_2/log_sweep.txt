@@ -1,0 +1,42 @@
+fights 25/780
+fights 50/780
+fights 75/780
+fights 100/780
+fights 125/780
+fights 150/780
+fights 175/780
+fights 200/780
+fights 225/780
+fights 250/780
+fights 275/780
+fights 300/780
+fights 325/780
+fights 350/780
+fights 375/780
+fights 400/780
+fights 425/780
+fights 450/780
+fights 475/780
+fights 500/780
+fights 525/780
+fights 550/780
+fights 575/780
+fights 600/780
+fights 625/780
+fights 650/780
+fights 675/780
+fights 700/780
+fights 725/780
+fights 750/780
+fights 775/780
+fights 780/780
+CHECK rule1_no_immunity PASS 13 targets checked
+CHECK rule2_multiplier_band FAIL drench/structure 0.25 below 0.5
+CHECK rule3_counter_margin FAIL skai.roc_rider loses to water.leviathan on flat: water.leviathan in seat 0 exchange ratio 11.2 above 3
+CHECK rule4_no_dominant_unit PASS no dominant unit
+CHECK rule4_every_unit_wins FAIL skai.stormcaller beats no unit of another faction on flat
+CHECK rule5_two_answers FAIL massed_armour (water.grasper) against water: 2 unit answers (water.ink_lobber, water.leviathan), needs 1; 0 terrain answers (), needs 1 (non-purchase answers measured: terrain only)
+CHECK rule6_hq_floor FAIL skai skai.stormcaller x10 vs skai.great_aerie: 11.0 s, needs >= 15.0 s
+CHECK matchups_agree FAIL skai.stormcaller: claims it beats water.spoutling on flat; measured seat 0 loss (left 0.00), seat 1 win (left 0.33)
+FIGHTS fights=780 decided=766 draws=0 stalemates=12 unresolved=2 mismatched=0 checks_passed=2 of=8 dome_absorbed=11
+elapsed 32.2 s

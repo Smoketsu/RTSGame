@@ -1,0 +1,1 @@
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=168.2 model_air_known_s=94.0 p2=PASS aa_units=16 p3=PASS hq_alive=true
