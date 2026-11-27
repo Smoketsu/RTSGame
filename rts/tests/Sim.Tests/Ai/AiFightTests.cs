@@ -1059,7 +1059,7 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(S3.UseFocusFire, Is.EqualTo(S3FocusFire), "use_focus_fire as decided by the 72-game check");
             foreach (string id in Data.AiProfiles.Keys)
             {
-                if (id == "aggressive_s3" || id == "aggressive_s4r" || id == "aggressive_s5" || id == "aggressive_s5_fp2" || id == "abl_s5_no_e" || id == "abl_s5_no_p" || id == "abl_s5_no_h" || id == "aggressive_s5_b" || id == "aggressive_s5_r" || id == "aggressive_s5_m" || id == "aggressive_s5_pd" || id == "aggressive_s5_e" || id == "aggressive_s5_s" || id == "aggressive_s5_rr" || id == "aggressive_s5_kite" || id == "abl_s5b_no_b" || id == "abl_s5_p1_only" || id == "abl_s5_p2_only")
+                if (id == "aggressive_s3" || id == "aggressive_s4r" || id == "aggressive_s5" || id == "aggressive_s5_fp2" || id == "abl_s5_no_e" || id == "abl_s5_no_p" || id == "abl_s5_no_h" || id == "aggressive_s5_b" || id == "aggressive_s5_r" || id == "aggressive_s5_m" || id == "aggressive_s5_pd" || id == "aggressive_s5_e" || id == "aggressive_s5_s" || id == "aggressive_s5_rr" || id == "aggressive_s5_kite" || id == "aggressive_s5_mid" || id == "abl_s5b_no_b" || id == "abl_s5_p1_only" || id == "abl_s5_p2_only")
                 {
                     continue;
                 }
