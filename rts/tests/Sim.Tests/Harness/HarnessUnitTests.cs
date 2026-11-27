@@ -175,9 +175,10 @@ namespace Rts.Sim.Tests.Harness
             // Re-pinned for field saturation (specs/field_saturation.md): gather slot keys in the tuning digest, `GatherQueuedTick` in the unit hash. Smoke c423332711029434 is now b6011e19d6265e5d and economy_smoke ce62b175ea751ba6 is now 706626f97350b663; outcomes unchanged (undecided, ticks 599 and 1499).
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old values: smoke 45aad722858eb562, economy_smoke 72128f50a116322b.
             // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest): smoke 207be73eaa460b3c is now df73e9584e791bc0 and economy_smoke 98b2e00d9babe167 is now b724ff589cd6aa1b; outcomes unchanged (undecided, ticks 599 and 1499).
-            Assert.That(output, Does.Contain("STATE_HASH=df73e9584e791bc0\n"));
+            // Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90 change the content digest): smoke df73e9584e791bc0 is now 6032cbb453322ec8 and economy_smoke b724ff589cd6aa1b is now 3c51166b41f970cb; outcomes unchanged (undecided, ticks 599 and 1499).
+            Assert.That(output, Does.Contain("STATE_HASH=6032cbb453322ec8\n"));
             Assert.That(HarnessTestSupport.Run(new[] { "--data", folder, "--script", System.IO.Path.Combine(folder, "scripts", "economy_smoke.json") }, out string economy, out _), Is.EqualTo(0));
-            Assert.That(economy, Does.Contain("STATE_HASH=b724ff589cd6aa1b\n"));
+            Assert.That(economy, Does.Contain("STATE_HASH=3c51166b41f970cb\n"));
         }
 
         /// <summary>The shipped data set.</summary>
