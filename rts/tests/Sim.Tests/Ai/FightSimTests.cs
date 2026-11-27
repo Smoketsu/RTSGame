@@ -84,7 +84,8 @@ namespace Rts.Sim.Tests.Ai
             int exit = HarnessTestSupport.Run(new[] { "--data", TestData.FindDataDirectory(), "--predict-fights", "--from", Path.Combine(TestData.FindDataDirectory(), "..", "docs", "reports", "fights_2026-11-18", "fights.jsonl"),
                 "--profile", "aggressive_s5", "--out", folder }, out string output, out string error);
             Assert.That(exit, Is.EqualTo(0), error);
-            Assert.That(output, Does.Contain("accuracy=0.735"));
+            // Re-pinned for roster_numbers_2 (Spoutling damage 5 to 10, health 70 to 90; the predictor reads the new numbers, the fights are still the 18 Nov records): accuracy old 0.735, new 0.681 (521 of 765).
+            Assert.That(output, Does.Contain("accuracy=0.681"));
             Assert.That(File.ReadAllText(Path.Combine(folder, "predict.jsonl")),
                 Is.EqualTo(File.ReadAllText(Path.Combine(TestData.FindDataDirectory(), "..", "docs", "reports", "predict_fights", "predict.jsonl"))));
         }
@@ -112,9 +113,11 @@ namespace Rts.Sim.Tests.Ai
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hashes only, end ticks 10378 and 9223 and winners unchanged. Old values 2a9fdef3422f6141 and 1db9fc659b9f0eea.
             // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): aggressive_s5 old end tick 9505 and hash 837f8e7118a9c9de, new 9336 and 5d921472ffe76c92, winner slot0 unchanged.
             // Re-pinned 25 Nov 2026 for water.reef_runner weight 30 in aggressive_s5 (developer decision): aggressive_s5 old end tick 9336 and hash 5d921472ffe76c92, new 9750 and 91c318f5a0ad05cb, winner slot0 unchanged.
-            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9750,\"state_hash\":\"91c318f5a0ad05cb\""));
+            // Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90): aggressive_s5 old end tick 9750 and hash 91c318f5a0ad05cb, new 10557 and a8fdbab6b1d410a1, winner slot0 unchanged.
+            Assert.That(PlayTrace("aggressive_s5"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":10557,\"state_hash\":\"a8fdbab6b1d410a1\""));
             // aggressive_s3 re-pinned for roster_numbers_1 too: old end tick 9223 and hash c04bdcc0d03b3910, new 9378 and e5cf4f79454bd01a, winner slot0 unchanged.
-            Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":9378,\"state_hash\":\"e5cf4f79454bd01a\""));
+            // Re-pinned for roster_numbers_2: aggressive_s3 old end tick 9378 and hash e5cf4f79454bd01a, new 7660 and 118156933cdff0b5, winner slot0 unchanged.
+            Assert.That(PlayTrace("aggressive_s3"), Is.EqualTo("\"result\":\"slot0\",\"end_tick\":7660,\"state_hash\":\"118156933cdff0b5\""));
         }
 
         /// <summary>The text of a shipped profile file.</summary>

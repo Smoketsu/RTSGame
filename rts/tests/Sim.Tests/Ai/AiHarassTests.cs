@@ -208,11 +208,12 @@ namespace Rts.Sim.Tests.Ai
             // Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hashes only; end ticks and winners are unchanged (10997 slot 0, 9559 slot 0, 10907 slot 1). Old values skai_vs_water 0x31dbd80f94a26eae, skai_vs_skai 0x311eec87f47b4d4e, water_vs_water 0x4b44414af49e53e4.
 // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest and every game that trains the Reef Runner): old values skai_vs_water 0x31de6615e47a5804 (end tick 10997), skai_vs_skai 0xc4b816b03df9c616 (9559), water_vs_water 0xa24b5faa0015c722 (10907); new end ticks 11216, 9559 and 15509.
             // Re-pinned 25 Nov 2026 for water.reef_runner weight 30 in the Water compositions (developer decision): old skai_vs_water 0x19bd86827db8fe7f (end tick 11216) and water_vs_water 0x1f1a676c5fa4472a (15509); new end ticks 11531 and 14764; skai_vs_skai unchanged (9559).
+            // Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90): old skai_vs_water 0x7ff001b72095a475 (end tick 11531), skai_vs_skai 0x53c785498c77ec59 (9559) and water_vs_water 0xa0b95b56e61cf63a (14764); new 0x65408b2a603bf005 (end tick 10475, slot 0), 0x48c9ed39b11e71a3 (9559, slot 0) and 0xd0e16f06d017b2e7 (12303, slot 1).
             (string Matchup, int Game, ulong Hash)[] recorded =
             {
-                ("skai_vs_water", 2, 0x7ff001b72095a475UL),
-                ("skai_vs_skai", 3, 0x53c785498c77ec59UL),
-                ("water_vs_water", 2, 0xa0b95b56e61cf63aUL),
+                ("skai_vs_water", 2, 0x65408b2a603bf005UL),
+                ("skai_vs_skai", 3, 0x48c9ed39b11e71a3UL),
+                ("water_vs_water", 2, 0xd0e16f06d017b2e7UL),
             };
             foreach ((string matchup, int game, ulong hash) in recorded)
             {

@@ -879,8 +879,9 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): research in the content digest and player hash, and the Stormcaller and Ink Lobber now need research the AI never does. Old value 0x1b76cd03ef38ef55; OUTCOME winner=1 tick=7613 before and after (the outcome did not move).
         /// Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old value 0x1c0951645337b54e; winner 1 and tick 7613 unchanged.
         /// Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66 changes the content digest): old value 0xdfc8991f885607f2; outcome unchanged (winner 1, tick 7613).
+        /// Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90): old value 0xd4d353b73e0eae16 and OUTCOME winner=1 tick=7613; new OUTCOME winner=1 tick=5850 (winner unchanged, the game ends earlier).
         /// </summary>
-        private const ulong V2ReferenceHash = 0xd4d353b73e0eae16UL;
+        private const ulong V2ReferenceHash = 0x94a98279b5b8d5c6UL;
 
         /// <summary>A-11 (skirmish_ai_v3.md A.5): the harness run of the exit script still prints the pinned v2 reference hash, so profile switches added later cannot change today's behaviour.</summary>
         [Test]
@@ -890,7 +891,7 @@ namespace Rts.Sim.Tests.Ai
             string folder = TestData.FindDataDirectory();
             Assert.That(Rts.Sim.Tests.Harness.HarnessTestSupport.Run(new[] { "--data", folder, "--script", Path.Combine(folder, "scripts", "ai_vs_ai.json") }, out string output, out string error),
                 Is.EqualTo(0), error);
-            Assert.That(output, Does.Contain("OUTCOME winner=1 tick=7613\n"));
+            Assert.That(output, Does.Contain("OUTCOME winner=1 tick=5850\n"));
             Assert.That(output, Does.Contain("STATE_HASH=" + V2ReferenceHash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture) + "\n"));
         }
 
@@ -912,11 +913,12 @@ namespace Rts.Sim.Tests.Ai
         /// Re-pinned for research and unlocks (specs/research_and_unlocks.md R1.9): the Water mix names the Ink Lobber, which now needs research the AI never does. Old end tick 13219 and hash 5db5cdb273174f34; new end tick 10910 and hash 6a39af6718193ef8; the winner is still slot 0.
         /// Re-pinned for the rally state, now always hashed per unit (specs/interface_support.md I5.4, determinism review of I1 to I5): hash only, the game is otherwise identical. Old hash 6a39af6718193ef8; end tick 10910 unchanged.
         /// Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): old end tick 10910 and hash 846056c1a9efe5f4; new end tick 10355 and hash 82998543e32dcfe0; the winner (slot 0) is unchanged.
+        /// Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s, Spoutling damage 5 to 10 and health 70 to 90): old end tick 10355 and hash 82998543e32dcfe0, new end tick 20401 and hash f2176c63a13a133e; the winner moves from slot 0 to slot 1.
         /// </summary>
-        private const int BlindTraceEndTick = 10355;
+        private const int BlindTraceEndTick = 20401;
 
         /// <summary>The state hash that goes with <see cref="BlindTraceEndTick"/>, as 16 lower-case hex digits.</summary>
-        private const string BlindTraceHash = "82998543e32dcfe0";
+        private const string BlindTraceHash = "f2176c63a13a133e";
 
         /// <summary>C2-11: abl_s2_blind plays exactly as before package C2: the traced game still ends on the same tick with the same state hash.</summary>
         [Test]

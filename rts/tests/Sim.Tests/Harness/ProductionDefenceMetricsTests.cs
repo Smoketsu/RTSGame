@@ -154,7 +154,7 @@ namespace Rts.Sim.Tests.Harness
             Assert.That(collector.Results()[1].RaidSeconds, Is.EqualTo(0), "the raider's side was not hit");
         }
 
-        /// <summary>H-3: at 180 s one complete Tidepool and one complete Shell Forge, rare 0, no research: producers 2 and capacity 333 + 375 = 708; the samples after the game's end stay null.</summary>
+        /// <summary>H-3: at 180 s one complete Tidepool and one complete Shell Forge, rare 0, no research: producers 2 and capacity 333 + 525 = 858 (708 before roster_numbers_2); the samples after the game's end stay null.</summary>
         [Test]
         public void H3_ProducersAndCapacity()
         {
@@ -166,7 +166,8 @@ namespace Rts.Sim.Tests.Harness
             Feed(collector, sim, 180 * 20 - 1);
             ProductionMetrics slot0 = collector.Results()[0];
             Assert.That(slot0.Producers[0], Is.EqualTo(2));
-            Assert.That(slot0.Capacity[0], Is.EqualTo(708));
+            // Re-pinned for roster_numbers_2 (Shellback build 28 to 20 s): the Shell Forge share of the capacity is 525 (was 375), so the total is 333 + 525 = 858 (was 708).
+            Assert.That(slot0.Capacity[0], Is.EqualTo(858));
             Assert.That(slot0.Producers[1], Is.Null);
             Assert.That(slot0.Capacity[2], Is.Null);
         }
