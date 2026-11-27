@@ -22,3 +22,5 @@ chunk 21/48 prototype_1v1 skai_vs_skai 21/24
 chunk 22/48 prototype_1v1 skai_vs_skai 22/24
 chunk 23/48 prototype_1v1 skai_vs_skai 24/24
 chunk 24/48 prototype_1v1 skai_vs_skai 23/24
+chunk 25/48 prototype_1v1 water_vs_water 1/24
+chunk 26/48 prototype_1v1 water_vs_water 4/24
