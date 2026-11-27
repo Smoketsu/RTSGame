@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Added `rts/docs/specs/response_suite_guard.md` (indexed in `rts/docs/specs/README.md`): a measurement of how noisy the response scenarios are and a proposed seeded, paired response guard (packages RG-1 to RG-3) for the developer to decide. No bar or guard changes.
 - Report `rts/docs/reports/roster_numbers_2/`: roster_numbers_2 (Shellback `build_seconds` 20, Spoutling damage 10 and health 90) measured on seed 20261203: FAIL on the response guard G-6; no measurable effect on Water wins. The data change is not merged.
 - Added `rts/docs/specs/ai_midgame_window.md` (indexed in `rts/docs/specs/README.md`): diagnosis of Water's AI losses in the 210 to 450 s window from six traces and five trials, and rules FK (`fight_kite_factor`, fraction 0 to 1, placeholder 0.4) and DH (`use_defence_hold`, boolean), optional keys on only in candidate `aggressive_s5_mid`. Packages MG-1 and MG-B, bars fixed on base seed 20261209, seven open questions with defaults.
 - AI: new optional faction-plan key `predictor_kite_factor` (fraction, 0 to 1; absent = off, old code path unchanged). When present and not 1, the predictor mix discounts damage from units that an enemy kites under rule D.6.2 (unit choice only). `FightPredictor.Kites` and `Dps` are now public so the harness can read them.
