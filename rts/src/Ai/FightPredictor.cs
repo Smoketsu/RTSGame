@@ -292,7 +292,7 @@ namespace Rts.Ai
         /// <param name="uphill">True when the attacker's side shoots uphill.</param>
         /// <param name="rules">The damage table.</param>
         /// <returns>Damage per second. Unit: health points per second. Range: 0 upward.</returns>
-        internal static Fix64 Dps(UnitDefinition attacker, UnitDefinition target, bool uphill, CombatRules rules)
+        public static Fix64 Dps(UnitDefinition attacker, UnitDefinition target, bool uphill, CombatRules rules)
         {
             WeaponDefinition? weapon = attacker.Weapon;
             if (weapon == null || !weapon.CanTarget(target.Layer))
@@ -334,7 +334,7 @@ namespace Rts.Ai
         /// <param name="kiter">The unit that might step away. Range: any definition.</param>
         /// <param name="chaser">The unit it steps away from. Range: any definition.</param>
         /// <param name="s">Settings holding the rule's gap and ratio.</param>
-        internal static bool Kites(UnitDefinition kiter, UnitDefinition chaser, PredictorSettings s)
+        public static bool Kites(UnitDefinition kiter, UnitDefinition chaser, PredictorSettings s)
         {
             return kiter.Weapon != null && !kiter.Weapon.IsMelee && chaser.Weapon != null
                 && kiter.Weapon.RangeTiles >= chaser.Weapon.RangeTiles + s.KiteMinRangeGapTiles

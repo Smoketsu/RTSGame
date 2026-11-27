@@ -221,6 +221,10 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>True when some x of <paramref name="xs"/> is kited by some y of <paramref name="ys"/> and can hit it.</summary>
+        /// <param name="xs">Entries of the seat that may be kited (the kited side). Unit: unit groups (count per entry). Range: any list, may be empty.</param>
+        /// <param name="ys">Entries of the other seat (the possible kiter). Unit: unit groups (count per entry). Range: any list, may be empty.</param>
+        /// <param name="s">Settings with the kite rule's range gap (tiles) and speed ratio (ratio). Range: the values from WithKite.</param>
+        /// <param name="data">The loaded data set, for the combat rules. Unit: none (object). Range: non-null.</param>
         private static bool OneWayKitePair(List<FightEntry> xs, List<FightEntry> ys, PredictorSettings s, DataSet data)
         {
             foreach (FightEntry x in xs)
@@ -237,12 +241,19 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>The kite_pair JSON field (with its leading comma) of a fight.</summary>
+        /// <param name="f">The predicted fight, whose measured record is tested. Unit: none (object). Range: non-null.</param>
+        /// <param name="s">Settings with the kite term. Unit: factor (fraction), tiles (range gap), ratio (speed). Range: the values from WithKite.</param>
+        /// <param name="data">The loaded data set, for the combat rules. Unit: none (object). Range: non-null.</param>
         private static string KitePairField(PredictedFight f, PredictorSettings s, DataSet data)
         {
             return ",\"kite_pair\":" + (IsKitePair(f.Record, s, data) ? "true" : "false");
         }
 
         /// <summary>The predict.md table of accuracy on decided fights split by kite_pair; <paramref name="kitePairFights"/> receives the number of kite-pair fights (start predictions).</summary>
+        /// <param name="e">The evaluation whose start predictions are split. Unit: none (object). Range: non-null; may hold no fights.</param>
+        /// <param name="s">Settings with the kite term. Unit: factor (fraction), tiles (range gap), ratio (speed). Range: the values from WithKite.</param>
+        /// <param name="data">The loaded data set, for the combat rules and the Wilson z-score. Unit: none (object). Range: non-null.</param>
+        /// <param name="kitePairFights">Set by this method to the number of kite-pair fights. Unit: fights (count). Range: 0 up to e.Fights.Count.</param>
         private static string KiteTable(PredictEvaluation e, PredictorSettings s, DataSet data, out int kitePairFights)
         {
             // Tallies of the fights with and without a kite pair.
