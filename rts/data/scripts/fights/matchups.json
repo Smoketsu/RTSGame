@@ -10,7 +10,7 @@
     "loses": { "against": "water.leviathan", "case": "flat" }
   },
 
-  // Stormcaller (skai.stormcaller): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967.
+  // Stormcaller (skai.stormcaller): its job and the fights it wins and loses, measured by --fights at rule_army_value on the named case. Unit: unit IDs and case IDs. Range: combat units of the sweep; a case ID in fights.json. Source: P-005 1.1 table and developer decision 1 (rule 7); fights run 18 Nov 2026, data digest 1949943b73b01967. Its win over water.spoutling no longer holds after rts/docs/specs/roster_numbers_2.md (matchups_agree reports it); left for the developer (Q-4).
   "skai.stormcaller": {
     "job": "bombard",
     "wins": { "against": "water.spoutling", "case": "flat" },
