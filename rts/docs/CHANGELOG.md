@@ -128,6 +128,9 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Data (roster_numbers_2, merged as measured by developer decision despite guard G-6): Shellback `build_seconds` 28 to 20 (seconds); Spoutling `max_health` 70 to 90 (health points) and weapon `damage` 5 to 10 (health points per hit); the Stormcaller comment in `matchups.json` notes its Spoutling win no longer holds.
+- Re-pinned for the new content digest and unit numbers: smoke `6032cbb453322ec8`, economy_smoke `3c51166b41f970cb`, `aggressive_s5` trace `a8fdbab6b1d410a1` (end tick 10557), `aggressive_s3` `118156933cdff0b5` (end tick 7660), `tutorial_01` `72b270805ee1ce96`, the ablation and predictor pins, producer capacity in `H3_ProducersAndCapacity` (708 to 858), `predict_fights` (accuracy 0.735 to 0.681), and the army mixes of `C8_WaterAgainstRocRiders` and `C2_2_WaterAgainstRocRiders`. `HANDOFF_UNITY.md` carries the new smoke hashes.
+- Added `RosterNumbers2Tests` and two `FightTests` cases (Spoutling against Roc Rider; Windrunner against Pummeler).
 - Decision (developer, 27 Nov): the response-suite guard in AI and roster measurements is the seeded, paired guard RG of `rts/docs/specs/response_suite_guard.md` (8 seeds per scenario, base seed 20261128) from now on; the single-game suite is reported as information only.
 - `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
 - `aggressive_s5` ships with AI-H off (`harass_speed_ratio` 0) after the paired ladder found no measurable effect (`docs/reports/paired_first/`); the key, the code and `abl_s5_no_h` stay. No hash or pin moved.
