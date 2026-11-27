@@ -125,6 +125,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Decision (developer, 27 Nov): the response-suite guard in AI and roster measurements is the seeded, paired guard RG of `rts/docs/specs/response_suite_guard.md` (8 seeds per scenario, base seed 20261128) from now on; the single-game suite is reported as information only.
 - `--predict-fights`: the `hit_delay` mechanic counts only above `hit_delay_ignore_ticks` (2), so the clean row is no longer empty (22 of 24 on the committed sweep); the committed SIMULATE verdict is not re-run.
 - `aggressive_s5` ships with AI-H off (`harass_speed_ratio` 0) after the paired ladder found no measurable effect (`docs/reports/paired_first/`); the key, the code and `abl_s5_no_h` stay. No hash or pin moved.
 - `PairedStats.SignTest` takes an exact alpha divisor; `GameTrace` spending uses the shared `PlayerLedger` (trace output unchanged).
