@@ -84,10 +84,15 @@ The developer decided to merge the data change as measured despite the failed gu
 
 New tests (spec 5.3): `RosterNumbers2Tests` (2), `FightTests.RosterNumbers2_*` (2; Spoutling against Roc Rider: seat1, left0 0.000, left1 0.125).
 
-### Not re-pinned: two failures (spec 5.2 says stop on an AssertMix weight change)
+### C2_2 and C8 mixes (re-pinned afterwards, coordinator decision)
 
-- `AiArmyMixTests.C2_2_WaterAgainstRocRiders`, second AssertMix (4 Spoutlings owned): expected Leviathan 700 and Shellback 50; now Leviathan 0 and Shellback 750 (grasper 150, ink_lobber 50, spoutling 50 unchanged). The Spoutling's higher advantage changes the mix.
-- `AiArmyMixTests.C8_WaterAgainstRocRiders`: expected `mix["water.spoutling"]` 50 and Leviathan 700; Spoutling is now 348. The later assertions (Leviathan score 0.0046089, mix) were not reached and may also move.
+Both are consequences of the stronger Spoutling; `AiArmyMixTests` (whole class) and `ProductionDefenceMetricsTests`: 30 passed, 0 failed.
 
-Both fail on the 5.2 rule and need a developer decision (re-pin the mixes or revisit the numbers).
+| Test | Assertion | Old | New |
+| --- | --- | --- | --- |
+| C8 | Spoutling mix weight | 50 | 348 |
+| C8 | Leviathan mix weight | 700 | 401 |
+| C2_2 (4 Spoutlings owned) | mix Shellback / Leviathan | 50 / 700 | 750 / 0 |
+| C2_2 (4 owned) | advantages grasper, ink_lobber, reef_runner, shellback, spoutling, leviathan | 0.4038, 0.1877, 0.2862, 0.6708, 0.3967, 0.7826 | 0.8620, 0.4321, 0.6290, 1.3887, 1.0201, 1.1813 |
 
+Why: in C8 the Spoutling score 0.0034286 is above the keep floor 0.5 x 0.0046089 = 0.0023044, so it shares the counter 700 with the Leviathan by score (298 + base 50, and 401). In C2_2 with 4 owned, the Shellback's 1.3887 sets the floor 0.9 x 1.3887 = 1.2498, which drops the Leviathan (1.1813) and the Spoutling (1.0201), so the Shellback alone takes 750. The first C2_2 mix is unchanged (0.9 x 1.1372 = 1.0235 is above the Spoutling's 0.8571).

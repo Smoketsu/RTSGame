@@ -185,7 +185,7 @@ namespace Rts.Sim.Tests.Ai
             }
         }
 
-        /// <summary>C-8: water against 4 Roc Riders: only the Spoutling can hit air, so it takes the counter share.</summary>
+        /// <summary>C-8: water against 4 Roc Riders: only the Spoutling and the Leviathan can hit air, so they share the counter share (Leviathan alone before roster_numbers_2).</summary>
         [Test]
         public void C8_WaterAgainstRocRiders()
         {
@@ -208,9 +208,12 @@ namespace Rts.Sim.Tests.Ai
             // Changed by the missing roster and the developer's decision of 18 Nov 2026 that the Leviathan can target air. Leviathan score (hand-calculated): 80 / 3.0 = 26.667 dps (blast 1.0 against
             // armoured) x 320 health / (incoming 14 / 1.2 x 0.75 = 8.75 x value (300 + 2 x 80 = 460)^2) = 0.0046089, above the Spoutling's 0.0013333; keep 0.5 x 0.0046089 = 0.0023 drops the
             // Spoutling, so the Leviathan takes the whole counter share 0.7 x 1000 = 700 and the Spoutling keeps its base 50 (it was 750).
+            // Re-pinned for roster_numbers_2 (Spoutling damage 5 to 10, health 70 to 90): the Spoutling score rises 2.6 times to 0.0034286 (was 0.0013333), above the keep floor 0.5 x 0.0046089 = 0.0023044 that
+            // dropped it before, so both are kept and share the counter 700 in proportion to their scores: Spoutling 0.0034286 / 0.0080375 = 0.4266 x 700 = 298 + base 50 = 348, Leviathan 0.0046089 / 0.0080375
+            // = 0.5734 x 700 = 401 (+ base 0). Old weights: Spoutling 50, Leviathan 700. The Leviathan score is unchanged.
             Near(AiCounter.Score(Data.Content.Units["water.leviathan"], enemies, S2, view), "0.0046089");
-            Assert.That(mix["water.spoutling"], Is.EqualTo(50));
-            Assert.That(mix["water.leviathan"], Is.EqualTo(700));
+            Assert.That(mix["water.spoutling"], Is.EqualTo(348));
+            Assert.That(mix["water.leviathan"], Is.EqualTo(401));
             Assert.That(mix["water.reef_runner"], Is.EqualTo(0));
         }
 
@@ -486,14 +489,18 @@ namespace Rts.Sim.Tests.Ai
             // Re-pinned for roster_numbers_1 (Reef Runner max_health 60 to 66): only the water.reef_runner advantages move here (old 0.0225 and 0.2692).
             AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.0397"), ("water.ink_lobber", "0.0119"), ("water.reef_runner", "0.0247"), ("water.shellback", "0.0778"), ("water.spoutling", "0.8571"), ("water.leviathan", "1.1372"));
             // Re-pinned for roster_numbers_2 (Spoutling damage 5 to 10, health 70 to 90): the water.spoutling advantage moves (old 0.3333).
+            // Re-pinned for roster_numbers_2 (first mix unchanged): the Spoutling advantage 0.8571 (was 0.3333) is still below 0.9 x the Leviathan's 1.1372 = 1.0235, so the Leviathan alone is kept as before.
             // Own Spoutling number. Range: 0 to 3.
             for (int i = 0; i < 4; i++)
             {
                 Spawn(sim, "water.spoutling", P0, "9", Row(i));
             }
-            // Changed by the Leviathan (same reason): with 4 Spoutlings owned its advantage 0.7826 beats the Shellback's 0.6708, and 0.9 x 0.7826 = 0.7044 drops the Shellback, so the Leviathan alone takes 700 (the Shellback was 750).
-            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 50), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 700));
-            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.4038"), ("water.ink_lobber", "0.1877"), ("water.reef_runner", "0.2862"), ("water.shellback", "0.6708"), ("water.spoutling", "0.3967"), ("water.leviathan", "0.7826"));
+            // Changed by the Leviathan (same reason): with 4 Spoutlings owned its advantage 0.7826 beat the Shellback's 0.6708, and 0.9 x 0.7826 = 0.7044 dropped the Shellback, so the Leviathan alone took 700 (the Shellback was 750).
+            // Re-pinned for roster_numbers_2 (Spoutling damage 5 to 10, health 70 to 90; the own Spoutlings are stronger too): the advantages become grasper 0.8620, ink_lobber 0.4321, reef_runner 0.6290, shellback 1.3887, spoutling 1.0201,
+            // leviathan 1.1813 (old 0.4038, 0.1877, 0.2862, 0.6708, 0.3967, 0.7826). The keep floor is 0.9 x the best: 0.9 x 1.3887 = 1.2498. The Leviathan (1.1813) and the Spoutling (1.0201) fall below it, so the Shellback alone
+            // takes the counter 700 + base 50 = 750 and the Leviathan drops to 0 (old Leviathan 700, Shellback 50); the summary line above (adds Shellbacks) is true again.
+            AssertMix(MixOf(sim, S2b, "water", memory), ("water.grasper", 150), ("water.shellback", 750), ("water.ink_lobber", 50), ("water.spoutling", 50), ("water.leviathan", 0));
+            AssertAdvantages(sim, S2b, "water", memory, ("water.grasper", "0.8620"), ("water.ink_lobber", "0.4321"), ("water.reef_runner", "0.6290"), ("water.shellback", "1.3887"), ("water.spoutling", "1.0201"), ("water.leviathan", "1.1813"));
         }
 
         /// <summary>C2-3 and C2-4: Skai against 6 Pummelers keeps the Roc Rider; against 8 Windrunners it keeps Windrunner and Talon.</summary>
