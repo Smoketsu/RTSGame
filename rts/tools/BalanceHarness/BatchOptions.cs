@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Rts.Sim.Core;
 
 namespace Rts.Tools.BalanceHarness
 {
@@ -17,7 +18,7 @@ namespace Rts.Tools.BalanceHarness
             + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression | --paired]"
             + " | --data <data folder> --response --profile <id> [--only <script file name>]"
             + " | --data <data folder> --fights [--fight-settings <fights.json>] [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
-            + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--fight-settings <fights.json>] [--profile <id>] [--baseline-profile <id>] [--jobs J] [--seed S] [--out <dir>]"
+            + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--fight-settings <fights.json>] [--profile <id>] [--baseline-profile <id>] [--predict-kite-factor <0 to 1>] [--jobs J] [--seed S] [--out <dir>]"
             + " | --data <data folder> --pool --profile-b <candidate id> [--stage 1|2|all] [--pairs N] [--matchups x,y] [--maps a,b] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --behaviour --profile-a <baseline id> --profile-b <candidate id> [--checks id,id] [--paired-faction <faction id>] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
             + " | --data <data folder> --balance [--profile <id>] [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--from <balance.jsonl>] [--fights-from <fights.jsonl>] [--strict]"
@@ -118,6 +119,12 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>Profile ID from --baseline-profile (--predict-fights): the profile whose predictions the bars compare with, or empty. Range: a file name under rts/data/ai without .json.</summary>
         public string BaselineProfile { get; private set; } = string.Empty;
+
+        /// <summary>Kite factor from --predict-kite-factor (--predict-fights only): the predictor's share of damage per second against an enemy that kites the unit, or null when the flag is absent. Unit: fraction. Range: 0 to 1.</summary>
+        public Fix64? PredictKiteFactor { get; private set; }
+
+        /// <summary>The text of --predict-kite-factor as typed, for the PREDICT line; empty when the flag is absent. Range: decimal text of 0 to 1.</summary>
+        public string PredictKiteFactorText { get; private set; } = string.Empty;
 
         /// <summary>True when --strict was given: a failed fight check exits 2.</summary>
         public bool Strict { get; private set; }
@@ -276,6 +283,7 @@ namespace Rts.Tools.BalanceHarness
                     case "--fights-from":
                     case "--fight-settings":
                     case "--baseline-profile":
+                    case "--predict-kite-factor":
                         break;
                     default:
                         throw new HarnessException("unknown argument '" + flag + "' in batch mode. " + Usage);
@@ -384,6 +392,10 @@ namespace Rts.Tools.BalanceHarness
                     case "--baseline-profile":
                         options.BaselineProfile = value;
                         break;
+                    case "--predict-kite-factor":
+                        options.PredictKiteFactor = ParseUnitFraction(flag, value);
+                        options.PredictKiteFactorText = value;
+                        break;
                     default:
                         options.TestFault = value;
                         break;
@@ -416,6 +428,10 @@ namespace Rts.Tools.BalanceHarness
             if (options.Behaviour && (options.ProfileA.Length == 0 || options.ProfileB.Length == 0))
             {
                 throw new HarnessException("--behaviour needs --profile-a and --profile-b. " + Usage);
+            }
+            if (options.PredictKiteFactor != null && !options.PredictFights)
+            {
+                throw new HarnessException("--predict-kite-factor is allowed only with --predict-fights. " + Usage);
             }
             if (options.PairedFaction.Length > 0 && !options.Behaviour)
             {
@@ -453,6 +469,26 @@ namespace Rts.Tools.BalanceHarness
                     + max.ToString(CultureInfo.InvariantCulture) + " (found '" + value + "')");
             }
             return number;
+        }
+
+        /// <summary>Parses decimal text of a fraction from 0 to 1 (Fix64.Parse) or throws a HarnessException naming the flag.</summary>
+        private static Fix64 ParseUnitFraction(string flag, string value)
+        {
+            // The parsed value. Unit: fraction. Range: 0 to 1 when accepted.
+            Fix64 parsed;
+            try
+            {
+                parsed = Fix64.Parse(value);
+            }
+            catch (FormatException)
+            {
+                throw new HarnessException(flag + " must be a decimal number from 0 to 1 (found '" + value + "')");
+            }
+            if (parsed < Fix64.Zero || parsed > Fix64.One)
+            {
+                throw new HarnessException(flag + " must be a decimal number from 0 to 1 (found '" + value + "')");
+            }
+            return parsed;
         }
 
         /// <summary>Splits a comma list into non-empty trimmed entries.</summary>

@@ -1,0 +1,1 @@
+PREDICT fights=780 judged=780 decided=765 correct=467 accuracy=0.610 clean=15/24 no_winner_agree=0/15 decision=SIMULATE (proposed thresholds) kite_factor=0.4 kite_pair_fights=230

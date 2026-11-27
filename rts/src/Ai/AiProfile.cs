@@ -229,13 +229,17 @@ namespace Rts.Ai
         /// <summary>Rule SU's need (ai_mechanic_use.md M2.1b): per support unit ID, the enemy movement layers of which at least one sighted army type must be on before the unit is wanted; ordinal ID order. Unit: unit ID to layers. Range: keys a subset of <see cref="SupportUnits"/>; each list 0 to 3 distinct layers; a missing key or an empty list = always needed.</summary>
         public SortedDictionary<string, IReadOnlyList<MovementLayer>> SupportNeeds { get; }
 
+        /// <summary>Predictor mix only (ai_kite_correction.md): share of damage per second a unit deals to an enemy that kites it under rule D.6.2. Unit: fraction. Range: 0 to 1; 1 = off (key absent).</summary>
+        public Fix64 PredictorKiteFactor { get; }
+
         /// <summary>Stores the plan; <see cref="AiProfile.Parse(JsonValue, ContentCatalog)"/> validates it first.</summary>
         public AiFactionPlan(string factionId, string workerUnitId, string supplyBuildingId, IReadOnlyList<AiBuildStep> buildOrder,
             IReadOnlyDictionary<string, int> composition, Fix64 attackTideMin, Fix64 attackTideMax, int attackTideOverrideSupply,
             IReadOnlyList<string>? cyclePreference = null, string? dropOffBuildingId = null, string? scoutUnitId = null,
             IReadOnlyList<AiOpening>? openings = null, SortedDictionary<string, int>? supportUnits = null,
-            SortedDictionary<string, IReadOnlyList<MovementLayer>>? supportNeeds = null)
+            SortedDictionary<string, IReadOnlyList<MovementLayer>>? supportNeeds = null, Fix64? predictorKiteFactor = null)
         {
+            PredictorKiteFactor = predictorKiteFactor ?? Fix64.One;
             SupportNeeds = supportNeeds ?? new SortedDictionary<string, IReadOnlyList<MovementLayer>>(StringComparer.Ordinal);
             SupportUnits = supportUnits ?? new SortedDictionary<string, int>(StringComparer.Ordinal);
             Openings = openings ?? Array.Empty<AiOpening>();
@@ -258,7 +262,7 @@ namespace Rts.Ai
         public AiFactionPlan WithOrders(IReadOnlyList<AiBuildStep> buildOrder, IReadOnlyDictionary<string, int> composition)
         {
             return new AiFactionPlan(FactionId, WorkerUnitId, SupplyBuildingId, buildOrder, composition, AttackTideMin, AttackTideMax,
-                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings, SupportUnits, SupportNeeds);
+                AttackTideOverrideSupply, CyclePreference, DropOffBuildingId, ScoutUnitId, Openings, SupportUnits, SupportNeeds, PredictorKiteFactor);
         }
     }
 
@@ -1371,6 +1375,23 @@ namespace Rts.Ai
                         throw pair.Value.Require("support_needs").Fail("names '" + need.Key + "', which is not a key of support_units");
                     }
                 }
+                if (parsed.PredictorKiteFactor != Fix64.One)
+                {
+                    // The key's node, for the error position.
+                    JsonValue kiteNode = pair.Value.Require("predictor_kite_factor");
+                    if (root.Require("predictor_model").AsString() == "sim")
+                    {
+                        throw kiteNode.Fail("predictor_kite_factor needs predictor_model formula");
+                    }
+                    if (!root.RequireBool("use_predictor_mix"))
+                    {
+                        throw kiteNode.Fail("predictor_kite_factor needs use_predictor_mix");
+                    }
+                    if (!root.RequireBool("use_unit_control"))
+                    {
+                        throw kiteNode.Fail("predictor_kite_factor needs use_unit_control");
+                    }
+                }
                 plans.Add(pair.Key, parsed);
             }
             if (plans.Count == 0)
@@ -1460,7 +1481,7 @@ namespace Rts.Ai
                 AiOpening one = new AiOpening(found.Id, 1, found.BuildOrder, found.Composition, found.HandoverSeconds, found.ExpandAtSeconds, found.EarlyExpansionSeconds,
                     found.AttackArmySupply, found.AttackMinSupply);
                 plans[forced.Key] = new AiFactionPlan(plan.FactionId, plan.WorkerUnitId, plan.SupplyBuildingId, plan.BuildOrder, plan.Composition, plan.AttackTideMin, plan.AttackTideMax,
-                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one }, plan.SupportUnits, plan.SupportNeeds);
+                    plan.AttackTideOverrideSupply, plan.CyclePreference, plan.DropOffBuildingId, plan.ScoutUnitId, new[] { one }, plan.SupportUnits, plan.SupportNeeds, plan.PredictorKiteFactor);
             }
             return new AiProfile(_root, Id, plans) { WallLines = WallLines };
         }
@@ -1488,7 +1509,7 @@ namespace Rts.Ai
                 throw node.Fail("must be an object");
             }
             node.RejectUnknownKeys("worker_unit", "supply_building", "build_order", "composition", "attack_tide_min", "attack_tide_max",
-                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings", "support_units", "support_needs");
+                "attack_tide_override_supply", "cycle_preference", "drop_off_building", "scout_unit", "openings", "support_units", "support_needs", "predictor_kite_factor");
             // Worker unit ID, checked to be a gatherer of this faction.
             string worker = node.RequireNonEmptyString("worker_unit");
             // Definition of the worker unit.
@@ -1580,8 +1601,10 @@ namespace Rts.Ai
                     throw scoutNode.Fail("is not in the trains list of any " + faction.Id + " structure");
                 }
             }
+            // Optional kite factor of the predictor mix; null = key absent = off. Unit: fraction. Range: 0 to 1.
+            Fix64? kiteFactor = node.TryGetMember("predictor_kite_factor", out JsonValue? _) ? node.RequireFix64("predictor_kite_factor", "0", "1") : (Fix64?)null;
             return new AiFactionPlan(faction.Id, worker, supply, steps.AsReadOnly(), composition, tideMin, tideMax,
-                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content), ParseSupportUnits(node, faction, content), ParseSupportNeeds(node));
+                node.RequireInt("attack_tide_override_supply", 1, 400), preference.AsReadOnly(), dropOff, scoutId, ParseOpenings(node, faction, content), ParseSupportUnits(node, faction, content), ParseSupportNeeds(node), kiteFactor);
         }
 
         /// <summary>Validates the "support_units" object of a faction plan (ai_mechanic_use.md section 1): each key a unit of the faction with supply above 0, each value 1 to 200.</summary>

@@ -6,7 +6,8 @@
 // Part of Rts.Ai. It names no faction or unit, uses Fix64 and integers only, walks entries in the order given (callers pass ordinal
 // definition-ID order; Group sorts that way), draws no random number and keeps no static state. Package C's counter-mix scores use
 // the same per-unit damage helpers (Dps, AverageDps). Not modelled on purpose: drench slow and grounding, splash, momentum, flooding,
-// Windstorm range, regeneration, hit delay and focus fire.
+// Windstorm range, regeneration, hit delay and focus fire. One optional term, the kite factor of ai_kite_correction.md, scales the damage of
+// units that an enemy kites under rule D.6.2; it is read only by the predictor mix and is off (identity path) by default.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Combat;
@@ -112,6 +113,29 @@ namespace Rts.Ai
 
         /// <summary>The game data of the lane simulation. Range: required when <see cref="Model"/> is Sim, else null.</summary>
         public FightSimRules? SimRules { get; }
+
+        /// <summary>Share of damage per second a unit deals to an enemy that kites it (ai_kite_correction.md). Unit: fraction. Range: 0 to 1; <see cref="Fix64.One"/> = off (default).</summary>
+        public Fix64 KiteFactor { get; private set; } = Fix64.One;
+
+        /// <summary>Kite rule D.6.2: least range advantage for a kite. Unit: tiles. Range: 0 to 20; 0 when off.</summary>
+        public Fix64 KiteMinRangeGapTiles { get; private set; }
+
+        /// <summary>Kite rule D.6.2: least kiter speed as a ratio of the chaser's. Unit: ratio. Range: 0 to 5; 0 when off.</summary>
+        public Fix64 KiteSpeedRatioMin { get; private set; }
+
+        /// <summary>A copy with the kite term set and every other field equal.</summary>
+        /// <param name="factor">Kite factor. Unit: fraction. Range: 0 to 1; 1 = off.</param>
+        /// <param name="minRangeGapTiles">Range gap of the kite rule. Unit: tiles. Range: 0 to 20.</param>
+        /// <param name="speedRatioMin">Speed ratio of the kite rule. Unit: ratio. Range: 0 to 5.</param>
+        public PredictorSettings WithKite(Fix64 factor, Fix64 minRangeGapTiles, Fix64 speedRatioMin)
+        {
+            // The copy; MemberwiseClone keeps every other field.
+            PredictorSettings copy = (PredictorSettings)MemberwiseClone();
+            copy.KiteFactor = factor;
+            copy.KiteMinRangeGapTiles = minRangeGapTiles;
+            copy.KiteSpeedRatioMin = speedRatioMin;
+            return copy;
+        }
 
         /// <summary>Stores the settings of the formula model.</summary>
         /// <param name="maxSeconds">Longest time. Unit: seconds.</param>
@@ -306,6 +330,42 @@ namespace Rts.Ai
             return health <= Fix64.Zero ? Fix64.Zero : weighted / health;
         }
 
+        /// <summary>Rule D.6.2 as a test (ai_kite_correction.md 2.1): true when <paramref name="kiter"/> would kite <paramref name="chaser"/>.</summary>
+        /// <param name="kiter">The unit that might step away. Range: any definition.</param>
+        /// <param name="chaser">The unit it steps away from. Range: any definition.</param>
+        /// <param name="s">Settings holding the rule's gap and ratio.</param>
+        internal static bool Kites(UnitDefinition kiter, UnitDefinition chaser, PredictorSettings s)
+        {
+            return kiter.Weapon != null && !kiter.Weapon.IsMelee && chaser.Weapon != null
+                && kiter.Weapon.RangeTiles >= chaser.Weapon.RangeTiles + s.KiteMinRangeGapTiles
+                && kiter.SpeedTilesPerSecond >= s.KiteSpeedRatioMin * chaser.SpeedTilesPerSecond;
+        }
+
+        /// <summary>As <see cref="AverageDps"/>, each target's term times the kite factor when that target kites the attacker.</summary>
+        /// <param name="attacker">The shooter's type.</param>
+        /// <param name="targets">The target entries (Count above 0).</param>
+        /// <param name="uphill">True when the attacker's side shoots uphill.</param>
+        /// <param name="rules">The damage table.</param>
+        /// <param name="s">Settings with the kite term.</param>
+        /// <returns>Damage per second. Unit: health points per second. Range: 0 upward.</returns>
+        private static Fix64 KitedAverageDps(UnitDefinition attacker, IReadOnlyList<FightEntry> targets, bool uphill, CombatRules rules, PredictorSettings s)
+        {
+            // Sum of health x dps (x factor) over hittable entries, and the health of those entries.
+            Fix64 weighted = Fix64.Zero;
+            Fix64 health = Fix64.Zero;
+            foreach (FightEntry target in targets)
+            {
+                if (attacker.Weapon != null && attacker.Weapon.CanTarget(target.Definition.Layer))
+                {
+                    // This target's term before the kite factor.
+                    Fix64 term = target.Health * Dps(attacker, target.Definition, uphill, rules);
+                    weighted += Kites(target.Definition, attacker, s) ? term * s.KiteFactor : term;
+                    health += target.Health;
+                }
+            }
+            return health <= Fix64.Zero ? Fix64.Zero : weighted / health;
+        }
+
         /// <summary>The entries with a count above 0, order kept.</summary>
         private static List<FightEntry> Live(IReadOnlyList<FightEntry> entries)
         {
@@ -367,7 +427,9 @@ namespace Rts.Ai
             foreach (FightEntry x in xs)
             {
                 // Count x D(x) for this entry.
-                Fix64 contribution = x.Count * AverageDps(x.Definition, rest, xUphill, rules);
+                Fix64 contribution = s.KiteFactor == Fix64.One
+                    ? x.Count * AverageDps(x.Definition, rest, xUphill, rules)
+                    : x.Count * KitedAverageDps(x.Definition, rest, xUphill, rules, s);
                 dps += contribution;
                 if (x.Definition.Weapon != null && !x.Definition.Weapon.IsMelee)
                 {
