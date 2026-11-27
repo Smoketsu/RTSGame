@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Added `rts/docs/specs/ai_midgame_window.md` (indexed in `rts/docs/specs/README.md`): diagnosis of Water's AI losses in the 210 to 450 s window from six traces and five trials, and rules FK (`fight_kite_factor`, fraction 0 to 1, placeholder 0.4) and DH (`use_defence_hold`, boolean), optional keys on only in candidate `aggressive_s5_mid`. Packages MG-1 and MG-B, bars fixed on base seed 20261209, seven open questions with defaults.
 - AI: new optional faction-plan key `predictor_kite_factor` (fraction, 0 to 1; absent = off, old code path unchanged). When present and not 1, the predictor mix discounts damage from units that an enemy kites under rule D.6.2 (unit choice only). `FightPredictor.Kites` and `Dps` are now public so the harness can read them.
 - Data: new candidate profile `rts/data/ai/aggressive_s5_kite.json` (factor 0.4 in Water's plan only).
 - Harness: `--predict-kite-factor <f>` for `--predict-fights`; adds a `kite_pair` field and a `predict.md` table.
