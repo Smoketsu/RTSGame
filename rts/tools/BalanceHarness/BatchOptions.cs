@@ -16,7 +16,8 @@ namespace Rts.Tools.BalanceHarness
         public const string Usage = "usage: Rts.Tools.BalanceHarness --data <data folder> --batch [--ci | --games N] [--jobs J] [--maps a,b] [--matchups x_vs_y,...] "
             + "[--seed S] [--max-game-seconds T] [--verify K] [--out <dir>] [--report-only]"
             + " | --data <data folder> --ladder --profile-a <baseline id> --profile-b <candidate id> [--games N] [--maps a,b] [--matchups x,y] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>] [--non-regression | --paired]"
-            + " | --data <data folder> --response --profile <id> [--only <script file name>]"
+            + " | --data <data folder> --response --profile <id> [--only <script file name>] [--seeds N [--seed B] [--jobs J] [--out <file>]]"
+            + " | --data <data folder> --response-guard --from-a <baseline.jsonl> --from-b <candidate.jsonl>"
             + " | --data <data folder> --fights [--fight-settings <fights.json>] [--jobs J] [--seed S] [--only <fight id>] [--out <dir>] [--strict]"
             + " | --data <data folder> --predict-fights [--from <fights.jsonl>] [--fight-settings <fights.json>] [--profile <id>] [--baseline-profile <id>] [--predict-kite-factor <0 to 1>] [--jobs J] [--seed S] [--out <dir>]"
             + " | --data <data folder> --pool --profile-b <candidate id> [--stage 1|2|all] [--pairs N] [--matchups x,y] [--maps a,b] [--jobs J] [--seed S] [--max-game-seconds T] [--out <dir>]"
@@ -71,6 +72,21 @@ namespace Rts.Tools.BalanceHarness
 
         /// <summary>True when --ladder was given: play profile A against profile B (see <see cref="LadderRunner"/>).</summary>
         public bool Ladder { get; private set; }
+
+        /// <summary>True when --response-guard was given: compare two response run files (see <see cref="ResponseGuard"/>).</summary>
+        public bool ResponseGuard { get; private set; }
+
+        /// <summary>Games per scenario from --seeds, or null for the single-game response mode. Unit: games per scenario. Range: 1 to 64.</summary>
+        public int? Seeds { get; private set; }
+
+        /// <summary>Baseline response records from --from-a. Range: file path, or empty.</summary>
+        public string FromA { get; private set; } = string.Empty;
+
+        /// <summary>Candidate response records from --from-b. Range: file path, or empty.</summary>
+        public string FromB { get; private set; } = string.Empty;
+
+        /// <summary>True when --out was given (the response mode writes its JSON Lines file only then).</summary>
+        public bool OutGiven { get; private set; }
 
         /// <summary>True when --response was given: run the scripted-opponent scenarios (see <see cref="ResponseRunner"/>).</summary>
         public bool Response { get; private set; }
@@ -184,7 +200,7 @@ namespace Rts.Tools.BalanceHarness
             return Array.IndexOf(args, "--batch") >= 0 || Array.IndexOf(args, "--worker") >= 0 || Array.IndexOf(args, "--trace") >= 0
                 || Array.IndexOf(args, "--ladder") >= 0 || Array.IndexOf(args, "--response") >= 0 || Array.IndexOf(args, "--fights") >= 0
                 || Array.IndexOf(args, "--predict-fights") >= 0 || Array.IndexOf(args, "--pool") >= 0 || Array.IndexOf(args, "--behaviour") >= 0
-                || Array.IndexOf(args, "--balance") >= 0;
+                || Array.IndexOf(args, "--balance") >= 0 || Array.IndexOf(args, "--response-guard") >= 0;
         }
 
         /// <summary>Parses the arguments; throws <see cref="HarnessException"/> on anything unexpected.</summary>
@@ -217,6 +233,9 @@ namespace Rts.Tools.BalanceHarness
                         continue;
                     case "--response":
                         options.Response = true;
+                        continue;
+                    case "--response-guard":
+                        options.ResponseGuard = true;
                         continue;
                     case "--fights":
                         options.Fights = true;
@@ -275,6 +294,9 @@ namespace Rts.Tools.BalanceHarness
                     case "--profile":
                     case "--only":
                     case "--from":
+                    case "--seeds":
+                    case "--from-a":
+                    case "--from-b":
                     case "--pool-member":
                     case "--stage":
                     case "--pairs":
@@ -326,6 +348,16 @@ namespace Rts.Tools.BalanceHarness
                         break;
                     case "--out":
                         options.OutDirectory = value;
+                        options.OutGiven = true;
+                        break;
+                    case "--seeds":
+                        options.Seeds = ParseInt(flag, value, 1, 64);
+                        break;
+                    case "--from-a":
+                        options.FromA = value;
+                        break;
+                    case "--from-b":
+                        options.FromB = value;
                         break;
                     case "--map":
                         options.WorkerMap = value;
@@ -441,6 +473,14 @@ namespace Rts.Tools.BalanceHarness
             {
                 throw new HarnessException("--response needs --profile. " + Usage);
             }
+            if (options.ResponseGuard && (options.FromA.Length == 0 || options.FromB.Length == 0))
+            {
+                throw new HarnessException("--response-guard needs --from-a and --from-b. " + Usage);
+            }
+            if (options.Seeds != null && !options.Response)
+            {
+                throw new HarnessException("--seeds is allowed only with --response. " + Usage);
+            }
             if (options.ProfileA.Length > 0 != (options.ProfileB.Length > 0) && !options.Pool)
             {
                 throw new HarnessException("--profile-a and --profile-b go together. " + Usage);
@@ -453,7 +493,7 @@ namespace Rts.Tools.BalanceHarness
             {
                 throw new HarnessException("a fight worker needs --first and --count, or --hq-floor. " + Usage);
             }
-            if (options.IsWorker && !options.Fights && options.WorkerHqFloor.Length == 0 && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0 || options.WorkerCount == 0))
+            if (options.IsWorker && !options.Fights && !options.Response && options.WorkerHqFloor.Length == 0 && (options.WorkerMap.Length == 0 || options.WorkerMatchup.Length == 0 || options.WorkerCount == 0))
             {
                 throw new HarnessException("a game worker needs --map, --matchup and --count. " + Usage);
             }

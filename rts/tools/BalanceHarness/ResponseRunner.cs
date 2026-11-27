@@ -36,6 +36,9 @@ namespace Rts.Tools.BalanceHarness
         /// <summary>State hash after the last tick. Range: any ulong.</summary>
         public ulong FinalHash { get; }
 
+        /// <summary>Digest of the loaded content (Simulation.ContentDigest); 0 when not recorded. Range: any ulong.</summary>
+        public ulong ContentDigest { get; }
+
         /// <summary>Profile ID the controller of slot 0 used.</summary>
         public string Slot0Profile { get; }
 
@@ -63,8 +66,9 @@ namespace Rts.Tools.BalanceHarness
         }
 
         /// <summary>Bundles the values.</summary>
-        public ResponseResult(ResponseTest test, IReadOnlyList<CheckPart> parts, ResponseSeries? series, ulong finalHash, string slot0Profile, string slot1Profile)
+        public ResponseResult(ResponseTest test, IReadOnlyList<CheckPart> parts, ResponseSeries? series, ulong finalHash, string slot0Profile, string slot1Profile, ulong contentDigest = 0UL)
         {
+            ContentDigest = contentDigest;
             Test = test;
             Parts = parts;
             Series = series;
@@ -134,7 +138,8 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="test">The scenario entry.</param>
         /// <param name="profile">Profile ID of the AI under test (slot 0).</param>
         /// <param name="observe">True to record a series and evaluate the check; false for a plain run (the observer-free reference for the hash comparison).</param>
-        public static ResponseResult Run(DataSet data, string dataDirectory, ResponseTest test, string profile, bool observe)
+        /// <param name="matchSeed">Match seed replacing the script's "seed", or null for the script's own (the single-game behaviour). Range: any ulong, or null.</param>
+        public static ResponseResult Run(DataSet data, string dataDirectory, ResponseTest test, string profile, bool observe, ulong? matchSeed = null)
         {
             // Script file path and parsed script.
             string path = Path.Combine(dataDirectory, ScriptFolder, test.Script);
@@ -144,7 +149,7 @@ namespace Rts.Tools.BalanceHarness
             }
             CommandScript script = CommandScript.Parse(File.ReadAllText(path), ScriptFolder + "/" + test.Script, BuiltInMechanics.ScriptParsers);
             MapDefinition map = data.RequireMap(script.MapId);
-            Simulation sim = new Simulation(new SimulationConfig(data.CreateMatchSettings(script.Seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry(),
+            Simulation sim = new Simulation(new SimulationConfig(data.CreateMatchSettings(matchSeed ?? script.Seed), data.Content, script.Players, BuiltInMechanics.CreateRegistry(),
                 data.Tuning, map, data.Cycles.Values));
             sim.Start();
             foreach (Command command in script.Commands)
@@ -181,7 +186,7 @@ namespace Rts.Tools.BalanceHarness
             string slot1 = slots.ContainsKey(1) ? slots[1] : string.Empty;
             if (observer == null)
             {
-                return new ResponseResult(test, new List<CheckPart>(), null, hash, profile, slot1);
+                return new ResponseResult(test, new List<CheckPart>(), null, hash, profile, slot1, sim.ContentDigest);
             }
             ResponseSeries series = observer.Finish(sim);
             foreach (IPlayerController controller in controllers)
@@ -193,7 +198,7 @@ namespace Rts.Tools.BalanceHarness
                 }
             }
             List<CheckPart> parts = ResponseChecks.Evaluate(test, series, data, AiProfile.FromDataSet(data, profile), self!.FactionId);
-            return new ResponseResult(test, parts, series, hash, profile, slot1);
+            return new ResponseResult(test, parts, series, hash, profile, slot1, sim.ContentDigest);
         }
     }
 

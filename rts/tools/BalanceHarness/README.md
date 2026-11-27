@@ -148,6 +148,17 @@ dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --re
   `RESPONSE <script> <check> PASS|FAIL p<n>=PASS|FAIL <metric>=<value> ...` per scenario and `RESPONSE_SUMMARY passed=<n> of=<m>`; exit 0 all passed, 1 error, 2 any failed.
   Part 1 of `air_answer` reads the enemy model of the AI under test (`AiMemory.ModelAirKnownTick`, skirmish AI v3 package B); a profile with `use_enemy_model` false (such as `aggressive`) has no model, so it always fails there (`model_air_known_s=none`).
 
+### Seeded response runs and the response guard (specs/response_suite_guard.md, RG-1 and RG-2)
+
+```
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --response --profile <id> --seeds N [--seed B] [--jobs J] [--out <file>] [--only <script file name>]
+dotnet run --project rts/tools/BalanceHarness -c Release -- --data rts/data --response-guard --from-a <baseline.jsonl> --from-b <candidate.jsonl>
+```
+
+- **`--seeds N`** (1 to 64; without it `--response` is unchanged) plays every selected scenario N times. Game g gets match seed `SeedDerivation.GameSeed(B, map ID, script file name without .json, g)`; `--seed B` is the base seed (default `response_guard_base_seed` of `ai_eval.json`). One worker process per (scenario, g) runs through `WorkerPool` (`--jobs J` at once, default the processor count; `RTS_WORKER_CACHE` resumes). Stdout is in (`response_tests` order, g) order: the `RESPONSE ...` line with ` seed=<g>` appended, then per scenario `RESPONSE_RATE <script> passed=<k> of=<N>`, then `RESPONSE_SUMMARY passed=<k> of=<games>`. Exit 0 all passed, 1 error, 2 any failed.
+- **`--out <file>`** (with `--seeds`) writes JSON Lines, one record per game: `script`, `check`, `game`, `seed` (decimal string), `profile`, `content_digest` (x16), `passed`, `parts` (`number`, `passed`, `metric`), `final_hash` (x16). The file does not depend on `--jobs`.
+- **`--response-guard`** joins two such files on (`script`, `game`) and prints per scenario `RESPONSE_GUARD_SCENARIO <script> baseline_passed=<k> candidate_passed=<k> of=<N> B=<b> C=<c> p_pt=<p>` (B: baseline passed and candidate failed; C: the reverse; `p_pt` the exact one-sided sign-test p-value in parts per 10 000, ` RG-a` appended when it is at or below `response_guard_scenario_alpha`), then `RESPONSE_GUARD_SUITE B=<sum> C=<sum> p_pt=<p>` (` RG-b` when at or below `response_guard_suite_alpha`), then `RESPONSE_GUARD HOLDS` (exit 0) or `RESPONSE_GUARD FAILS <RG-a:<script> ... RG-b>` (exit 2). Files that differ in scripts, games or seeds exit 1 with a message naming the record. The four `response_guard_*` keys are in `ai_eval.json`.
+
 ## Paired ladder, stated power and the fight predictor (specs/balance_measurement.md, M.1, M.2, C)
 
 ```

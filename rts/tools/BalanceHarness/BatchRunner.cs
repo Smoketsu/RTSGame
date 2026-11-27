@@ -24,6 +24,10 @@ namespace Rts.Tools.BalanceHarness
         /// <param name="error">stderr: elapsed wall time and errors.</param>
         public static int Run(BatchOptions options, TextWriter output, TextWriter error)
         {
+            if (options.ResponseGuard)
+            {
+                return ResponseGuard.RunCli(options, output);
+            }
             DataSet data = DataLoader.Load(Program.ReadDataFolder(options.DataDirectory));
             if (options.PredictFights && !options.IsWorker)
             {
@@ -51,7 +55,7 @@ namespace Rts.Tools.BalanceHarness
             }
             if (options.Response)
             {
-                return ResponseRunner.RunCli(options, data, output, error);
+                return options.IsWorker ? ResponseSeeded.RunWorker(options, data, output) : options.Seeds != null ? ResponseSeeded.RunCoordinator(options, data, output) : ResponseRunner.RunCli(options, data, output, error);
             }
             if (options.Trace)
             {
