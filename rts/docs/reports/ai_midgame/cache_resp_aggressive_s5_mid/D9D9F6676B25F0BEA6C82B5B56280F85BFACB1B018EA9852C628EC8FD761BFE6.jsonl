@@ -1,0 +1,2 @@
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.161 share=0.089 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=3
+{"script":"response_mass_pummeler_water.json","check":"armoured_answer","game":3,"seed":"1277959828470748715","profile":"aggressive_s5_mid","content_digest":"c6fae931039c8e32","passed":false,"parts":[{"number":1,"passed":false,"metric":"share_gain=-0.161 share=0.089 base_share=0.250 armour=armoured"},{"number":2,"passed":true,"metric":"hq_alive=true"}],"final_hash":"5c3c84bb91f2d7da"}

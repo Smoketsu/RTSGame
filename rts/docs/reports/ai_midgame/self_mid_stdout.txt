@@ -1,0 +1,5 @@
+CHECK balance_use FAIL 12 of 56 items below 0.100: skai/skai.wind_baffle 0.000, skai/skai.wind_gate 0.000, water/water.coral_gate 0.000, water/water.coral_wall 0.000, water/water.tidecaller 0.000, water/wave 0.000, skai/wall 0.000, water/wall 0.000, skai/gate 0.000, water/gate 0.000, skai/hq_last_stand 0.000, water/hq_last_stand 0.000
+CHECK balance_predictor FAIL accuracy=0.693 correct=531 decided=766 bar=0.850
+CHECK balance_unspent FAIL over bars common=400 rare=150: skai@300s common=590 rare=200, skai@600s common=2025 rare=425, water@600s common=40 rare=605
+CHECK balance_openings PASS openings judged=0 all within 0.100 to 0.900 of distinct mirror games (at least 10)
+BALANCE profile=aggressive_s5_mid games=72 decided=72 distinct=72 checks_passed=1 of=4

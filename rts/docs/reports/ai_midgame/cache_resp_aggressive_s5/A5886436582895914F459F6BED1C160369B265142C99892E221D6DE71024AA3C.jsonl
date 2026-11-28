@@ -1,0 +1,2 @@
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=1.591 killed=35 lost=22 hq_alive=true seed=3
+{"script":"response_mass_windrunner_skai.json","check":"trade","game":3,"seed":"8046993745113077744","profile":"aggressive_s5","content_digest":"c6fae931039c8e32","passed":true,"parts":[{"number":1,"passed":true,"metric":"trade_ratio=1.591 killed=35 lost=22 hq_alive=true"}],"final_hash":"3068105d7adc24e7"}

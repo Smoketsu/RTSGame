@@ -1,0 +1,2 @@
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=157.1 model_air_known_s=130.0 p2=PASS aa_units=4 p3=PASS hq_alive=true seed=3
+{"script":"response_roc_rush_water.json","check":"air_answer","game":3,"seed":"14206356338699412239","profile":"aggressive_s5_mid","content_digest":"c6fae931039c8e32","passed":true,"parts":[{"number":1,"passed":true,"metric":"air_first_seen_s=157.1 model_air_known_s=130.0"},{"number":2,"passed":true,"metric":"aa_units=4"},{"number":3,"passed":true,"metric":"hq_alive=true"}],"final_hash":"f3da516befe95dd0"}

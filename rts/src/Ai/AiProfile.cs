@@ -95,6 +95,7 @@
 //     raid_evacuate_max_commands_per_think (0 to 100). Every profile file carries them; the old values false, 10, 8 and 12 play exactly as before; only aggressive_s5_pd has use_raid_workers true.
 //   * rts/docs/specs/ai_production_defence.md package PD-4 (raid response, rule RA): use_raid_response (needs use_measured_defence), raid_hold_radius_tiles (1 to 20) and raid_hq_cover_margin_tiles (0 to 20).
 //     Every profile file carries them; the old values false, 4 and 2 play exactly as before; only aggressive_s5_pd has use_raid_response true.
+//   * rts/docs/specs/ai_midgame_window.md package MG-1: fight_kite_factor (rule FK) and use_defence_hold (rule DH), optional, absent = off; only aggressive_s5_mid sets them.
 using System;
 using System.Collections.Generic;
 using Rts.Sim.Core;
@@ -846,6 +847,12 @@ namespace Rts.Ai
         /// <summary>Rule SA (ai_production_defence.md section 4): another supply structure may be ordered while one is under construction when the producers would fill the cap during one supply build. False: it may not. Unit: boolean.</summary>
         public bool UseSupplyAhead { get; }
 
+        /// <summary>Rule FK (ai_midgame_window.md 2.1): share of damage per second a kited unit deals to its kiter in the brain's fight decisions. Unit: fraction (Fix64). Range: 0 to 1; 1 = off (key absent).</summary>
+        public Fix64 FightKiteFactor { get; }
+
+        /// <summary>Rule DH (ai_midgame_window.md 2.2): a defence predicted short (D.5) holds at home as in rule RA step 3. Unit: boolean. False (key absent) = off; true needs use_measured_defence.</summary>
+        public bool UseDefenceHold { get; }
+
         /// <summary>Rule SA: most supply structures under construction or ordered at once. Unit: structures. Range: 1 to 8.</summary>
         public int SupplyAheadMaxPending { get; }
 
@@ -1171,6 +1178,8 @@ namespace Rts.Ai
             IncomeWindowSeconds = root.RequireInt("income_window_seconds", 10, 300);
             ProductionCapacityTarget = root.RequireFix64("production_capacity_target", "0.1", "3");
             UseSupplyAhead = root.RequireBool("use_supply_ahead");
+            FightKiteFactor = root.TryGetMember("fight_kite_factor", out JsonValue? _) ? root.RequireFix64("fight_kite_factor", "0", "1") : Fix64.One;
+            UseDefenceHold = root.TryGetMember("use_defence_hold", out JsonValue? _) && root.RequireBool("use_defence_hold");
             SupplyAheadMaxPending = root.RequireInt("supply_ahead_max_pending", 1, 8);
             UseRaidWorkers = root.RequireBool("use_raid_workers");
             RaidActiveSeconds = root.RequireFix64("raid_active_seconds", "1", "120");
@@ -1200,6 +1209,21 @@ namespace Rts.Ai
             if (UseRaidResponse && !UseMeasuredDefence)
             {
                 throw root.Require("use_raid_response").Fail("requires use_measured_defence to be true as well");
+            }
+            if (FightKiteFactor != Fix64.One)
+            {
+                if (PredictorModel == PredictorModel.Sim)
+                {
+                    throw root.Require("fight_kite_factor").Fail("fight_kite_factor below 1 needs predictor_model formula");
+                }
+                if (!UseUnitControl)
+                {
+                    throw root.Require("fight_kite_factor").Fail("fight_kite_factor below 1 needs use_unit_control");
+                }
+            }
+            if (UseDefenceHold && !UseMeasuredDefence)
+            {
+                throw root.Require("use_defence_hold").Fail("requires use_measured_defence to be true as well");
             }
             BudgetCommonWeights = ReadQueueWeights(root, "budget_common_weights");
             BudgetRareWeights = ReadQueueWeights(root, "budget_rare_weights");
@@ -1342,7 +1366,7 @@ namespace Rts.Ai
                 "use_walls", "wall_style_weights", "wall_earliest_seconds", "wall_min_enemy_ground_share", "wall_threat_tiles", "wall_funnel_gap_tiles", "wall_max_lines_per_think",
                 "expansion_wall_max_bases", "wall_max_spend_common",
                 "use_production_capacity", "income_window_seconds", "production_capacity_target",
-                "use_supply_ahead", "supply_ahead_max_pending",
+                "use_supply_ahead", "supply_ahead_max_pending", "fight_kite_factor", "use_defence_hold",
                 "use_raid_workers", "raid_active_seconds", "raid_field_radius_tiles", "raid_evacuate_max_commands_per_think",
                 "use_raid_response", "raid_hold_radius_tiles", "raid_hq_cover_margin_tiles",
                 "use_threat_map", "threat_cell_tiles", "threat_spread_cells", "use_threat_safety", "threat_unsafe_margin", "use_threat_harass",

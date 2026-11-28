@@ -1,0 +1,91 @@
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=158.0 model_air_known_s=115.0 p2=PASS aa_units=26 p3=PASS hq_alive=true seed=0
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=168.2 model_air_known_s=94.0 p2=PASS aa_units=18 p3=PASS hq_alive=true seed=1
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=168.2 model_air_known_s=94.0 p2=PASS aa_units=12 p3=PASS hq_alive=true seed=2
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=168.2 model_air_known_s=94.0 p2=PASS aa_units=18 p3=PASS hq_alive=true seed=3
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=163.3 model_air_known_s=111.0 p2=PASS aa_units=16 p3=PASS hq_alive=true seed=4
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=163.3 model_air_known_s=111.0 p2=PASS aa_units=16 p3=PASS hq_alive=true seed=5
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=158.0 model_air_known_s=115.0 p2=PASS aa_units=22 p3=PASS hq_alive=true seed=6
+RESPONSE response_roc_rush_skai.json air_answer PASS p1=PASS air_first_seen_s=158.0 model_air_known_s=115.0 p2=PASS aa_units=26 p3=PASS hq_alive=true seed=7
+RESPONSE_RATE response_roc_rush_skai.json passed=8 of=8
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=98.0 p2=PASS aa_units=4 p3=PASS hq_alive=true seed=0
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=98.0 p2=PASS aa_units=5 p3=PASS hq_alive=true seed=1
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=120.0 p2=PASS aa_units=3 p3=PASS hq_alive=true seed=2
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=157.1 model_air_known_s=130.0 p2=PASS aa_units=4 p3=PASS hq_alive=true seed=3
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=120.0 p2=PASS aa_units=3 p3=PASS hq_alive=true seed=4
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=120.0 p2=PASS aa_units=3 p3=PASS hq_alive=true seed=5
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=167.9 model_air_known_s=120.0 p2=PASS aa_units=3 p3=PASS hq_alive=true seed=6
+RESPONSE response_roc_rush_water.json air_answer PASS p1=PASS air_first_seen_s=157.1 model_air_known_s=130.0 p2=PASS aa_units=3 p3=PASS hq_alive=true seed=7
+RESPONSE_RATE response_roc_rush_water.json passed=8 of=8
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.462 share=0.000 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=0
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.292 share=0.170 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=1
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.087 share=0.375 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=2
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.462 share=0.000 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=3
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.092 share=0.369 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=4
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.087 share=0.375 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=5
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.462 share=0.000 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=6
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.462 share=0.000 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=7
+RESPONSE_RATE response_mass_pummeler_skai.json passed=0 of=8
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.093 share=0.157 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=0
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.213 share=0.037 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=1
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.074 share=0.176 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=2
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.161 share=0.089 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=3
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.055 share=0.195 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=4
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.250 share=0.000 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=5
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.107 share=0.143 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=6
+RESPONSE response_mass_pummeler_water.json armoured_answer FAIL p1=FAIL share_gain=-0.083 share=0.167 base_share=0.250 armour=armoured p2=PASS hq_alive=true seed=7
+RESPONSE_RATE response_mass_pummeler_water.json passed=0 of=8
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.538 killed=33 lost=13 hq_alive=true seed=0
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=1.000 killed=93 lost=93 hq_alive=true seed=1
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.357 killed=33 lost=14 hq_alive=true seed=2
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.133 killed=32 lost=15 hq_alive=true seed=3
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.357 killed=33 lost=14 hq_alive=true seed=4
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.667 killed=32 lost=12 hq_alive=true seed=5
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.500 killed=45 lost=18 hq_alive=true seed=6
+RESPONSE response_mass_windrunner_skai.json trade PASS p1=PASS trade_ratio=2.133 killed=32 lost=15 hq_alive=true seed=7
+RESPONSE_RATE response_mass_windrunner_skai.json passed=8 of=8
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=2.588 killed=44 lost=17 hq_alive=true seed=0
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=2.435 killed=56 lost=23 hq_alive=true seed=1
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=4.067 killed=61 lost=15 hq_alive=true seed=2
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=1.400 killed=56 lost=40 hq_alive=true seed=3
+RESPONSE response_mass_windrunner_water.json trade FAIL p1=FAIL trade_ratio=0.853 killed=93 lost=109 hq_alive=true seed=4
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=2.783 killed=64 lost=23 hq_alive=true seed=5
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=1.314 killed=46 lost=35 hq_alive=true seed=6
+RESPONSE response_mass_windrunner_water.json trade PASS p1=PASS trade_ratio=2.864 killed=63 lost=22 hq_alive=true seed=7
+RESPONSE_RATE response_mass_windrunner_water.json passed=7 of=8
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=5 seed=0
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=5 seed=1
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=7 seed=2
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=4 seed=3
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=5 seed=4
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=4 seed=5
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=6 seed=6
+RESPONSE response_worker_raid_skai.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=6 seed=7
+RESPONSE_RATE response_worker_raid_skai.json passed=0 of=8
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=4 seed=0
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=1 seed=1
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=1 seed=2
+RESPONSE response_worker_raid_water.json raid FAIL p1=PASS static_defence_near_raided_base=true p2=FAIL max_workers_lost_in_wave=4 seed=3
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=3 seed=4
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=2 seed=5
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=PASS max_workers_lost_in_wave=3 seed=6
+RESPONSE response_worker_raid_water.json raid FAIL p1=FAIL static_defence_near_raided_base=false p2=FAIL max_workers_lost_in_wave=4 seed=7
+RESPONSE_RATE response_worker_raid_water.json passed=0 of=8
+RESPONSE response_turtle_skai.json turtle PASS p1=PASS supply_lost_before_first_kill=16 first_structure_kill_s=409.1 p2=PASS won_by_s=507.2 seed=0
+RESPONSE response_turtle_skai.json turtle PASS p1=PASS supply_lost_before_first_kill=8 first_structure_kill_s=427.9 p2=PASS won_by_s=624.9 seed=1
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=63 first_structure_kill_s=570.2 p2=PASS won_by_s=711.9 seed=2
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=70 first_structure_kill_s=641.9 p2=PASS won_by_s=760.8 seed=3
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=69 first_structure_kill_s=572.3 p2=PASS won_by_s=814.3 seed=4
+RESPONSE response_turtle_skai.json turtle PASS p1=PASS supply_lost_before_first_kill=8 first_structure_kill_s=428.1 p2=PASS won_by_s=663.5 seed=5
+RESPONSE response_turtle_skai.json turtle PASS p1=PASS supply_lost_before_first_kill=3 first_structure_kill_s=315.9 p2=PASS won_by_s=462.5 seed=6
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=57 first_structure_kill_s=529.4 p2=PASS won_by_s=700.2 seed=7
+RESPONSE_RATE response_turtle_skai.json passed=4 of=8
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=9 first_structure_kill_s=359.9 p2=PASS won_by_s=401.5 seed=0
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=8 first_structure_kill_s=359.4 p2=PASS won_by_s=419.2 seed=1
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=7 first_structure_kill_s=429.6 p2=PASS won_by_s=513.7 seed=2
+RESPONSE response_turtle_water.json turtle FAIL p1=FAIL supply_lost_before_first_kill=18 first_structure_kill_s=446.6 p2=PASS won_by_s=532.5 seed=3
+RESPONSE response_turtle_water.json turtle FAIL p1=FAIL supply_lost_before_first_kill=22 first_structure_kill_s=513.3 p2=PASS won_by_s=560.4 seed=4
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=8 first_structure_kill_s=367.0 p2=PASS won_by_s=401.8 seed=5
+RESPONSE response_turtle_water.json turtle PASS p1=PASS supply_lost_before_first_kill=4 first_structure_kill_s=460.6 p2=PASS won_by_s=497.4 seed=6
+RESPONSE response_turtle_water.json turtle FAIL p1=FAIL supply_lost_before_first_kill=21 first_structure_kill_s=489.6 p2=PASS won_by_s=546.9 seed=7
+RESPONSE_RATE response_turtle_water.json passed=5 of=8
+RESPONSE_SUMMARY passed=40 of=80

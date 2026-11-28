@@ -8,6 +8,7 @@
 //   D.3 target choice (use_target_choice): undefended enemy depots, then undefended producers, come before the v2 target order.
 //   D.4 rule HR (use_target_choice): a small squad of fast units harasses the known enemy drop-off farthest from the enemy army.
 //   D.5 measured defence (use_measured_defence): only the nearest units the predictor needs defend a threat inside the base.
+//   Rule FK (ai_midgame_window.md, only with fight_kite_factor below 1): every predictor call here carries the kite term of ai_kite_correction.md.
 //   D.6 unit control (use_unit_control): hurt units fall back and ranged units step back from armed enemy army units with a shorter range;
 //       with use_focus_fire, units focus the enemy that dies fastest.
 // Part of Rts.Ai. Everything reads only the AiWorldView (visible enemies, own units, public map data), the profile and the AiMemory; Fix64 and
@@ -53,7 +54,7 @@ namespace Rts.Ai
             /// <summary>Visible armed enemy army units index for the keep-distance test, built on first use. Unit: grid cells of kite_trigger_tiles (tiles, 0.5 to 20) over the armed enemy army units (0 to their count).</summary>
             private AiProximity? _kiteFoeIndex;
 
-            /// <summary>The predictor settings of the profile, built on first use.</summary>
+            /// <summary>The predictor settings of the profile, built on first use; with fight_kite_factor below 1 (rule FK) they carry the kite term. Unit: settings object.</summary>
             private PredictorSettings? _predictorSettings;
 
             /// <summary>Known enemy static defences with a weapon: position and predictor entry (count 1, believed health), ascending ID; built on first use.</summary>
@@ -101,7 +102,14 @@ namespace Rts.Ai
             /// <summary>Predictor call with the facts of <paramref name="context"/> (fight_predictor_v2.md 4): the formula reads only its uphill flag, the lane simulation all of it.</summary>
             private FightPrediction PredictFight(List<FightEntry> a, List<FightEntry> b, in FightContext context)
             {
-                _predictorSettings ??= PredictorSettings.From(_profile, _memory.FightSimRules);
+                if (_predictorSettings == null)
+                {
+                    _predictorSettings = PredictorSettings.From(_profile, _memory.FightSimRules);
+                    if (_profile.FightKiteFactor != Fix64.One)
+                    {
+                        _predictorSettings = _predictorSettings.WithKite(_profile.FightKiteFactor, _profile.KiteMinRangeGapTiles, _profile.KiteSpeedRatioMin);
+                    }
+                }
                 return FightPredictor.Predict(a, b, context, _view.Content.Combat, _predictorSettings);
             }
 
@@ -674,7 +682,7 @@ namespace Rts.Ai
             // ------------------------------------------------------------------ D.5 measured defence
 
             /// <summary>
-            /// D.5: answers a threat inside the base with as few units as the predictor needs (own complete static defences near the threat count
+            /// D.5 (with rule DH, use_defence_hold: a defence predicted short holds at home without an active raid too): answers a threat inside the base with as few units as the predictor needs (own complete static defences near the threat count
             /// as fixed defenders). Chosen units become the defend group and get the v2 Defend orders; if the chosen set holds an attack-group
             /// member and the supply asked of attack-group members reaches defend_recall_supply, the stance becomes Defend (a recall: every army unit defends, as in v2). Without a threat the group holds until
             /// defend_hold_seconds after the last one. Returns true when the stance is Defend and the army has been ordered (Army then returns).
@@ -703,7 +711,7 @@ namespace Rts.Ai
                 List<AiUnitView> candidates;
                 // The units chosen to defend.
                 List<AiUnitView> chosen = new List<AiUnitView>();
-                // Rule RA step 3: true when every candidate with the fixed side is predicted short, so the defence holds at home. Unit: boolean.
+                // Rule RA step 3 (and rule DH, ai_midgame_window.md, without an active raid): true when every candidate with the fixed side is predicted short, so the defence holds at home. Unit: boolean.
                 bool hold = false;
                 // Rule RA (revision 2, R2.1.4): the active raids in answer order, or an empty list without rule RA or without an active raid.
                 List<KeyValuePair<EntityId, (int Tick, FixVec2 Position)>> raids = _profile.UseRaidResponse ? RaidOrder() : new List<KeyValuePair<EntityId, (int Tick, FixVec2 Position)>>();
@@ -770,7 +778,7 @@ namespace Rts.Ai
                     {
                         // True when the chosen units and the fixed side reach defend_min_advantage. Unit: boolean.
                         bool enough = DefenceEnough(centre, threats, candidates, chosen);
-                        hold = _profile.UseRaidResponse && !enough;
+                        hold = (_profile.UseRaidResponse || _profile.UseDefenceHold) && !enough;
                     }
                     else
                     {

@@ -1,0 +1,2 @@
+RESPONSE response_turtle_skai.json turtle FAIL p1=FAIL supply_lost_before_first_kill=49 first_structure_kill_s=611.6 p2=PASS won_by_s=631.9 seed=7
+{"script":"response_turtle_skai.json","check":"turtle","game":7,"seed":"3503857914459140545","profile":"aggressive_s5","content_digest":"c6fae931039c8e32","passed":false,"parts":[{"number":1,"passed":false,"metric":"supply_lost_before_first_kill=49 first_structure_kill_s=611.6"},{"number":2,"passed":true,"metric":"won_by_s=631.9"}],"final_hash":"2f220a76ad7634c1"}

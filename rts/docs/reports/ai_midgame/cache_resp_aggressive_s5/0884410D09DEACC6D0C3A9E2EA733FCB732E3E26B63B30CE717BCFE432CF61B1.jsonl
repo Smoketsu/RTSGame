@@ -1,0 +1,2 @@
+RESPONSE response_worker_raid_water.json raid PASS p1=PASS static_defence_near_raided_base=true p2=PASS max_workers_lost_in_wave=2 seed=3
+{"script":"response_worker_raid_water.json","check":"raid","game":3,"seed":"2619393090822598733","profile":"aggressive_s5","content_digest":"c6fae931039c8e32","passed":true,"parts":[{"number":1,"passed":true,"metric":"static_defence_near_raided_base=true"},{"number":2,"passed":true,"metric":"max_workers_lost_in_wave=2"}],"final_hash":"0ee37153220790c9"}

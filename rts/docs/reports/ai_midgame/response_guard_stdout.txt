@@ -1,0 +1,12 @@
+RESPONSE_GUARD_SCENARIO response_roc_rush_skai.json baseline_passed=8 candidate_passed=8 of=8 B=0 C=0 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_roc_rush_water.json baseline_passed=8 candidate_passed=8 of=8 B=0 C=0 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_mass_pummeler_skai.json baseline_passed=0 candidate_passed=0 of=8 B=0 C=0 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_mass_pummeler_water.json baseline_passed=0 candidate_passed=0 of=8 B=0 C=0 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_mass_windrunner_skai.json baseline_passed=8 candidate_passed=8 of=8 B=0 C=0 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_mass_windrunner_water.json baseline_passed=8 candidate_passed=7 of=8 B=1 C=0 p_pt=5000
+RESPONSE_GUARD_SCENARIO response_worker_raid_skai.json baseline_passed=0 candidate_passed=0 of=8 B=0 C=0 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_worker_raid_water.json baseline_passed=2 candidate_passed=0 of=8 B=2 C=0 p_pt=2500
+RESPONSE_GUARD_SCENARIO response_turtle_skai.json baseline_passed=3 candidate_passed=4 of=8 B=0 C=1 p_pt=10000
+RESPONSE_GUARD_SCENARIO response_turtle_water.json baseline_passed=8 candidate_passed=5 of=8 B=3 C=0 p_pt=1250
+RESPONSE_GUARD_SUITE B=6 C=1 p_pt=625
+RESPONSE_GUARD HOLDS

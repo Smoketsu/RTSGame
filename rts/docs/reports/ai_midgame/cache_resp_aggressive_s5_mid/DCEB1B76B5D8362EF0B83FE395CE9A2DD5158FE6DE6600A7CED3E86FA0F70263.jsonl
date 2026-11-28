@@ -1,0 +1,2 @@
+RESPONSE response_mass_pummeler_skai.json armoured_answer FAIL p1=FAIL share_gain=-0.292 share=0.170 base_share=0.462 armour=armoured p2=PASS hq_alive=true seed=1
+{"script":"response_mass_pummeler_skai.json","check":"armoured_answer","game":1,"seed":"14514741200857470135","profile":"aggressive_s5_mid","content_digest":"c6fae931039c8e32","passed":false,"parts":[{"number":1,"passed":false,"metric":"share_gain=-0.292 share=0.170 base_share=0.462 armour=armoured"},{"number":2,"passed":true,"metric":"hq_alive=true"}],"final_hash":"2a8a647e1bd65640"}

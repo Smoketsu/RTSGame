@@ -1032,5 +1032,112 @@ namespace Rts.Sim.Tests.Ai
             Assert.That(memory.RaidCarriedHits, Is.Empty);
             Assert.That(memory.RaidAnswered, Is.EqualTo(EntityId.None));
         }
+
+        // ------------------------------------------------------------------ Rule DH (ai_midgame_window.md section 3.3, tests 7 to 9)
+
+        /// <summary>The profile of the DH tests: the RA profile with use_raid_response off and use_defence_hold <paramref name="hold"/>.</summary>
+        /// <param name="hold">Value of use_defence_hold. Unit: boolean.</param>
+        private static AiProfile DhHand(bool hold)
+        {
+            return RaHand("\"use_raid_response\": true", "\"use_raid_response\": false, \"use_defence_hold\": " + (hold ? "true" : "false"));
+        }
+
+        /// <summary>DH test 7: four Windrunners at (20.5, 9.5) in the base, no active raid (rule RA off); two Talon Archers, one 6.5 tiles from home and one 1.5, together predicted short. Without the switch both are sent at the threat; with it the far one moves home, the near one gets no order, both are in the defend group.</summary>
+        [Test]
+        public void DH7_ShortDefenceHolds()
+        {
+            // Memory for the run with the switch on, holding the hit of the raiders. Unit: none (object).
+            AiMemory on = NewMemory();
+            // The match: P0 Skai with its base, P1 raiders in it. Unit: none (object).
+            Simulation sim = Raiders(on, "20.5", "9.5", out List<EntityId> raiders);
+            raiders.Add(Spawn(sim, "skai.windrunner", P1, "20.5", "9.5"));
+            raiders.Add(Spawn(sim, "skai.windrunner", P1, "20.5", "9.5"));
+            // The far candidate (6.5 tiles from home). Unit: entity ID.
+            EntityId far = Spawn(sim, "skai.talon_archer", P0, "14.5", "8.5");
+            // The near candidate (1.5 tiles from home). Unit: entity ID.
+            EntityId near = Spawn(sim, "skai.talon_archer", P0, "9.5", "8.5");
+            // Memory for the run with the switch off, holding the same hit. Unit: none (object).
+            AiMemory off = NewMemory();
+            // One damage report of the first memory. Unit: none (key: entity ID, value: tick and position).
+            foreach (KeyValuePair<EntityId, DamageReport> report in on.RecentDamage)
+            {
+                off.RecentDamage[report.Key] = new DamageReport { Tick = report.Value.Tick, Position = report.Value.Position };
+            }
+            // The profile with the switch on. Unit: none (object).
+            AiProfile holdProfile = DhHand(true);
+            Assert.That(Advantage(sim, holdProfile, new List<EntityId> { far, near }, false, raiders), Is.LessThan(holdProfile.DefendMinAdvantage));
+            // Intents without the switch: both units attack the threat. Unit: none (list).
+            List<AiIntent> old = Decide(sim, DhHand(false), off);
+            Assert.That(old.FindAll(i => (i.Unit == far || i.Unit == near) && (i.Kind == AiIntentKind.AttackMove || i.Kind == AiIntentKind.AttackUnit)).Count, Is.EqualTo(2), Key(old));
+            // Intents with the switch. Unit: none (list).
+            List<AiIntent> held = Decide(sim, holdProfile, on);
+            // The intents of the far unit; exactly one. Unit: none (list).
+            List<AiIntent> farIntents = held.FindAll(i => i.Unit == far);
+            Assert.That(farIntents.Count, Is.EqualTo(1), Key(held));
+            Assert.That(farIntents[0].Kind, Is.EqualTo(AiIntentKind.Move));
+            Assert.That((farIntents[0].Point - new FixVec2(Fix64.FromInt(8), Fix64.FromInt(8))).LengthSquared() <= Fix64.FromInt(4), Is.True, "next to Home");
+            Assert.That(held.FindAll(i => i.Unit == near), Is.Empty, Key(held));
+            Assert.That(on.DefendGroup, Does.Contain(far));
+            Assert.That(on.DefendGroup, Does.Contain(near));
+        }
+
+        /// <summary>DH test 8: as test 7 with one complete Perch Tower (own static defence) beside the threat and Talon Archers added until the tower and the Talons reach defend_min_advantage while the tower alone and the Talons alone are short; then the switch holds nothing and the Talons attack the threat.</summary>
+        [Test]
+        public void DH8_HoldEndsWithStaticDefence()
+        {
+            // The AI memory, holding the hit of the raiders. Unit: none (object).
+            AiMemory memory = NewMemory();
+            // The match: P0 Skai with its base, P1 raiders in it. Unit: none (object).
+            Simulation sim = Raiders(memory, "20.5", "9.5", out List<EntityId> raiders);
+            // One complete Perch Tower (own static defence) beside the threat centre. Unit: entity ID.
+            EntityId tower = Spawn(sim, "skai.perch_tower", P0, "19.5", "7.5");
+            // The profile with rule DH on. Unit: none (object).
+            AiProfile profile = DhHand(true);
+            // Raiders are added until the tower alone is predicted short. Range: up to 12 raiders.
+            while (Advantage(sim, profile, new List<EntityId> { tower }, false, raiders) >= profile.DefendMinAdvantage && raiders.Count < 12)
+            {
+                raiders.Add(Spawn(sim, "skai.windrunner", P1, "20.5", "9.5"));
+            }
+            Assert.That(Advantage(sim, profile, new List<EntityId> { tower }, false, raiders), Is.LessThan(profile.DefendMinAdvantage), "the tower alone is short");
+            // The Talon Archers spawned. Unit: entity IDs. Range: 0 to 8.
+            List<EntityId> talons = new List<EntityId>();
+            // The tower and the Talons together. Unit: entity IDs.
+            List<EntityId> side = new List<EntityId> { tower };
+            while (Advantage(sim, profile, side, false, raiders) < profile.DefendMinAdvantage && talons.Count < 8)
+            {
+                // The Talon Archer spawned this round. Unit: entity ID.
+                EntityId talon = Spawn(sim, "skai.talon_archer", P0, "14.5", (4 + talons.Count).ToString() + ".5");
+                talons.Add(talon);
+                side.Add(talon);
+            }
+            Assert.That(Advantage(sim, profile, side, false, raiders), Is.GreaterThanOrEqualTo(profile.DefendMinAdvantage), "talons: " + talons.Count);
+            Assert.That(Advantage(sim, profile, talons, false, raiders), Is.LessThan(profile.DefendMinAdvantage), "the Talons alone are short, so the tower ends the hold");
+            // The intents of the think. Unit: none (list).
+            List<AiIntent> intents = Decide(sim, profile, memory);
+            Assert.That(intents.FindAll(i => talons.Contains(i.Unit) && (i.Kind == AiIntentKind.AttackMove || i.Kind == AiIntentKind.AttackUnit)), Is.Not.Empty, Key(intents));
+            Assert.That(intents.FindAll(i => talons.Contains(i.Unit) && i.Kind == AiIntentKind.Move), Is.Empty, Key(intents));
+        }
+
+        /// <summary>DH test 9: no visible threat and a recent hit inside the base: the intents with and without the switch are identical.</summary>
+        [Test]
+        public void DH9_BlindBranchUnchanged()
+        {
+            // The intents of each run, with and without the switch. Unit: text.
+            string[] runs = new string[2];
+            // Run number: 0 without the switch, 1 with it. Range: 0 to 1.
+            for (int run = 0; run < 2; run++)
+            {
+                // The AI memory of this run. Unit: none (object).
+                AiMemory memory = NewMemory();
+                // The match: P0 Skai with its base, no enemy. Unit: none (object).
+                Simulation sim = RaidScene(500);
+                // The unit reported as hit. Unit: entity ID.
+                EntityId talon = Spawn(sim, "skai.talon_archer", P0, "14.5", "8.5");
+                memory.RecentDamage[talon] = new DamageReport { Tick = sim.Clock.Tick, Position = new FixVec2(Fix64.Parse("10.5"), Fix64.Parse("8.5")) };
+                runs[run] = Key(Decide(sim, DhHand(run == 1), memory));
+            }
+            Assert.That(runs[0], Does.Contain("AttackMove"), runs[0]);
+            Assert.That(runs[1], Is.EqualTo(runs[0]));
+        }
     }
 }
