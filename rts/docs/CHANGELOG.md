@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Midgame AI rules MG-1 (`specs/ai_midgame_window.md`): optional profile keys `fight_kite_factor` (rule FK, fight decisions use the kite term) and `use_defence_hold` (rule DH, a losing defence holds at home), off when absent; candidate profile `aggressive_s5_mid`; tests `AiMidgameTests` and `DH7`-`DH9`. Measured on seed 20261209 (`reports/ai_midgame/`): no measurable effect on Water wins (0 of 72 either way), not worse on any bar; merged switched off.
 - Harness: `--response --seeds N [--seed B] [--jobs J] [--out <file>]` plays each response scenario on N derived match seeds in worker processes and writes JSON Lines (RG-1).
 - Harness: `--response-guard --from-a <baseline.jsonl> --from-b <candidate.jsonl>` joins two seeded runs and prints the RG-a/RG-b sign-test verdict; exit 0 holds, 2 fails, 1 on mismatched records (RG-2).
 - Data: `response_guard_base_seed` (integer seed), `response_guard_seeds` (count, 1 or more), `response_guard_scenario_alpha` and `response_guard_suite_alpha` (probabilities, 0 to 1) added to `rts/data/scripts/ai_eval/ai_eval.json`.
