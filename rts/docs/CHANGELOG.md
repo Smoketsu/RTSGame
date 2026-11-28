@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Added `rts/docs/proposals/water_dry_ground_anti_air.md`: a proposal on a dry-ground answer to the Roc Rider. It checks the premise against the unit data, trials Reef Runner air targeting off the flood and a new air-only Archerfish (both made Water's AI games worse on a spent seed, 36 games each), fixes a measurement plan (seed 20261213, guard RG), and recommends neither for now. Indexed in `rts/docs/proposals/README.md`.
 - Midgame AI rules MG-1 (`specs/ai_midgame_window.md`): optional profile keys `fight_kite_factor` (rule FK, fight decisions use the kite term) and `use_defence_hold` (rule DH, a losing defence holds at home), off when absent; candidate profile `aggressive_s5_mid`; tests `AiMidgameTests` and `DH7`-`DH9`. Measured on seed 20261209 (`reports/ai_midgame/`): no measurable effect on Water wins (0 of 72 either way), not worse on any bar; merged switched off.
 - Harness: `--response --seeds N [--seed B] [--jobs J] [--out <file>]` plays each response scenario on N derived match seeds in worker processes and writes JSON Lines (RG-1).
 - Harness: `--response-guard --from-a <baseline.jsonl> --from-b <candidate.jsonl>` joins two seeded runs and prints the RG-a/RG-b sign-test verdict; exit 0 holds, 2 fails, 1 on mismatched records (RG-2).
