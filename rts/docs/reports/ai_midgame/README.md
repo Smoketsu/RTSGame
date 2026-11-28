@@ -6,7 +6,7 @@ Build: branch `review/ai-midgame-build` (MG-1 code, merged with `main` after `ro
 
 **Coordinator decisions (27 Nov 2026, fixed before any run, developer delegated):** the verdict design is head-to-head (candidate against `aggressive_s5`, 72 cross pairs, `--paired-faction water`, 144 games, the design of K-B); the spec's both-sides design (self-play, 72 pairs) is run in full and reported as SECONDARY, not part of the verdict; the response guard is the seeded guard RG (`--response --seeds 8`, base seed 20261128, then `--response-guard`), with the single-game `--response` lines recorded as information only. No second round.
 
-## Verdict: NO_MEASURABLE_EFFECT (MG-8 pending the last suite line in `suite_chunks.md`)
+## Verdict: NO_MEASURABLE_EFFECT (MG-8 holds: full suite green, Sim 1326, Net 33, Replay 30, no pin re-pinned)
 
 - Primary design: MB-1 not significant and not WORSE (Water won 0 of 72 games with either profile), MB-2, MB-4 and MB-5 not WORSE, guards RG, MG-1 to MG-4, MG-6, MG-7 hold. By the coordinator's text the mechanism bar is only reported in the primary design, so the verdict is NO_MEASURABLE_EFFECT.
 - **Caveat the developer should see:** the spec's literal rule says FAIL when MB-3 is "not BETTER", and in the head-to-head design own army at 450 s is not BETTER (37 / 33, p 0.72). In the secondary self-play design, where the spec defines MB-3, it is BETTER (55 / 17), and that design alone by the spec's rule is NO_MEASURABLE_EFFECT too.
@@ -51,7 +51,7 @@ Reported medians over the 72 Water slot-games, baseline / candidate: army at 180
 | RG seeded response guard (replaces spec MG-5; `respseeds_*.jsonl`, 8 seeds, 10 scenarios) | `RESPONSE_GUARD HOLDS` | suite B 6, C 1, p_pt 625 (above the suite alpha); per scenario worst: `response_turtle_water` baseline 8, candidate 5 of 8 (B 3, p_pt 1250); `response_worker_raid_water` 2 to 0 (B 2, p_pt 2500); `response_mass_windrunner_water` 8 to 7 | yes |
 | MG-6 clean commands | traces | `rejected=-` on every line of all four traces; spot check 0 mismatches in all six behaviour runs | yes |
 | MG-7 variety | h2h, traces, self-play | (a) pairing kind full; (b) `harass_squads` Water 33 / 9 BETTER, Skai 24 / 25 not WORSE; (c) no Water unit type with baseline median at least 2 has candidate median 0 in any opening (table below); (d) attacks per trace at the last line: s5 game 0 P0 5 P1 5, game 1 P0 3 P1 4; mid game 0 P0 5 P1 4, game 1 P0 5 P1 5 | yes |
-| MG-8 suite and pins | `suite_chunks.md` | see that file | see that file |
+| MG-8 suite and pins | `suite_chunks.md` | Sim 1326, Net 33, Replay 30 passed, 0 failed; no pin changed, no assertion loosened | yes |
 
 MG-7(c), median trained Water army units per opening, baseline / candidate (`ink_lobber` and `leviathan` are 0 / 0 in all openings): fast_expand (18 pairs) Pummeler 29 / 28, Reef Runner 22.5 / 18, Shellback 11 / 11.5, Spoutling 10.5 / 9; grasper_pressure (13) 32 / 31, 25 / 26, 8 / 8, 12 / 10; leviathan_tech (19) 20 / 20, 28 / 28, 12 / 12, 11 / 10; standard (22) 26.5 / 29, 21 / 21, 9 / 11, 10 / 9.
 
